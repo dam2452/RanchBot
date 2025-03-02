@@ -5,6 +5,8 @@ class TranscriptionGenerator:
         self.__input_videos = input_videos
         self.__output_jsons = output_jsons
 
+        # normalizer -> audio processor -> json processor
+
     def transcribe(self) -> None:
         self.__get_best_audio_path()
         self.__normalize()
