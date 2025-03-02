@@ -18,7 +18,7 @@ class VideoTranscoder:
 
     def __init__(self, args: json):
         self.__input_videos: Path = Path(args["input_videos"])
-        self.__output_videos: Path = Path(args["output_videos"])
+        self.__output_videos: Path = Path(args["transcoded_videos_dir"])
         self.__resolution: Resolution = Resolution.from_str(args["resolution"])
 
         self.__codec: str = str(args["codec"])
@@ -29,6 +29,8 @@ class VideoTranscoder:
         if not self.__input_videos.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{self.__input_videos}'")
 
+        self.__output_videos.mkdir(parents=True, exist_ok=True)
+
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
             loglevel=logging.DEBUG,
@@ -36,7 +38,7 @@ class VideoTranscoder:
         )
 
 
-    def transcode(self) -> int:
+    def work(self) -> int:
         for video_file in self.__input_videos.rglob("*.mp4"):
             output_path = self.__output_videos / video_file.relative_to(self.__input_videos)
             output_path.parent.mkdir(parents=True, exist_ok=True)
