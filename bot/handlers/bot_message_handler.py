@@ -34,7 +34,7 @@ from bot.responses.bot_message_handler_responses import (
     get_video_sent_log_message,
 )
 from bot.settings import settings
-from bot.utils.functions import RESOLUTIONS
+from bot.utils.resolution import Resolution
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
@@ -126,7 +126,7 @@ class BotMessageHandler(ABC):
             )
             await self._answer(message, await self.get_response(RK.CLIP_SIZE_EXCEEDED, as_parent=True))
         else:
-            resolution = RESOLUTIONS.get(settings.DEFAULT_RESOLUTION_KEY)
+            resolution = Resolution.from_str(settings.DEFAULT_RESOLUTION_KEY)
 
             await message.answer_video(
                 FSInputFile(file_path),
