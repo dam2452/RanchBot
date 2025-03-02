@@ -1,6 +1,7 @@
 import logging
 from typing import List
 
+
 class ErrorHandlingLogger:
     class LoggerNotFinalizedException(Exception):
         def __init__(self):

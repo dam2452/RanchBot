@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 class TranscriptionGenerator:
     def __init__(self, input_videos: Path, output_jsons: Path):
         self.__input_videos = input_videos

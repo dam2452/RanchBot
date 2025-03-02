@@ -34,11 +34,11 @@ from bot.responses.bot_message_handler_responses import (
     get_video_sent_log_message,
 )
 from bot.settings import settings
-from bot.utils.resolution import Resolution
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
 )
+from bot.utils.resolution import Resolution
 
 ValidatorFunctions = List[Callable[[Message], Awaitable[bool]]]
 class BotMessageHandler(ABC):

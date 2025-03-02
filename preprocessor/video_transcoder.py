@@ -1,7 +1,7 @@
-from pathlib import Path
-import subprocess
 import json
 import logging
+from pathlib import Path
+import subprocess
 
 from bot.utils.resolution import Resolution
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -25,7 +25,7 @@ class VideoTranscoder:
         self.__preset: str = str(args["preset"])
         self.__crf: int = int(args["crf"])
         self.__gop_size: float = float(args["gop_size"])
-        
+
         if not self.__input_videos.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{self.__input_videos}'")
 

@@ -1,12 +1,10 @@
 import argparse
+import json
 from typing import (
     Dict,
     List,
     Tuple,
 )
-
-import json
-
 
 Argument = Tuple[str, Dict[str, str]]
 ParserModes = Dict[str, List[Argument]]

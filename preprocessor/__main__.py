@@ -3,68 +3,87 @@ from pathlib import Path
 
 from transciption_generator import TranscriptionGenerator
 from video_transcoder import VideoTranscoder
-from preprocessor.utils.args import(
-    parse_multi_mode_args,
-    ParserModes,
-)
+
 from bot.utils.resolution import Resolution
+from preprocessor.utils.args import (
+    ParserModes,
+    parse_multi_mode_args,
+)
 
 
 def generate_parser_modes() -> ParserModes:
     parser_modes = {
         "transcribe": [
-            ("videos", {
-                 "type": Path,
-                 "help": "Path to input videos for preprocessing"}
+            (
+                "videos", {
+                     "type": Path,
+                     "help": "Path to input videos for preprocessing",
+                },
             ),
 
-            ("--transcription_jsons_dir", {
-                "type": Path,
-                "default": "", # todo
-                "help": "Path for output transcriptions JSONs"
-            }),
+            (
+                "--transcription_jsons_dir", {
+                    "type": Path,
+                    "default": "", # todo
+                    "help": "Path for output transcriptions JSONs",
+                },
+            ),
 
             # todo
 
         ],
 
         "transcode": [
-            ("videos", {
-                 "type": Path,
-                 "help": "Path to input videos for preprocessing"
-            }),
+            (
+                "videos", {
+                     "type": Path,
+                     "help": "Path to input videos for preprocessing",
+                },
+            ),
 
-            ("--transcoded_videos_dir", {
-                "type": Path,
-                "default": VideoTranscoder.DEFAULT_OUTPUT_DIR,
-                "help": "Path for output videos after transcoding"}
-             ),
-            ("--resolution", {
-                "type": lambda x: Resolution[x.upper()],
-                "choices": list(Resolution),
-                "default": Resolution.R1080P,
-                "help": "Target resolution for all videos."
-             }),
-            ("--codec", {
-                "type": str,
-                "default": VideoTranscoder.DEFAULT_CODEC,
-                "help": "Video codec."
-             }),
-            ("--preset", {
-                "type": str,
-                "default": VideoTranscoder.DEFAULT_PRESET,
-                "help": "FFmpeg preset."
-             }),
-            ("--crf", {
-                "type": int,
-                "default": VideoTranscoder.DEFAULT_CRF,
-                "help": "Quality (lower = better)."
-            }),
-            ("--gop-size", {
-                "type": float,
-                "default": VideoTranscoder.DEFAULT_GOP_SIZE,
-                "help": "Keyframe interval in seconds."
-            }),
+            (
+                "--transcoded_videos_dir", {
+                   "type": Path,
+                   "default": VideoTranscoder.DEFAULT_OUTPUT_DIR,
+                   "help": "Path for output videos after transcoding",
+                },
+            ),
+            (
+                "--resolution", {
+                   "type": lambda x: Resolution[x.upper()],
+                   "choices": list(Resolution),
+                   "default": Resolution.R1080P,
+                   "help": "Target resolution for all videos.",
+                },
+            ),
+            (
+                "--codec", {
+                   "type": str,
+                   "default": VideoTranscoder.DEFAULT_CODEC,
+                   "help": "Video codec.",
+                },
+            ),
+            (
+                "--preset", {
+                   "type": str,
+                   "default": VideoTranscoder.DEFAULT_PRESET,
+                   "help": "FFmpeg preset.",
+                },
+            ),
+            (
+                "--crf", {
+                    "type": int,
+                    "default": VideoTranscoder.DEFAULT_CRF,
+                    "help": "Quality (lower = better).",
+                },
+            ),
+            (
+                "--gop-size", {
+                    "type": float,
+                    "default": VideoTranscoder.DEFAULT_GOP_SIZE,
+                    "help": "Keyframe interval in seconds.",
+                },
+            ),
         ],
     }
 
@@ -87,14 +106,14 @@ if __name__ == "__main__":
 
     args = parse_multi_mode_args(
         description="Generate JSON audio transcriptions or transcode videos to an acceptable resolution.",
-        modes = generate_parser_modes()
+        modes = generate_parser_modes(),
     )
 
 
     mode_workers = {
         "all": [
             VideoTranscoder,
-            TranscriptionGenerator
+            TranscriptionGenerator,
         ],
 
         "transcode": [
@@ -103,7 +122,7 @@ if __name__ == "__main__":
 
         "transcribe": [
             TranscriptionGenerator,
-        ]
+        ],
     }
 
     print(args)
