@@ -151,8 +151,6 @@ if __name__ == "__main__":
         modes = generate_parser_modes(),
     )
 
-    sys.exit(0)
-
     return_codes = []
     for worker in MODE_WORKERS[args["mode"]]:
         return_codes.append(

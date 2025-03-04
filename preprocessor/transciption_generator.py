@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 from typing import (
+    Dict,
     List,
     Optional,
     Tuple,
@@ -23,6 +24,15 @@ class TranscriptionGenerator:
     SUPPORTED_AUDIO_EXTENSIONS: Tuple[str, str]      = [".wav", ".mp3"]
     SUPPORTED_VIDEO_EXTENSIONS: Tuple[str, str, str] = [".mp4", ".mkv", ".avi"]
 
+    DEFAULT_KEYS_TO_REMOVE: List[str] = ["tokens", "no_speech_prob", "compression_ratio", "avg_logprob", "temperature"]
+    UNICODE_TO_POLISH_MAP: Dict[str, str] = {
+        '\\u0105': 'ą', '\\u0107': 'ć', '\\u0119': 'ę', '\\u0142': 'ł',
+        '\\u0144': 'ń', '\\u00F3': 'ó', '\\u015B': 'ś', '\\u017A': 'ź',
+        '\\u017C': 'ż', '\\u0104': 'Ą', '\\u0106': 'Ć', '\\u0118': 'Ę',
+        '\\u0141': 'Ł', '\\u0143': 'Ń', '\\u00D3': 'Ó', '\\u015A': 'Ś',
+        '\\u0179': 'Ź', '\\u017B': 'Ż',
+    }
+
 
     def __init__(self, args: json):
         self.__input_videos: Path = Path(args["input_videos"])
@@ -32,7 +42,7 @@ class TranscriptionGenerator:
         self.__language: str = args["language"]
         self.__device: str = args["device"]
 
-        self.__extra_json_keys_to_remove: List[str] = args["extra_json_keys_to_remove"]
+        self.__json_keys_to_remove: List[str] = self.DEFAULT_KEYS_TO_REMOVE + args["extra_json_keys_to_remove"]
 
         self.__temp_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
 
@@ -47,8 +57,6 @@ class TranscriptionGenerator:
             error_exit_code=2,
         )
 
-        # normalizer -> audio processor -> json processor
-
     def work(self) -> int:
         try:
             normalized_paths = []
@@ -56,10 +64,15 @@ class TranscriptionGenerator:
                 if video.suffix.lower() in self.SUPPORTED_VIDEO_EXTENSIONS:
                     normalized_paths.append(self.__process_video(video))
 
-            processed_audio_files = []
+            was_anything_successful = False
             for audio in normalized_paths:
                 if audio.suffix.lower() in self.SUPPORTED_AUDIO_EXTENSIONS:
-                    processed_audio_files.append(self.__process_normalized_audio(audio))
+                    was_anything_successful |= self.__process_normalized_audio(audio)
+
+            if was_anything_successful:
+                for item in Path(self.__temp_dir.name).rglob("*"):
+                    if item.is_file() and item.suffix() == ".json":
+                        self.__format_json(item, self.__output_jsons / item.name)
 
         except Exception as e: # pylint: disable=broad-exception-caught
             self.logger.error(f"Error generating transcriptions: {e}")
@@ -67,19 +80,24 @@ class TranscriptionGenerator:
         return self.logger.finalize()
 
     def __process_video(self, video: Path) -> Optional[Path]:
-        audio_idx = self.__get_best_audio_stream(video)
+        try:
+            audio_idx = self.__get_best_audio_stream(video)
 
-        if audio_idx is None:
-            self.logger.error(f"Cannot find audio stream for file: '{video}'")
-            return None
+            if audio_idx is None:
+                self.logger.error(f"Cannot find audio stream for file: '{video}'")
+                return None
 
-        normalized_path = Path(self.__temp_dir.name) / video.relative_to(self.__input_videos).with_suffix(".wav")
-        self.__normalize(
-            video=video,
-            audio_idx=audio_idx,
-            output=normalized_path,
-        )
-        return normalized_path
+            normalized_path = Path(self.__temp_dir.name) / video.relative_to(self.__input_videos).with_suffix(".wav")
+            self.__normalize(
+                video=video,
+                audio_idx=audio_idx,
+                output=normalized_path,
+            )
+            return normalized_path
+        except Exception as e: # pylint: disable=broad-exception-caught
+            self.logger.error(f"Error processing video: {e}")
+
+        return None
 
     def __get_best_audio_stream(self, video: Path) -> Optional[int]:
         probe = ffmpeg.probe(video, select_streams="a", show_streams=True)
@@ -107,27 +125,55 @@ class TranscriptionGenerator:
         Path(tmp_output).replace(output)
         self.logger.info(f"Replaced original file with normalized audio: {output}")
 
-    def __process_normalized_audio(self, normalized_audio: Path) -> Optional[Path]:
+    def __process_normalized_audio(self, normalized_audio: Path) -> bool:
         try:
-            output_path = self.__temp_dir.name / normalized_audio.relative_to(self.__temp_dir.name).with_suffix("_processed.wav")
-
             subprocess.run(
                 [
                     "whisper", str(normalized_audio), "--model", self.__model,
                     "--language", self.__language, "--device", self.__device,
-                    "--output_dir", str(output_path.parent),
+                    "--output_dir", str(self.__temp_dir.name),
                 ],
                 check=True,
             )
-            self.logger.info(f"Processed: {normalized_audio} -> {output_path}")
-            return output_path
+            self.logger.info(f"Processed: {normalized_audio}")
+            return True
         except Exception as e: # pylint: disable=broad-exception-caught
             self.logger.error(f"Error processing file {normalized_audio}: {e}")
 
-        return None
+        return False
 
-    def __dump_json(self) -> None:
-        pass
+    def __format_json(self, file_path: Path, output_path: Path) -> None:
+        try:
+            with file_path.open('r', encoding='utf-8') as file:
+                data = json.load(file)
 
-    def __format_json(self) -> None:
-        pass
+            if "segments" in data:
+                data["segments"] = [self.__process_json_segment(segment) for segment in data["segments"]]
+
+                with output_path.open('w', encoding='utf-8') as file:
+                    json.dump({"segments": data["segments"]}, file, ensure_ascii=False, indent=4)
+
+                self.logger.info(f"Processed file: {file_path}")
+
+        except Exception as e: # pylint: disable=broad-exception-caught
+            self.logger.error(f"Error formatting JSON file {file_path}: {e}")
+
+    def __process_json_segment(self, segment: json) -> json:
+        for key in self.__json_keys_to_remove:
+            segment.pop(key, None)
+
+        segment["text"] = self.__replace_unicode_chars(segment.get("text", ""))
+        segment.update({
+            "author": "",
+            "comment": "",
+            "tags": ["", ""],
+            "location": "",
+            "actors": ["", ""],
+        })
+        return segment
+
+    @staticmethod
+    def __replace_unicode_chars(text: str) -> str:
+        for unicode_char, char in TranscriptionGenerator.UNICODE_TO_POLISH_MAP.items():
+            text = text.replace(unicode_char, char)
+        return text
