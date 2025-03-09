@@ -36,7 +36,12 @@ def generate_parser_modes() -> ParserModes:
                      "help": "Path to input videos for preprocessing",
                 },
             ),
-
+            (
+                "--episodes-info-json", {
+                    "type": Path,
+                    "help": "JSON with info for all episodes",
+                },
+            ),
             (
                 "--transcription_jsons_dir", {
                     "type": Path,
