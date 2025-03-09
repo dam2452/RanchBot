@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Callable, Awaitable
 
 from elasticsearch import exceptions as es_exceptions
 from elasticsearch.helpers import (
@@ -48,28 +48,30 @@ class ElasticSearchIndexer:
             await self.__client.close()
 
     async def __create_index(self) -> None:
-        try:
+        async def operation():
             if await self.__client.indices.exists(index=self.__name):
                 self.__logger.info(f"Index '{self.__name}' already exists.")
             else:
                 await self.__client.indices.create(index=self.__name, body=ElasticSearchManager.INDEX_MAPPING)
                 self.__logger.info(f"Index '{self.__name}' created.")
-        except es_exceptions.RequestError as e:
-            self.__logger.error(f"Error creating index '{self.__name}': {e}")
-            raise
-        except es_exceptions.ConnectionError as e:
-            self.__logger.error(f"Connection error: {e}")
-            raise
+
+        await self.__do_crud(operation)
 
     async def __delete_index(self) -> None:
-        try:
+        async def operation():
             if await self.__client.indices.exists(index=self.__name):
                 await self.__client.indices.delete(index=self.__name)
                 self.__logger.info(f"Deleted index: {self.__name}")
             else:
                 self.__logger.info(f"Index '{self.__name}' does not exist. No action taken.")
+
+        await self.__do_crud(operation)
+
+    async def __do_crud(self, operation: Callable[[], Awaitable[None]]) -> None:
+        try:
+            await operation()
         except es_exceptions.RequestError as e:
-            self.__logger.error(f"Error deleting index '{self.__name}': {e}")
+            self.__logger.error(f"Failed operation on index '{self.__name}': {e}")
             raise
         except es_exceptions.ConnectionError as e:
             self.__logger.error(f"Connection error: {e}")
@@ -78,15 +80,17 @@ class ElasticSearchIndexer:
     async def __index_transcriptions(self) -> None:
         actions = await self.__load_all_seasons_actions()
 
-        if actions:
-            self.__logger.info(f"Prepared {len(actions)} segments for indexing into '{self.__name}'.")
+        if not actions:
+            self.__logger.info("No data to index.")
+            return
 
-            if self.__dry_run:
-                for action in actions:
-                    self.__logger.info(f"Prepared action: {json.dumps(action, indent=2)}")
-                self.__logger.info("Dry-run complete. No data sent to Elasticsearch.")
-                return
+        self.__logger.info(f"Prepared {len(actions)} segments for indexing into '{self.__name}'.")
 
+        if self.__dry_run:
+            for action in actions:
+                self.__logger.info(f"Prepared action: {json.dumps(action, indent=2)}")
+            self.__logger.info("Dry-run complete. No data sent to Elasticsearch.")
+        else:
             try:
                 await async_bulk(self.__client, actions)
                 self.__logger.info("Data indexed successfully.")
@@ -94,17 +98,16 @@ class ElasticSearchIndexer:
                 self.__logger.error(f"Bulk indexing failed: {len(e.errors)} errors.")
                 for error in e.errors:
                     self.__logger.error(f"Failed document: {json.dumps(error, indent=2)}")
-        else:
-            self.__logger.info("No data to index.")
+
 
     async def __load_all_seasons_actions(self) -> List[json]:
         actions = []
-        for season_path in self.__transcription_jsons.iterdir():
-            if not season_path.is_dir():
-                continue
 
-            season_actions = await self.__load_season(season_path)
-            actions += season_actions
+        for season_path in self.__transcription_jsons.iterdir():
+            if season_path.is_dir():
+                season_actions = await self.__load_season(season_path)
+                actions += season_actions
+
         return actions
 
     async def __load_season(self, season_path: Path) -> List[json]:
@@ -119,39 +122,37 @@ class ElasticSearchIndexer:
         return season_actions
 
     async def __load_episode(self, episode_file: Path, season_dir: str) -> List[json]:
-        actions = []
         with episode_file.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-            episode_info = data.get("episode_info", {})
+            data = json.load(f).get("episode_info", {})
 
-            video_file_name = episode_file.stem + ".mp4"
-            video_path = self.__transcoded_videos / season_dir / video_file_name
-            video_path_str = video_path.as_posix()
+        episode_info = data.get("episode_info", {})
+        video_path = self.__transcoded_videos / season_dir / (episode_file.stem + ".mp4")
 
-            for segment in data.get("segments", []):
-                if not all(key in segment for key in ("text", "start", "end")):
-                    self.__logger.error(f"Skipping invalid segment in {episode_file}")
-                    continue
+        actions = []
+        for segment in data.get("segments", []):
+            if not all(key in segment for key in ("text", "start", "end")):
+                self.__logger.error(f"Skipping invalid segment in {episode_file}")
+                continue
 
-                actions.append(
-                    {
-                        "_index": self.__name,
-                        "_source": {
-                            "episode_info": episode_info,
-                            "text": segment.get("text"),
-                            "start": segment.get("start"),
-                            "end": segment.get("end"),
-                            "id": segment.get("id"),
-                            "seek": segment.get("seek"),
-                            "author": segment.get("author", ""),
-                            "comment": segment.get("comment", ""),
-                            "tags": segment.get("tags", []),
-                            "location": segment.get("location", ""),
-                            "actors": segment.get("actors", []),
-                            "video_path": video_path_str,
-                        },
+            actions.append(
+                {
+                    "_index": self.__name,
+                    "_source": {
+                        "episode_info": episode_info,
+                        "text": segment.get("text"),
+                        "start": segment.get("start"),
+                        "end": segment.get("end"),
+                        "id": segment.get("id"),
+                        "seek": segment.get("seek"),
+                        "author": segment.get("author", ""),
+                        "comment": segment.get("comment", ""),
+                        "tags": segment.get("tags", []),
+                        "location": segment.get("location", ""),
+                        "actors": segment.get("actors", []),
+                        "video_path": video_path.as_posix(),
                     },
-                )
+                },
+            )
 
         return actions
 
