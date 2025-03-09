@@ -2,7 +2,11 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import List, Callable, Awaitable
+from typing import (
+    Awaitable,
+    Callable,
+    List,
+)
 
 from elasticsearch import exceptions as es_exceptions
 from elasticsearch.helpers import (
