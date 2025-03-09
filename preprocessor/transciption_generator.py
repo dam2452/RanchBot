@@ -70,6 +70,6 @@ class TranscriptionGenerator:
         self.__episode_info_processor: EpisodeInfoProcessor = EpisodeInfoProcessor(
             jsons_dir=json_output,
             episodes_info_json=Path(args["episodes_info_json"]),
-            output_path=Path(args["transcription_jsons_dir"]),
+            output_path=Path(args["transcription_jsons"]),
             logger=self.__logger,
         )

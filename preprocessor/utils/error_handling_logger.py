@@ -33,6 +33,14 @@ class ErrorHandlingLogger:
         )
         self.__logger: logging.Logger = logging.getLogger(self.__class_name)
 
+    def log(self, level: int, message: str) -> None:
+        if level == logging.ERROR:
+            self.__logger.error(message)
+        elif level == logging.INFO:
+            self.__logger.info(message)
+        else:
+            raise RuntimeError(f"Logging level {level} is not supported.")
+
     def info(self, message: str) -> None:
         self.__logger.info(message)
 

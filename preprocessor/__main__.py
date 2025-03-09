@@ -2,19 +2,21 @@ import logging
 from pathlib import Path
 import sys
 
-from transciption_generator import TranscriptionGenerator
-from video_transcoder import VideoTranscoder
-
 from bot.utils.resolution import Resolution
+from preprocessor.elastic_search_indexer import ElasticSearchIndexer
+from preprocessor.transciption_generator import TranscriptionGenerator
 from preprocessor.utils.args import (
     ParserModes,
     parse_multi_mode_args,
 )
+from preprocessor.video_transcoder import VideoTranscoder
 
+# enter handlers in a valid order
 MODE_WORKERS = {
         "all": [
             VideoTranscoder,
             TranscriptionGenerator,
+            ElasticSearchIndexer,
         ],
 
         "transcode": [
@@ -23,6 +25,10 @@ MODE_WORKERS = {
 
         "transcribe": [
             TranscriptionGenerator,
+        ],
+
+        "index": [
+            ElasticSearchIndexer,
         ],
 }
 
@@ -43,7 +49,7 @@ def generate_parser_modes() -> ParserModes:
                 },
             ),
             (
-                "--transcription_jsons_dir", {
+                "--transcription_jsons", {
                     "type": Path,
                     "default": TranscriptionGenerator.DEFAULT_OUTPUT_DIR,
                     "help": "Path for output transcriptions JSONs",
@@ -87,9 +93,8 @@ def generate_parser_modes() -> ParserModes:
                      "help": "Path to input videos for preprocessing",
                 },
             ),
-
             (
-                "--transcoded_videos_dir", {
+                "--transcoded_videos", {
                    "type": Path,
                    "default": VideoTranscoder.DEFAULT_OUTPUT_DIR,
                    "help": "Path for output videos after transcoding",
@@ -132,6 +137,21 @@ def generate_parser_modes() -> ParserModes:
                 },
             ),
         ],
+
+        "index": [
+            (
+                "--dry-run", {
+                    "action": "store_true",
+                    "help": "Validate data without sending to Elasticsearch.",
+                },
+            ),
+            (
+                "--name", {
+                    "type": str,
+                    "help": "Name of the ElasticSearch index",
+                },
+            ),
+        ],
     }
 
     unique_flag_names = set()
@@ -145,6 +165,23 @@ def generate_parser_modes() -> ParserModes:
 
     parser_modes["all"] = unique_flags
 
+    # So the help messages are not overwritten for the "all" mode.
+    # We want to display the transcribe/transcode messages for the whole pipeline.
+    parser_modes["index"] += [
+        (
+            "--transcoded_videos", {
+                "type": Path,
+                "help": "Transcoded videos for the ElasticSearch indexing",
+            },
+        ),
+        (
+            "--transcription_jsons", {
+                "type": Path,
+                "help": "Transcriptions in JSON files for the ElasticSearch indexing",
+            },
+        ),
+    ]
+
     return parser_modes
 
 
@@ -153,16 +190,20 @@ if __name__ == "__main__":
 
     args = parse_multi_mode_args(
         description="Generate JSON audio transcriptions or transcode videos to an acceptable resolution.",
-        modes = generate_parser_modes(),
+        modes=generate_parser_modes(),
+        mode_helps={
+            "transcode": "Transcode videos to a format expected by thebot",
+            "transcribe": "Generate audio transcriptions (episode info included)",
+            "index": "Index videos and transcriptions in ElasticSearch",
+            "all": "Transcode videos, generate audio transcriptions and then pass results to ElasticSearch indexing",
+        },
     )
 
     return_codes = []
+
     for worker in MODE_WORKERS[args["mode"]]:
         return_codes.append(
             worker(args).work(),
         )
-        # split two paths to be async
-
-    # pass transcriptions to elastic
 
     sys.exit(max(return_codes))

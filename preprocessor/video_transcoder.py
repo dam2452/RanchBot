@@ -18,7 +18,7 @@ class VideoTranscoder:
 
     def __init__(self, args: json):
         self.__input_videos: Path = Path(args["input_videos"])
-        self.__output_videos: Path = Path(args["transcoded_videos_dir"])
+        self.__output_videos: Path = Path(args["transcoded_videos"])
         self.__resolution: Resolution = Resolution.from_str(args["resolution"])
 
         self.__codec: str = str(args["codec"])
@@ -34,7 +34,7 @@ class VideoTranscoder:
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
             loglevel=logging.DEBUG,
-            error_exit_code=1,
+            error_exit_code=3,
         )
 
 

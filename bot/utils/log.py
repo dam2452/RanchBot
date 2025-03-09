@@ -1,6 +1,9 @@
 import logging
 import os
-from typing import Dict
+from typing import (
+    Dict,
+    Protocol,
+)
 
 from bot.database.database_manager import DatabaseManager
 
@@ -12,13 +15,23 @@ LOG_LEVELS: Dict[int, str] = {
     logging.CRITICAL: "CRITICAL",
 }
 
+class Logger(Protocol):
+    def log(self, level: int, message: str) -> None:
+        ...
 
-async def log_system_message(level: int, message: str, logger: logging.Logger) -> None:
+    def info(self, message: str) -> None:
+        ...
+
+    def error(self, message: str) -> None:
+        ...
+
+
+async def log_system_message(level: int, message: str, logger: Logger) -> None:
     logger.log(level, message)
     await DatabaseManager.log_system_message(LOG_LEVELS[level], message)
 
 
-async def log_user_activity(user_id: int, message: str, logger: logging.Logger) -> None:
+async def log_user_activity(user_id: int, message: str, logger: Logger) -> None:
     await log_system_message(logging.INFO, message, logger)
     await DatabaseManager.log_user_activity(user_id, message)
 
