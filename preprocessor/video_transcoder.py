@@ -17,9 +17,9 @@ class VideoTranscoder:
 
 
     def __init__(self, args: json):
-        self.__input_videos: Path = Path(args["input_videos"])
+        self.__input_videos: Path = Path(args["videos"])
         self.__output_videos: Path = Path(args["transcoded_videos"])
-        self.__resolution: Resolution = Resolution.from_str(args["resolution"])
+        self.__resolution: Resolution = args["resolution"]
 
         self.__codec: str = str(args["codec"])
         self.__preset: str = str(args["preset"])
@@ -37,15 +37,44 @@ class VideoTranscoder:
             error_exit_code=3,
         )
 
-
     def work(self) -> int:
-        for video_file in self.__input_videos.rglob("*.mp4"):
-            output_path = self.__output_videos / video_file.relative_to(self.__input_videos)
+        video_files = list(self.__input_videos.rglob("*.mp4"))
+
+        for video_file in video_files:
+            series_name = self.__input_videos.resolve().name.lower()
+
+            season_dir = video_file.parent.name
+            if season_dir.lower().startswith("sezon"):
+                try:
+                    season_number = int(season_dir.split()[-1])
+                except ValueError:
+                    season_number = 1
+            else:
+                season_number = 1
+
+            import re
+            match = re.search(r"E(\d{2,3})", video_file.stem, re.IGNORECASE)
+            if not match:
+                self.logger.error(f"Cannot extract episode number from {video_file.name}")
+                continue
+            episode_number = int(match.group(1))
+
+            transcoded_name = f"{series_name}_S{season_number:02d}E{episode_number:02d}.mp4"
+            output_path = self.__output_videos / f"Sezon {season_number}" / transcoded_name
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             try:
                 self.__process_video(video_file, output_path)
-            except Exception as e: # pylint: disable=broad-exception-caught
+
+                new_src_name = self.__input_videos / f"Sezon {season_number}" / transcoded_name
+                new_src_name.parent.mkdir(parents=True, exist_ok=True)
+                if new_src_name.exists():
+                    self.logger.error(f"Cannot rename {video_file} -> {new_src_name}, file already exists!")
+                else:
+                    video_file.rename(new_src_name)
+                    self.logger.info(f"Renamed source file: {video_file} -> {new_src_name}")
+
+            except Exception as e:
                 self.logger.error(f"Error processing video {video_file}: {e}")
 
         return self.logger.finalize()

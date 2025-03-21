@@ -9,7 +9,10 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
 class JsonGenerator:
-    DEFAULT_KEYS_TO_REMOVE: List[str] = ["tokens", "no_speech_prob", "compression_ratio", "avg_logprob", "temperature"]
+    DEFAULT_KEYS_TO_REMOVE: List[str] = [
+        "tokens", "no_speech_prob", "compression_ratio", "avg_logprob", "temperature",
+    ]
+
     UNICODE_TO_POLISH_MAP: Dict[str, str] = {
         '\\u0105': 'ą', '\\u0107': 'ć', '\\u0119': 'ę', '\\u0142': 'ł',
         '\\u0144': 'ń', '\\u00F3': 'ó', '\\u015B': 'ś', '\\u017A': 'ź',
@@ -18,7 +21,13 @@ class JsonGenerator:
         '\\u0179': 'Ź', '\\u017B': 'Ż',
     }
 
-    def __init__(self, jsons_dir: Path, output_dir: Path, logger: ErrorHandlingLogger, extra_keys_to_remove: List[str]):
+    def __init__(
+        self,
+        jsons_dir: Path,
+        output_dir: Path,
+        logger: ErrorHandlingLogger,
+        extra_keys_to_remove: List[str],
+    ):
         self.__jsons_dir: Path = jsons_dir
         self.__output_dir: Path = output_dir
         self.__logger: ErrorHandlingLogger = logger
@@ -28,23 +37,25 @@ class JsonGenerator:
 
     def __call__(self) -> None:
         for item in self.__jsons_dir.rglob("*"):
-            if item.is_file() and item.suffix() == ".json":
-                self.__format_json(item, self.__output_dir / item.name)
+            if item.is_file() and item.suffix == ".json":
+
+                output_path = self.__output_dir / item.name
+                self.__format_json(item, output_path)
 
     def __format_json(self, file_path: Path, output_path: Path) -> None:
         try:
-            with file_path.open('r', encoding='utf-8') as file:
+            with file_path.open("r", encoding="utf-8") as file:
                 data = json.load(file)
 
             if "segments" in data:
                 data["segments"] = [self.__process_json_segment(segment) for segment in data["segments"]]
 
-                with output_path.open('w', encoding='utf-8') as file:
+                with output_path.open("w", encoding="utf-8") as file:
                     json.dump({"segments": data["segments"]}, file, ensure_ascii=False, indent=4)
 
                 self.__logger.info(f"Processed file: {file_path}")
 
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error formatting JSON file {file_path}: {e}")
 
     def __process_json_segment(self, segment: json) -> json:

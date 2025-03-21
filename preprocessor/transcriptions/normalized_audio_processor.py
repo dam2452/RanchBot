@@ -36,12 +36,14 @@ class NormalizedAudioProcessor:
         try:
             subprocess.run(
                 [
-                    "whisper", str(normalized_audio), "--model", self.__model,
-                    "--language", self.__language, "--device", self.__device,
-                    "--output_dir", str(self.__output_dir.name),
+                    "whisper", str(normalized_audio),
+                    "--model", self.__model,
+                    "--language", self.__language,
+                    "--device", self.__device,
+                    "--output_dir", str(self.__output_dir),
                 ],
                 check=True,
             )
             self.__logger.info(f"Processed: {normalized_audio}")
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error processing file {normalized_audio}: {e}")

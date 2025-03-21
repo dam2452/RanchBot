@@ -9,12 +9,12 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 class TranscriptionGenerator:
     DEFAULT_OUTPUT_DIR: Path = "transcriptions"
-    DEFAULT_MODEL: str = "large-v3"
+    DEFAULT_MODEL: str = "large-v3-turbo"
     DEFAULT_LANGUAGE: str = "Polish"
     DEFAULT_DEVICE: str = "cuda"
 
     def __init__(self, args: json):
-        self.__input_videos: Path = Path(args["input_videos"])
+        self.__input_videos: Path = Path(args["videos"])
         if not self.__input_videos.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{self.__input_videos}'")
 
@@ -72,4 +72,6 @@ class TranscriptionGenerator:
             episodes_info_json=Path(args["episodes_info_json"]),
             output_path=Path(args["transcription_jsons"]),
             logger=self.__logger,
+            series_name=args["name"]
         )
+

@@ -102,12 +102,12 @@ def generate_parser_modes() -> ParserModes:
             ),
             (
                 "--resolution", {
-                   "type": lambda x: Resolution[x.upper()],
-                   "choices": list(Resolution),
-                   "default": Resolution.R1080P,
-                   "help": "Target resolution for all videos",
-                },
-            ),
+                "type": lambda x: Resolution.from_str(x),
+                "choices": list(Resolution),
+                "default": Resolution.R1080P,
+                "help": "Target resolution for all videos",
+            }),
+
             (
                 "--codec", {
                    "type": str,

@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 
 class Resolution(Enum):
@@ -14,5 +15,11 @@ class Resolution(Enum):
         return f"{self.height}p"
 
     @staticmethod
-    def from_str(init: str) -> "Resolution":
-        return Resolution(Resolution["R" + init.upper()])
+    def from_str(init: str) -> Any: #todo
+        init = init.strip()
+        if not init[0].isalpha():
+            init = "R" + init.upper()
+        else:
+            init = init.upper()
+        return Resolution[init]
+

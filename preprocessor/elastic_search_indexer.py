@@ -14,18 +14,16 @@ from elasticsearch.helpers import (
     async_bulk,
 )
 
-from bot.database.database_manager import DatabaseManager
 from bot.search.elastic_search_manager import ElasticSearchManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
 class ElasticSearchIndexer:
-    def __init__(self, args: json):
-        self.__dry_run: bool = args["dry_run"]
-        self.__name: str = args["name"]
-
-        self.__transcoded_videos: Path = args["transcoded_videos"]
-        self.__transcription_jsons: Path = args["transcription_jsons"]
+    def __init__(self, args: dict):
+        self.__dry_run = args.get("dry_run", False)
+        self.__name = args["name"]
+        self.__transcoded_videos = args["transcoded_videos"]
+        self.__transcription_jsons = args["transcription_jsons"]
 
         self.__logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
@@ -36,9 +34,14 @@ class ElasticSearchIndexer:
     def __call__(self) -> None:
         asyncio.run(self.__exec())
 
-    async def __exec(self) -> None:
-        await DatabaseManager.init_pool()
+    def work(self) -> int:
+        try:
+            asyncio.run(self.__exec())
+        except Exception as e:
+            self.__logger.error(f"Unexpected error during Elasticsearch indexing: {e}")
+        return self.__logger.finalize()
 
+    async def __exec(self) -> None:
         self.__client = await ElasticSearchManager.connect_to_elasticsearch(self.__logger)
 
         try:
@@ -103,15 +106,17 @@ class ElasticSearchIndexer:
                 for error in e.errors:
                     self.__logger.error(f"Failed document: {json.dumps(error, indent=2)}")
 
-
     async def __load_all_seasons_actions(self) -> List[json]:
         actions = []
 
-        for season_path in self.__transcription_jsons.iterdir():
-            if season_path.is_dir():
-                season_actions = await self.__load_season(season_path)
+        for entry in self.__transcription_jsons.iterdir():
+            if entry.is_dir():
+                season_actions = await self.__load_season(entry)
                 actions += season_actions
-
+            elif entry.is_file() and entry.suffix == ".json":
+                self.__logger.error(
+                    f"JSON file {entry} found directly in {self.__transcription_jsons}, expected in season directory.",
+                )
         return actions
 
     async def __load_season(self, season_path: Path) -> List[json]:
@@ -127,10 +132,21 @@ class ElasticSearchIndexer:
 
     async def __load_episode(self, episode_file: Path, season_dir: str) -> List[json]:
         with episode_file.open("r", encoding="utf-8") as f:
-            data = json.load(f).get("episode_info", {})
+            data = json.load(f)
 
         episode_info = data.get("episode_info", {})
-        video_path = self.__transcoded_videos / season_dir / (episode_file.stem + ".mp4")
+
+        season = episode_info.get("season")
+        episode = episode_info.get("episode_number")
+        if season is None or episode is None:
+            self.__logger.error(f"Episode info missing in {episode_file}")
+            return []
+
+        series_name = self.__name.lower()
+
+        new_name = f"{series_name}_S{season:02d}E{episode:02d}.mp4"
+
+        video_path = Path("bot") / f"{series_name.upper()}-WIDEO" / f"Sezon {season}" / new_name
 
         actions = []
         for segment in data.get("segments", []):

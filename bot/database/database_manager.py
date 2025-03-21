@@ -44,7 +44,7 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
             "user": user or settings.POSTGRES_USER,
             "password": password or settings.POSTGRES_PASSWORD,
             "server_settings": {
-                "search_path": schema,
+                "search_path": "bomba",
             },
 
         }

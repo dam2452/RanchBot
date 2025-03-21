@@ -1,10 +1,10 @@
+import json
 from pathlib import Path
+import subprocess
 from typing import (
     Optional,
     Tuple,
 )
-
-import ffmpeg
 
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -24,27 +24,29 @@ class AudioNormalizer:
             if video.suffix.lower() in self.SUPPORTED_VIDEO_EXTENSIONS:
                 self.__process_video(video)
 
-
     def __process_video(self, video: Path) -> None:
         try:
             audio_idx = self.__get_best_audio_stream(video)
-
             if audio_idx is None:
                 self.__logger.error(f"Cannot find audio stream for file: '{video}'")
                 return
 
-            self.__normalize(
-                video=video,
-                audio_idx=audio_idx,
-                output=self.__output_dir / video.with_suffix(".wav"),
-            )
-        except Exception as e: # pylint: disable=broad-exception-caught
-            self.__logger.error(f"Error processing video: {e}")
+            output_path = self.__output_dir / video.with_suffix(".wav").name
+            self.__normalize(video=video, audio_idx=audio_idx, output=output_path)
 
+        except Exception as e:
+            self.__logger.error(f"Error processing video {video}: {e}")
 
     def __get_best_audio_stream(self, video: Path) -> Optional[int]:
-        probe = ffmpeg.probe(video, select_streams="a", show_streams=True)
-        streams = probe.get("streams", [])
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "a",
+            "-show_entries", "stream=index,bit_rate",
+            "-of", "json",
+            str(video),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        streams = json.loads(result.stdout).get("streams", [])
 
         if not streams:
             self.__logger.error(f"No audio streams found in file: {video}")
@@ -54,16 +56,28 @@ class AudioNormalizer:
         return best_stream["index"]
 
     def __normalize(self, video: Path, audio_idx: int, output: Path) -> None:
-        tmp_output = str(output).replace(".wav", "_temp.wav")
+        tmp_output = output.with_name(output.stem + "_temp.wav")
 
-        ffmpeg.input(video, **{"map": f"0:{audio_idx}"}) \
-            .output(output, acodec="pcm_s16le", ar=48000, ac=1) \
-            .run(overwrite_output=True)
-
+        extract_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(video),
+            "-map", f"0:{audio_idx}",
+            "-acodec", "pcm_s16le",
+            "-ar", "48000",
+            "-ac", "1",
+            str(output),
+        ]
+        subprocess.run(extract_cmd, check=True)
         self.__logger.info(f"Converted audio: {output}")
 
-        ffmpeg.input(output).output(tmp_output, af="dynaudnorm").run(overwrite_output=True)
+        normalize_cmd = [
+            "ffmpeg", "-y",
+            "-i", str(output),
+            "-af", "dynaudnorm",
+            str(tmp_output),
+        ]
+        subprocess.run(normalize_cmd, check=True)
         self.__logger.info(f"Normalized audio: {tmp_output}")
 
-        Path(tmp_output).replace(output)
+        tmp_output.replace(output)
         self.__logger.info(f"Replaced original file with normalized audio: {video} -> {output}")
