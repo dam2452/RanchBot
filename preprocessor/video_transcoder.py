@@ -2,21 +2,21 @@ import json
 import logging
 from pathlib import Path
 import subprocess
+import re
 
 from bot.utils.resolution import Resolution
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
 class VideoTranscoder:
-    DEFAULT_OUTPUT_DIR: Path = "transcoded_videos"
+    DEFAULT_OUTPUT_DIR: Path = Path("transcoded_videos")
     DEFAULT_RESOLUTION: Resolution = Resolution.R1080P
     DEFAULT_CODEC: str = "h264_nvenc"
     DEFAULT_PRESET: str = "slow"
     DEFAULT_CRF: int = 31
     DEFAULT_GOP_SIZE: float = 0.5
 
-
-    def __init__(self, args: json):
+    def __init__(self, args: dict):
         self.__input_videos: Path = Path(args["videos"])
         self.__output_videos: Path = Path(args["transcoded_videos"])
         self.__resolution: Resolution = args["resolution"]
@@ -37,43 +37,54 @@ class VideoTranscoder:
             error_exit_code=3,
         )
 
+        self.episodes_info = None
+        if "episodes_info_json" in args:
+            with open(args["episodes_info_json"], "r", encoding="utf-8") as f:
+                self.episodes_info = json.load(f)
+
     def work(self) -> int:
         video_files = list(self.__input_videos.rglob("*.mp4"))
+        series_name = self.__input_videos.resolve().name.lower()
 
         for video_file in video_files:
-            series_name = self.__input_videos.resolve().name.lower()
-
-            season_dir = video_file.parent.name
-            if season_dir.lower().startswith("sezon"):
-                try:
-                    season_number = int(season_dir.split()[-1])
-                except ValueError:
-                    season_number = 1
-            else:
-                season_number = 1
-
-            import re
-            match = re.search(r"E(\d{2,3})", video_file.stem, re.IGNORECASE)
+            match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
             if not match:
                 self.logger.error(f"Cannot extract episode number from {video_file.name}")
                 continue
-            episode_number = int(match.group(1))
 
-            transcoded_name = f"{series_name}_S{season_number:02d}E{episode_number:02d}.mp4"
-            output_path = self.__output_videos / f"Sezon {season_number}" / transcoded_name
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            absolute_episode = int(match.group(1))
+
+            season_number = 1
+            relative_episode = absolute_episode
+
+            if self.episodes_info:
+                found = False
+                for season_str, season_data in self.episodes_info.items():
+                    episodes = season_data.get("episodes", [])
+
+                    episodes = sorted(episodes, key=lambda ep: ep["episode_number"])
+                    for idx, ep in enumerate(episodes):
+                        if ep["episode_number"] == absolute_episode:
+                            season_number = int(season_str)
+                            relative_episode = idx + 1
+                            found = True
+                            break
+                    if found:
+                        break
+
+                if not found:
+                    self.logger.error(f"Episode {absolute_episode} not found in episodes_info.json")
+                    continue
+
+            transcoded_name = f"{series_name}_S{season_number:02d}E{relative_episode:02d}.mp4"
+            output_dir = self.__output_videos / f"Sezon {season_number}"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / transcoded_name
 
             try:
                 self.__process_video(video_file, output_path)
 
-                new_src_name = self.__input_videos / f"Sezon {season_number}" / transcoded_name
-                new_src_name.parent.mkdir(parents=True, exist_ok=True)
-                if new_src_name.exists():
-                    self.logger.error(f"Cannot rename {video_file} -> {new_src_name}, file already exists!")
-                else:
-                    video_file.rename(new_src_name)
-                    self.logger.info(f"Renamed source file: {video_file} -> {new_src_name}")
-
+                self.logger.info(f"Processed video: {video_file} -> {output_path}")
             except Exception as e:
                 self.logger.error(f"Error processing video {video_file}: {e}")
 
@@ -117,15 +128,12 @@ class VideoTranscoder:
             str(video),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-
         probe_data = json.loads(result.stdout)
         streams = probe_data.get("streams")
         if not streams:
             raise ValueError(f"No video streams found in {video}")
-
         r_frame_rate = streams[0].get("r_frame_rate")
         if not r_frame_rate:
             raise ValueError(f"Frame rate not found in {video}")
-
         num, denom = (int(x) for x in r_frame_rate.split('/'))
         return num / denom
