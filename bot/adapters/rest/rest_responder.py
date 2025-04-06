@@ -68,13 +68,13 @@ class RestResponder(AbstractResponder):
                     media_type="video/mp4",
                     filename=Path(item["filename"]).name,
                 )
-            elif item["type"] == "photo":
+            if item["type"] == "photo":
                 return FileResponse(
                     path=item["filename"],
                     media_type="image/jpeg",
                     filename=Path(item["filename"]).name,
                 )
-            elif item["type"] == "document":
+            if item["type"] == "document":
                 return FileResponse(
                     path=item["filename"],
                     media_type="application/octet-stream",

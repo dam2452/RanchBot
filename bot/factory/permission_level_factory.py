@@ -7,7 +7,6 @@ from typing import (
     Awaitable,
     Callable,
     List,
-    Optional,
     Tuple,
     Type,
 )

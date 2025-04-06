@@ -10,10 +10,7 @@ from aiogram import Bot
 from bot.database.database_manager import DatabaseManager
 from bot.platforms.rest_runner import run_rest_api
 from bot.platforms.telegram_runner import run_telegram_bot
-from bot.settings import (
-    settings,
-    settings as s,
-)
+from bot.settings import settings as s
 from bot.utils.log import get_log_level
 
 
@@ -51,17 +48,17 @@ logging.getLogger().addHandler(db_log_handler)
 
 async def initialize_common():
     await DatabaseManager.init_pool(
-        host=settings.POSTGRES_HOST,
-        port=settings.POSTGRES_PORT,
-        database=settings.POSTGRES_DB,
-        user=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-        schema=settings.POSTGRES_SCHEMA,
+        host=s.POSTGRES_HOST,
+        port=s.POSTGRES_PORT,
+        database=s.POSTGRES_DB,
+        user=s.POSTGRES_USER,
+        password=s.POSTGRES_PASSWORD,
+        schema=s.POSTGRES_SCHEMA,
     )
     await DatabaseManager.init_db()
 
     admin_user_id = int(os.getenv("DEFAULT_ADMIN"))
-    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+    bot = Bot(token=s.TELEGRAM_BOT_TOKEN)
     user_data = await bot.get_chat(admin_user_id)
     await DatabaseManager.set_default_admin(
         user_id=admin_user_id,

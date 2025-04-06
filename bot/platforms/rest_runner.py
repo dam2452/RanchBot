@@ -1,3 +1,8 @@
+from contextlib import asynccontextmanager
+from datetime import (
+    datetime,
+    timezone,
+)
 import json
 import logging
 import re
@@ -24,43 +29,26 @@ from bot.adapters.rest.rest_message import RestMessage
 from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
 from bot.factory import create_all_factories
-from bot.settings import settings
+from bot.settings import settings as s
 from bot.utils.log import get_log_level
 
 logging.basicConfig(level=get_log_level())
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
-
 command_handlers = {}
 command_middlewares = {}
 
-security = HTTPBearer()
-SECRET_KEY = settings.JWT_SECRET_KEY
-ALGORITHM = settings.JWT_ALGORITHM
+COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
 
-
-def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> json:
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        required_fields = ["user_id", "username", "full_name"]
-        if not all(field in payload for field in required_fields):
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        return payload
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await DatabaseManager.init_pool(
-        host=settings.POSTGRES_HOST,
-        port=settings.POSTGRES_PORT,
-        database=settings.POSTGRES_DB,
-        user=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-        schema=settings.POSTGRES_SCHEMA,
+        host=s.POSTGRES_HOST,
+        port=s.POSTGRES_PORT,
+        database=s.POSTGRES_DB,
+        user=s.POSTGRES_USER,
+        password=s.POSTGRES_PASSWORD,
+        schema=s.POSTGRES_SCHEMA,
     )
     await DatabaseManager.init_db()
 
@@ -75,26 +63,57 @@ async def startup():
 
     logger.info("✅ REST command handlers and middlewares loaded.")
 
+    yield
+
+    logger.info("🛑 Shutting down REST API.")
+
+app = FastAPI(lifespan=lifespan) # nresolved reference 'lifespan'
+
+
+def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> json:
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, s.JWT_SECRET_KEY , algorithms=[s.JWT_ALGORITHM])
+
+        if "exp" not in payload:
+            raise HTTPException(status_code=401, detail="Token has no 'exp' claim.")
+
+        if datetime.now(timezone.utc).timestamp() > payload["exp"]:
+            raise HTTPException(status_code=401, detail="Token has expired.")
+
+        required_fields = ["user_id", "username", "full_name"]
+        for field in required_fields:
+            if field not in payload:
+                raise HTTPException(status_code=401, detail=f"Missing '{field}' in token payload.")
+
+        return payload
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or malformed token.")
+
 
 @app.post("/command")
 async def handle_command(
-    cmd: CommandRequest,
-    request: Request,
-    user_data: dict = Depends(verify_jwt_token),
+        cmd: CommandRequest,
+        request: Request,
+        user_data: dict = Depends(verify_jwt_token),
 ):
-    message = RestMessage(cmd, user_data)
-    responder = RestResponder()
+    text = cmd.text.strip()
+    if len(text) > 1000:
+        return JSONResponse({"error": "Command text too long."}, status_code=400)
 
-    match = re.match(r"/?(\w+)", cmd.text.strip())
-    command = match.group(1) if match else None
+    parts = text.split()
+    if not parts:
+        return JSONResponse({"error": "Command text is empty."}, status_code=400)
 
-    if not command:
-        return JSONResponse({"error": "Command not found in text."}, status_code=400)
+    command = parts[0].lstrip("/")
 
     handler_cls = command_handlers.get(command)
     if not handler_cls:
         return JSONResponse({"error": f"Command '{command}' not recognized."}, status_code=404)
 
+    message = RestMessage(cmd, user_data)
+    responder = RestResponder()
     handler_instance = handler_cls(message, responder, logger)
 
     executed = False
@@ -114,9 +133,12 @@ async def handle_command(
     return await invoke_once()
 
 
-
-
 async def run_rest_api():
-    config = uvicorn.Config("bot.platforms.rest_runner:app", host="0.0.0.0", port=8000, reload=True)
+    config = uvicorn.Config(
+        "bot.platforms.rest_runner:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+    )
     server = uvicorn.Server(config)
     await server.serve()

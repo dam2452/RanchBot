@@ -33,7 +33,7 @@ from bot.utils.log import (
 ValidatorFunctions = List[Callable[[], Awaitable[bool]]]
 
 class BotMessageHandler(ABC):
-    def __init__(self, message: AbstractMessage, responder: AbstractResponder, logger: logging.Logger):
+    def __init__(self, message: Optional[AbstractMessage], responder: Optional[AbstractResponder], logger: logging.Logger):
         self._message = message
         self._responder = responder
         self._logger = logger
