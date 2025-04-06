@@ -24,6 +24,11 @@ class Settings(BaseSettings):
 
     SPECIALIZED_TABLE: str = Field(...)
 
+    PLATFORM: str = Field("telegram")
+    JWT_SECRET_KEY: str = Field(...)
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 30
+
     ES_HOST: str = Field(...)
     ES_USER: str = Field(...)
     ES_PASS: str = Field(...)

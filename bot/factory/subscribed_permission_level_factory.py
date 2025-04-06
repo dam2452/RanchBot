@@ -1,23 +1,49 @@
-from bot.factory.permission_level_factory import *  # pylint: disable=wildcard-import, unused-wildcard-import
+from typing import (
+    List,
+    Type,
+)
+
+from bot.factory.permission_level_factory import PermissionLevelFactory
+from bot.handlers import (
+    AdjustVideoClipHandler,
+    BotMessageHandler,
+    ClipHandler,
+    CompileClipsHandler,
+    CompileSelectedClipsHandler,
+    DeleteClipHandler,
+    EpisodeListHandler,
+    ManualClipHandler,
+    MyClipsHandler,
+    ReportIssueHandler,
+    SaveClipHandler,
+    SearchHandler,
+    SearchListHandler,
+    SelectClipHandler,
+    SendClipHandler,
+)
+from bot.middlewares import (
+    BotMiddleware,
+    SubscriberMiddleware,
+)
 
 
 class SubscribedPermissionLevelFactory(PermissionLevelFactory):
-    def create_handlers(self) -> List[BotMessageHandler]:
+    def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         return [
-            AdjustVideoClipHandler(self._bot, self._logger),
-            ClipHandler(self._bot, self._logger),
-            CompileClipsHandler(self._bot, self._logger),
-            CompileSelectedClipsHandler(self._bot, self._logger),
-            DeleteClipHandler(self._bot, self._logger),
-            EpisodeListHandler(self._bot, self._logger),
-            ManualClipHandler(self._bot, self._logger),
-            MyClipsHandler(self._bot, self._logger),
-            ReportIssueHandler(self._bot, self._logger),
-            SaveClipHandler(self._bot, self._logger),
-            SearchHandler(self._bot, self._logger),
-            SearchListHandler(self._bot, self._logger),
-            SelectClipHandler(self._bot, self._logger),
-            SendClipHandler(self._bot, self._logger),
+            AdjustVideoClipHandler,
+            ClipHandler,
+            CompileClipsHandler,
+            CompileSelectedClipsHandler,
+            DeleteClipHandler,
+            EpisodeListHandler,
+            ManualClipHandler,
+            MyClipsHandler,
+            ReportIssueHandler,
+            SaveClipHandler,
+            SearchHandler,
+            SearchListHandler,
+            SelectClipHandler,
+            SendClipHandler,
         ]
 
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
