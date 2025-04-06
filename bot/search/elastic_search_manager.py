@@ -1,5 +1,4 @@
 import json
-import logging
 
 from elasticsearch import (
     AsyncElasticsearch,

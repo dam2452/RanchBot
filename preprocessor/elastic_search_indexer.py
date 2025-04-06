@@ -22,7 +22,6 @@ class ElasticSearchIndexer:
     def __init__(self, args: dict):
         self.__dry_run = args.get("dry_run", False)
         self.__name = args["name"]
-        self.__transcoded_videos = args["transcoded_videos"]
         self.__transcription_jsons = args["transcription_jsons"]
 
         self.__logger: ErrorHandlingLogger = ErrorHandlingLogger(
@@ -37,7 +36,7 @@ class ElasticSearchIndexer:
     def work(self) -> int:
         try:
             asyncio.run(self.__exec())
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             self.__logger.error(f"Unexpected error during Elasticsearch indexing: {e}")
         return self.__logger.finalize()
 
@@ -121,16 +120,15 @@ class ElasticSearchIndexer:
 
     async def __load_season(self, season_path: Path) -> List[json]:
         season_actions = []
-        season_dir = season_path.name
 
         for episode_file in season_path.iterdir():
             if episode_file.suffix == ".json":
                 self.__logger.info(f"Processing file: {episode_file}")
-                season_actions += await self.__load_episode(episode_file, season_dir)
+                season_actions += await self.__load_episode(episode_file)
 
         return season_actions
 
-    async def __load_episode(self, episode_file: Path, season_dir: str) -> List[json]:
+    async def __load_episode(self, episode_file: Path) -> List[json]:
         with episode_file.open("r", encoding="utf-8") as f:
             data = json.load(f)
 

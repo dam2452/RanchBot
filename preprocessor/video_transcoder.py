@@ -1,8 +1,8 @@
 import json
 import logging
 from pathlib import Path
-import subprocess
 import re
+import subprocess
 
 from bot.utils.resolution import Resolution
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -85,7 +85,7 @@ class VideoTranscoder:
                 self.__process_video(video_file, output_path)
 
                 self.logger.info(f"Processed video: {video_file} -> {output_path}")
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-exception-caught
                 self.logger.error(f"Error processing video {video_file}: {e}")
 
         return self.logger.finalize()

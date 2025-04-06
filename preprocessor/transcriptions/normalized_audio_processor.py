@@ -45,5 +45,5 @@ class NormalizedAudioProcessor:
                 check=True,
             )
             self.__logger.info(f"Processed: {normalized_audio}")
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error processing file {normalized_audio}: {e}")

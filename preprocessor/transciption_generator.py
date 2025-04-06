@@ -72,6 +72,5 @@ class TranscriptionGenerator:
             episodes_info_json=Path(args["episodes_info_json"]),
             output_path=Path(args["transcription_jsons"]),
             logger=self.__logger,
-            series_name=args["name"]
+            series_name=args["name"],
         )
-
