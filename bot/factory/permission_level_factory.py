@@ -54,9 +54,12 @@ class PermissionLevelFactory(ABC):
     def create_handler_funcs(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
         result = []
         for handler_cls in self.create_handler_classes():
-            dummy = handler_cls(message=None, responder=None, logger=self._logger)
-            for command in dummy.get_commands():
-                result.append((command, self._wrap(handler_cls, self._logger)))
+            try:
+                dummy = handler_cls(message=None, responder=None, logger=self._logger)
+                for command in dummy.get_commands():
+                    result.append((command, self._wrap(handler_cls, self._logger)))
+            except Exception as e:
+                self._logger.warning(f"⚠️ Skipping handler {handler_cls.__name__} due to error: {e}")
         return result
 
     @abstractmethod
@@ -82,14 +85,8 @@ class PermissionLevelFactory(ABC):
         for handler_cls in handlers:
             try:
                 dummy = handler_cls(message=None, responder=None, logger=logging.getLogger("dummy"))
-            except TypeError:
-                continue
-            for cmd in dummy.get_commands():
-                wrapped.append((cmd, handler_cls))
+                for cmd in dummy.get_commands():
+                    wrapped.append((cmd, handler_cls))
+            except Exception as e:
+                self._logger.warning(f"⚠️ Skipping REST handler {handler_cls.__name__} due to error: {e}")
         return wrapped
-
-    def wrap_for_rest(self, handler_cls: Type, *args) -> Callable[[AbstractMessage, AbstractResponder], Awaitable[None]]:
-        async def wrapper(message: AbstractMessage, responder: AbstractResponder):
-            handler = handler_cls(message, responder, self._logger, *args)
-            await handler.handle()
-        return wrapper

@@ -8,9 +8,11 @@ import logging
 import re
 
 from fastapi import (
+    Body,
     Depends,
     FastAPI,
     HTTPException,
+    Path,
     Request,
 )
 from fastapi.security import (
@@ -24,7 +26,10 @@ from jose import (
 from starlette.responses import JSONResponse
 import uvicorn
 
-from bot.adapters.rest.models import CommandRequest
+from bot.adapters.rest.models import (
+    CommandRequest,
+    TextCompatibleCommandWrapper,
+)
 from bot.adapters.rest.rest_message import RestMessage
 from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
@@ -92,27 +97,23 @@ def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
         raise HTTPException(status_code=401, detail="Invalid or malformed token.")
 
 
-@app.post("/command")
-async def handle_command(
-        cmd: CommandRequest,
-        request: Request,
-        user_data: dict = Depends(verify_jwt_token),
+@app.post("/{command_name}")
+async def universal_command_handler(
+    command_name: str = Path(..., min_length=1, max_length=30, pattern=r"^[a-zA-Z0-9_-]+$"),
+    cmd: CommandRequest = Body(...),
+    request: Request = None,
+    user_data: dict = Depends(verify_jwt_token),
 ):
-    text = cmd.text.strip()
+    text = f"/{command_name} {' '.join(cmd.args)}".strip()
+
     if len(text) > 1000:
         return JSONResponse({"error": "Command text too long."}, status_code=400)
 
-    parts = text.split()
-    if not parts:
-        return JSONResponse({"error": "Command text is empty."}, status_code=400)
-
-    command = parts[0].lstrip("/")
-
-    handler_cls = command_handlers.get(command)
+    handler_cls = command_handlers.get(command_name)
     if not handler_cls:
-        return JSONResponse({"error": f"Command '{command}' not recognized."}, status_code=404)
+        return JSONResponse({"error": f"Command '{command_name}' not recognized."}, status_code=404)
 
-    message = RestMessage(cmd, user_data)
+    message = RestMessage(TextCompatibleCommandWrapper(command_name, cmd.args), user_data)
     responder = RestResponder()
     handler_instance = handler_cls(message, responder, logger)
 
@@ -131,6 +132,7 @@ async def handle_command(
             return response
 
     return await invoke_once()
+
 
 
 async def run_rest_api():

@@ -29,13 +29,15 @@ class TelegramResponder(AbstractResponder):
             disable_notification=True,
         )
 
-    async def send_video(self, file_path: Path):
+    async def send_video(self, file_path: Path, delete_after_send: bool = True):
         await self._message.answer_video(
             video=FSInputFile(file_path),
             supports_streaming=True,
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )
+        if delete_after_send:
+            file_path.unlink()
 
     async def send_document(self, file_path: Path, caption: str):
         await self._message.answer_document(
@@ -44,3 +46,5 @@ class TelegramResponder(AbstractResponder):
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )
+    async def send_json(self, data: dict) -> None:
+        raise NotImplementedError("JSON mode not supported for TelegramResponder")
