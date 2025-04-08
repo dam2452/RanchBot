@@ -13,7 +13,6 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.interfaces.message import AbstractMessage
 from bot.responses.sending_videos.compile_clips_handler_responses import (
     get_log_compilation_success_message,
     get_log_compiled_clip_is_too_long_message,

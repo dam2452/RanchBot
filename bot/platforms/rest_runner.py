@@ -13,7 +13,6 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Path,
-    Request,
 )
 from fastapi.security import (
     HTTPAuthorizationCredentials,
@@ -45,8 +44,9 @@ command_middlewares = {}
 
 COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
 
+
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     await DatabaseManager.init_pool(
         host=s.POSTGRES_HOST,
         port=s.POSTGRES_PORT,
@@ -72,13 +72,14 @@ async def lifespan(app: FastAPI):
 
     logger.info("🛑 Shutting down REST API.")
 
-app = FastAPI(lifespan=lifespan) # nresolved reference 'lifespan'
+
+app = FastAPI(lifespan=lifespan)
 
 
 def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> json:
     token = credentials.credentials
     try:
-        payload = jwt.decode(token, s.JWT_SECRET_KEY , algorithms=[s.JWT_ALGORITHM])
+        payload = jwt.decode(token, s.JWT_SECRET_KEY, algorithms=[s.JWT_ALGORITHM])
 
         if "exp" not in payload:
             raise HTTPException(status_code=401, detail="Token has no 'exp' claim.")
@@ -93,15 +94,14 @@ def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
 
         return payload
 
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or malformed token.")
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid or malformed token.") from exc
 
 
 @app.post("/{command_name}")
 async def universal_command_handler(
     command_name: str = Path(..., min_length=1, max_length=30, pattern=r"^[a-zA-Z0-9_-]+$"),
     cmd: CommandRequest = Body(...),
-    request: Request = None,
     user_data: dict = Depends(verify_jwt_token),
 ):
     text = f"/{command_name} {' '.join(cmd.args)}".strip()
@@ -132,7 +132,6 @@ async def universal_command_handler(
             return response
 
     return await invoke_once()
-
 
 
 async def run_rest_api():

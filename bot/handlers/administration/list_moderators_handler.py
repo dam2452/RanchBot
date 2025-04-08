@@ -1,8 +1,6 @@
 import logging
 from typing import List
 
-from aiogram.types import Message
-
 from bot.database.database_manager import DatabaseManager
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -20,21 +18,21 @@ class ListModeratorsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["listmoderators", "lm"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
-    async def _do_handle(self, message: Message) -> None:
+    async def _do_handle(self) -> None:
         users = await DatabaseManager.get_moderator_users()
         if not users:
-            return await self.__reply_no_moderators_found(message)
+            return await self.__reply_no_moderators_found()
 
         response = format_moderators_list(users)
-        await self.__reply_moderators_list(message, response)
+        await self.__reply_moderators_list(response)
 
-    async def __reply_no_moderators_found(self, message: Message) -> None:
-        await self._answer(message,get_no_moderators_found_message())
+    async def __reply_no_moderators_found(self) -> None:
+        await self._responder.send_text(get_no_moderators_found_message())
         await self._log_system_message(logging.INFO, get_log_no_moderators_found_message())
 
-    async def __reply_moderators_list(self, message: Message, response: str) -> None:
-        await self._answer_markdown(message , response)
+    async def __reply_moderators_list(self, response: str) -> None:
+        await self._responder.send_markdown(response)
         await self._log_system_message(logging.INFO, get_log_moderators_list_sent_message())

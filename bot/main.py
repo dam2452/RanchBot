@@ -45,7 +45,7 @@ except RuntimeError:
 
 logging.getLogger().addHandler(db_log_handler)
 
-
+# pylint: disable=duplicate-code
 async def initialize_common():
     await DatabaseManager.init_pool(
         host=s.POSTGRES_HOST,
@@ -78,8 +78,9 @@ async def main():
 
     try:
         runner = platform_runners[Platform(s.PLATFORM)]
-    except KeyError:
-        raise ValueError(f"Unsupported platform: {s.PLATFORM}")
+    except KeyError as exc:
+        raise ValueError(f"Unsupported platform: {s.PLATFORM}") from exc
+
 
     await runner()
 

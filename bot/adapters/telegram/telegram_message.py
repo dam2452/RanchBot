@@ -21,3 +21,6 @@ class TelegramMessage(AbstractMessage):
 
     def get_sender_id(self) -> int:
         return self._message.from_user.id
+
+    def get_full_name(self) -> str:
+        return self._message.from_user.full_name or self.get_username()

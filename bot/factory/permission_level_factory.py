@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     Callable,
     List,
+    Optional,
     Tuple,
     Type,
 )
@@ -28,7 +29,7 @@ from bot.middlewares.aiogram_middleware_adapter import AiogramMiddlewareAdapter
 
 
 class PermissionLevelFactory(ABC):
-    def __init__(self, logger: logging.Logger, bot: Bot | None):
+    def __init__(self, logger: logging.Logger, bot: Optional[Bot]):
         self._logger = logger
         self._bot = bot
 
@@ -58,7 +59,7 @@ class PermissionLevelFactory(ABC):
                 dummy = handler_cls(message=None, responder=None, logger=self._logger)
                 for command in dummy.get_commands():
                     result.append((command, self._wrap(handler_cls, self._logger)))
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-exception-caught
                 self._logger.warning(f"⚠️ Skipping handler {handler_cls.__name__} due to error: {e}")
         return result
 
@@ -87,6 +88,6 @@ class PermissionLevelFactory(ABC):
                 dummy = handler_cls(message=None, responder=None, logger=logging.getLogger("dummy"))
                 for cmd in dummy.get_commands():
                     wrapped.append((cmd, handler_cls))
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-exception-caught
                 self._logger.warning(f"⚠️ Skipping REST handler {handler_cls.__name__} due to error: {e}")
         return wrapped

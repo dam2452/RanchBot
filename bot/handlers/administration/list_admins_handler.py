@@ -1,8 +1,6 @@
 import logging
 from typing import List
 
-from aiogram.types import Message
-
 from bot.database.database_manager import DatabaseManager
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -20,21 +18,21 @@ class ListAdminsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["listadmins", "la"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
-    async def _do_handle(self, message: Message) -> None:
+    async def _do_handle(self) -> None:
         users = await DatabaseManager.get_admin_users()
         if not users:
-            return await self.__reply_no_admins_found(message)
+            return await self.__reply_no_admins_found()
 
         response = format_admins_list(users)
-        await self.__reply_admins_list(message, response)
+        await self.__reply_admins_list(response)
 
-    async def __reply_no_admins_found(self, message: Message) -> None:
-        await self._answer(message,get_no_admins_found_message())
+    async def __reply_no_admins_found(self) -> None:
+        await self._responder.send_text(get_no_admins_found_message())
         await self._log_system_message(logging.INFO, get_log_no_admins_found_message())
 
-    async def __reply_admins_list(self, message: Message, response: str) -> None:
-        await self._answer_markdown(message , response)
+    async def __reply_admins_list(self, response: str) -> None:
+        await self._responder.send_markdown(response)
         await self._log_system_message(logging.INFO, get_log_admins_list_sent_message())

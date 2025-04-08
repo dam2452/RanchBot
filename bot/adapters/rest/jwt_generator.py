@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -12,7 +13,7 @@ load_dotenv()
 
 
 def generate_token(user_id: int, username: str, full_name: str) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=s.JWT_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=s.JWT_EXPIRE_MINUTES)
     payload = {
         "user_id": user_id,
         "username": username,
@@ -21,6 +22,7 @@ def generate_token(user_id: int, username: str, full_name: str) -> str:
     }
     return jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
 
+
 if __name__ == "__main__":
-    token = generate_token(2015344951, "dam2452", "Damian")
+    token = generate_token(2015344951, "dam2452", "Damian Koterba")
     print(token)
