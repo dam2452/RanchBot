@@ -27,8 +27,6 @@ onCustomSeasonFn = Callable[[AbstractMessage], Awaitable[None]]
 
 
 class EpisodeListHandler(BotMessageHandler):
-    JSON_FLAG = "json"
-
     def get_commands(self) -> List[str]:
         return ["odcinki", "episodes", "o"]
 
@@ -44,13 +42,11 @@ class EpisodeListHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
-        return_json = self.JSON_FLAG in args
 
         try:
-            args = [a for a in args if a != self.JSON_FLAG]
             season = int(args[1])
         except (IndexError, ValueError):
-            await self._responder.send_text(await self.get_response(RK.INVALID_ARGS_COUNT))
+            await self.reply_error(RK.INVALID_ARGS_COUNT)
             return
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
@@ -66,18 +62,19 @@ class EpisodeListHandler(BotMessageHandler):
             return
 
         if not episodes:
-            await self._responder.send_text(
-                await self.get_response(RK.NO_EPISODES_FOUND, args=[str(season)]),
-            )
+            await self.reply_error(RK.NO_EPISODES_FOUND, args=[str(season)])
             await self._log_system_message(logging.INFO, get_log_no_episodes_found_message(season))
             return
 
-        if return_json:
-            await self._responder.send_json({
-                "season": season,
-                "episodes": episodes,
-                "season_info": season_info,
-            })
+        if self._message.get_json_flag():
+            await self.reply(
+                "",
+                data={
+                    "season": season,
+                    "episodes": episodes,
+                    "season_info": season_info,
+                },
+            )
         else:
             response_parts = self.__split_message(
                 format_episode_list_response(season, episodes, season_info),
@@ -89,7 +86,6 @@ class EpisodeListHandler(BotMessageHandler):
             logging.INFO,
             get_log_episode_list_sent_message(season, self._message.get_username()),
         )
-
 
     async def __handle_ranczo_season_11(self) -> None:
         image_path = Path("Ranczo_Sezon11.png")

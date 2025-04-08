@@ -113,7 +113,7 @@ async def universal_command_handler(
     if not handler_cls:
         return JSONResponse({"error": f"Command '{command_name}' not recognized."}, status_code=404)
 
-    message = RestMessage(TextCompatibleCommandWrapper(command_name, cmd.args), user_data)
+    message = RestMessage(TextCompatibleCommandWrapper(command_name, cmd.args, json=True), user_data)
     responder = RestResponder()
     handler_instance = handler_cls(message, responder, logger)
 

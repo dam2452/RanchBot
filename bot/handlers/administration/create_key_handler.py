@@ -26,25 +26,27 @@ class CreateKeyHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            3,
-            await self.get_response(RK.CREATE_KEY_USAGE),
-        )
+        if not await self._validate_argument_count(
+                self._message, 3, await self.get_response(RK.CREATE_KEY_USAGE),
+        ):
+            await self.reply_error(RK.CREATE_KEY_USAGE)
+            return False
+        return True
 
     async def __check_days_is_digit(self) -> bool:
         args = self._message.get_text().split()
         if not args[1].isdigit():
-            await self.__reply_wrong_argument()
+            await self.reply_error(RK.CREATE_KEY_USAGE)
+            await self._log_system_message(logging.INFO, get_wrong_argument_message())
             return False
         return True
 
     async def __check_key_is_unique(self) -> bool:
         args = self._message.get_text().split()
         key = " ".join(args[2:])
-        key_exists = await DatabaseManager.get_subscription_days_by_key(key)
-        if key_exists is not None:
-            await self.__reply_key_already_exists(key)
+        if await DatabaseManager.get_subscription_days_by_key(key):
+            await self.reply_error(RK.KEY_ALREADY_EXISTS, args=[key])
+            await self._log_system_message(logging.INFO, get_log_key_name_exists_message(key))
             return False
         return True
 
@@ -54,22 +56,10 @@ class CreateKeyHandler(BotMessageHandler):
         key = " ".join(args[2:])
 
         await DatabaseManager.create_subscription_key(days, key)
-        await self.__reply_key_added(days, key)
 
-    async def __reply_key_added(self, days: int, key: str) -> None:
-        await self._responder.send_text(
-            await self.get_response(RK.CREATE_KEY_SUCCESS, [key, days]),
+        await self.reply(
+            RK.CREATE_KEY_SUCCESS,
+            args=[key, days],
+            data={"days": days, "key": key},
         )
-        await self._log_system_message(
-            logging.INFO, get_key_added_message(key, days),
-        )
-
-    async def __reply_wrong_argument(self) -> None:
-        await self._responder.send_text(await self.get_response(RK.CREATE_KEY_USAGE))
-        await self._log_system_message(logging.INFO, get_wrong_argument_message())
-
-    async def __reply_key_already_exists(self, key: str) -> None:
-        await self._responder.send_text(
-            await self.get_response(RK.KEY_ALREADY_EXISTS, [key]),
-        )
-        await self._log_system_message(logging.INFO, get_log_key_name_exists_message(key))
+        await self._log_system_message(logging.INFO, get_key_added_message(key, days))

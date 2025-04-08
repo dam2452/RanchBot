@@ -21,7 +21,6 @@ from bot.settings import settings as s
 
 class SearchListHandler(BotMessageHandler):
     FILE_NAME_TEMPLATE = s.BOT_USERNAME[1:] + "_Lista_{sanitized_search_term}.txt"
-    JSON_FLAG = "json"
 
     def get_commands(self) -> List[str]:
         return ["lista", "list", "l"]
@@ -37,9 +36,6 @@ class SearchListHandler(BotMessageHandler):
         return True
 
     async def _do_handle(self) -> None:
-        args = self._message.get_text().split()
-        return_json = self.JSON_FLAG in args
-
         last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
 
         try:
@@ -53,12 +49,15 @@ class SearchListHandler(BotMessageHandler):
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
 
-        if return_json:
-            await self._responder.send_json({
-                "query": search_term,
-                "segments": segments,
-                "season_info": season_info,
-            })
+        if self._message.get_json_flag():
+            await self.reply(
+                key="",
+                data={
+                    "query": search_term,
+                    "segments": segments,
+                    "season_info": season_info,
+                },
+            )
         else:
             response = format_search_list_response(search_term, segments, season_info)
             sanitized_search_term = self.__sanitize_search_term(search_term)
@@ -76,8 +75,11 @@ class SearchListHandler(BotMessageHandler):
         )
 
     async def __reply_no_previous_search_results(self) -> None:
-        await self._responder.send_text(await self.get_response(RK.NO_PREVIOUS_SEARCH_RESULTS))
-        await self._log_system_message(logging.INFO, get_log_no_previous_search_results_message(self._message.get_chat_id()))
+        await self.reply_error(RK.NO_PREVIOUS_SEARCH_RESULTS)
+        await self._log_system_message(
+            logging.INFO,
+            get_log_no_previous_search_results_message(self._message.get_chat_id()),
+        )
 
     @staticmethod
     def __sanitize_search_term(search_term: str) -> str:

@@ -87,3 +87,4 @@ class ResponseKey(str, Enum):
     LIMIT_EXCEEDED                          = "limit_exceeded"
     CLIP_SIZE_EXCEEDED                      = "clip_size_exceeded"
     USER_PROFILE                            = "user_profile"
+    EPISODE_LIST_SUCCESS                    = "episode_list_success"

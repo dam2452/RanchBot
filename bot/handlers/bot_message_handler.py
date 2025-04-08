@@ -11,6 +11,7 @@ from typing import (
     Optional,
 )
 
+from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
 from bot.interfaces.message import AbstractMessage
@@ -131,3 +132,28 @@ class BotMessageHandler(ABC):
             await self._reply_invalid_args_count(error_message)
             return False
         return True
+
+    async def reply(
+            self,
+            key: str,
+            args: Optional[List[str]] = None,
+            data: Optional[dict] = None,
+            status: RS = RS.SUCCESS,
+            as_parent: bool = False,
+    ) -> None:
+        message = await self.get_response(key, args, as_parent) if key else ""
+
+        if self._message.get_json_flag():
+            response_data = {
+                "status": status,
+                "code": key,
+                "message": message,
+            }
+            if data:
+                response_data["data"] = data
+            await self._responder.send_json(response_data)
+        else:
+            await self._responder.send_text(message)
+
+    async def reply_error(self, key: str, args: Optional[List[str]] = None, data: Optional[dict] = None, as_parent: bool = False):
+        await self.reply(key, args=args, data=data, status=RS.ERROR, as_parent=as_parent)

@@ -22,3 +22,6 @@ class AbstractMessage(ABC):
 
     @abstractmethod
     def get_full_name(self) -> str: ...
+
+    @abstractmethod
+    def get_json_flag(self) -> bool: ...

@@ -15,8 +15,6 @@ from bot.search.transcription_finder import TranscriptionFinder
 
 
 class TranscriptionHandler(BotMessageHandler):
-    JSON_FLAG = "json"
-
     def get_commands(self) -> List[str]:
         return ["transkrypcja", "transcription", "t"]
 
@@ -32,8 +30,6 @@ class TranscriptionHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
-        return_json = self.JSON_FLAG in args
-        args = [a for a in args if a != self.JSON_FLAG]
         quote = " ".join(args[1:])
 
         result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, context_size=15)
@@ -42,17 +38,20 @@ class TranscriptionHandler(BotMessageHandler):
             await self.__reply_no_segments_found(quote)
             return
 
-        if return_json:
-            await self._responder.send_json({
-                "quote": quote,
-                "segment": result,
-            })
+        if self._message.get_json_flag():
+            await self.reply(
+                key="",
+                data={
+                    "quote": quote,
+                    "segment": result,
+                },
+            )
         else:
             response = get_transcription_response(quote, result)
             await self.__reply_transcription_response(response, quote)
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self._responder.send_markdown(await self.get_response(RK.NO_SEGMENTS_FOUND, [quote], as_parent=True))
+        await self.reply_error(RK.NO_SEGMENTS_FOUND, args=[quote], as_parent=True)
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))
 
     async def __reply_transcription_response(self, response: str, quote: str) -> None:
