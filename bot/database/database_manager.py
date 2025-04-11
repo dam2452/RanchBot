@@ -43,10 +43,7 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
             "database": database or settings.POSTGRES_DB,
             "user": user or settings.POSTGRES_USER,
             "password": password or settings.POSTGRES_PASSWORD,
-            "server_settings": {
-                "search_path": schema,
-            },
-
+            "server_settings": {"search_path": schema or settings.POSTGRES_SCHEMA},
         }
 
         DatabaseManager.pool = await asyncpg.create_pool(**config)

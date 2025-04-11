@@ -56,4 +56,7 @@ class TranscriptionHandler(BotMessageHandler):
 
     async def __reply_transcription_response(self, response: str, quote: str) -> None:
         await self._responder.send_markdown(response)
-        await self._log_system_message(logging.INFO, get_log_transcription_response_sent_message(quote, self._message.get_username()))
+        await self._log_system_message(
+            logging.INFO,
+            get_log_transcription_response_sent_message(quote, self._message.get_username()),
+        )

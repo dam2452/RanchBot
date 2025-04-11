@@ -31,21 +31,34 @@ class MyClipsHandler(BotMessageHandler):
             logger=self._logger,
         )
 
-        markdown = await format_myclips_response(
-            clips=clips,
-            username=self._message.get_username(),
-            full_name=self._message.get_full_name(),
-            season_info=season_info,
-        )
+        if self._message.get_json_flag():
+            await self.reply(
+                "",
+                data={
+                    "clips": [clip.to_dict() for clip in clips],
+                    "season_info": season_info,
+                },
+            )
+        else:
+            markdown = await format_myclips_response(
+                clips=clips,
+                username=self._message.get_username(),
+                full_name=self._message.get_full_name(),
+                season_info=season_info,
+            )
+            await self._answer_markdown(markdown)
 
-        await self._answer_markdown(markdown)
         await self._log_system_message(
             logging.INFO,
             get_log_saved_clips_sent_message(self._message.get_username()),
         )
 
     async def __reply_no_saved_clips(self) -> None:
-        await self._answer(await self.get_response(RK.NO_SAVED_CLIPS))
+        if self._message.get_json_flag():
+            await self.reply("", data={"clips": []})
+        else:
+            await self._answer(await self.get_response(RK.NO_SAVED_CLIPS))
+
         await self._log_system_message(
             logging.INFO,
             get_log_no_saved_clips_message(self._message.get_username()),

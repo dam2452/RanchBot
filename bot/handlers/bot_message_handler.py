@@ -4,6 +4,7 @@ from abc import (
 )
 import logging
 from pathlib import Path
+import re
 from typing import (
     Awaitable,
     Callable,
@@ -153,7 +154,16 @@ class BotMessageHandler(ABC):
                 response_data["data"] = data
             await self._responder.send_json(response_data)
         else:
-            await self._responder.send_text(message)
+            await self._responder.send_markdown(await self.escape_markdown(message))
 
     async def reply_error(self, key: str, args: Optional[List[str]] = None, data: Optional[dict] = None, as_parent: bool = False):
         await self.reply(key, args=args, data=data, status=RS.ERROR, as_parent=as_parent)
+
+    @staticmethod
+    async def escape_markdown(text: str) -> str:
+        return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
+
+    async def _escape_args(self, args: Optional[List[str]]) -> Optional[List[str]]:
+        if not args:
+            return None
+        return [await self.escape_markdown(arg) for arg in args]

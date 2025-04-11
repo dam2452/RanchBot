@@ -7,9 +7,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+from bot.database.serializable import Serializable
+
 
 @dataclass
-class UserProfile:
+class UserProfile(Serializable):
     user_id: int
     username: Optional[str]
     full_name: Optional[str]
@@ -18,7 +20,7 @@ class UserProfile:
 
 
 @dataclass
-class VideoClip:
+class VideoClip(Serializable):
     id: int
     chat_id: int
     user_id: int
@@ -41,7 +43,7 @@ class ClipType(Enum):
 
 
 @dataclass
-class LastClip:
+class LastClip(Serializable):
     id: int
     chat_id: int
     segment: str
@@ -54,7 +56,7 @@ class LastClip:
 
 
 @dataclass
-class SearchHistory:
+class SearchHistory(Serializable):
     id: int
     chat_id: int
     quote: str
@@ -68,7 +70,7 @@ class FormattedSegmentInfo:
     episode_title: str
 
 @dataclass
-class SubscriptionKey:
+class SubscriptionKey(Serializable):
     id: int
     key: str
     days: int
@@ -76,7 +78,7 @@ class SubscriptionKey:
     timestamp: Optional[datetime] = None
 
 @dataclass
-class ClipInfo:
+class ClipInfo(Serializable):
     output_filename: Path
     start_time: float
     end_time: float

@@ -21,9 +21,12 @@ class AddWhitelistHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
+        if not await self._validate_argument_count(
             self._message, 2, await self.get_response(RK.NO_USERNAME_PROVIDED),
-        )
+        ):
+            await self.__reply_user_not_found()
+            return False
+        return True
 
     async def __check_user_id_is_digit(self) -> bool:
         user_input = self._message.get_text().split()[1]
@@ -44,12 +47,19 @@ class AddWhitelistHandler(BotMessageHandler):
         await self.__reply_user_added(user_input)
 
     async def __reply_user_added(self, user_input: str) -> None:
-        await self._responder.send_text(await self.get_response(RK.USER_ADDED, [user_input]))
+        await self.reply(
+            RK.USER_ADDED,
+            args=[user_input],
+            data={"user_id": int(user_input)},
+        )
         await self._log_system_message(
             logging.INFO,
             get_log_user_added_message(user_input, self._message.get_username()),
         )
 
     async def __reply_user_not_found(self) -> None:
-        await self._responder.send_text(await self.get_response(RK.NO_USER_ID_PROVIDED))
-        await self._log_system_message(logging.INFO, await self.get_response(RK.NO_USER_ID_PROVIDED))
+        await self.reply_error(RK.NO_USER_ID_PROVIDED)
+        await self._log_system_message(
+            logging.INFO,
+            await self.get_response(RK.NO_USER_ID_PROVIDED),
+        )

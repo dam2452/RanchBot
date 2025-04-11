@@ -1,5 +1,7 @@
 import json
 import logging
+from pathlib import Path
+import tempfile
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
@@ -61,9 +63,16 @@ class SelectClipHandler(BotMessageHandler):
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-            await self._responder.send_video(output_filename)
         except FFMpegException as e:
             return await self.__reply_extraction_failure(e)
+
+        temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
+        output_filename.replace(temp_file_path)
+
+        if self._message.get_json_flag():
+            await self._responder.send_video(temp_file_path, delete_after_send=True)
+        else:
+            await self._responder.send_video(temp_file_path, delete_after_send=True)
 
         await DatabaseManager.insert_last_clip(
             chat_id=self._message.get_chat_id(),

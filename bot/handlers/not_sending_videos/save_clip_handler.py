@@ -52,14 +52,14 @@ class SaveClipHandler(BotMessageHandler):
         )
 
     async def __check_clip_name_length(self) -> bool:
-        clip_name = " ".join(self._message.get_text().split()[1:])
+        clip_name = self._message.get_text().split(maxsplit=1)[1]
         if len(clip_name) > settings.MAX_CLIP_NAME_LENGTH:
-            await self._answer(await self.get_response(RK.CLIP_NAME_LENGTH_EXCEEDED))
+            await self.reply_error(RK.CLIP_NAME_LENGTH_EXCEEDED)
             return False
         return True
 
     async def __check_clip_name_unique(self) -> bool:
-        clip_name = " ".join(self._message.get_text().split()[1:])
+        clip_name = self._message.get_text().split(maxsplit=1)[1]
         if not await DatabaseManager.is_clip_name_unique(self._message.get_chat_id(), clip_name):
             await self.__reply_clip_name_exists(clip_name)
             return False
@@ -72,7 +72,7 @@ class SaveClipHandler(BotMessageHandler):
         if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
             return True
 
-        await self._answer(await self.get_response(RK.CLIP_LIMIT_EXCEEDED))
+        await self.reply_error(RK.CLIP_LIMIT_EXCEEDED)
         return False
 
     async def __check_last_clip_exists(self) -> bool:
@@ -83,7 +83,7 @@ class SaveClipHandler(BotMessageHandler):
         return True
 
     async def _do_handle(self) -> None:
-        clip_name = " ".join(self._message.get_text().split()[1:])
+        clip_name = self._message.get_text().split(maxsplit=1)[1]
         last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id())
 
         clip_info = await self.__prepare_clip(last_clip)
@@ -170,13 +170,13 @@ class SaveClipHandler(BotMessageHandler):
         return path
 
     async def __reply_clip_name_exists(self, clip_name: str) -> None:
-        await self._answer(await self.get_response(RK.CLIP_NAME_EXISTS, args=[clip_name]))
+        await self.reply_error(RK.CLIP_NAME_EXISTS, args=[clip_name])
         await self._log_system_message(logging.INFO, get_log_clip_name_exists_message(clip_name, self._message.get_username()))
 
     async def __reply_no_segment_selected(self) -> None:
-        await self._answer(await self.get_response(RK.NO_SEGMENT_SELECTED))
+        await self.reply_error(RK.NO_SEGMENT_SELECTED)
         await self._log_system_message(logging.INFO, get_log_no_segment_selected_message())
 
     async def __reply_clip_saved_successfully(self, clip_name: str) -> None:
-        await self._answer(await self.get_response(RK.CLIP_SAVED_SUCCESSFULLY, args=[clip_name]))
+        await self.reply(RK.CLIP_SAVED_SUCCESSFULLY, args=[clip_name])
         await self._log_system_message(logging.INFO, get_log_clip_saved_successfully_message(clip_name, self._message.get_username()))

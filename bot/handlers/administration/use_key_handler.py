@@ -36,13 +36,13 @@ class SaveUserKeyHandler(BotMessageHandler):
             await DatabaseManager.add_subscription(user_id, subscription_days)
             await DatabaseManager.remove_subscription_key(key)
 
-            await self._responder.send_text(
-                await self.get_response(RK.SUBSCRIPTION_REDEEMED, [str(subscription_days)]),
+            await self.reply(
+                RK.SUBSCRIPTION_REDEEMED,
+                args=[str(subscription_days)],
+                data={"days": subscription_days},
             )
         else:
-            await self._responder.send_text(
-                await self.get_response(RK.INVALID_KEY),
-            )
+            await self.reply_error(RK.INVALID_KEY)
 
         await self._log_system_message(
             logging.INFO,

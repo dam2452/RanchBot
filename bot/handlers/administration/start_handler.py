@@ -63,8 +63,7 @@ class StartHandler(BotMessageHandler):
     async def __validate_argument_count(self) -> bool:
         content = self._message.get_text().split()
         if len(content) not in {1, 2}:
-            text = await self.get_response(RK.INVALID_COMMAND_MESSAGE)
-            await self._responder.send_markdown(text)
+            await self._responder.send_markdown(await self.get_response(RK.INVALID_COMMAND_MESSAGE))
             await self._log_system_message(
                 logging.WARNING,
                 get_invalid_argument_count_log_message(self._message.get_user_id(), self._message.get_text()),
@@ -80,17 +79,11 @@ class StartHandler(BotMessageHandler):
         )
 
         if len(content) == 1:
-            text = await self.get_response(RK.BASIC_MESSAGE)
-            await self.__send_message(text)
-        elif len(content) == 2:
-            command = content[1].lower()
-            clean_command = remove_diacritics_and_lowercase(command)
-            response_key = self.__RESPONSES.get(clean_command)
-            if response_key:
-                text = await self.get_response(response_key)
-            else:
-                text = await self.get_response(RK.INVALID_COMMAND_MESSAGE)
-            await self.__send_message(text)
+            await self.__send_message(await self.get_response(RK.BASIC_MESSAGE))
+        else:
+            command = remove_diacritics_and_lowercase(content[1])
+            response_key = self.__RESPONSES.get(command, RK.INVALID_COMMAND_MESSAGE)
+            await self.__send_message(await self.get_response(response_key))
 
     async def __send_message(self, text: str) -> None:
         await self._responder.send_markdown(text)

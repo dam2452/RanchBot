@@ -97,8 +97,8 @@ class CompileClipsHandler(BotMessageHandler):
             return await self.__reply_clip_duration_exceeded()
 
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
-        await self._responder.send_video(compiled_output)
         await process_compiled_clip(self._message, compiled_output, ClipType.COMPILED)
+        await self._responder.send_video(compiled_output)
         await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
 
     async def __parse_segments(

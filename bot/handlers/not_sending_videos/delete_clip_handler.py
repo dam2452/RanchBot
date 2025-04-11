@@ -49,29 +49,25 @@ class DeleteClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         clip_number = int(self._message.get_text().split()[1])
-
         user_clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
         clip_to_delete = user_clips[clip_number - 1]
         await DatabaseManager.delete_clip(self._message.get_user_id(), clip_to_delete.name)
-
         await self.__reply_clip_deleted(clip_to_delete.name)
 
     async def __reply_invalid_args_count(self) -> None:
         text = await self.get_response(RK.INVALID_ARGS_COUNT)
-        await self._answer(text)
+        await self.reply_error(RK.INVALID_ARGS_COUNT)
         await self._log_system_message(logging.INFO, text)
 
     async def __reply_clip_not_exist(self, clip_number: int) -> None:
-        text = await self.get_response(RK.CLIP_NOT_EXIST, args=[str(clip_number)])
-        await self._answer(text)
+        await self.reply_error(RK.CLIP_NOT_EXIST, args=[str(clip_number)])
         await self._log_system_message(
             logging.INFO,
             get_log_clip_not_exist_message(clip_number, self._message.get_username()),
         )
 
     async def __reply_clip_deleted(self, clip_name: str) -> None:
-        text = await self.get_response(RK.CLIP_DELETED, args=[clip_name])
-        await self._answer(text)
+        await self.reply(RK.CLIP_DELETED, args=[clip_name])
         await self._log_system_message(
             logging.INFO,
             get_log_clip_deleted_message(clip_name, self._message.get_username()),

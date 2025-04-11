@@ -49,7 +49,7 @@ class ManualClipHandler(BotMessageHandler):
             start_seconds = minutes_str_to_seconds(content[2])
             end_seconds = minutes_str_to_seconds(content[3])
         except (InvalidSeasonEpisodeStringException, InvalidTimeStringException):
-            return True  # Walidacja czasu przejdzie dalej — niech wyłapie to inna walidacja
+            return True
 
         if end_seconds <= start_seconds:
             await self.__reply_end_time_earlier_than_start()

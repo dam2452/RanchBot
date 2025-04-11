@@ -34,12 +34,22 @@ class SubscriptionStatusHandler(BotMessageHandler):
             return await self.__reply_no_subscription(username)
 
         subscription_end, days_remaining = subscription_status
-        response = await self.get_response(
-            RK.SUBSCRIPTION_STATUS,
-            [username, str(subscription_end), str(days_remaining)],
-        )
 
-        await self._responder.send_markdown(response)
+        if self._message.get_json_flag():
+            await self.reply(
+                key="",
+                data={
+                    "username": username,
+                    "subscription_end": subscription_end.isoformat(),
+                    "days_remaining": days_remaining,
+                },
+            )
+        else:
+            await self.reply(
+                RK.SUBSCRIPTION_STATUS,
+                args=[username, str(subscription_end), str(days_remaining)],
+            )
+
         await self._log_system_message(
             logging.INFO,
             get_log_subscription_status_sent_message(username),
@@ -54,7 +64,7 @@ class SubscriptionStatusHandler(BotMessageHandler):
         return subscription_end, days_remaining
 
     async def __reply_no_subscription(self, username: str) -> None:
-        await self._responder.send_text(await self.get_response(RK.NO_SUBSCRIPTION))
+        await self.reply_error(RK.NO_SUBSCRIPTION)
         await self._log_system_message(
             logging.INFO,
             get_log_no_active_subscription_message(username),

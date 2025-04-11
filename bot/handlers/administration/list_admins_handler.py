@@ -2,6 +2,7 @@ import logging
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
+from bot.database.models import UserProfile
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -27,12 +28,22 @@ class ListAdminsHandler(BotMessageHandler):
             return await self.__reply_no_admins_found()
 
         response = format_admins_list(users)
-        await self.__reply_admins_list(response)
+        await self.__reply_admins_list(response, users)
 
     async def __reply_no_admins_found(self) -> None:
-        await self._responder.send_text(get_no_admins_found_message())
+        message = get_no_admins_found_message()
+
+        if self._message.get_json_flag():
+            await self.reply("", data={"admins": []})
+        else:
+            await self._responder.send_text(message)
+
         await self._log_system_message(logging.INFO, get_log_no_admins_found_message())
 
-    async def __reply_admins_list(self, response: str) -> None:
-        await self._responder.send_markdown(response)
+    async def __reply_admins_list(self, response: str, users: List[UserProfile]) -> None:
+        if self._message.get_json_flag():
+            await self.reply("", data={"admins": [u.to_dict() for u in users]})
+        else:
+            await self._responder.send_markdown(response)
+
         await self._log_system_message(logging.INFO, get_log_admins_list_sent_message())

@@ -34,7 +34,7 @@ class RemoveWhitelistHandler(BotMessageHandler):
     async def __check_user_id_digit(self) -> bool:
         content = self._message.get_text().split()
         if not content[1].isdigit():
-            await self.__reply_user_not_found()
+            await self.reply_error(RK.NO_USER_ID_PROVIDED)
             return False
         return True
 
@@ -42,7 +42,7 @@ class RemoveWhitelistHandler(BotMessageHandler):
         user_id = int(self._message.get_text().split()[1])
         user_exists = await DatabaseManager.is_user_in_db(user_id)
         if not user_exists:
-            await self.__reply_user_not_found()
+            await self.__reply_user_not_found(str(user_id))
             return False
         return True
 
@@ -53,13 +53,15 @@ class RemoveWhitelistHandler(BotMessageHandler):
         await self.__reply_user_removed(user_id)
 
     async def __reply_user_removed(self, user_id: int) -> None:
-        await self._responder.send_text(await self.get_response(RK.USER_REMOVED, [str(user_id)]))
+        await self.reply(RK.USER_REMOVED, args=[str(user_id)])
         await self._log_system_message(
             logging.INFO,
             get_log_user_removed_message(str(user_id), self._message.get_username()),
         )
 
-    async def __reply_user_not_found(self) -> None:
-        user_id = self._message.get_text().split()[1]
-        await self._responder.send_text(await self.get_response(RK.USER_NOT_IN_WHITELIST, [user_id]))
-        await self._log_system_message(logging.WARNING, get_log_user_not_in_whitelist_message(int(user_id)))
+    async def __reply_user_not_found(self, user_id: str) -> None:
+        await self.reply_error(RK.USER_NOT_IN_WHITELIST, args=[user_id])
+        await self._log_system_message(
+            logging.WARNING,
+            get_log_user_not_in_whitelist_message(int(user_id)),
+        )

@@ -27,7 +27,7 @@ class CreateKeyHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         if not await self._validate_argument_count(
-                self._message, 3, await self.get_response(RK.CREATE_KEY_USAGE),
+            self._message, 3, await self.get_response(RK.CREATE_KEY_USAGE),
         ):
             await self.reply_error(RK.CREATE_KEY_USAGE)
             return False
@@ -35,7 +35,10 @@ class CreateKeyHandler(BotMessageHandler):
 
     async def __check_days_is_digit(self) -> bool:
         args = self._message.get_text().split()
-        if not args[1].isdigit():
+        try:
+            if int(args[1]) <= 0:
+                raise ValueError()
+        except (IndexError, ValueError):
             await self.reply_error(RK.CREATE_KEY_USAGE)
             await self._log_system_message(logging.INFO, get_wrong_argument_message())
             return False
@@ -59,7 +62,7 @@ class CreateKeyHandler(BotMessageHandler):
 
         await self.reply(
             RK.CREATE_KEY_SUCCESS,
-            args=[key, days],
+            args=[key, str(days)],
             data={"days": days, "key": key},
         )
         await self._log_system_message(logging.INFO, get_key_added_message(key, days))
