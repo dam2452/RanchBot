@@ -55,7 +55,7 @@ class SearchHandler(BotMessageHandler):
             segments=json.dumps(segments),
         )
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(
                 key="",
                 data={

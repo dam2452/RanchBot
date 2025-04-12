@@ -23,10 +23,6 @@ class RemoveKeyHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split(maxsplit=1)
-        if len(args) < 2:
-            await self.reply_error(RK.REMOVE_KEY_USAGE)
-            return
-
         key = args[1]
         success = await DatabaseManager.remove_subscription_key(key)
 

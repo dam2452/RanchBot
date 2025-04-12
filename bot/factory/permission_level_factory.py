@@ -34,7 +34,7 @@ class PermissionLevelFactory(ABC):
         self._bot = bot
 
     def create_and_register(self, dp: Dispatcher) -> None:
-        handler_funcs, middlewares = self.create()
+        handler_funcs, middlewares = self.get_telegram_routes_and_middlewares()
 
         for command, handler_fn in handler_funcs:
             dp.message.register(handler_fn, Command(commands=[command]))
@@ -46,22 +46,48 @@ class PermissionLevelFactory(ABC):
 
         self._logger.info(f"{self.__class__.__name__} middlewares registered")
 
-    def create(self) -> Tuple[List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]], List[BotMiddleware]]:
-        handler_funcs = self.create_handler_funcs()
+    def get_telegram_routes_and_middlewares(self) -> Tuple[
+        List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]],
+        List[BotMiddleware],
+    ]:
+        handler_funcs = self.get_telegram_handlers()
         commands = [cmd for cmd, _ in handler_funcs]
         middlewares = self.create_middlewares(commands)
         return handler_funcs, middlewares
 
-    def create_handler_funcs(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
+    def get_telegram_handlers(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
         result = []
         for handler_cls in self.create_handler_classes():
             try:
                 dummy = handler_cls(message=None, responder=None, logger=self._logger)
                 for command in dummy.get_commands():
-                    result.append((command, self._wrap(handler_cls, self._logger)))
-            except Exception as e: # pylint: disable=broad-exception-caught
+                    result.append((command, self._wrap_telegram_handler(handler_cls, self._logger)))
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 self._logger.warning(f"⚠️ Skipping handler {handler_cls.__name__} due to error: {e}")
         return result
+
+    def get_rest_handlers(self) -> List[Tuple[str, Type[BotMessageHandler]]]:
+        result = []
+        for handler_cls in self.create_handler_classes():
+            try:
+                dummy = handler_cls(message=None, responder=None, logger=logging.getLogger("dummy"))
+                for command in dummy.get_commands():
+                    result.append((command, handler_cls))
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                self._logger.warning(f"⚠️ Skipping REST handler {handler_cls.__name__} due to error: {e}")
+        return result
+
+    @staticmethod
+    def _wrap_telegram_handler(
+        handler_cls: Type[BotMessageHandler],
+        logger: logging.Logger,
+    ) -> Callable[[AiogramMessage], Awaitable[None]]:
+        async def wrapper(msg: AiogramMessage):
+            abstract_msg: AbstractMessage = TelegramMessage(msg)
+            responder: AbstractResponder = TelegramResponder(msg)
+            handler = handler_cls(abstract_msg, responder, logger)
+            await handler.handle()
+        return wrapper
 
     @abstractmethod
     def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
@@ -70,24 +96,3 @@ class PermissionLevelFactory(ABC):
     @abstractmethod
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         pass
-
-    @staticmethod
-    def _wrap(handler_cls: Type, *args) -> Callable[[AiogramMessage], Awaitable[None]]:
-        async def wrapper(msg: AiogramMessage):
-            abstract_msg: AbstractMessage = TelegramMessage(msg)
-            responder: AbstractResponder = TelegramResponder(msg)
-            handler = handler_cls(abstract_msg, responder, *args)
-            await handler.handle()
-        return wrapper
-
-    def wrap_for_rest_handlers(self) -> List[tuple[str, Type[BotMessageHandler]]]:
-        handlers = self.create_handler_classes()
-        wrapped = []
-        for handler_cls in handlers:
-            try:
-                dummy = handler_cls(message=None, responder=None, logger=logging.getLogger("dummy"))
-                for cmd in dummy.get_commands():
-                    wrapped.append((cmd, handler_cls))
-            except Exception as e: # pylint: disable=broad-exception-caught
-                self._logger.warning(f"⚠️ Skipping REST handler {handler_cls.__name__} due to error: {e}")
-        return wrapped

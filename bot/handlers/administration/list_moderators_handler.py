@@ -33,7 +33,7 @@ class ListModeratorsHandler(BotMessageHandler):
     async def __reply_no_moderators_found(self) -> None:
         message = get_no_moderators_found_message()
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply("", data={"moderators": []})
         else:
             await self._responder.send_text(message)
@@ -41,7 +41,7 @@ class ListModeratorsHandler(BotMessageHandler):
         await self._log_system_message(logging.INFO, get_log_no_moderators_found_message())
 
     async def __reply_moderators_list(self, response: str, users: List[UserProfile]) -> None:
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply("", data={"moderators": [u.to_dict() for u in users]})
         else:
             await self._responder.send_markdown(response)

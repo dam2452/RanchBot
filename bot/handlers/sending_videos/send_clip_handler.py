@@ -83,7 +83,7 @@ class SendClipHandler(BotMessageHandler):
         if temp_file_path.stat().st_size == 0:
             return await self.__reply_empty_file_error(clip.name)
 
-        await self._responder.send_video(temp_file_path, delete_after_send=True)
+        await self._responder.send_video(temp_file_path)
 
         await self._log_system_message(
             logging.INFO,

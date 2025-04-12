@@ -49,7 +49,7 @@ class SearchListHandler(BotMessageHandler):
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(
                 key="",
                 data={

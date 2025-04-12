@@ -38,7 +38,7 @@ class TranscriptionHandler(BotMessageHandler):
             await self.__reply_no_segments_found(quote)
             return
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(
                 key="",
                 data={

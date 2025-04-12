@@ -25,5 +25,5 @@ class TelegramMessage(AbstractMessage):
     def get_full_name(self) -> str:
         return self._message.from_user.full_name or self.get_username()
 
-    def get_json_flag(self) -> bool:
+    def should_reply_json(self) -> bool:
         return False

@@ -31,7 +31,7 @@ class MyClipsHandler(BotMessageHandler):
             logger=self._logger,
         )
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(
                 "",
                 data={
@@ -54,7 +54,7 @@ class MyClipsHandler(BotMessageHandler):
         )
 
     async def __reply_no_saved_clips(self) -> None:
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply("", data={"clips": []})
         else:
             await self._answer(await self.get_response(RK.NO_SAVED_CLIPS))

@@ -69,10 +69,10 @@ class SelectClipHandler(BotMessageHandler):
         temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
         output_filename.replace(temp_file_path)
 
-        if self._message.get_json_flag():
-            await self._responder.send_video(temp_file_path, delete_after_send=True)
+        if self._message.should_reply_json():
+            await self._responder.send_video(temp_file_path)
         else:
-            await self._responder.send_video(temp_file_path, delete_after_send=True)
+            await self._responder.send_video(temp_file_path)
 
         await DatabaseManager.insert_last_clip(
             chat_id=self._message.get_chat_id(),

@@ -25,7 +25,7 @@ class AdminHelpHandler(BotMessageHandler):
 
     async def __reply_admin_help(self) -> None:
         response = await self.get_response(RK.ADMIN_HELP)
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(RK.ADMIN_HELP, data={"markdown": response})
         else:
             await self._responder.send_markdown(response)
@@ -37,7 +37,7 @@ class AdminHelpHandler(BotMessageHandler):
 
     async def __reply_admin_shortcuts(self) -> None:
         response = await self.get_response(RK.ADMIN_SHORTCUTS)
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(RK.ADMIN_SHORTCUTS, data={"markdown": response})
         else:
             await self._responder.send_markdown(response)

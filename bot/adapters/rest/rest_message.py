@@ -6,7 +6,7 @@ from bot.interfaces.message import AbstractMessage
 
 class RestMessage(AbstractMessage):
     def __init__(self, payload: CommandRequest, user_data: json):
-        payload.json = True
+        payload.reply_json = True
         self._payload = payload
         self._user_data = user_data
 
@@ -28,5 +28,5 @@ class RestMessage(AbstractMessage):
     def get_sender_id(self) -> int:
         return self.get_user_id()
 
-    def get_json_flag(self) -> bool:
-        return self._payload.json
+    def should_reply_json(self) -> bool:
+        return self._payload.reply_json

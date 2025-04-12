@@ -1,49 +1,23 @@
 from contextlib import asynccontextmanager
-from datetime import (
-    datetime,
-    timezone,
-)
-import json
-import logging
-import re
-
-from fastapi import (
-    Body,
-    Depends,
-    FastAPI,
-    HTTPException,
-    Path,
-)
-from fastapi.security import (
-    HTTPAuthorizationCredentials,
-    HTTPBearer,
-)
-from jose import (
-    JWTError,
-    jwt,
-)
-from starlette.responses import JSONResponse
 import uvicorn
-
-from bot.adapters.rest.models import (
-    CommandRequest,
-    TextCompatibleCommandWrapper,
+from fastapi import FastAPI, Depends, HTTPException, Request, Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+from bot.auth.auth_service import (
+    authenticate_user, create_access_token, create_refresh_token,
+    verify_refresh_token, revoke_refresh_token
 )
-from bot.adapters.rest.rest_message import RestMessage
-from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
+from bot.database.models import UserProfile
 from bot.factory import create_all_factories
 from bot.settings import settings as s
 from bot.utils.log import get_log_level
+import logging
 
 logging.basicConfig(level=get_log_level())
 logger = logging.getLogger(__name__)
 
 command_handlers = {}
-command_middlewares = {}
-
-COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -56,90 +30,59 @@ async def lifespan(_: FastAPI):
         schema=s.POSTGRES_SCHEMA,
     )
     await DatabaseManager.init_db()
-
     factories = create_all_factories(logger, bot=None)
-
     for factory in factories:
-        for command, handler_cls in factory.wrap_for_rest_handlers():
+        for command, handler_cls in factory.get_rest_handlers():
             command_handlers[command] = handler_cls
-
-        for middleware in factory.create_middlewares(list(command_handlers.keys())):
-            command_middlewares[middleware.__class__.__name__] = middleware
-
-    logger.info("✅ REST command handlers and middlewares loaded.")
-
+    logger.info("✅ REST handlers loaded.")
     yield
-
-    logger.info("🛑 Shutting down REST API.")
-
+    logger.info("🛑 API Shutdown.")
 
 app = FastAPI(lifespan=lifespan)
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
-def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> json:
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, s.JWT_SECRET_KEY, algorithms=[s.JWT_ALGORITHM])
+@app.post("/auth/login")
+async def login(data: LoginRequest, request: Request, response: Response):
+    user = await authenticate_user(data.username, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    access_token = create_access_token(user)
+    refresh_token = await create_refresh_token(user, request.client.host, request.headers.get('User-Agent'))
+    response.set_cookie("refresh_token", refresh_token, httponly=True, secure=True, samesite="strict")
+    return {"access_token": access_token, "token_type": "bearer"}
 
-        if "exp" not in payload:
-            raise HTTPException(status_code=401, detail="Token has no 'exp' claim.")
+@app.post("/auth/refresh")
+async def refresh(request: Request, response: Response):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    token_record = await verify_refresh_token(refresh_token)
+    if not token_record:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    user_record = await DatabaseManager.fetchrow("SELECT * FROM user_profiles WHERE user_id = $1", token_record.user_id)
+    user = UserProfile(**user_record)
+    new_access_token = create_access_token(user)
+    new_refresh_token = await create_refresh_token(user, request.client.host, request.headers.get('User-Agent'))
+    await revoke_refresh_token(refresh_token)
+    response.set_cookie("refresh_token", new_refresh_token, httponly=True, secure=True, samesite="strict")
+    return {"access_token": new_access_token, "token_type": "bearer"}
 
-        if datetime.now(timezone.utc).timestamp() > payload["exp"]:
-            raise HTTPException(status_code=401, detail="Token has expired.")
-
-        required_fields = ["user_id", "username", "full_name"]
-        for field in required_fields:
-            if field not in payload:
-                raise HTTPException(status_code=401, detail=f"Missing '{field}' in token payload.")
-
-        return payload
-
-    except JWTError as exc:
-        raise HTTPException(status_code=401, detail="Invalid or malformed token.") from exc
-
+security = HTTPBearer()
 
 @app.post("/{command_name}")
-async def universal_command_handler(
-    command_name: str = Path(..., min_length=1, max_length=30, pattern=r"^[a-zA-Z0-9_-]+$"),
-    cmd: CommandRequest = Body(...),
-    user_data: dict = Depends(verify_jwt_token),
-):
-    text = f"/{command_name} {' '.join(cmd.args)}".strip()
-
-    if len(text) > 1000:
-        return JSONResponse({"error": "Command text too long."}, status_code=400)
-
+async def universal_handler(command_name: str, request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    payload = jwt.decode(credentials.credentials, s.JWT_SECRET_KEY, algorithms=[s.JWT_ALGORITHM])
     handler_cls = command_handlers.get(command_name)
     if not handler_cls:
-        return JSONResponse({"error": f"Command '{command_name}' not recognized."}, status_code=404)
+        raise HTTPException(404, f"Unknown command '{command_name}'")
+    handler = handler_cls(payload, request)
+    return await handler.handle()
 
-    message = RestMessage(TextCompatibleCommandWrapper(command_name, cmd.args, json=True), user_data)
-    responder = RestResponder()
-    handler_instance = handler_cls(message, responder, logger)
+def run_rest_api():
+    uvicorn.run("bot.platforms.rest_runner:app", host="0.0.0.0", port=8000, reload=False)
 
-    executed = False
-
-    async def invoke_once():
-        nonlocal executed
-        if not executed:
-            executed = True
-            await handler_instance.handle()
-        return responder.get_response()
-
-    for middleware in command_middlewares.values():
-        response = await middleware.handle(message, responder, invoke_once)
-        if response:
-            return response
-
-    return await invoke_once()
-
-
-async def run_rest_api():
-    config = uvicorn.Config(
-        "bot.platforms.rest_runner:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False,
-    )
-    server = uvicorn.Server(config)
-    await server.serve()
+if __name__ == "__main__":
+    run_rest_api()

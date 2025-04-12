@@ -33,7 +33,7 @@ class ListAdminsHandler(BotMessageHandler):
     async def __reply_no_admins_found(self) -> None:
         message = get_no_admins_found_message()
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply("", data={"admins": []})
         else:
             await self._responder.send_text(message)
@@ -41,7 +41,7 @@ class ListAdminsHandler(BotMessageHandler):
         await self._log_system_message(logging.INFO, get_log_no_admins_found_message())
 
     async def __reply_admins_list(self, response: str, users: List[UserProfile]) -> None:
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply("", data={"admins": [u.to_dict() for u in users]})
         else:
             await self._responder.send_markdown(response)

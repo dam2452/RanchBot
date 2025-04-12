@@ -35,7 +35,7 @@ class SubscriptionStatusHandler(BotMessageHandler):
 
         subscription_end, days_remaining = subscription_status
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             await self.reply(
                 key="",
                 data={

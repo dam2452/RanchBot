@@ -97,11 +97,11 @@ class BotMessageHandler(ABC):
         await self._responder.send_photo(image_bytes, image_path, caption)
 
     async def _answer_video(self, file_path: Path) -> None:
-        file_size = file_path.stat().st_size / (1024 * 1024)  # MB
-        await self._log_system_message(logging.INFO, get_clip_size_log_message(file_path, file_size))
+        file_size_mb = file_path.stat().st_size / (1024 * 1024)
+        await self._log_system_message(logging.INFO, get_clip_size_log_message(file_path, file_size_mb))
 
-        if file_size > settings.TELEGRAM_FILE_SIZE_LIMIT_MB:
-            await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size, settings.TELEGRAM_FILE_SIZE_LIMIT_MB))
+        if file_size_mb > settings.TELEGRAM_FILE_SIZE_LIMIT_MB:
+            await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.TELEGRAM_FILE_SIZE_LIMIT_MB))
             await self._answer(await self.get_response(RK.CLIP_SIZE_EXCEEDED, as_parent=True))
         else:
             await self._responder.send_video(file_path)
@@ -144,7 +144,7 @@ class BotMessageHandler(ABC):
     ) -> None:
         message = await self.get_response(key, args, as_parent) if key else ""
 
-        if self._message.get_json_flag():
+        if self._message.should_reply_json():
             response_data = {
                 "status": status,
                 "code": key,
@@ -162,8 +162,3 @@ class BotMessageHandler(ABC):
     @staticmethod
     async def escape_markdown(text: str) -> str:
         return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
-
-    async def _escape_args(self, args: Optional[List[str]]) -> Optional[List[str]]:
-        if not args:
-            return None
-        return [await self.escape_markdown(arg) for arg in args]
