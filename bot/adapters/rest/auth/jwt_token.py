@@ -2,7 +2,6 @@ from datetime import (
     UTC,
     datetime,
     timedelta,
-    timezone,
 )
 from typing import (
     Any,
@@ -34,19 +33,25 @@ def generate_token(user_id: int, username: str, full_name: str, expire_minutes: 
         "full_name": full_name,
         "iat": now_utc.timestamp(),
         "exp": expire.timestamp(),
+        "iss": s.JWT_ISSUER,
+        "aud": s.JWT_AUDIENCE,
     }
     return jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
+
 
 def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
     token = credentials.credentials
     try:
-        payload = jwt.decode(token, s.JWT_SECRET_KEY, algorithms=[s.JWT_ALGORITHM])
-
-        if "exp" not in payload:
-            raise HTTPException(status_code=401, detail="Token has no 'exp' claim.")
-
-        if datetime.now(timezone.utc).timestamp() > payload["exp"]:
-            raise HTTPException(status_code=401, detail="Token expired.")
+        payload = jwt.decode(
+            token,
+            s.JWT_SECRET_KEY,
+            algorithms=[s.JWT_ALGORITHM],
+            issuer=s.JWT_ISSUER,
+            audience=s.JWT_AUDIENCE,
+            options={
+                "require": ["exp", "iss", "aud", "iat"],
+            },
+        )
 
         required_fields = ["user_id", "username", "full_name"]
         for field in required_fields:

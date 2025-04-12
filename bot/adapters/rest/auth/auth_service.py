@@ -31,7 +31,10 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 async def authenticate_user(username: str, password: str) -> Optional[UserProfile]:
     result = await DatabaseManager.get_credentials_with_profile_by_username(username)
+    dummy_hash = "$2b$12$XEMBQhCuW2tw8rAIIoKV1ejU7nee6VDFZ5tRETJbkAQI2WCUDPqIm"
+
     if result is None:
+        verify_password(password, dummy_hash)
         return None
 
     user_profile, hashed_password = result
@@ -39,7 +42,6 @@ async def authenticate_user(username: str, password: str) -> Optional[UserProfil
         return None
 
     return user_profile
-
 
 def create_access_token(user: UserProfile, expires_minutes: int = s.JWT_EXPIRE_MINUTES) -> str:
     now = datetime.now(UTC)

@@ -81,6 +81,20 @@ async def lifespan(app_instance: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(SlowAPIMiddleware)
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store"
+
+    response.headers["Content-Security-Policy"] = "default-src 'none'"
+
+    return response
+
 class LoginRequest(BaseModel):
     username: Annotated[str, StringConstraints(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9._-]+$")]
     password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
@@ -112,6 +126,7 @@ async def login(data: LoginRequest, request: Request, response: Response):
 
 
 @app.post("/auth/refresh")
+@limiter.limit("5/minute")
 async def refresh(request: Request, response: Response):
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
