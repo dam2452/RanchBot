@@ -58,27 +58,27 @@ class PermissionLevelFactory(ABC):
     def get_telegram_handlers(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
         result = []
         for handler_cls in self.create_handler_classes():
-            try:
-                dummy = handler_cls(message=None, responder=None, logger=self._logger)
-                for command in dummy.get_commands():
-                    result.append((command, self._wrap_telegram_handler(handler_cls, self._logger)))
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self._logger.warning(f"⚠️ Skipping handler {handler_cls.__name__} due to error: {e}")
+            # try:
+            dummy = handler_cls(message=None, responder=None, logger=self._logger)
+            for command in dummy.get_commands():
+                result.append((command, self.__wrap_telegram_handler(handler_cls, self._logger)))
+            # except Exception as e:
+            #     self._logger.warning(f"⚠️ Skipping handler {handler_cls.__name__} due to error: {e}")
         return result
 
     def get_rest_handlers(self) -> List[Tuple[str, Type[BotMessageHandler]]]:
         result = []
         for handler_cls in self.create_handler_classes():
-            try:
-                dummy = handler_cls(message=None, responder=None, logger=logging.getLogger("dummy"))
-                for command in dummy.get_commands():
-                    result.append((command, handler_cls))
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self._logger.warning(f"⚠️ Skipping REST handler {handler_cls.__name__} due to error: {e}")
+            # try:
+            dummy = handler_cls(message=None, responder=None, logger=logging.getLogger("dummy"))
+            for command in dummy.get_commands():
+                result.append((command, handler_cls))
+            # except Exception as e:
+            #     self._logger.warning(f"⚠️ Skipping REST handler {handler_cls.__name__} due to error: {e}")
         return result
 
     @staticmethod
-    def _wrap_telegram_handler(
+    def __wrap_telegram_handler(
         handler_cls: Type[BotMessageHandler],
         logger: logging.Logger,
     ) -> Callable[[AiogramMessage], Awaitable[None]]:

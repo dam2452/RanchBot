@@ -17,8 +17,10 @@ import asyncpg
 from bot.database.models import (
     ClipType,
     LastClip,
+    RefreshToken,
     SearchHistory,
     SubscriptionKey,
+    UserCredentials,
     UserProfile,
     VideoClip,
 )
@@ -742,3 +744,147 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
         return await DatabaseManager.__get_message_from_message_table(
             "common_messages", key, handler_name,
         )
+
+    @staticmethod
+    async def get_user_by_username(username: str) -> Optional[tuple[UserProfile, UserCredentials]]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    up.user_id,
+                    up.username,
+                    up.full_name,
+                    up.subscription_end,
+                    up.note,
+                    uc.hashed_password,
+                    uc.created_at,
+                    uc.last_updated
+                FROM user_profiles up
+                JOIN user_credentials uc ON up.user_id = uc.user_id
+                WHERE up.username = $1
+                """,
+                username,
+            )
+            if row:
+                profile = UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    full_name=row["full_name"],
+                    subscription_end=row["subscription_end"],
+                    note=row["note"],
+                )
+                credentials = UserCredentials(
+                    user_id=row["user_id"],
+                    hashed_password=row["hashed_password"],
+                    created_at=row["created_at"],
+                    last_updated=row["last_updated"],
+                )
+                return (profile, credentials)
+            return None
+
+    @staticmethod
+    async def insert_refresh_token(
+        user_id: int,
+        token: str,
+        created_at: datetime,
+        expires_at: datetime,
+        ip_address: Optional[str],
+        user_agent: Optional[str],
+    ) -> None:
+        async with DatabaseManager.get_db_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO refresh_tokens (user_id, token, created_at, expires_at, ip_address, user_agent)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                user_id, token, created_at, expires_at, ip_address, user_agent,
+            )
+
+
+    @staticmethod
+    async def get_refresh_token(token: str) -> Optional[RefreshToken]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, user_id, token, created_at, expires_at, revoked, revoked_at, ip_address, user_agent
+                FROM refresh_tokens
+                WHERE token = $1 AND revoked = FALSE AND expires_at > NOW()
+                """,
+                token,
+            )
+            if row:
+                return RefreshToken(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    token=row["token"],
+                    created_at=row["created_at"],
+                    expires_at=row["expires_at"],
+                    revoked=row["revoked"],
+                    revoked_at=row["revoked_at"],
+                    ip_address=row["ip_address"],
+                    user_agent=row["user_agent"],
+                )
+            return None
+
+
+    @staticmethod
+    async def revoke_refresh_token(token: str) -> None:
+        async with DatabaseManager.get_db_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE refresh_tokens
+                SET revoked = TRUE, revoked_at = NOW()
+                WHERE token = $1
+                """,
+                token,
+            )
+
+    @staticmethod
+    async def get_credentials_with_profile_by_username(username: str) -> Optional[tuple[UserProfile, str]]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    up.user_id,
+                    up.username,
+                    up.full_name,
+                    up.subscription_end,
+                    up.note,
+                    uc.hashed_password
+                FROM user_profiles up
+                JOIN user_credentials uc ON up.user_id = uc.user_id
+                WHERE up.username = $1
+                """,
+                username,
+            )
+            if row:
+                profile = UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    full_name=row["full_name"],
+                    subscription_end=row["subscription_end"],
+                    note=row["note"],
+                )
+                return profile, row["hashed_password"]
+            return None
+
+    @staticmethod
+    async def get_user_by_id(user_id: int) -> Optional[UserProfile]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT user_id, username, full_name, subscription_end, note
+                FROM user_profiles
+                WHERE user_id = $1
+                """,
+                user_id,
+            )
+            if row:
+                return UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    full_name=row["full_name"],
+                    subscription_end=row["subscription_end"],
+                    note=row["note"],
+                )
+            return None

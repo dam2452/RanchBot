@@ -1,9 +1,14 @@
+import json
 from pathlib import Path
-from typing import Optional
+from typing import (
+    Optional,
+    Union,
+)
 
 from fastapi.responses import (
     FileResponse,
     JSONResponse,
+    Response,
 )
 from starlette.background import BackgroundTask
 
@@ -13,13 +18,13 @@ from bot.interfaces.responder import AbstractResponder
 
 class RestResponder(AbstractResponder):
     def __init__(self):
-        self.responses = []
+        self.__response: Optional[Union[FileResponse, JSONResponse]] = None
 
     async def send_text(self, text: str) -> None:
-        self.responses.append({"type": ResponseType.TEXT, "content": text})
+        self.__set_response(JSONResponse({"type": ResponseType.TEXT, "content": text}))
 
     async def send_markdown(self, text: str) -> None:
-        self.responses.append({"type": ResponseType.MARKDOWN, "content": text})
+        self.__set_response(JSONResponse({"type": ResponseType.MARKDOWN, "content": text}))
 
     async def send_photo(
         self,
@@ -28,20 +33,25 @@ class RestResponder(AbstractResponder):
         caption: str,
         background: Optional[BackgroundTask] = None,
     ) -> None:
-        self.responses.append({
-            "type": ResponseType.PHOTO,
-            "caption": caption,
-            "filename": str(image_path),
-            "background": background,
-        })
+        self.__set_response(
+            FileResponse(
+                path=str(image_path),
+                media_type="image/jpeg",
+                filename=image_path.name,
+                background=background,
+            ),
+        )
 
     async def send_video(self, file_path: Path, delete_after_send: bool = True) -> None:
-        task = BackgroundTask(file_path.unlink) if delete_after_send else None
-        self.responses.append({
-            "type": ResponseType.VIDEO,
-            "filename": str(file_path),
-            "background": task,
-        })
+        background = BackgroundTask(file_path.unlink) if delete_after_send else None
+        self.__set_response(
+            FileResponse(
+                path=str(file_path),
+                media_type="video/mp4",
+                filename=file_path.name,
+                background=background,
+            ),
+        )
 
     async def send_document(
         self,
@@ -49,36 +59,24 @@ class RestResponder(AbstractResponder):
         caption: str,
         background: Optional[BackgroundTask] = None,
     ) -> None:
-        self.responses.append({
-            "type": ResponseType.DOCUMENT,
-            "caption": caption,
-            "filename": str(file_path),
-            "background": background,
-        })
+        self.__set_response(
+            FileResponse(
+                path=str(file_path),
+                media_type="application/octet-stream",
+                filename=file_path.name,
+                background=background,
+            ),
+        )
 
-    async def send_json(self, data: dict) -> None:
-        self.responses.append({
-            "type": ResponseType.JSON,
-            "content": data,
-        })
+    async def send_json(self, data: json) -> None:
+        self.__set_response(JSONResponse(data))
 
-    def get_response(self):
-        for item in self.responses:
-            if item["type"] in {ResponseType.VIDEO, ResponseType.PHOTO, ResponseType.DOCUMENT}:
-                media_type = {
-                    ResponseType.VIDEO: "video/mp4",
-                    ResponseType.PHOTO: "image/jpeg",
-                    ResponseType.DOCUMENT: "application/octet-stream",
-                }[item["type"]]
-                return FileResponse(
-                    path=item["filename"],
-                    media_type=media_type,
-                    filename=Path(item["filename"]).name,
-                    background=item.get("background"),
-                )
+    def __set_response(self, response: Union[FileResponse, JSONResponse]) -> None:
+        if self.__response is not None:
+            raise RuntimeError("Response already set for this request")
+        self.__response = response
 
-        for item in self.responses:
-            if item["type"] == ResponseType.JSON:
-                return JSONResponse(item["content"])
-
-        return JSONResponse(self.responses)
+    def get_response(self) -> Response:
+        if self.__response is None:
+            raise RuntimeError("No response has been set")
+        return self.__response

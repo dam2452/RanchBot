@@ -52,6 +52,11 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = Field("INFO")
 
+
+    REST_API_HOST: str = Field("0.0.0.0")
+    REST_API_PORT: int = Field(8000)
+    REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
+
     class Config:
         env_file = str(env_path)
         env_prefix = ""

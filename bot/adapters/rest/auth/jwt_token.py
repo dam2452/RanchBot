@@ -55,5 +55,5 @@ def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
 
         return payload
 
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or malformed token.")
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid or malformed token.") from exc

@@ -1,26 +1,45 @@
-from datetime import datetime, timedelta, UTC
-import secrets
+from datetime import (
+    UTC,
+    datetime,
+    timedelta,
+)
+from typing import Optional
+
+from jose import (
+    JWTError,
+    jwt,
+)
 from passlib.context import CryptContext
-from jose import jwt
+
 from bot.database.database_manager import DatabaseManager
+from bot.database.models import (
+    RefreshToken,
+    UserProfile,
+)
 from bot.settings import settings as s
-from bot.database.models import RefreshToken, UserProfile
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
+
 async def authenticate_user(username: str, password: str) -> Optional[UserProfile]:
-    user_record = await DatabaseManager.fetchrow(
-        "SELECT * FROM user_profiles WHERE username = $1", username
-    )
-    if user_record and verify_password(password, user_record["hashed_password"]):
-        return UserProfile(**user_record)
-    return None
+    result = await DatabaseManager.get_credentials_with_profile_by_username(username)
+    if result is None:
+        return None
+
+    user_profile, hashed_password = result
+    if not verify_password(password, hashed_password):
+        return None
+
+    return user_profile
+
 
 def create_access_token(user: UserProfile, expires_minutes: int = 15) -> str:
     expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
@@ -33,30 +52,41 @@ def create_access_token(user: UserProfile, expires_minutes: int = 15) -> str:
     }
     return jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
 
-async def create_refresh_token(user: UserProfile, ip: str, user_agent: str, expires_days: int = 30) -> str:
-    token = secrets.token_urlsafe(64)
-    created_at = datetime.now(UTC)
-    expires_at = created_at + timedelta(days=expires_days)
-    await DatabaseManager.execute(
-        """
-        INSERT INTO refresh_tokens (user_id, token, created_at, expires_at, ip_address, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        """,
-        user.user_id, token, created_at, expires_at, ip, user_agent
+
+async def create_refresh_token(
+    user: UserProfile,
+    ip_address: Optional[str],
+    user_agent: Optional[str],
+    expires_days: int = 30,
+) -> str:
+    expires_at = datetime.now(UTC) + timedelta(days=expires_days)
+    payload = {
+        "user_id": user.user_id,
+        "exp": expires_at.timestamp(),
+        "iat": datetime.now(UTC).timestamp(),
+    }
+    token = jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
+
+    await DatabaseManager.insert_refresh_token(
+        user_id=user.user_id,
+        token=token,
+        created_at=datetime.now(UTC),
+        expires_at=expires_at,
+        ip_address=ip_address,
+        user_agent=user_agent,
     )
+
     return token
 
-async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
-    token_record = await DatabaseManager.fetchrow(
-        "SELECT * FROM refresh_tokens WHERE token = $1 AND revoked = FALSE AND expires_at > NOW()",
-        token
-    )
-    if token_record:
-        return RefreshToken(**token_record)
-    return None
 
-async def revoke_refresh_token(token: str):
-    await DatabaseManager.execute(
-        "UPDATE refresh_tokens SET revoked = TRUE, revoked_at = NOW() WHERE token = $1",
-        token
-    )
+async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
+    try:
+        jwt.decode(token, s.JWT_SECRET_KEY, algorithms=[s.JWT_ALGORITHM])
+    except JWTError:
+        return None
+
+    return await DatabaseManager.get_refresh_token(token)
+
+
+async def revoke_refresh_token(token: str) -> None:
+    await DatabaseManager.revoke_refresh_token(token)

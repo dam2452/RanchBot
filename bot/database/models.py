@@ -13,10 +13,30 @@ from bot.database.serializable import Serializable
 @dataclass
 class UserProfile(Serializable):
     user_id: int
-    username: Optional[str]
+    username: str
     full_name: Optional[str]
-    subscription_end: Optional[date]
-    note: Optional[str]
+    subscription_end: Optional[date] = None
+    note: Optional[str] = None
+
+
+@dataclass
+class UserCredentials(Serializable):
+    user_id: int
+    hashed_password: str
+    created_at: datetime
+    last_updated: datetime
+
+@dataclass
+class RefreshToken:
+    id: int
+    user_id: int
+    token: str
+    created_at: datetime
+    expires_at: datetime
+    revoked: bool
+    revoked_at: Optional[datetime]
+    ip_address: Optional[str]
+    user_agent: Optional[str]
 
 
 @dataclass
