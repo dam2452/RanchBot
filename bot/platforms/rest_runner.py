@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
 import logging
+import re
+from typing import Annotated
 
 from fastapi import (
     Depends,
     FastAPI,
     HTTPException,
+    Path,
     Request,
     Response,
 )
@@ -16,7 +19,17 @@ from jose import (
     JWTError,
     jwt,
 )
-from pydantic import BaseModel
+from pydantic import (
+    BaseModel,
+    StringConstraints,
+)
+from slowapi import (
+    Limiter,
+    _rate_limit_exceeded_handler,
+)
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 import uvicorn
 
 from bot.adapters.rest.auth.auth_service import (
@@ -36,8 +49,15 @@ logger = logging.getLogger(__name__)
 
 command_handlers = {}
 
+COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
+
+limiter = Limiter(key_func=get_remote_address)
+
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app_instance: FastAPI):
+    app_instance.state.limiter = limiter
+    app_instance.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    logger.info("🌐 Initializing DB connection...")
     await DatabaseManager.init_pool(
         host=s.POSTGRES_HOST,
         port=s.POSTGRES_PORT,
@@ -56,14 +76,15 @@ async def lifespan(_: FastAPI):
     logger.info("🛑 API Shutdown.")
 
 app = FastAPI(lifespan=lifespan)
-
+app.add_middleware(SlowAPIMiddleware)
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: Annotated[str, StringConstraints(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9._-]+$")]
+    password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
 
 
 @app.post("/auth/login")
+@limiter.limit("5/minute")
 async def login(data: LoginRequest, request: Request, response: Response):
     user = await authenticate_user(data.username, data.password)
     if not user:
@@ -77,8 +98,12 @@ async def login(data: LoginRequest, request: Request, response: Response):
     )
 
     response.set_cookie(
-        "refresh_token", refresh_token,
-        httponly=True, secure=True, samesite="strict",
+        "refresh_token",
+        refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/",
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -107,8 +132,12 @@ async def refresh(request: Request, response: Response):
     await revoke_refresh_token(refresh_token)
 
     response.set_cookie(
-        "refresh_token", new_refresh_token,
-        httponly=True, secure=True, samesite="strict",
+        "refresh_token",
+        new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/",
     )
     return {"access_token": new_access_token, "token_type": "bearer"}
 
@@ -116,8 +145,8 @@ security = HTTPBearer()
 
 @app.post("/{command_name}")
 async def universal_handler(
-    command_name: str,
-    request: Request,
+    command_name: str = Path(..., regex=COMMAND_PATTERN.pattern),
+    request: Request = None,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     try:
@@ -125,7 +154,15 @@ async def universal_handler(
             credentials.credentials,
             s.JWT_SECRET_KEY,
             algorithms=[s.JWT_ALGORITHM],
+            issuer=s.JWT_ISSUER,
+            audience=s.JWT_AUDIENCE,
         )
+
+        required_fields = {"user_id": int, "username": str, "full_name": str}
+        for field, expected_type in required_fields.items():
+            if field not in payload or not isinstance(payload[field], expected_type):
+                raise HTTPException(status_code=401, detail=f"Invalid payload field: {field}")
+
     except JWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 
@@ -135,6 +172,7 @@ async def universal_handler(
 
     handler = handler_cls(payload, request)
     return await handler.handle()
+
 
 def run_rest_api():
     uvicorn.run(

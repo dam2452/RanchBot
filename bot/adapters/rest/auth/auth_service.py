@@ -41,14 +41,17 @@ async def authenticate_user(username: str, password: str) -> Optional[UserProfil
     return user_profile
 
 
-def create_access_token(user: UserProfile, expires_minutes: int = 15) -> str:
-    expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
+def create_access_token(user: UserProfile, expires_minutes: int = s.JWT_EXPIRE_MINUTES) -> str:
+    now = datetime.now(UTC)
+    expire = now + timedelta(minutes=expires_minutes)
     payload = {
         "user_id": user.user_id,
         "username": user.username,
         "full_name": user.full_name,
         "exp": expire.timestamp(),
-        "iat": datetime.now(UTC).timestamp(),
+        "iat": now.timestamp(),
+        "iss": s.JWT_ISSUER,
+        "aud": s.JWT_AUDIENCE,
     }
     return jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
 
@@ -59,18 +62,21 @@ async def create_refresh_token(
     user_agent: Optional[str],
     expires_days: int = 30,
 ) -> str:
-    expires_at = datetime.now(UTC) + timedelta(days=expires_days)
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(days=expires_days)
     payload = {
         "user_id": user.user_id,
         "exp": expires_at.timestamp(),
-        "iat": datetime.now(UTC).timestamp(),
+        "iat": now.timestamp(),
+        "iss": s.JWT_ISSUER,
+        "aud": s.JWT_AUDIENCE,
     }
     token = jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
 
     await DatabaseManager.insert_refresh_token(
         user_id=user.user_id,
         token=token,
-        created_at=datetime.now(UTC),
+        created_at=now,
         expires_at=expires_at,
         ip_address=ip_address,
         user_agent=user_agent,
@@ -81,7 +87,13 @@ async def create_refresh_token(
 
 async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
     try:
-        jwt.decode(token, s.JWT_SECRET_KEY, algorithms=[s.JWT_ALGORITHM])
+        jwt.decode(
+            token,
+            s.JWT_SECRET_KEY,
+            algorithms=[s.JWT_ALGORITHM],
+            issuer=s.JWT_ISSUER,
+            audience=s.JWT_AUDIENCE,
+        )
     except JWTError:
         return None
 

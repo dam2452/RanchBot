@@ -24,11 +24,6 @@ class Settings(BaseSettings):
 
     SPECIALIZED_TABLE: str = Field(...)
 
-    PLATFORM: str = Field("telegram")
-    JWT_SECRET_KEY: str = Field(...)
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 30
-
     ES_HOST: str = Field(...)
     ES_USER: str = Field(...)
     ES_PASS: str = Field(...)
@@ -52,6 +47,12 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = Field("INFO")
 
+    PLATFORM: str = Field("telegram")
+    JWT_SECRET_KEY: str = Field(...)
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 30
+    JWT_ISSUER: str = Field("RanchBot")
+    JWT_AUDIENCE: str = Field("CLI")
 
     REST_API_HOST: str = Field("0.0.0.0")
     REST_API_PORT: int = Field(8000)
