@@ -24,6 +24,7 @@ from bot.database.models import (
     UserProfile,
     VideoClip,
 )
+from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
 
 
@@ -792,6 +793,17 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
         user_agent: Optional[str],
     ) -> None:
         async with DatabaseManager.get_db_connection() as conn:
+            active_token_count = await conn.fetchval(
+                """
+                SELECT COUNT(*) FROM refresh_tokens
+                WHERE user_id = $1 AND revoked = FALSE AND expires_at > NOW()
+                """,
+                user_id,
+            )
+
+            if active_token_count >= settings.MAX_ACTIVE_TOKENS:
+                raise TooManyActiveTokensError(f"User {user_id} exceeded the max number of active refresh tokens.")
+
             await conn.execute(
                 """
                 INSERT INTO refresh_tokens (user_id, token, created_at, expires_at, ip_address, user_agent)
@@ -799,7 +811,6 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
                 """,
                 user_id, token, created_at, expires_at, ip_address, user_agent,
             )
-
 
     @staticmethod
     async def get_refresh_token(token: str) -> Optional[RefreshToken]:

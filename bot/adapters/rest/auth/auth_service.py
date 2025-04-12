@@ -5,6 +5,7 @@ from datetime import (
 )
 from typing import Optional
 
+from fastapi import HTTPException
 from jose import (
     JWTError,
     jwt,
@@ -16,6 +17,7 @@ from bot.database.models import (
     RefreshToken,
     UserProfile,
 )
+from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings as s
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -75,14 +77,20 @@ async def create_refresh_token(
     }
     token = jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
 
-    await DatabaseManager.insert_refresh_token(
-        user_id=user.user_id,
-        token=token,
-        created_at=now,
-        expires_at=expires_at,
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
+    try:
+        await DatabaseManager.insert_refresh_token(
+            user_id=user.user_id,
+            token=token,
+            created_at=now,
+            expires_at=expires_at,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+    except TooManyActiveTokensError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many active refresh tokens. Please log out from other sessions.",
+        ) from exc
 
     return token
 
