@@ -779,7 +779,7 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
                     created_at=row["created_at"],
                     last_updated=row["last_updated"],
                 )
-                return (profile, credentials)
+                return profile, credentials
             return None
 
     @staticmethod

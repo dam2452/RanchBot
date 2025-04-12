@@ -39,6 +39,9 @@ from bot.adapters.rest.auth.auth_service import (
     revoke_refresh_token,
     verify_refresh_token,
 )
+from bot.adapters.rest.models import TextCompatibleCommandWrapper
+from bot.adapters.rest.rest_message import RestMessage
+from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
 from bot.factory import create_all_factories
 from bot.settings import settings as s
@@ -168,19 +171,43 @@ async def universal_handler(
 
     handler_cls = command_handlers.get(command_name)
     if not handler_cls:
-        raise HTTPException(404, f"Unknown command '{command_name}'")
+        raise HTTPException(status_code=404, detail=f"Unknown command '{command_name}'")
 
-    handler = handler_cls(payload, request)
-    return await handler.handle()
+    try:
+        request_json = await request.json()
+        args = request_json.get("args", [])
+        if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+            raise ValueError("Invalid args list")
+
+        reply_json = request_json.get("reply_json", False)
+        if not isinstance(reply_json, bool):
+            raise ValueError("Invalid reply_json flag")
+
+        command_request = TextCompatibleCommandWrapper(
+            command_name=command_name,
+            args=args,
+            json=reply_json,
+        )
+
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+
+    message = RestMessage(payload=command_request, user_data=payload)
+    responder = RestResponder()
+
+    handler = handler_cls(message, responder, logger)
+    await handler.handle()
+
+    return responder.get_response()
 
 
-def run_rest_api():
-    uvicorn.run(
+async def run_rest_api():
+    config = uvicorn.Config(
         s.REST_API_APP_PATH,
         host=s.REST_API_HOST,
         port=s.REST_API_PORT,
         reload=False,
     )
+    server = uvicorn.Server(config)
 
-if __name__ == "__main__":
-    run_rest_api()
+    await server.serve()

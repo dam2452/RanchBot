@@ -1,12 +1,11 @@
 import json
 
-from bot.adapters.rest.models import CommandRequest
+from bot.adapters.rest.models import TextCompatibleCommandWrapper
 from bot.interfaces.message import AbstractMessage
 
 
 class RestMessage(AbstractMessage):
-    def __init__(self, payload: CommandRequest, user_data: json):
-        payload.reply_json = True
+    def __init__(self, payload: TextCompatibleCommandWrapper, user_data: json):
         self.__payload = payload
         self.__user_data = user_data
 
