@@ -1,5 +1,10 @@
 from enum import Enum
-from typing import Any
+from typing import (
+    Type,
+    TypeVar,
+)
+
+T = TypeVar("T", bound="Resolution")
 
 
 class Resolution(Enum):
@@ -14,11 +19,11 @@ class Resolution(Enum):
     def __str__(self):
         return f"{self.height}p"
 
-    @staticmethod
-    def from_str(init: str) -> Any: #type hint ?
+    @classmethod
+    def from_str(cls: Type[T], init: str) -> T:
         init = init.strip()
         if not init[0].isalpha():
             init = "R" + init.upper()
         else:
             init = init.upper()
-        return Resolution[init]
+        return cls[init]

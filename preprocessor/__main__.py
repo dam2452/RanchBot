@@ -153,6 +153,12 @@ def generate_parser_modes() -> ParserModes:
                     "help": "Name of the ElasticSearch index",
                 },
             ),
+            (
+                "--append", {
+                    "action": "store_true",
+                    "help": "Do NOT delete/create the index. Simply add documents to the existing one.",
+                },
+            ),
         ],
     }
 
@@ -165,6 +171,7 @@ def generate_parser_modes() -> ParserModes:
                 unique_flag_names.add(name)
                 unique_flags.append((name, flag))
 
+    # 'all' to gather all flags from other modes
     parser_modes["all"] = unique_flags
 
     # So the help messages are not overwritten for the "all" mode.

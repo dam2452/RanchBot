@@ -38,7 +38,6 @@ class JsonGenerator:
     def __call__(self) -> None:
         for item in self.__jsons_dir.rglob("*"):
             if item.is_file() and item.suffix == ".json":
-
                 output_path = self.__output_dir / item.name
                 self.__format_json(item, output_path)
 

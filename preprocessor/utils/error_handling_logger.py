@@ -48,6 +48,9 @@ class ErrorHandlingLogger:
         self.__logger.error(message)
         self.__errors.append(message)
 
+    def warning(self, message: str) -> None:
+        self.__logger.warning(message)
+
     def finalize(self) -> int:
         self.__is_finalized = True
         if self.__errors:
