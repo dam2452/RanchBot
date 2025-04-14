@@ -785,18 +785,18 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def insert_refresh_token(
-        user_id: int,
-        token: str,
-        created_at: datetime,
-        expires_at: datetime,
-        ip_address: Optional[str],
-        user_agent: Optional[str],
+            user_id: int,
+            token: str,
+            created_at: datetime,
+            expires_at: datetime,
+            ip_address: Optional[str],
+            user_agent: Optional[str],
     ) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             active_token_count = await conn.fetchval(
                 """
                 SELECT COUNT(*) FROM refresh_tokens
-                WHERE user_id = $1 AND revoked = FALSE AND expires_at > NOW()
+                WHERE user_id = $1 AND expires_at > NOW()
                 """,
                 user_id,
             )
@@ -817,9 +817,9 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT id, user_id, token, created_at, expires_at, revoked, revoked_at, ip_address, user_agent
+                SELECT id, user_id, token, created_at, expires_at, revoked_at, ip_address, user_agent
                 FROM refresh_tokens
-                WHERE token = $1 AND revoked = FALSE AND expires_at > NOW()
+                WHERE token = $1 AND expires_at > NOW()
                 """,
                 token,
             )
@@ -830,13 +830,12 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
                     token=row["token"],
                     created_at=row["created_at"],
                     expires_at=row["expires_at"],
-                    revoked=row["revoked"],
+                    revoked=row["revoked_at"] is not None,
                     revoked_at=row["revoked_at"],
                     ip_address=row["ip_address"],
                     user_agent=row["user_agent"],
                 )
             return None
-
 
     @staticmethod
     async def revoke_refresh_token(token: str) -> None:
@@ -844,7 +843,7 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
             await conn.execute(
                 """
                 UPDATE refresh_tokens
-                SET revoked = TRUE, revoked_at = NOW()
+                SET revoked_at = NOW(), expires_at = NOW()
                 WHERE token = $1
                 """,
                 token,
