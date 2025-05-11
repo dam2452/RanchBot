@@ -159,7 +159,7 @@ async def universal_handler(
         if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
             raise ValueError("Invalid args list for command: must be a list of strings.")
 
-        reply_json = request_json.get("reply_json", False)
+        reply_json = request_json.get("reply_json", True)
         if not isinstance(reply_json, bool):
             raise ValueError("Invalid reply_json flag: must be boolean.")
 
