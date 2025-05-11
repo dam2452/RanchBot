@@ -4,6 +4,7 @@ import re
 from typing import Annotated
 
 from fastapi import (
+    APIRouter,
     Depends,
     FastAPI,
     HTTPException,
@@ -51,56 +52,17 @@ logging.basicConfig(level=get_log_level())
 logger = logging.getLogger(__name__)
 
 command_handlers = {}
-
 COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
-
 limiter = Limiter(key_func=get_remote_address)
-
-@asynccontextmanager
-async def lifespan(app_instance: FastAPI):
-    app_instance.state.limiter = limiter
-    app_instance.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    logger.info("🌐 Initializing DB connection...")
-    await DatabaseManager.init_pool(
-        host=s.POSTGRES_HOST,
-        port=s.POSTGRES_PORT,
-        database=s.POSTGRES_DB,
-        user=s.POSTGRES_USER,
-        password=s.POSTGRES_PASSWORD,
-        schema=s.POSTGRES_SCHEMA,
-    )
-    await DatabaseManager.init_db()
-    factories = create_all_factories(logger, bot=None)
-    for factory in factories:
-        for command, handler_cls in factory.get_rest_handlers():
-            command_handlers[command] = handler_cls
-    logger.info("✅ REST handlers loaded.")
-    yield
-    logger.info("🛑 API Shutdown.")
-
-app = FastAPI(lifespan=lifespan)
-app.add_middleware(SlowAPIMiddleware)
-
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
-
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Cache-Control"] = "no-store"
-
-    response.headers["Content-Security-Policy"] = "default-src 'none'"
-
-    return response
+security = HTTPBearer()
 
 class LoginRequest(BaseModel):
     username: Annotated[str, StringConstraints(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9._-]+$")]
     password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
 
+api_router = APIRouter()
 
-@app.post("/auth/login")
+@api_router.post("/auth/login", tags=["Authentication"])
 @limiter.limit("5/minute")
 async def login(data: LoginRequest, request: Request, response: Response):
     user = await authenticate_user(data.username, data.password)
@@ -108,7 +70,7 @@ async def login(data: LoginRequest, request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(user)
-    refresh_token = await create_refresh_token(
+    refresh_token_value = await create_refresh_token(
         user,
         ip_address=request.client.host,
         user_agent=request.headers.get('User-Agent'),
@@ -116,57 +78,60 @@ async def login(data: LoginRequest, request: Request, response: Response):
 
     response.set_cookie(
         "refresh_token",
-        refresh_token,
+        refresh_token_value,
         httponly=True,
-        secure=True,
+        secure=s.ENVIRONMENT == "production",
         samesite="strict",
-        path="/",
+        path="/api/v1/auth",
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-
-@app.post("/auth/refresh")
+@api_router.post("/auth/refresh", tags=["Authentication"])
 @limiter.limit("5/minute")
 async def refresh(request: Request, response: Response):
-    refresh_token = request.cookies.get("refresh_token")
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="No refresh token")
+    refresh_token_value = request.cookies.get("refresh_token")
+    if not refresh_token_value:
+        raise HTTPException(status_code=401, detail="No refresh token provided in cookies.")
 
-    token_record = await verify_refresh_token(refresh_token)
+    token_record = await verify_refresh_token(refresh_token_value)
     if not token_record:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token.")
 
-    user = await DatabaseManager.get_user_by_id(token_record.user_id)
+    user_id = token_record.user_id
+    user = await DatabaseManager.get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        logger.warning(f"Refresh token validated for user ID {user_id}, but user not found in DB.")
+        raise HTTPException(status_code=401, detail="User associated with token not found.")
 
     new_access_token = create_access_token(user)
-    new_refresh_token = await create_refresh_token(
+    new_refresh_token_value = await create_refresh_token(
         user,
         ip_address=request.client.host,
         user_agent=request.headers.get('User-Agent'),
     )
 
-    await revoke_refresh_token(refresh_token)
+    await revoke_refresh_token(refresh_token_value)
 
     response.set_cookie(
         "refresh_token",
-        new_refresh_token,
+        new_refresh_token_value,
         httponly=True,
-        secure=True,
+        secure=s.ENVIRONMENT == "production",
         samesite="strict",
-        path="/",
+        path="/api/v1/auth",
     )
     return {"access_token": new_access_token, "token_type": "bearer"}
 
-security = HTTPBearer()
-
-@app.post("/{command_name}")
+@api_router.post("/{command_name}", tags=["Commands"])
 async def universal_handler(
     command_name: str = Path(..., regex=COMMAND_PATTERN.pattern),
     request: Request = None,
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
+    if request is None:
+        logger.error("Request object is None in universal_handler, this should not happen.")
+        raise HTTPException(status_code=500, detail="Internal server error: Request object not available")
+
     try:
         payload = jwt.decode(
             credentials.credentials,
@@ -192,22 +157,24 @@ async def universal_handler(
         request_json = await request.json()
         args = request_json.get("args", [])
         if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
-            raise ValueError("Invalid args list")
+            raise ValueError("Invalid args list for command: must be a list of strings.")
 
         reply_json = request_json.get("reply_json", False)
         if not isinstance(reply_json, bool):
-            raise ValueError("Invalid reply_json flag")
+            raise ValueError("Invalid reply_json flag: must be boolean.")
 
-        command_request = TextCompatibleCommandWrapper(
+        command_request_obj = TextCompatibleCommandWrapper(
             command_name=command_name,
             args=args,
             json=reply_json,
         )
-
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
     except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+        logger.error(f"Error processing JSON payload for command '{command_name}': {exc}", exc_info=True)
+        raise HTTPException(status_code=400, detail="Invalid JSON payload or request structure.") from exc
 
-    message = RestMessage(payload=command_request, user_data=payload)
+    message = RestMessage(payload=command_request_obj, user_data=payload)
     responder = RestResponder()
 
     handler = handler_cls(message, responder, logger)
@@ -216,13 +183,66 @@ async def universal_handler(
     return responder.get_response()
 
 
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    app_instance.state.limiter = limiter
+    app_instance.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    await DatabaseManager.ensure_db_initialized()
+    logger.info("DB initialization process ensured by REST runner lifespan.")
+
+    factories = create_all_factories(logger, bot=None)
+    for factory_item in factories:
+        for command, handler_cls in factory_item.get_rest_handlers():
+            command_handlers[command] = handler_cls
+    logger.info(f"✅ REST handlers loaded by REST runner lifespan for commands: {list(command_handlers.keys())}")
+
+    yield
+
+    logger.info("🛑 API Shutdown logic initiated by REST runner lifespan...")
+    logger.info("🛑 API Shutdown complete for REST runner.")
+
+app = FastAPI(
+    title="Ranczo Bot API v1",
+    description="API for Ranczo Bot operations and commands.",
+    version="1.0.0",
+    lifespan=lifespan,
+    openapi_url="/api/v1/openapi.json",
+    docs_url="/api/v1/docs",
+    redoc_url="/api/v1/redoc",
+)
+
+app.add_middleware(SlowAPIMiddleware)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if s.ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none';"
+    return response
+
+@app.get("/", tags=["Health Check"])
+@limiter.limit("60/minute")
+async def health_check(request: Request):
+    logger.info(f"Health check endpoint requested by {request.client.host}.")
+    return {"status": "ok", "message": "Welcome to the Ranchbot API!"}
+
+app.include_router(api_router, prefix="/api/v1")
+
 async def run_rest_api():
     config = uvicorn.Config(
         s.REST_API_APP_PATH,
         host=s.REST_API_HOST,
         port=s.REST_API_PORT,
-        reload=False,
+        reload=s.ENVIRONMENT != "production",
+        log_level=s.LOG_LEVEL.lower(),
     )
     server = uvicorn.Server(config)
-
     await server.serve()

@@ -100,8 +100,8 @@ class BotMessageHandler(ABC):
         file_size_mb = file_path.stat().st_size / (1024 * 1024)
         await self._log_system_message(logging.INFO, get_clip_size_log_message(file_path, file_size_mb))
 
-        if file_size_mb > settings.TELEGRAM_FILE_SIZE_LIMIT_MB:
-            await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.TELEGRAM_FILE_SIZE_LIMIT_MB))
+        if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
+            await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
             await self._answer(await self.get_response(RK.CLIP_SIZE_EXCEEDED, as_parent=True))
         else:
             await self._responder.send_video(file_path)

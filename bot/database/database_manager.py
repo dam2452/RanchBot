@@ -4,6 +4,7 @@ from datetime import (
     timedelta,
 )
 import json
+import logging
 from pathlib import Path
 from typing import (
     Dict,
@@ -27,9 +28,11 @@ from bot.database.models import (
 from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
 
+db_manager_logger = logging.getLogger(__name__)
 
-class DatabaseManager:  # pylint: disable=too-many-public-methods
+class DatabaseManager: # pylint: disable=too-many-public-methods
     pool: asyncpg.Pool = None
+    _db_fully_initialized: bool = False
 
     @staticmethod
     async def init_pool(
@@ -40,6 +43,10 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
         password: Optional[str] = None,
         schema: Optional[str] = None,
     ):
+        if DatabaseManager.pool is not None and not DatabaseManager.pool.is_closing():
+            db_manager_logger.debug("Database connection pool already exists and is active.")
+            return
+
         config = {
             "host": host or settings.POSTGRES_HOST,
             "port": port or settings.POSTGRES_PORT,
@@ -48,31 +55,49 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
             "password": password or settings.POSTGRES_PASSWORD,
             "server_settings": {"search_path": schema or settings.POSTGRES_SCHEMA},
         }
-
+        db_manager_logger.info("Creating new database connection pool.")
         DatabaseManager.pool = await asyncpg.create_pool(**config)
-
-
-
-
-    @staticmethod
-    def get_db_connection():
-        return DatabaseManager.pool.acquire()
 
     @staticmethod
     async def execute_sql_file(file_path: Path) -> None:
-        absolute_path = file_path if file_path.is_absolute() else Path(__file__).parent / file_path
+        absolute_path = file_path if file_path.is_absolute() else Path(__file__).resolve().parent / file_path
         if not absolute_path.exists():
+            db_manager_logger.error(f"SQL file not found: {absolute_path}")
             raise FileNotFoundError(f"SQL file not found: {absolute_path}")
 
-        async with DatabaseManager.pool.acquire() as conn:
-            async with conn.transaction():
+        async with DatabaseManager.get_db_connection() as conn:
+            async with conn.transaction(): # type: ignore
                 with absolute_path.open("r", encoding="utf-8") as file:
-                    sql = file.read()
-                    await conn.execute(sql)
+                    sql_commands = file.read()
+                    await conn.execute(sql_commands) # type: ignore
 
     @staticmethod
     async def init_db() -> None:
+        if DatabaseManager.pool is None or DatabaseManager.pool.is_closing():
+            db_manager_logger.error("Cannot initialize DB schema, connection pool is not available.")
+            raise ConnectionError("Database connection pool is not initialized or is closed.")
+        db_manager_logger.info("Initializing database schema.")
         await DatabaseManager.execute_sql_file(Path("init_db.sql"))
+        db_manager_logger.info("Database schema initialized.")
+
+    @staticmethod
+    async def ensure_db_initialized():
+        if DatabaseManager._db_fully_initialized:
+            db_manager_logger.info("Database connection and schema already confirmed as initialized.")
+            return
+
+        db_manager_logger.info("Ensuring database connection pool and schema are initialized...")
+        await DatabaseManager.init_pool()
+        await DatabaseManager.init_db()
+        DatabaseManager._db_fully_initialized = True
+        db_manager_logger.info("📦 Database pool and schema initialization process ensured by DatabaseManager.")
+
+    @staticmethod
+    def get_db_connection():
+        if DatabaseManager.pool is None or DatabaseManager.pool.is_closing():
+            db_manager_logger.critical("Attempted to acquire connection from a non-existent or closed pool.")
+            raise ConnectionError("Database connection pool is not initialized or is closed.")
+        return DatabaseManager.pool.acquire()
 
     @staticmethod
     async def log_user_activity(user_id: int, command: str) -> None:
