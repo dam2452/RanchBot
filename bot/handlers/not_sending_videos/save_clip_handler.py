@@ -22,6 +22,7 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.not_sending_videos.save_clip_handler_responses import (
     get_log_clip_name_exists_message,
+    get_log_clip_name_numeric_message,
     get_log_clip_saved_successfully_message,
     get_log_no_segment_selected_message,
 )
@@ -38,6 +39,7 @@ class SaveClipHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
             self.__check_argument_count,
+            self.__check_clip_name_format,
             self.__check_clip_name_length,
             self.__check_clip_name_unique,
             self.__check_clip_limit_not_exceeded,
@@ -50,6 +52,18 @@ class SaveClipHandler(BotMessageHandler):
             2,
             await self.get_response(RK.CLIP_NAME_NOT_PROVIDED),
         )
+
+    async def __check_clip_name_format(self) -> bool:
+        parts = self._message.get_text().split(maxsplit=1)
+        if len(parts) < 2:
+            return False
+        clip_name = parts[1]
+        if clip_name.isdigit():
+            await self.reply_error(RK.CLIP_NAME_CANNOT_BE_NUMERIC)
+            log_message = get_log_clip_name_numeric_message(clip_name, self._message.get_username())
+            await self._log_system_message(logging.INFO, log_message)
+            return False
+        return True
 
     async def __check_clip_name_length(self) -> bool:
         clip_name = self._message.get_text().split(maxsplit=1)[1]
@@ -127,6 +141,7 @@ class SaveClipHandler(BotMessageHandler):
 
         return await clip_handlers[last_clip.clip_type]()
 
+
     async def __handle_compiled_clip(self, last_clip: LastClip) -> ClipInfo:
         output_filename = self.__bytes_to_filepath(last_clip.compiled_clip)
         return ClipInfo(
@@ -138,11 +153,13 @@ class SaveClipHandler(BotMessageHandler):
             episode_number=None,
         )
 
+
     async def __handle_adjusted_clip(self, last_clip: LastClip, segment_json: dict, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json["video_path"], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
+
 
     async def __handle_manual_clip(self, segment_json: dict, season, episode_number) -> ClipInfo:
         start = segment_json["start"]
@@ -150,11 +167,13 @@ class SaveClipHandler(BotMessageHandler):
         output_filename = await ClipsExtractor.extract_clip(segment_json["video_path"], start, end, self._logger)
         return ClipInfo(output_filename, start, end, False, season, episode_number)
 
+
     async def __handle_selected_clip(self, last_clip: LastClip, segment_json: dict, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json["video_path"], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
+
 
     async def __handle_single_clip(self, last_clip: LastClip, segment_json: dict, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
@@ -162,12 +181,14 @@ class SaveClipHandler(BotMessageHandler):
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
+
     @staticmethod
     def __bytes_to_filepath(clip_data: bytes) -> Path:
         with tempfile.NamedTemporaryFile(delete=False, delete_on_close=False, suffix=".mp4") as tmp_file:
             path = Path(tmp_file.name)
         path.write_bytes(clip_data)
         return path
+
 
     async def __reply_clip_name_exists(self, clip_name: str) -> None:
         await self.reply_error(RK.CLIP_NAME_EXISTS, args=[clip_name])

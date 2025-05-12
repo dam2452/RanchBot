@@ -12,3 +12,6 @@ def get_log_failed_to_verify_clip_length_message(clip_name: str, username: str) 
 
 def get_log_clip_saved_successfully_message(clip_name: str, username: str) -> str:
     return f"Clip '{clip_name}' saved successfully for user '{username}'."
+
+def get_log_clip_name_numeric_message(clip_name: str, username: str) -> str:
+    return f"Clip name '{clip_name}' consists only of digits for user '{username}'. Not allowed."

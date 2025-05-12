@@ -217,3 +217,5 @@ INSERT INTO common_messages (handler_name, key, message) VALUES
 ('BotMessageHandler', 'clip_size_exceeded', '❌ Wyodrębniony klip jest za duży, aby go wysłać przez Telegram. Maksymalny rozmiar pliku to 50 MB.❌');
 
 
+INSERT INTO common_messages (handler_name, key, message) VALUES
+('SaveClipHandler', 'clip_name_cannot_be_numeric', '❌ Nazwa klipu nie może składać się wyłącznie z cyfr. ❌');
