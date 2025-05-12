@@ -31,6 +31,7 @@ from slowapi import (
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from starlette.responses import JSONResponse
 import uvicorn
 
 from bot.adapters.rest.auth.auth_service import (
@@ -121,7 +122,41 @@ async def refresh(request: Request, response: Response):
         path="/api/v1/auth",
     )
     return {"access_token": new_access_token, "token_type": "bearer"}
+@api_router.post("/auth/logout", tags=["Authentication"])
+@limiter.limit("10/minute")
+async def logout(request: Request, response: Response):
+    refresh_token_value = request.cookies.get("refresh_token")
 
+    if not refresh_token_value:
+        logger.info("Logout attempt without refresh token cookie.")
+        return JSONResponse(status_code=200, content={"message": "No active session found or already logged out."})
+
+    try:
+        token_record = await verify_refresh_token(refresh_token_value)
+        if token_record:
+            await revoke_refresh_token(refresh_token_value)
+            logger.info(f"Successfully revoked refresh token for user ID {token_record.user_id} during logout.")
+        else:
+             logger.info("Logout attempt with an invalid or already revoked refresh token cookie.")
+
+    except Exception as e:
+        logger.error(f"Error revoking refresh token during logout: {e}", exc_info=True)
+
+    response.delete_cookie(
+        "refresh_token",
+        path="/api/v1/auth",
+        httponly=True,
+        secure=s.ENVIRONMENT == "production",
+        samesite="strict",
+    )
+
+    response.status_code = 200
+
+    json_response = JSONResponse(content={"message": "Successfully logged out."})
+    response.body = json_response.body
+    response.media_type = json_response.media_type
+
+    return response
 @api_router.post("/{command_name}", tags=["Commands"])
 async def universal_handler(
     command_name: str = Path(..., regex=COMMAND_PATTERN.pattern),
