@@ -6,6 +6,7 @@ VALUES
 INSERT INTO common_messages (handler_name, key, message)
 VALUES
     ('DeleteClipHandler', 'invalid_args_count', '❌ Podaj numer klipu do usunięcia. Przykład: /usunklip numer_klipu ❌'),
+    ('DeleteClipHandler', 'clip_name_not_found', '🚫 Klip o nazwie "{}" nie został znaleziony.🚫'),
     ('DeleteClipHandler', 'clip_not_exist', '🚫 Klip o numerze {} nie istnieje.🚫'),
     ('DeleteClipHandler', 'clip_deleted', '✅ Klip o nazwie {} został usunięty.✅');
 
