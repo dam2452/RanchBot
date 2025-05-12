@@ -137,9 +137,9 @@ async def logout(request: Request, response: Response):
             await revoke_refresh_token(refresh_token_value)
             logger.info(f"Successfully revoked refresh token for user ID {token_record.user_id} during logout.")
         else:
-             logger.info("Logout attempt with an invalid or already revoked refresh token cookie.")
+            logger.info("Logout attempt with an invalid or already revoked refresh token cookie.")
 
-    except Exception as e:
+    except Exception as e: #pylint: disable=broad-exception-caught
         logger.error(f"Error revoking refresh token during logout: {e}", exc_info=True)
 
     response.delete_cookie(
