@@ -1,18 +1,17 @@
 import asyncio
 import logging
 from pathlib import Path
-import subprocess
 import tempfile
 from typing import (
     Dict,
     List,
+    Optional,
     Union,
 )
 
-from aiogram.types import Message
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
+from bot.interfaces.message import AbstractMessage
 from bot.settings import settings
 from bot.utils.log import log_system_message
 from bot.video.clips_extractor import ClipsExtractor
@@ -22,7 +21,7 @@ from bot.video.utils import FFMpegException
 class ClipsCompiler:
     @staticmethod
     async def __do_compile_clips(segment_files: List[Path], output_file: Path, logger: logging.Logger) -> None:
-        with tempfile.NamedTemporaryFile(delete=False, delete_on_close=False, mode="w", suffix=".txt") as concat_file:
+        with tempfile.NamedTemporaryFile(delete=False, mode="w", suffix=".txt") as concat_file:
             concat_file_path = Path(concat_file.name)
 
         try:
@@ -36,7 +35,7 @@ class ClipsCompiler:
                 "-avoid_negative_ts", "1", str(output_file),
             ]
 
-            process = await asyncio.create_subprocess_exec(*command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             _, stderr = await process.communicate()
 
             if process.returncode != 0:
@@ -49,7 +48,7 @@ class ClipsCompiler:
             concat_file_path.unlink(missing_ok=True)
 
     @staticmethod
-    async def __compile_clips(selected_clips: List[Dict[str, Union[Path, float]]], logger: logging.Logger) -> Path:
+    async def __compile_clips(selected_clips: List[Dict[str, Union[Path, float]]], logger: logging.Logger) -> Optional[Path]:
         temp_files = []
         try:
             for segment in selected_clips:
@@ -60,9 +59,7 @@ class ClipsCompiler:
                 temp_files.append(extracted_clip_path)
 
             compiled_output_path = Path(tempfile.mktemp(suffix=".mp4"))
-
             await ClipsCompiler.__do_compile_clips(temp_files, compiled_output_path, logger)
-
             return compiled_output_path
         except Exception as e:
             raise FFMpegException(f"Error during clip compilation: {str(e)}") from e
@@ -76,12 +73,12 @@ class ClipsCompiler:
                     logger.error(f"Failed to delete temporary file {temp_file}: {cleanup_error}")
 
     @staticmethod
-    async def __insert_to_last_clips(message: Message, compiled_output: Path) -> None:
+    async def __insert_to_last_clips(message: AbstractMessage, compiled_output: Path) -> None:
         with compiled_output.open("rb") as f:
             compiled_clip_data = f.read()
 
         await DatabaseManager.insert_last_clip(
-            chat_id=message.chat.id,
+            chat_id=message.get_chat_id(),
             segment={},
             compiled_clip=compiled_clip_data,
             clip_type=ClipType.COMPILED,
@@ -92,22 +89,26 @@ class ClipsCompiler:
 
     @staticmethod
     async def compile(
-            message: Message, selected_segments: List[Dict[str, Union[str, float]]],
-            logger: logging.Logger,
+        message: AbstractMessage,
+        selected_segments: List[Dict[str, Union[str, float]]],
+        logger: logging.Logger,
     ) -> Path:
         compiled_output = await ClipsCompiler.__compile_clips(selected_segments, logger)
         await ClipsCompiler.__insert_to_last_clips(message, compiled_output)
         return compiled_output
 
 
+
 async def process_compiled_clip(
-        message: Message, compiled_output: Path, clip_type: ClipType,
+    message: AbstractMessage,
+    compiled_output: Path,
+    clip_type: ClipType,
 ) -> None:
     with compiled_output.open("rb") as f:
         compiled_clip_data = f.read()
 
     await DatabaseManager.insert_last_clip(
-        chat_id=message.chat.id,
+        chat_id=message.get_chat_id(),
         segment={},
         compiled_clip=compiled_clip_data,
         clip_type=clip_type,

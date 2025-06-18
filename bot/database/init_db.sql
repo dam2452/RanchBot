@@ -265,3 +265,28 @@ BEGIN
         FOR EACH ROW EXECUTE FUNCTION clean_old_user_command_limits();
     END IF;
 END $$;
+
+-- --- ---
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(255)
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+
+CREATE TABLE IF NOT EXISTS user_credentials (
+    user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    hashed_password VARCHAR(255) NOT NULL,
+    auth_provider TEXT DEFAULT 'local',
+    last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_credentials_user_id ON user_credentials(user_id);

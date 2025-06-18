@@ -12,6 +12,8 @@ class ResponseKey(str, Enum):
     CLIP_NAME_NOT_PROVIDED                  = "clip_name_not_provided"
     CLIP_NAME_LENGTH_EXCEEDED               = "clip_name_length_exceeded"
     CLIP_LIMIT_EXCEEDED                     = "clip_limit_exceeded"
+    CLIP_NAME_CANNOT_BE_NUMERIC             = "clip_name_cannot_be_numeric"
+    CLIP_NAME_NOT_FOUND                     = "clip_name_not_found"
     NO_EPISODES_FOUND                       = "no_episodes_found"
     NO_SAVED_CLIPS                          = "no_saved_clips"
     NO_PREVIOUS_SEARCH_RESULTS              = "no_previous_search_results"
@@ -87,3 +89,4 @@ class ResponseKey(str, Enum):
     LIMIT_EXCEEDED                          = "limit_exceeded"
     CLIP_SIZE_EXCEEDED                      = "clip_size_exceeded"
     USER_PROFILE                            = "user_profile"
+    EPISODE_LIST_SUCCESS                    = "episode_list_success"

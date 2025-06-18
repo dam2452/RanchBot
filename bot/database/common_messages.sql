@@ -6,6 +6,7 @@ VALUES
 INSERT INTO common_messages (handler_name, key, message)
 VALUES
     ('DeleteClipHandler', 'invalid_args_count', '❌ Podaj numer klipu do usunięcia. Przykład: /usunklip numer_klipu ❌'),
+    ('DeleteClipHandler', 'clip_name_not_found', '🚫 Klip o nazwie "{}" nie został znaleziony.🚫'),
     ('DeleteClipHandler', 'clip_not_exist', '🚫 Klip o numerze {} nie istnieje.🚫'),
     ('DeleteClipHandler', 'clip_deleted', '✅ Klip o nazwie {} został usunięty.✅');
 
@@ -217,3 +218,5 @@ INSERT INTO common_messages (handler_name, key, message) VALUES
 ('BotMessageHandler', 'clip_size_exceeded', '❌ Wyodrębniony klip jest za duży, aby go wysłać przez Telegram. Maksymalny rozmiar pliku to 50 MB.❌');
 
 
+INSERT INTO common_messages (handler_name, key, message) VALUES
+('SaveClipHandler', 'clip_name_cannot_be_numeric', '❌ Nazwa klipu nie może składać się wyłącznie z cyfr. ❌');

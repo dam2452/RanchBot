@@ -1,8 +1,6 @@
 import logging
 from typing import List
 
-from aiogram.types import Message
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
@@ -16,33 +14,37 @@ class SaveUserKeyHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["klucz", "key"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
-        return [
-            self.__check_argument_count,
-        ]
+    async def _get_validator_functions(self) -> ValidatorFunctions:
+        return [self.__check_argument_count]
 
-    async def __check_argument_count(self, message: Message) -> bool:
+    async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            message, 2, await self.get_response(RK.NO_KEY_PROVIDED),
+            self._message,
+            2,
+            await self.get_response(RK.NO_KEY_PROVIDED),
         )
 
-    async def _do_handle(self, message: Message) -> None:
-        key = message.text.split(maxsplit=1)[1]
+    async def _do_handle(self) -> None:
+        key = self._message.get_text().split(maxsplit=1)[1]
+        user_id = self._message.get_user_id()
+        username = self._message.get_username()
+        full_name = self._message.get_full_name()
 
         subscription_days = await DatabaseManager.get_subscription_days_by_key(key)
         if subscription_days:
-            await DatabaseManager.add_user(
-                message.from_user.id, message.from_user.username, message.from_user.full_name,
-                None,
-            )
-            await DatabaseManager.add_subscription(message.from_user.id, subscription_days)
+            await DatabaseManager.add_user(user_id, username, full_name, None)
+            await DatabaseManager.add_subscription(user_id, subscription_days)
             await DatabaseManager.remove_subscription_key(key)
-            await self._answer(
-                message,await self.get_response(RK.SUBSCRIPTION_REDEEMED, [str(subscription_days)]),
-)
-        else:
-            await self._answer(
-                message,await self.get_response(RK.INVALID_KEY),
-)
 
-        await self._log_system_message(logging.INFO, get_log_message_saved(message.from_user.id))
+            await self.reply(
+                RK.SUBSCRIPTION_REDEEMED,
+                args=[str(subscription_days)],
+                data={"days": subscription_days},
+            )
+        else:
+            await self.reply_error(RK.INVALID_KEY)
+
+        await self._log_system_message(
+            logging.INFO,
+            get_log_message_saved(user_id),
+        )

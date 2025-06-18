@@ -2,60 +2,60 @@ from abc import (
     ABC,
     abstractmethod,
 )
-import json
 import logging
 from typing import (
-    Any,
     Awaitable,
     Callable,
     List,
-    Optional,
-)
-
-from aiogram import BaseMiddleware
-from aiogram.types import (
-    Message,
-    TelegramObject,
 )
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
+from bot.interfaces.message import AbstractMessage
+from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import get_response
 from bot.settings import settings
 
 
-class BotMiddleware(BaseMiddleware, ABC):
+class BotMiddleware(ABC):
     def __init__(self, logger: logging.Logger, supported_commands: List[str]):
         self._logger = logger
         self._supported_commands = supported_commands
-        self._logger.info(f"({self.get_middleware_name()}) Supported commands: {self._supported_commands}")
+        self._logger.info(f"({self.__class__.__name__}) Supported commands: {self._supported_commands}")
 
-    async def __call__(
-            self,
-            handler: Callable[[TelegramObject, json], Awaitable[Any]],
-            event: TelegramObject,
-            data: json,
-    ) -> Optional[Awaitable]:
-        if not isinstance(event, Message) or self.get_command_without_initial_slash(event) not in self._supported_commands:
-            return await handler(event, data)
-
-        return await self.handle(handler, event, data)
-
-    def get_middleware_name(self) -> str:
-        return self.__class__.__name__
-
-    @staticmethod
-    def get_command_without_initial_slash(event: TelegramObject) -> str:
-        return event.text.split()[0][1:]
+    async def handle(
+        self,
+        message: AbstractMessage,
+        responder: AbstractResponder,
+        handler: Callable[[], Awaitable[None]],
+    ) -> None:
+        command = message.get_text().split()[0].lstrip('/')
+        if command in self._supported_commands:
+            if await self.check_command_limits_and_privileges(message, responder) and await self.check(message):
+                await handler()
+            else:
+                await responder.send_text("❌ Brak uprawnień. ❌")
+                self._logger.warning(f"[{self.__class__.__name__}] Unauthorized user: {message.get_user_id()} | Command: {command}")
+        else:
+            await handler()
 
     @abstractmethod
-    async def handle(
-            self,
-            handler: Callable[[TelegramObject, json], Awaitable[Any]],
-            event: TelegramObject,
-            data: json,
-    ) -> Optional[Awaitable]:
+    async def check(self, message: AbstractMessage) -> bool:
         pass
+
+    @staticmethod
+    async def check_command_limits_and_privileges(message: AbstractMessage, responder: AbstractResponder) -> bool:
+        user_id = message.get_user_id()
+        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(user_id)
+
+        if not is_admin_or_moderator:
+            limited = await DatabaseManager.is_command_limited(user_id, settings.MESSAGE_LIMIT, settings.LIMIT_DURATION)
+            if limited:
+                text = await get_response(RK.LIMIT_EXCEEDED, "BotMessageHandler")
+                await responder.send_text(text)
+                return False
+
+        return True
 
     @staticmethod
     async def _does_user_have_moderator_privileges(user_id: int) -> bool:
@@ -64,14 +64,3 @@ class BotMiddleware(BaseMiddleware, ABC):
     @staticmethod
     async def _does_user_have_admin_privileges(user_id: int) -> bool:
         return await DatabaseManager.is_user_admin(user_id)
-
-    @staticmethod
-    async def _check_command_limits_and_privileges(event: Message) -> bool:
-        user_id = event.from_user.id
-        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(user_id)
-
-        if not is_admin_or_moderator and await DatabaseManager.is_command_limited(user_id, settings.MESSAGE_LIMIT, settings.LIMIT_DURATION):
-            await event.answer(await get_response(RK.LIMIT_EXCEEDED,"BotMessageHandler"))
-            return False
-
-        return True

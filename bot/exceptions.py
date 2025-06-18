@@ -1,0 +1,2 @@
+class TooManyActiveTokensError(Exception):
+    pass

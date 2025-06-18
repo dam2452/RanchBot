@@ -1,8 +1,8 @@
 import json
 import logging
+from pathlib import Path
+import tempfile
 from typing import List
-
-from aiogram.types import Message
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
@@ -26,46 +26,56 @@ class SelectClipHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["wybierz", "select", "w"]
 
-    # pylint: disable=duplicate-code
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
             self.__check_argument_count,
         ]
 
-    async def __check_argument_count(self, message: Message) -> bool:
-        return await self._validate_argument_count(message, 2, await self.get_response(RK.INVALID_ARGS_COUNT))
+    async def __check_argument_count(self) -> bool:
+        return await self._validate_argument_count(
+            self._message,
+            2,
+            await self.get_response(RK.INVALID_ARGS_COUNT),
+        )
 
+    async def _do_handle(self) -> None:
+        content = self._message.get_text().split()
 
-    # pylint: enable=duplicate-code
-    async def _do_handle(self, message: Message) -> None:
-        content = message.text.split()
-
-        last_search = await DatabaseManager.get_last_search_by_chat_id(message.chat.id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
         if not last_search:
-            return await self.__reply_no_previous_search(message)
+            return await self.__reply_no_previous_search()
 
-        index = int(content[1])
+        try:
+            index = int(content[1])
+        except ValueError:
+            return await self.__reply_invalid_segment_number(-1)
+
         segments = json.loads(last_search.segments)
-
         if index not in range(1, len(segments) + 1):
-            return await self.__reply_invalid_segment_number(message, index)
+            return await self.__reply_invalid_segment_number(index)
 
         segment = segments[index - 1]
-
         start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
         end_time = segment["end"] + settings.EXTEND_AFTER
 
-        if await self._handle_clip_duration_limit_exceeded(message, end_time - start_time):
+        if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-            await self._answer_video(message, output_filename)
         except FFMpegException as e:
-            return await self.__reply_extraction_failure(message, e)
+            return await self.__reply_extraction_failure(e)
+
+        temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
+        output_filename.replace(temp_file_path)
+
+        if self._message.should_reply_json():
+            await self._responder.send_video(temp_file_path)
+        else:
+            await self._responder.send_video(temp_file_path)
 
         await DatabaseManager.insert_last_clip(
-            chat_id=message.chat.id,
+            chat_id=self._message.get_chat_id(),
             segment=segment,
             compiled_clip=None,
             clip_type=ClipType.SELECTED,
@@ -76,17 +86,17 @@ class SelectClipHandler(BotMessageHandler):
 
         await self._log_system_message(
             logging.INFO,
-            get_log_segment_selected_message(segment["id"], message.from_user.username),
+            get_log_segment_selected_message(segment["id"], self._message.get_username()),
         )
 
-    async def __reply_no_previous_search(self, message: Message) -> None:
-        await self._answer(message,await self.get_response(RK.NO_PREVIOUS_SEARCH))
+    async def __reply_no_previous_search(self) -> None:
+        await self._responder.send_text(await self.get_response(RK.NO_PREVIOUS_SEARCH))
         await self._log_system_message(logging.INFO, get_log_no_previous_search_message())
 
-    async def __reply_extraction_failure(self, message: Message, exception: FFMpegException) -> None:
-        await self._answer(message,await self.get_response(RK.EXTRACTION_FAILURE,as_parent=True))
+    async def __reply_extraction_failure(self, exception: FFMpegException) -> None:
+        await self._responder.send_text(await self.get_response(RK.EXTRACTION_FAILURE, as_parent=True))
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
-    async def __reply_invalid_segment_number(self, message: Message, segment_number: int) -> None:
-        await self._answer(message,await self.get_response(RK.INVALID_SEGMENT_NUMBER))
+    async def __reply_invalid_segment_number(self, segment_number: int) -> None:
+        await self._responder.send_text(await self.get_response(RK.INVALID_SEGMENT_NUMBER))
         await self._log_system_message(logging.WARNING, get_log_invalid_segment_number_message(segment_number))

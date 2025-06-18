@@ -1,5 +1,8 @@
 import logging
-from typing import List
+from typing import (
+    List,
+    Optional,
+)
 
 import aiogram
 
@@ -11,7 +14,7 @@ from bot.factory.subscribed_permission_level_factory import SubscribedPermission
 from bot.factory.whitelisted_permission_level_factory import WhitelistedPermissionLevelFactory
 
 
-def create_all_factories(logger: logging.Logger, bot: aiogram.Bot) -> List[PermissionLevelFactory]:
+def create_all_factories(logger: logging.Logger, bot: Optional[aiogram.Bot]) -> List[PermissionLevelFactory]:
     return [
         AdminPermissionLevelFactory(logger, bot),
         ModeratorPermissionLevelFactory(logger, bot),

@@ -24,5 +24,8 @@ preprocessing_video.py
 Dockerfile
 docker-compose.yml
 /Preprocessing
+/kapitan_bomba_trans
+/kb
+/bot/KAPITAN_BOMBA-WIDEO
 
 

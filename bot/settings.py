@@ -1,6 +1,10 @@
 import logging
+from typing import Optional
 
-from pydantic import Field
+from pydantic import (
+    Field,
+    model_validator,
+)
 from pydantic_settings import BaseSettings
 
 from bot.utils.config_loader import load_env_file
@@ -9,8 +13,8 @@ logger = logging.getLogger(__name__)
 env_path = load_env_file()
 
 class Settings(BaseSettings):
-    TELEGRAM_FILE_SIZE_LIMIT_MB: int = Field(50)
-    TELEGRAM_BOT_TOKEN: str = Field(...)
+    FILE_SIZE_LIMIT_MB: int = Field(50)
+    TELEGRAM_BOT_TOKEN: Optional[str] = None
     BOT_USERNAME: str = Field(...)
     DEFAULT_ADMIN: str = Field(...)
     DEFAULT_RESOLUTION_KEY: str = Field("1080p")
@@ -46,6 +50,38 @@ class Settings(BaseSettings):
     MAX_CLIPS_PER_USER: int = Field(100)
 
     LOG_LEVEL: str = Field("INFO")
+    ENVIRONMENT: str = Field("production")
+
+    PLATFORM: str = Field("telegram")
+
+    JWT_SECRET_KEY: Optional[str] = None
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 30
+    JWT_ISSUER: str = Field("RanchBot")
+    JWT_AUDIENCE: str = Field("CLI")
+    MAX_ACTIVE_TOKENS: int = Field(10)
+
+    REST_API_HOST: str = Field("0.0.0.0")
+    REST_API_PORT: int = Field(8000)
+    REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
+
+    @model_validator(mode='after')
+    def check_conditional_settings(self) -> 'Settings':
+        platform_lower = self.PLATFORM.lower()
+
+        if platform_lower == "rest":
+            if self.JWT_SECRET_KEY is None:
+                raise ValueError(
+                    "JWT_SECRET_KEY is required when PLATFORM is 'rest'.",
+                )
+
+        if platform_lower == "telegram":
+            if self.TELEGRAM_BOT_TOKEN is None:
+                raise ValueError(
+                    "TELEGRAM_BOT_TOKEN is required when PLATFORM is 'telegram'.",
+                )
+
+        return self
 
     class Config:
         env_file = str(env_path)

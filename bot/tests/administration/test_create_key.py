@@ -26,7 +26,7 @@ class TestCreateKeyHandler(BaseTest):
 
         await self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
+            [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
 
     @pytest.mark.quick

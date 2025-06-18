@@ -1,8 +1,6 @@
 import logging
 from typing import List
 
-from aiogram.types import Message
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.database.response_keys import ResponseKey as RK
@@ -28,50 +26,53 @@ class ClipHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["klip", "clip", "k"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
-            self.__check_argument_count,
-            self.__check_message_length,
+            self.__validate_count,
+            self.__validate_length,
         ]
 
-    async def __check_argument_count(self, message: Message) -> bool:
-        return await self._validate_argument_count(message, 2, await self.get_response(RK.NO_QUOTE_PROVIDED))
+    async def __validate_count(self) -> bool:
+        return await self._validate_argument_count(
+            self._message,
+            2,
+            await self.get_response(RK.NO_QUOTE_PROVIDED),
+        )
 
-    async def __check_message_length(self, message: Message) -> bool:
-        return await self.__validate_user_permissions(message)
-
-
-    async def __validate_user_permissions(self,message: Message) -> bool:
-        if not await DatabaseManager.is_admin_or_moderator(message.from_user.id) and len(message.text) > settings.MAX_SEARCH_QUERY_LENGTH:
-            await self._answer(message,await self.get_response(RK.MESSAGE_TOO_LONG))
+    async def __validate_length(self) -> bool:
+        msg = self._message
+        if not await DatabaseManager.is_admin_or_moderator(msg.get_user_id()) \
+                and len(msg.get_text()) > settings.MAX_SEARCH_QUERY_LENGTH:
+            await self._responder.send_text(await self.get_response(RK.MESSAGE_TOO_LONG))
             return False
         return True
 
-    async def _do_handle(self, message: Message) -> None:
-        content = message.text.split()
+
+    async def _do_handle(self) -> None:
+        msg = self._message
+        content = msg.get_text().split()
         quote = " ".join(content[1:])
 
         segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, return_all=False)
-
         if not segments:
-            return await self.__reply_no_segments_found(message, quote)
+            return await self.__reply_no_segments_found(quote)
+
         segment = segments[0] if isinstance(segments, list) else segments
-        # pylint: disable=duplicate-code
         start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
         end_time = segment["end"] + settings.EXTEND_AFTER
 
-        if await self._handle_clip_duration_limit_exceeded(message, end_time - start_time):
+        clip_duration = end_time - start_time
+        if await self._handle_clip_duration_limit_exceeded(clip_duration):
             return
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-            await self._answer_video(message, output_filename)
+            await self._responder.send_video(output_filename)
         except FFMpegException as e:
-            return await self.__reply_extraction_failed(message, e)
-        # pylint: enable=duplicate-code
-        # noinspection PyTypeChecker
+            return await self.__reply_extraction_failed(e)
+
         await DatabaseManager.insert_last_clip(
-            chat_id=message.chat.id,
+            chat_id=msg.get_chat_id(),
             segment=segment,
             compiled_clip=None,
             clip_type=ClipType.SINGLE,
@@ -80,14 +81,14 @@ class ClipHandler(BotMessageHandler):
             is_adjusted=False,
         )
 
-        await self.__log_segment_and_clip_success(message.chat.id, message.from_user.username)
+        await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
 
-    async def __reply_no_segments_found(self, message: Message, quote: str) -> None:
-        await self._answer(message,await self.get_response(RK.NO_SEGMENTS_FOUND))
+    async def __reply_no_segments_found(self, quote: str) -> None:
+        await self._responder.send_text(await self.get_response(RK.NO_SEGMENTS_FOUND))
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))
 
-    async def __reply_extraction_failed(self, message: Message, exception: FFMpegException) -> None:
-        await self._answer(message,await self.get_response(RK.EXTRACTION_FAILURE,as_parent=True))
+    async def __reply_extraction_failed(self, exception: FFMpegException) -> None:
+        await self._responder.send_text(await self.get_response(RK.EXTRACTION_FAILURE, as_parent=True))
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
     async def __log_segment_and_clip_success(self, chat_id: int, username: str) -> None:

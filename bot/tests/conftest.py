@@ -57,7 +57,7 @@ async def prepare_database():
         "subscription_keys",
         "user_command_limits",
     ]
-    await DatabaseManager.clear_test_db(tables=tables_to_clear)
+    await DatabaseManager.clear_test_db(tables=tables_to_clear, schema="ranczo")
     logger.info("The specified test database tables have been cleared.")
 
     await DatabaseManager.set_default_admin(

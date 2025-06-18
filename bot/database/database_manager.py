@@ -4,6 +4,7 @@ from datetime import (
     timedelta,
 )
 import json
+import logging
 from pathlib import Path
 from typing import (
     Dict,
@@ -17,16 +18,21 @@ import asyncpg
 from bot.database.models import (
     ClipType,
     LastClip,
+    RefreshToken,
     SearchHistory,
     SubscriptionKey,
+    UserCredentials,
     UserProfile,
     VideoClip,
 )
+from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
 
+db_manager_logger = logging.getLogger(__name__)
 
-class DatabaseManager:  # pylint: disable=too-many-public-methods
+class DatabaseManager: # pylint: disable=too-many-public-methods
     pool: asyncpg.Pool = None
+    _db_fully_initialized: bool = False
 
     @staticmethod
     async def init_pool(
@@ -37,42 +43,61 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
         password: Optional[str] = None,
         schema: Optional[str] = None,
     ):
+        if DatabaseManager.pool is not None and not DatabaseManager.pool.is_closing():
+            db_manager_logger.debug("Database connection pool already exists and is active.")
+            return
+
         config = {
             "host": host or settings.POSTGRES_HOST,
             "port": port or settings.POSTGRES_PORT,
             "database": database or settings.POSTGRES_DB,
             "user": user or settings.POSTGRES_USER,
             "password": password or settings.POSTGRES_PASSWORD,
-            "server_settings": {
-                "search_path": schema,
-            },
-
+            "server_settings": {"search_path": schema or settings.POSTGRES_SCHEMA},
         }
-
+        db_manager_logger.info("Creating new database connection pool.")
         DatabaseManager.pool = await asyncpg.create_pool(**config)
-
-
-
-
-    @staticmethod
-    def get_db_connection():
-        return DatabaseManager.pool.acquire()
 
     @staticmethod
     async def execute_sql_file(file_path: Path) -> None:
-        absolute_path = file_path if file_path.is_absolute() else Path(__file__).parent / file_path
+        absolute_path = file_path if file_path.is_absolute() else Path(__file__).resolve().parent / file_path
         if not absolute_path.exists():
+            db_manager_logger.error(f"SQL file not found: {absolute_path}")
             raise FileNotFoundError(f"SQL file not found: {absolute_path}")
 
-        async with DatabaseManager.pool.acquire() as conn:
-            async with conn.transaction():
+        async with DatabaseManager.get_db_connection() as conn:
+            async with conn.transaction(): # type: ignore
                 with absolute_path.open("r", encoding="utf-8") as file:
-                    sql = file.read()
-                    await conn.execute(sql)
+                    sql_commands = file.read()
+                    await conn.execute(sql_commands) # type: ignore
 
     @staticmethod
     async def init_db() -> None:
+        if DatabaseManager.pool is None or DatabaseManager.pool.is_closing():
+            db_manager_logger.error("Cannot initialize DB schema, connection pool is not available.")
+            raise ConnectionError("Database connection pool is not initialized or is closed.")
+        db_manager_logger.info("Initializing database schema.")
         await DatabaseManager.execute_sql_file(Path("init_db.sql"))
+        db_manager_logger.info("Database schema initialized.")
+
+    @staticmethod
+    async def ensure_db_initialized():
+        if DatabaseManager._db_fully_initialized:
+            db_manager_logger.info("Database connection and schema already confirmed as initialized.")
+            return
+
+        db_manager_logger.info("Ensuring database connection pool and schema are initialized...")
+        await DatabaseManager.init_pool()
+        await DatabaseManager.init_db()
+        DatabaseManager._db_fully_initialized = True
+        db_manager_logger.info("📦 Database pool and schema initialization process ensured by DatabaseManager.")
+
+    @staticmethod
+    def get_db_connection():
+        if DatabaseManager.pool is None or DatabaseManager.pool.is_closing():
+            db_manager_logger.critical("Attempted to acquire connection from a non-existent or closed pool.")
+            raise ConnectionError("Database connection pool is not initialized or is closed.")
+        return DatabaseManager.pool.acquire()
 
     @staticmethod
     async def log_user_activity(user_id: int, command: str) -> None:
@@ -745,3 +770,156 @@ class DatabaseManager:  # pylint: disable=too-many-public-methods
         return await DatabaseManager.__get_message_from_message_table(
             "common_messages", key, handler_name,
         )
+
+    @staticmethod
+    async def get_user_by_username(username: str) -> Optional[tuple[UserProfile, UserCredentials]]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    up.user_id,
+                    up.username,
+                    up.full_name,
+                    up.subscription_end,
+                    up.note,
+                    uc.hashed_password,
+                    uc.created_at,
+                    uc.last_updated
+                FROM user_profiles up
+                JOIN user_credentials uc ON up.user_id = uc.user_id
+                WHERE up.username = $1
+                """,
+                username,
+            )
+            if row:
+                profile = UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    full_name=row["full_name"],
+                    subscription_end=row["subscription_end"],
+                    note=row["note"],
+                )
+                credentials = UserCredentials(
+                    user_id=row["user_id"],
+                    hashed_password=row["hashed_password"],
+                    created_at=row["created_at"],
+                    last_updated=row["last_updated"],
+                )
+                return profile, credentials
+            return None
+
+    @staticmethod
+    async def insert_refresh_token(
+            user_id: int,
+            token: str,
+            created_at: datetime,
+            expires_at: datetime,
+            ip_address: Optional[str],
+            user_agent: Optional[str],
+    ) -> None:
+        async with DatabaseManager.get_db_connection() as conn:
+            active_token_count = await conn.fetchval(
+                """
+                SELECT COUNT(*) FROM refresh_tokens
+                WHERE user_id = $1 AND expires_at > NOW()
+                """,
+                user_id,
+            )
+
+            if active_token_count >= settings.MAX_ACTIVE_TOKENS:
+                raise TooManyActiveTokensError(f"User {user_id} exceeded the max number of active refresh tokens.")
+
+            await conn.execute(
+                """
+                INSERT INTO refresh_tokens (user_id, token, created_at, expires_at, ip_address, user_agent)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                """,
+                user_id, token, created_at, expires_at, ip_address, user_agent,
+            )
+
+    @staticmethod
+    async def get_refresh_token(token: str) -> Optional[RefreshToken]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, user_id, token, created_at, expires_at, revoked_at, ip_address, user_agent
+                FROM refresh_tokens
+                WHERE token = $1 AND expires_at > NOW()
+                """,
+                token,
+            )
+            if row:
+                return RefreshToken(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    token=row["token"],
+                    created_at=row["created_at"],
+                    expires_at=row["expires_at"],
+                    revoked=row["revoked_at"] is not None,
+                    revoked_at=row["revoked_at"],
+                    ip_address=row["ip_address"],
+                    user_agent=row["user_agent"],
+                )
+            return None
+
+    @staticmethod
+    async def revoke_refresh_token(token: str) -> None:
+        async with DatabaseManager.get_db_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE refresh_tokens
+                SET revoked_at = NOW(), expires_at = NOW()
+                WHERE token = $1
+                """,
+                token,
+            )
+
+    @staticmethod
+    async def get_credentials_with_profile_by_username(username: str) -> Optional[tuple[UserProfile, str]]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    up.user_id,
+                    up.username,
+                    up.full_name,
+                    up.subscription_end,
+                    up.note,
+                    uc.hashed_password
+                FROM user_profiles up
+                JOIN user_credentials uc ON up.user_id = uc.user_id
+                WHERE up.username = $1
+                """,
+                username,
+            )
+            if row:
+                profile = UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    full_name=row["full_name"],
+                    subscription_end=row["subscription_end"],
+                    note=row["note"],
+                )
+                return profile, row["hashed_password"]
+            return None
+
+    @staticmethod
+    async def get_user_by_id(user_id: int) -> Optional[UserProfile]:
+        async with DatabaseManager.get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT user_id, username, full_name, subscription_end, note
+                FROM user_profiles
+                WHERE user_id = $1
+                """,
+                user_id,
+            )
+            if row:
+                return UserProfile(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    full_name=row["full_name"],
+                    subscription_end=row["subscription_end"],
+                    note=row["note"],
+                )
+            return None
