@@ -31,8 +31,12 @@ from bot.video.utils import (
 
 
 class AdjustVideoClipHandler(BotMessageHandler):
+    __RELATIVE_COMMANDS: List[str] = ["dostosuj", "adjust", "d"]
+    __ABSOLUTE_COMMANDS: List[str] = ["adostosuj", "aadjust", "ad"]
+
+
     def get_commands(self) -> List[str]:
-        return ["dostosuj", "adjust", "d"]
+        return AdjustVideoClipHandler.__RELATIVE_COMMANDS + AdjustVideoClipHandler.__ABSOLUTE_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -66,23 +70,25 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
             await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
 
-        try:
-            original_start_time = float(segment_info.get("start", 0))
-            original_end_time = float(segment_info.get("end", 0))
-            additional_start_offset = float(content[-2])
-            additional_end_offset = float(content[-1])
-        except (ValueError, TypeError):
-            return await self.__reply_invalid_args_count()
+        original_start_time = float(segment_info.get("start", 0))
+        original_end_time = float(segment_info.get("end", 0))
+        additional_start_offset = float(content[-2])
+        additional_end_offset = float(content[-1])
+
+        if content[0] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
+            last_clip = await DatabaseManager.get_last_clip_by_chat_id(msg.get_chat_id())
+            if last_clip:
+                original_start_time = last_clip.adjusted_start_time
+                original_end_time = last_clip.adjusted_end_time
 
         if await self.__is_adjustment_exceeding_limits(additional_start_offset, additional_end_offset):
-            await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
-            return
+            return await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
 
         start_time = max(0.0, original_start_time - additional_start_offset - settings.EXTEND_BEFORE)
         end_time = min(original_end_time + additional_end_offset + settings.EXTEND_AFTER, await get_video_duration(segment_info.get("video_path")))
 
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
-            return
+            return None
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment_info.get("video_path"), start_time, end_time, self._logger)
@@ -103,7 +109,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             return await self.__reply_extraction_failure()
 
         await self._log_system_message(logging.INFO, get_updated_segment_info_log(msg.get_chat_id()))
-        await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
+        return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
 
     async def __reply_no_previous_searches(self) -> None:
         await self._answer(await self.get_response(RK.NO_PREVIOUS_SEARCHES))
