@@ -28,7 +28,7 @@ class DeleteClipHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.INVALID_ARGS_COUNT),
+            self._message, 1, await self.get_response(RK.INVALID_ARGS_COUNT),
         )
 
     async def __check_clip_exists(self) -> bool:

@@ -27,7 +27,7 @@ class CreateKeyHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         if not await self._validate_argument_count(
-            self._message, 3, await self.get_response(RK.CREATE_KEY_USAGE),
+            self._message, 2, await self.get_response(RK.CREATE_KEY_USAGE),
         ):
             await self.reply_error(RK.CREATE_KEY_USAGE)
             return False

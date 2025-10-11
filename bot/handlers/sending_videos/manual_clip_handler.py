@@ -60,7 +60,7 @@ class ManualClipHandler(BotMessageHandler):
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            4,
+            3,
             await self.get_response(RK.INVALID_ARGS_COUNT),
         )
 

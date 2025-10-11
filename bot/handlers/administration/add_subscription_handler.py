@@ -26,7 +26,7 @@ class AddSubscriptionHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         if not await self._validate_argument_count(
-            self._message, 3, await self.get_response(RK.NO_USER_ID_PROVIDED),
+            self._message, 2, await self.get_response(RK.NO_USER_ID_PROVIDED),
         ):
             await self.reply_error(RK.NO_USER_ID_PROVIDED)
             return False

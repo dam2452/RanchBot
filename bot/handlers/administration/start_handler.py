@@ -62,9 +62,8 @@ class StartHandler(BotMessageHandler):
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            1,
+            0,
             await self.get_response(RK.INVALID_COMMAND_MESSAGE),
-            2,
         )
 
     async def _do_handle(self) -> None:

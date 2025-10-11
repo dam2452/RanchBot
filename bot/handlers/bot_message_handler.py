@@ -132,7 +132,7 @@ class BotMessageHandler(ABC):
         if max_args is None:
             max_args = min_args
 
-        if min_args <= len(message.get_text().split()) <= max_args:
+        if min_args <= (len(message.get_text().split()) - 1) <= max_args:
             return True
 
         await self._reply_invalid_args_count(error_message)
