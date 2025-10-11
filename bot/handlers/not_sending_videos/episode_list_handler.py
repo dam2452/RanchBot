@@ -45,8 +45,7 @@ class EpisodeListHandler(BotMessageHandler):
         try:
             season = int(args[1])
         except (IndexError, ValueError):
-            await self.reply_error(RK.INVALID_ARGS_COUNT)
-            return
+            return await self.reply_error(RK.INVALID_ARGS_COUNT)
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
         episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger)
@@ -58,7 +57,7 @@ class EpisodeListHandler(BotMessageHandler):
         }
 
         if await self.__check_easter_eggs(context):
-            return
+            return None
 
         if not episodes:
             return await self.__reply_no_episodes_found(season)
@@ -77,7 +76,7 @@ class EpisodeListHandler(BotMessageHandler):
             for part in self.__split_message(response):
                 await self._answer_markdown(part)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_episode_list_sent_message(season, self._message.get_username()),
         )

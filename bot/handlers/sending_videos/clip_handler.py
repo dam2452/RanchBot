@@ -63,7 +63,7 @@ class ClipHandler(BotMessageHandler):
 
         clip_duration = end_time - start_time
         if await self._handle_clip_duration_limit_exceeded(clip_duration):
-            return
+            return None
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
@@ -81,7 +81,7 @@ class ClipHandler(BotMessageHandler):
             is_adjusted=False,
         )
 
-        await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
+        return await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
 
     async def __reply_no_segments_found(self, quote: str) -> None:
         await self._responder.send_text(await self.get_response(RK.NO_SEGMENTS_FOUND))

@@ -13,7 +13,6 @@ from bot.responses.administration.start_handler_responses import (
     get_log_received_start_command,
     get_log_start_message_sent,
 )
-from bot.responses.not_sending_videos.episode_list_handler_responses import get_invalid_argument_count_log_message
 from bot.utils.functions import remove_diacritics_and_lowercase
 
 
@@ -58,18 +57,15 @@ class StartHandler(BotMessageHandler):
         return ["start", "s", "help", "h", "pomoc"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
-        return [self.__validate_argument_count]
+        return [self.__check_argument_count]
 
-    async def __validate_argument_count(self) -> bool:
-        content = self._message.get_text().split()
-        if len(content) not in {1, 2}:
-            await self._responder.send_markdown(await self.get_response(RK.INVALID_COMMAND_MESSAGE))
-            await self._log_system_message(
-                logging.WARNING,
-                get_invalid_argument_count_log_message(self._message.get_user_id(), self._message.get_text()),
-            )
-            return False
-        return True
+    async def __check_argument_count(self) -> bool:
+        return await self._validate_argument_count(
+            self._message,
+            1,
+            await self.get_response(RK.INVALID_COMMAND_MESSAGE),
+            2,
+        )
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()

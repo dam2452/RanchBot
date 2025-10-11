@@ -33,8 +33,6 @@ class DeleteClipHandler(BotMessageHandler):
 
     async def __check_clip_exists(self) -> bool:
         content = self._message.get_text().split(maxsplit=1)
-        if len(content) < 2:
-            return False
 
         clip_identifier = content[1]
         user_id = self._message.get_user_id()

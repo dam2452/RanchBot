@@ -35,20 +35,19 @@ class TranscriptionHandler(BotMessageHandler):
         result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, context_size=15)
 
         if not result:
-            await self.__reply_no_segments_found(quote)
-            return
+            return await self.__reply_no_segments_found(quote)
 
         if self._message.should_reply_json():
-            await self.reply(
+            return await self.reply(
                 key="",
                 data={
                     "quote": quote,
                     "segment": result,
                 },
             )
-        else:
-            response = get_transcription_response(quote, result)
-            await self.__reply_transcription_response(response, quote)
+
+        response = get_transcription_response(quote, result)
+        return await self.__reply_transcription_response(response, quote)
 
     async def __reply_no_segments_found(self, quote: str) -> None:
         await self.reply_error(RK.NO_SEGMENTS_FOUND, args=[quote], as_parent=True)

@@ -14,7 +14,6 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_extraction_failure_log,
-    get_invalid_args_count_log,
     get_invalid_interval_log,
     get_invalid_segment_log,
     get_no_previous_searches_log,
@@ -42,7 +41,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 3, await self.get_response(RK.INVALID_ARGS_COUNT))
+        return await self._validate_argument_count(self._message, 2, await self.get_response(RK.INVALID_ARGS_COUNT), 3)
 
     async def _do_handle(self) -> None:
         msg = self._message
@@ -78,8 +77,8 @@ class AdjustVideoClipHandler(BotMessageHandler):
         if content[0] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
             last_clip = await DatabaseManager.get_last_clip_by_chat_id(msg.get_chat_id())
             if last_clip:
-                original_start_time = last_clip.adjusted_start_time
-                original_end_time = last_clip.adjusted_end_time
+                original_start_time = last_clip.adjusted_start_time or original_start_time
+                original_end_time = last_clip.adjusted_end_time or original_end_time
 
         if await self.__is_adjustment_exceeding_limits(additional_start_offset, additional_end_offset):
             return await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
@@ -118,10 +117,6 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def __reply_no_quotes_selected(self) -> None:
         await self._answer(await self.get_response(RK.NO_QUOTES_SELECTED))
         await self._log_system_message(logging.INFO, get_no_quotes_selected_log())
-
-    async def __reply_invalid_args_count(self) -> None:
-        await self._answer(await self.get_response(RK.INVALID_ARGS_COUNT))
-        await self._log_system_message(logging.INFO, get_invalid_args_count_log())
 
     async def __reply_invalid_interval(self) -> None:
         await self._answer(await self.get_response(RK.INVALID_INTERVAL))

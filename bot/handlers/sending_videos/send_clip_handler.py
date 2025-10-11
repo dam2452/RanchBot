@@ -70,7 +70,7 @@ class SendClipHandler(BotMessageHandler):
             clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
 
         if await self._handle_clip_duration_limit_exceeded(clip.duration):
-            return
+            return None
 
         video_data = clip.video_data
         if not video_data:
@@ -85,7 +85,7 @@ class SendClipHandler(BotMessageHandler):
 
         await self._responder.send_video(temp_file_path)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_clip_sent_message(clip.name, self._message.get_username()),
         )
