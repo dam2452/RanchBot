@@ -875,6 +875,19 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
     @staticmethod
+    async def revoke_all_user_tokens(user_id: int) -> int:
+        async with DatabaseManager.get_db_connection() as conn:
+            result = await conn.execute(
+                """
+                UPDATE refresh_tokens
+                SET revoked_at = NOW(), expires_at = NOW()
+                WHERE user_id = $1 AND expires_at > NOW() AND revoked_at IS NULL
+                """,
+                user_id,
+            )
+            return int(result.split()[-1]) if result else 0
+
+    @staticmethod
     async def get_credentials_with_profile_by_username(username: str) -> Optional[tuple[UserProfile, str]]:
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(

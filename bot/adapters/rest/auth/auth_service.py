@@ -112,3 +112,7 @@ async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
 
 async def revoke_refresh_token(token: str) -> None:
     await DatabaseManager.revoke_refresh_token(token)
+
+
+async def revoke_all_user_refresh_tokens(user_id: int) -> int:
+    return await DatabaseManager.revoke_all_user_tokens(user_id)
