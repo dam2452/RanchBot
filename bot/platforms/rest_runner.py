@@ -167,7 +167,10 @@ async def logout_all(data: LoginRequest, request: Request):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     revoked_count = await revoke_all_user_refresh_tokens(user.user_id)
-    logger.info(f"User {user.username} (ID: {user.user_id}) revoked {revoked_count} active tokens via logout-all.")
+    logger.info(
+        f"User {user.username} (ID: {user.user_id}) revoked {revoked_count} active tokens "
+        f"via logout-all from IP {request.client.host}."
+    )
 
     return {
         "message": f"Successfully logged out from all sessions. {revoked_count} active token(s) revoked.",
