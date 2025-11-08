@@ -52,7 +52,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field("INFO")
     ENVIRONMENT: str = Field("production")
 
-    PLATFORM: str = Field("telegram")
+    ENABLE_TELEGRAM: bool = Field(False)
+    ENABLE_REST: bool = Field(False)
 
     JWT_SECRET_KEY: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
@@ -67,19 +68,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def check_conditional_settings(self) -> 'Settings':
-        platform_lower = self.PLATFORM.lower()
+        if not self.ENABLE_TELEGRAM and not self.ENABLE_REST:
+            raise ValueError(
+                "At least one platform must be enabled. Set ENABLE_TELEGRAM=true or ENABLE_REST=true"
+            )
 
-        if platform_lower == "rest":
-            if self.JWT_SECRET_KEY is None:
-                raise ValueError(
-                    "JWT_SECRET_KEY is required when PLATFORM is 'rest'.",
-                )
+        if self.ENABLE_TELEGRAM and not self.TELEGRAM_BOT_TOKEN:
+            raise ValueError(
+                "TELEGRAM_BOT_TOKEN is required when ENABLE_TELEGRAM=true"
+            )
 
-        if platform_lower == "telegram":
-            if self.TELEGRAM_BOT_TOKEN is None:
-                raise ValueError(
-                    "TELEGRAM_BOT_TOKEN is required when PLATFORM is 'telegram'.",
-                )
+        if self.ENABLE_REST and not self.JWT_SECRET_KEY:
+            raise ValueError(
+                "JWT_SECRET_KEY is required when ENABLE_REST=true"
+            )
 
         return self
 

@@ -1,9 +1,9 @@
 import asyncio
-from enum import Enum
+from dataclasses import dataclass
 import logging
 from logging import LogRecord
 import os
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
@@ -15,9 +15,11 @@ from bot.settings import settings as s
 from bot.utils.log import get_log_level
 
 
-class Platform(Enum):
-    TELEGRAM = "telegram"
-    REST = "rest"
+@dataclass(frozen=True)
+class PlatformConfig:
+    name: str
+    enabled: Callable[[], bool]
+    runner: Callable[[], Awaitable[None]]
 
 
 class DBLogHandler(logging.Handler):
@@ -62,10 +64,10 @@ async def initialize_common_and_set_admin():
         logger.error(f"Invalid DEFAULT_ADMIN ID: '{admin_user_id_str}'. Must be an integer.")
         return
 
-    if s.PLATFORM.lower() == "telegram":
+    if s.ENABLE_TELEGRAM:
         if not s.TELEGRAM_BOT_TOKEN:
             logger.error(
-                "Platform is 'telegram' but TELEGRAM_BOT_TOKEN is missing. Cannot set default admin from Telegram.",
+                "Telegram is enabled but TELEGRAM_BOT_TOKEN is missing. Cannot set default admin from Telegram.",
             )
             return
 
@@ -87,34 +89,41 @@ async def initialize_common_and_set_admin():
             if bot_instance:
                 await bot_instance.session.close()
     else:
-        logger.info(f"Platform is '{s.PLATFORM}'. Default admin setup via Telegram API is skipped.")
+        logger.info("Telegram platform is disabled. Default admin setup via Telegram API is skipped.")
+
+
+PLATFORM_REGISTRY: tuple[PlatformConfig, ...] = (
+    PlatformConfig(
+        name="Telegram bot",
+        enabled=lambda: s.ENABLE_TELEGRAM,
+        runner=run_telegram_bot,
+    ),
+    PlatformConfig(
+        name="REST API",
+        enabled=lambda: s.ENABLE_REST,
+        runner=run_rest_api,
+    ),
+)
 
 
 async def main():
     await initialize_common_and_set_admin()
 
-    platform_runners = {
-        Platform.TELEGRAM: run_telegram_bot,
-        Platform.REST: run_rest_api,
-    }
+    enabled_platforms = [p for p in PLATFORM_REGISTRY if p.enabled()]
+    disabled_platforms = [p for p in PLATFORM_REGISTRY if not p.enabled()]
 
-    current_platform_enum: Optional[Platform] = None
-    try:
-        current_platform_enum = Platform(s.PLATFORM.lower())
-    except ValueError:
-        logger.critical(f"CRITICAL: Unsupported platform string in settings: '{s.PLATFORM}'. Application cannot start.")
+    for platform in enabled_platforms:
+        logger.info(f"Starting {platform.name} platform")
+
+    for platform in disabled_platforms:
+        logger.info(f"{platform.name} platform disabled")
+
+    if not enabled_platforms:
+        logger.critical("CRITICAL: No platform enabled! Configure at least one platform.")
         return
 
-    runner = platform_runners.get(current_platform_enum)
-
-    if runner:
-        logger.info(f"Starting platform: {current_platform_enum.value}")
-        await runner()
-    else:
-        logger.critical(
-            f"CRITICAL: No runner found for platform: '{s.PLATFORM}'. This should not happen if PLATFORM enum value is valid and in platform_runners.",
-        )
-        raise ValueError(f"No runner configured for platform enum value: {current_platform_enum}")
+    logger.info(f"Running {len(enabled_platforms)} platform(s)")
+    await asyncio.gather(*[p.runner() for p in enabled_platforms])
 
 
 if __name__ == "__main__":
