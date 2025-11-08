@@ -1,11 +1,11 @@
 
 ---
 
-# 🎥 RanczoKlipy Bot 🤖
+# 🎥 RanchBot 🤖
 🎥 Watch the RanczoClips Bot in action:
 [![🎬 Watch the video](https://img.youtube.com/vi/3Tp3qJHLFPI/maxresdefault.jpg)](https://www.youtube.com/watch?v=3Tp3qJHLFPI)
 
-**RanczoKlipy Bot** is a highly customizable Telegram bot designed to manage and process video clips from the popular TV series "Ranczo." 🎬 The bot allows users to search for specific quotes, manage their own video clips, and perform various administrative tasks related to user management and content moderation.
+**RanchBot** is a highly customizable Telegram bot designed to manage and process video clips from the popular TV series "Ranczo." 🎬 The bot allows users to search for specific quotes, manage their own video clips, and perform various administrative tasks related to user management and content moderation.
 
 
 ## 🌟 Features
@@ -83,7 +83,7 @@ This project is licensed under the MIT License. You are free to use and modify t
 
 ## 🚀 Get Access to the Bot
 
-If you're interested in accessing the RanczoKlipy Bot, please reach out to me on Telegram: [@dam2452](https://t.me/dam2452).
+If you're interested in accessing the RanchBot, please reach out to me on Telegram: [@dam2452](https://t.me/dam2452).
 
 ## ☕ Support the Project
 

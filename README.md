@@ -1,11 +1,11 @@
 
 ---
 
-# 🎥 RanczoKlipy Bot 🤖
-🎥 Zobacz RanczoKlipy Bot w akcji:
+# 🎥 RanchBot 🤖
+🎥 Zobacz RanchBot w akcji:
 [![🎬 Zobacz wideo](https://img.youtube.com/vi/3Tp3qJHLFPI/maxresdefault.jpg)](https://www.youtube.com/watch?v=3Tp3qJHLFPI)
 
-**RanczoKlipy Bot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z popularnego serialu "Ranczo". 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści.
+**RanchBot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z popularnego serialu "Ranczo". 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści.
 
 ## 🇬🇧 English Version
 For the English version of this README, please refer to [README.md](./READMEen.md).
@@ -82,7 +82,7 @@ Wkład w projekt jest zawsze mile widziany! Jeśli chciałbyś pomóc w jego udo
 Ten projekt jest licencjonowany na podstawie licencji MIT. Możesz używać i modyfikować oprogramowanie do celów osobistych lub wewnętrznych. Jednak dystrybucja lub publiczne udostępnianie zmodyfikowanych wersji powinno odbywać się poprzez wkład w ten projekt. Jeśli chcesz użyć tego oprogramowania w znacznej lub komercyjnej formie, skontaktuj się z twórcami projektu w celu dalszej dyskusji.
 
 ## 🚀 Uzyskaj Dostęp do Bota
-Jeśli jesteś zainteresowany dostępem do RanczoKlipy Bot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
+Jeśli jesteś zainteresowany dostępem do RanchBot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
 
 ## ☕ Wesprzyj Projekt
 Jeśli podoba Ci się ten projekt i chciałbyś wesprzeć jego rozwój, rozważ postawienie mi kawy:
