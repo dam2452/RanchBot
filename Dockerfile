@@ -1,26 +1,33 @@
-FROM python:3.13-slim
+FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
-RUN apt-get update --fix-missing && apt-get install -y --no-install-recommends \
-    git \
+RUN apk add --no-cache \
+    postgresql-dev \
+    gcc \
+    musl-dev \
+    libffi-dev
+
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+FROM python:3.13-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache \
     ffmpeg \
-    libpq-dev \
+    libpq \
     curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && adduser -D -u 1000 -s /bin/sh ranczo-klipy \
+    && chown -R ranczo-klipy:ranczo-klipy /app
 
-RUN useradd -u 1000 -ms /bin/bash ranczo-klipy && \
-    chown -R ranczo-klipy:ranczo-klipy /app
-
-COPY --chown=ranczo-klipy:ranczo-klipy requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
+COPY --from=builder --chown=ranczo-klipy:ranczo-klipy /root/.local /home/ranczo-klipy/.local
 COPY --chown=ranczo-klipy:ranczo-klipy . .
 
 USER ranczo-klipy
 
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PATH=/home/ranczo-klipy/.local/bin:$PATH
 
 CMD ["python", "-m", "bot.main"]
