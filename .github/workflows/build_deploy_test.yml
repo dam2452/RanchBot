@@ -2,15 +2,15 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
-
-  workflow_dispatch:
-    inputs:
-      branch:
-        type: string
-        description: "Branch"
-        required: true
-        default: "main"
+#    branches: [ main ]
+#
+#  workflow_dispatch:
+#    inputs:
+#      branch:
+#        type: string
+#        description: "Branch"
+#        required: true
+#        default: "main"
 
 jobs:
   build_and_test_staging:
