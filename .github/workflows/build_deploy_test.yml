@@ -33,7 +33,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.REGISTRY_URL }}/app:test
+            dam245222/app:test
 
       - name: Deploy to Staging (Test Compose)
         run: |
@@ -71,8 +71,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.REGISTRY_URL }}/app:prod
-            ${{ secrets.REGISTRY_URL }}/app:latest
+            dam245222/app:prod
+            dam245222/app:latest
 
       - name: Deploy to Production
         run: |
