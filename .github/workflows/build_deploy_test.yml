@@ -15,6 +15,8 @@ on:
 jobs:
   build_and_test_staging:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,11 +35,13 @@ jobs:
           context: .
           push: true
           tags: |
-            dam245222/app:test
+            dam245222/app:${IMAGE_TAG}
 
       - name: Deploy to Staging (Test Compose)
+        env:
+          SECRETS: ${{ secrets.BOT_TEST_ENV }}
         run: |
-          echo ${{ secrets.BOT_TEST_ENV }} > .env
+          echo "$SECRETS" > .env
           export $(grep -v '^#' .env | xargs)
           docker compose pull --policy always
           docker compose --project-name bot-test up -d
@@ -55,6 +59,8 @@ jobs:
     needs: build_and_test_staging
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: prod
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -71,12 +77,14 @@ jobs:
           context: .
           push: true
           tags: |
-            dam245222/app:prod
+            dam245222/app:${IMAGE_TAG}
             dam245222/app:latest
 
       - name: Deploy to Production
+        env:
+          SECRETS: ${{ secrets.BOT_PROD_ENV }}
         run: |
-          echo ${{ secrets.BOT_PROD_ENV }} > .env
+          echo "$SECRETS" > .env
           export $(grep -v '^#' .env | xargs)
           docker compose pull --policy always
           docker compose --project-name bot-prod up -d
