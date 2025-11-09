@@ -2,6 +2,7 @@ name: Common Test Workflow
 
 on:
   workflow_call:
+  pull_request_review:
 
 jobs:
   build:
