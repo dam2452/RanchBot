@@ -7,11 +7,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  spawn-check:
+  spawn:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' }}
     steps:
-      - run: echo "Pipeline spawned — waiting for manual trigger (workflow_dispatch)."
+      - name: Spawn manual workflow
+        run: |
+          echo "Pipeline spawned for branch ${GITHUB_REF_NAME}."
 
-  call-common:
+  manual-run:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/test.yml
