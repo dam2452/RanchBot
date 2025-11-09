@@ -1,0 +1,17 @@
+name: Feature Branch Pipeline
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+jobs:
+  spawn-check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Pipeline spawned — waiting for manual trigger (workflow_dispatch)."
+
+  call-common:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/test.yml
