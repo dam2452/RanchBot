@@ -20,4 +20,7 @@ jobs:
           docker push ${{ secrets.REGISTRY_URL }}/myapp:latest
 
       - name: Deploy Production Environment
-        run: docker compose -f docker-compose.prod.yml --project-name bot-prod up -d
+        run: |
+          echo ${{ secrets.BOT_PROD_ENV }} > .env
+          export $(grep -v '^#' .env | xargs)
+          docker compose -f docker-compose.prod.yml --project-name bot-prod up -d

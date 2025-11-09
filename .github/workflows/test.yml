@@ -25,7 +25,10 @@ jobs:
     needs: [build]
     steps:
       - name: Deploy Test Environment
-        run: docker compose -f docker-compose.test.yml --project-name bot-test up -d
+        run: |
+          echo ${{ secrets.BOT_TEST_ENV }} > .env
+          export $(grep -v '^#' .env | xargs)
+          docker compose -f docker-compose.test.yml --project-name bot-test up -d
 
   run_tests:
     runs-on: self-hosted
