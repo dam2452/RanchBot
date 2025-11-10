@@ -270,7 +270,7 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES user_profiles(user_id) ON DELETE CASCADE,
     token VARCHAR(255) UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
