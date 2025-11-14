@@ -2,15 +2,8 @@ name: CI/CD Pipeline
 
 on:
   push:
-#    branches: [ main ]
-#
-#  workflow_dispatch:
-#    inputs:
-#      branch:
-#        type: string
-#        description: "Branch"
-#        required: true
-#        default: "main"
+    branches-ignore:
+      - main
 
 jobs:
   build_and_test_staging:
@@ -51,9 +44,9 @@ jobs:
           echo "Waiting for services to be healthy..."
           sleep 10
           if docker ps -a --format '{{.Names}}' | grep -qx 'bot-test-bot-1'; then
-              echo ok
+              echo The bot has been up an running for the first 10 seconds, OK.
           else
-              echo not ok
+              echo The bot crashed
               docker compose logs bot-test-bot-1
           fi
 

@@ -1,10 +1,10 @@
 name: Pre-commit checks
 
-on: [push, pull_request]
+on: push
 
 jobs:
   pre-commit:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout the code
         uses: actions/checkout@v3
