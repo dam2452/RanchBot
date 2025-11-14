@@ -48,6 +48,7 @@ jobs:
           else
               echo The bot crashed
               docker logs bot-test-bot-1
+              exit 1
           fi
 
       - name: Run E2E Tests on Staging
