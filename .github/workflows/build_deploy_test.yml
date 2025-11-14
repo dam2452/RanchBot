@@ -44,6 +44,7 @@ jobs:
           export $(grep -v '^#' .env | xargs)
           docker compose pull --policy always
           docker compose --project-name bot-test up -d
+          sleep 300
 
       - name: Wait for Staging services
         run: |
