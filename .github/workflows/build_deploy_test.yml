@@ -39,7 +39,7 @@ jobs:
         env:
           SECRETS: ${{ secrets.BOT_TEST_ENV }}
           IMAGE_TAG: test
-          RESTART_POLICY: never
+          RESTART_POLICY: no
         run: |
           echo "$SECRETS" > .env
           export $(grep -v '^#' .env | xargs)
