@@ -47,7 +47,7 @@ jobs:
               echo The bot has been up an running for the first 10 seconds, OK.
           else
               echo The bot crashed
-              docker compose logs bot-test-bot-1
+              docker logs bot-test-bot-1
           fi
 
       - name: Run E2E Tests on Staging
