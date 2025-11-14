@@ -43,7 +43,7 @@ jobs:
         run: |
           echo "Waiting for services to be healthy..."
           sleep 10
-          if docker ps -a --format '{{.Names}}' | grep -qx 'bot-test-bot-1'; then
+          if docker ps --format '{{.Names}}' | grep -qx 'bot-test-bot-1'; then
               echo The bot has been up an running for the first 10 seconds, OK.
           else
               echo The bot crashed
