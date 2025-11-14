@@ -52,7 +52,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             "port": port or settings.POSTGRES_PORT,
             "database": database or settings.POSTGRES_DB,
             "user": user or settings.POSTGRES_USER,
-            "password": password or settings.POSTGRES_PASSWORD,
+            "password": password or settings.POSTGRES_PASSWORD.get_secret_value(),
             "server_settings": {"search_path": schema or settings.POSTGRES_SCHEMA},
         }
         db_manager_logger.info("Creating new database connection pool.")

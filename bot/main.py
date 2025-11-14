@@ -73,7 +73,7 @@ async def initialize_common_and_set_admin():
 
         bot_instance = None
         try:
-            bot_instance = Bot(token=s.TELEGRAM_BOT_TOKEN)
+            bot_instance = Bot(token=s.TELEGRAM_BOT_TOKEN.get_secret_value())
             user_data = await bot_instance.get_chat(admin_user_id)
             await DatabaseManager.set_default_admin(
                 user_id=admin_user_id,

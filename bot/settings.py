@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import (
     Field,
+    SecretStr,
     model_validator,
 )
 from pydantic_settings import BaseSettings
@@ -14,13 +15,13 @@ env_path = load_env_file()
 
 class Settings(BaseSettings):
     FILE_SIZE_LIMIT_MB: int = Field(50)
-    TELEGRAM_BOT_TOKEN: Optional[str] = None
+    TELEGRAM_BOT_TOKEN: Optional[SecretStr] = None
     BOT_USERNAME: str = Field(...)
     DEFAULT_ADMIN: str = Field(...)
     DEFAULT_RESOLUTION_KEY: str = Field("1080p")
 
     POSTGRES_USER: str = Field(...)
-    POSTGRES_PASSWORD: str = Field(...)
+    POSTGRES_PASSWORD: SecretStr = Field(...)
     POSTGRES_HOST: str = Field(...)
     POSTGRES_PORT: int = Field(...)
     POSTGRES_DB: str = Field(...)
@@ -30,7 +31,7 @@ class Settings(BaseSettings):
 
     ES_HOST: str = Field(...)
     ES_USER: str = Field(...)
-    ES_PASS: str = Field(...)
+    ES_PASS: SecretStr = Field(...)
     ES_TRANSCRIPTION_INDEX: str = Field(...)
 
     EXTEND_BEFORE: float = Field(5)
@@ -55,7 +56,7 @@ class Settings(BaseSettings):
     ENABLE_TELEGRAM: bool = Field(False)
     ENABLE_REST: bool = Field(False)
 
-    JWT_SECRET_KEY: Optional[str] = None
+    JWT_SECRET_KEY: Optional[SecretStr] = None
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 30
     JWT_ISSUER: str = Field("RanchBot")

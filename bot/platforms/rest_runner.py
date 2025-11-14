@@ -190,7 +190,7 @@ async def universal_handler(
     try:
         payload = jwt.decode(
             credentials.credentials,
-            s.JWT_SECRET_KEY,
+            s.JWT_SECRET_KEY.get_secret_value(),
             algorithms=[s.JWT_ALGORITHM],
             issuer=s.JWT_ISSUER,
             audience=s.JWT_AUDIENCE,
