@@ -28,7 +28,7 @@ class UserManager:
         if not env_file.exists():
             return
 
-        with open(env_file, 'r') as f:
+        with open(env_file, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
                 if self._is_valid_env_line(line):
@@ -44,7 +44,7 @@ class UserManager:
     def _get_db_config() -> Dict[str, Any]:
         return {
             'host': os.getenv('POSTGRES_HOST', '192.168.1.210'),
-            'port': int(os.getenv('POSTGRES_PORT', 30665)),
+            'port': int(os.getenv('POSTGRES_PORT', '30665')),
             'database': os.getenv('POSTGRES_DB', 'postgres'),
             'user': os.getenv('POSTGRES_USER', 'RanchBot'),
             'password': os.getenv('POSTGRES_PASSWORD', ''),
@@ -65,7 +65,7 @@ class UserManager:
 
         try:
             return await asyncpg.connect(**self.db_config)
-        except Exception as e:
+        except (OSError, asyncpg.PostgresError) as e:
             print(f"❌ Connection failed: {e}")
             sys.exit(1)
 
@@ -113,13 +113,13 @@ class UserManager:
 
     @staticmethod
     def confirm_action(message: str) -> bool:
-        response = input(f"\n{message} (yes/no): ")
+        response = input(f"\n{message} (yes/no): ")  # pylint: disable=bad-builtin
         return response.lower() == "yes"
 
     @staticmethod
     def display_user_info(user_id: int, username: str, full_name: str,
                           subscription_days: int, subscription_end: Optional[date]) -> None:
-        print(f"\n⚠️  PRODUCTION DATABASE - Confirm action:")
+        print("\n⚠️  PRODUCTION DATABASE - Confirm action:")
         print(f"   User ID: {user_id}")
         print(f"   Username: {username}")
         print(f"   Full name: {full_name}")
@@ -128,7 +128,7 @@ class UserManager:
 
     async def handle_existing_user(self, conn: asyncpg.Connection, existing_user: asyncpg.Record,
                                    user_id: int, username: str, password: str) -> bool:
-        print(f"\n⚠️  User already exists!")
+        print("\n⚠️  User already exists!")
         print(f"   Existing user_id: {existing_user['user_id']}")
         print(f"   Existing username: {existing_user['username']}")
 
