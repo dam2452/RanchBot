@@ -15,6 +15,8 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - '8077:8077'
+    restart: unless-stopped
     volumes:
-      - ./bot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO:ro
-      - ./bot/RANCZO-TRANSKRYPCJE:/app/bot/RANCZO-TRANSKRYPCJE:ro
+      - /mnt/WD_RED_2TB_MIRROR/RANCZO:/app/bot/RANCZO-WIDEO:ro
