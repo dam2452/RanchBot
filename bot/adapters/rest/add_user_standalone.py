@@ -4,18 +4,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
-
-try:
-    import asyncpg
-except ImportError:
-    print("❌ Error: asyncpg not installed. Install with: pip install asyncpg")
-    sys.exit(1)
-
-try:
-    import bcrypt
-except ImportError:
-    print("❌ Error: bcrypt not installed. Install with: pip install bcrypt")
-    sys.exit(1)
+import asyncpg
+import bcrypt
 
 
 class UserManager:
