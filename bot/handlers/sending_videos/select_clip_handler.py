@@ -34,7 +34,7 @@ class SelectClipHandler(BotMessageHandler):
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            2,
+            1,
             await self.get_response(RK.INVALID_ARGS_COUNT),
         )
 
@@ -59,7 +59,7 @@ class SelectClipHandler(BotMessageHandler):
         end_time = segment["end"] + settings.EXTEND_AFTER
 
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
-            return
+            return None
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
@@ -84,7 +84,7 @@ class SelectClipHandler(BotMessageHandler):
             is_adjusted=False,
         )
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_segment_selected_message(segment["id"], self._message.get_username()),
         )

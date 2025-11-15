@@ -25,7 +25,7 @@ class UpdateUserNoteHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 3, await self.get_response(RK.NO_NOTE_PROVIDED),
+            self._message, 2, await self.get_response(RK.NO_NOTE_PROVIDED),
         )
 
     async def __check_user_id(self) -> bool:

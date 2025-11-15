@@ -28,7 +28,7 @@ class ListKeysHandler(BotMessageHandler):
             return await self.__reply_subscription_keys_empty()
 
         response = create_subscription_keys_response(keys)
-        await self.__reply_subscription_keys(response, keys)
+        return await self.__reply_subscription_keys(response, keys)
 
     async def __reply_subscription_keys_empty(self) -> None:
         if self._message.should_reply_json():

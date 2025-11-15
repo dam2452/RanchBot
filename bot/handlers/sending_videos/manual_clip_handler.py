@@ -60,7 +60,7 @@ class ManualClipHandler(BotMessageHandler):
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            4,
+            3,
             await self.get_response(RK.INVALID_ARGS_COUNT),
         )
 
@@ -76,7 +76,7 @@ class ManualClipHandler(BotMessageHandler):
 
         clip_duration = end_seconds - start_seconds
         if await self._handle_clip_duration_limit_exceeded(clip_duration):
-            return
+            return None
 
         video_path_str = await TranscriptionFinder.find_video_path_by_episode(
             episode.season,
@@ -108,7 +108,7 @@ class ManualClipHandler(BotMessageHandler):
             },
         }
 
-        await DatabaseManager.insert_last_clip(
+        return await DatabaseManager.insert_last_clip(
             chat_id=self._message.get_chat_id(),
             segment=segment_data,
             compiled_clip=None,

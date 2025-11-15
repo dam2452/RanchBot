@@ -28,7 +28,7 @@ class ListWhitelistHandler(BotMessageHandler):
             return await self.__reply_whitelist_empty()
 
         response = create_whitelist_response(users)
-        await self.__reply_whitelist(response, users)
+        return await self.__reply_whitelist(response, users)
 
     async def __reply_whitelist_empty(self) -> None:
         if self._message.should_reply_json():
