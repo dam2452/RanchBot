@@ -3,7 +3,7 @@ version: '3.8'
 services:
   bot:
     build: .
-    restart: unless-stopped
+    image: dam245222/ranchbot:${IMAGE_TAG}
     environment:
       ES_HOST: ${ES_HOST}
       ES_USER: ${ES_USER}
@@ -15,9 +15,13 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA}
+      BOT_USERNAME: ${BOT_USERNAME}
+      SPECIALIZED_TABLE: ${SPECIALIZED_TABLE}
+      ES_TRANSCRIPTION_INDEX: ${ES_TRANSCRIPTION_INDEX}
+    restart: ${RESTART_POLICY:-unless-stopped}
     volumes:
       - ./bot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO:ro
-      - ./bot/RANCZO-TRANSKRYPCJE:/app/bot/RANCZO-TRANSKRYPCJE:ro
     deploy:
       resources:
         limits:
