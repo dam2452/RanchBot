@@ -46,3 +46,8 @@ bot/RANCZO-WIDEO
 test_episodes.json
 /.claude
 /transcriptions
+/preprocessor/tests/output
+/preprocessor/tests/test_video.mp4
+/preprocessor/tests/test_episodes_info.json
+/preprocessor/tests/mock_11labs_data
+TODO.md
