@@ -3,7 +3,11 @@ from dataclasses import dataclass
 import logging
 from logging import LogRecord
 import os
-from typing import Awaitable, Callable, Optional
+from typing import (
+    Awaitable,
+    Callable,
+    Optional,
+)
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
