@@ -45,3 +45,4 @@ Preprocessing/DataExtractionFromWiki/EpisodeInfo.json
 bot/RANCZO-WIDEO
 test_episodes.json
 /.claude
+/transcriptions

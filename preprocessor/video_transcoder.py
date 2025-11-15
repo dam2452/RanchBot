@@ -1,9 +1,9 @@
 import json
 import logging
-from pathlib import Path
 import re
 import subprocess
-from typing import Optional
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
 from bot.utils.resolution import Resolution
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -72,17 +72,22 @@ class VideoTranscoder:
             self.logger.error(f"FFmpeg failed for {video_file}: {e}")
 
 
-    def __find_episode_info(self, absolute_episode: int) -> tuple[Optional[int], Optional[int]]:
+    def __find_episode_info(self, absolute_episode: int) -> Tuple[Optional[int], Optional[int]]:
         season_number, relative_episode = 1, absolute_episode
 
         if not self.episodes_info:
             return season_number, relative_episode
 
-        for season_str, season_data in self.episodes_info.items():
-            episodes = sorted(season_data.get("episodes", []), key=lambda ep: ep["episode_number"])
-            for idx, ep in enumerate(episodes):
-                if ep["episode_number"] == absolute_episode:
-                    return int(season_str), idx + 1
+        current_absolute = 1
+        for season in self.episodes_info.get("seasons", []):
+            season_num = season.get("season_number", 1)
+            episodes = sorted(season.get("episodes", []), key=lambda ep: ep["episode_number"])
+
+            for ep in episodes:
+                if current_absolute == absolute_episode:
+                    return season_num, ep["episode_number"]
+                current_absolute += 1
+
         return None, None
 
     def __build_output_path(self, series_name: str, season_number: int, relative_episode: int) -> Path:
@@ -117,7 +122,7 @@ class VideoTranscoder:
         ]
 
         self.logger.info(f"Executing ffmpeg: {' '.join(command)}")
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     @staticmethod
     def __get_framerate(video: Path) -> float:

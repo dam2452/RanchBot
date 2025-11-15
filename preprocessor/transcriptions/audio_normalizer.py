@@ -34,7 +34,7 @@ class AudioNormalizer:
             output_path = self.__output_dir / video.with_suffix(".wav").name
             self.__normalize(video=video, audio_idx=audio_idx, output=output_path)
 
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error processing video {video}: {e}")
 
     def __get_best_audio_stream(self, video: Path) -> Optional[int]:
@@ -67,7 +67,7 @@ class AudioNormalizer:
             "-ac", "1",
             str(output),
         ]
-        subprocess.run(extract_cmd, check=True)
+        subprocess.run(extract_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.__logger.info(f"Converted audio: {output}")
 
         normalize_cmd = [
@@ -76,7 +76,7 @@ class AudioNormalizer:
             "-af", "dynaudnorm",
             str(tmp_output),
         ]
-        subprocess.run(normalize_cmd, check=True)
+        subprocess.run(normalize_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.__logger.info(f"Normalized audio: {tmp_output}")
 
         tmp_output.replace(output)

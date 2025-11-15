@@ -42,4 +42,4 @@ def convert(input_json: Path, output_json: Path) -> None:
 
 
 if __name__ == "__main__":
-    convert() # pylint: disable=no-value-for-parameter
+    convert()  # pylint: disable=no-value-for-parameter

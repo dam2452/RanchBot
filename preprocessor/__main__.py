@@ -1,218 +1,152 @@
-import logging
-from pathlib import Path
 import sys
+from pathlib import Path
+from typing import List
+
+import click
+from rich.console import Console
+from rich.logging import RichHandler
 
 from bot.utils.resolution import Resolution
+from preprocessor.config import (
+    IndexConfig,
+    TranscodeConfig,
+    TranscriptionConfig,
+)
 from preprocessor.elastic_search_indexer import ElasticSearchIndexer
 from preprocessor.transciption_generator import TranscriptionGenerator
-from preprocessor.utils.args import (
-    ParserModes,
-    parse_multi_mode_args,
-)
 from preprocessor.video_transcoder import VideoTranscoder
 
-# enter handlers in a valid order
-MODE_WORKERS = {
-        "all": [
-            VideoTranscoder,
-            TranscriptionGenerator,
-            ElasticSearchIndexer,
-        ],
-
-        "transcode": [
-            VideoTranscoder,
-        ],
-
-        "transcribe": [
-            TranscriptionGenerator,
-        ],
-
-        "index": [
-            ElasticSearchIndexer,
-        ],
-}
+console = Console()
 
 
-def generate_parser_modes() -> ParserModes:
-    parser_modes = {
-        "transcribe": [
-            (
-                "videos", {
-                     "type": Path,
-                     "help": "Path to input videos for preprocessing",
-                },
-            ),
-            (
-                "--episodes-info-json", {
-                    "type": Path,
-                    "help": "JSON with info for all episodes",
-                },
-            ),
-            (
-                "--transcription_jsons", {
-                    "type": Path,
-                    "default": TranscriptionGenerator.DEFAULT_OUTPUT_DIR,
-                    "help": "Path for output transcriptions JSONs",
-                },
-            ),
-            (
-                "--model", {
-                    "type": str,
-                    "default": TranscriptionGenerator.DEFAULT_MODEL,
-                    "help": "Whisper model to use",
-                },
-            ),
-            (
-                "--language", {
-                    "type": str,
-                    "default": TranscriptionGenerator.DEFAULT_LANGUAGE,
-                    "help": "Language to use",
-                },
-            ),
-            (
-                "--device", {
-                    "type": str,
-                    "default": TranscriptionGenerator.DEFAULT_DEVICE,
-                    "help": "Device to use",
-                },
-            ),
-            (
-                "--extra_json_keys_to_remove", {
-                    "type": str,
-                    "nargs": "*",
-                    "default": [],
-                    "help": "Additional keys to remove from JSONs",
-                },
-            ),
-        ],
+@click.group()
+def cli():
+    pass
 
-        "transcode": [
-            (
-                "videos", {
-                     "type": Path,
-                     "help": "Path to input videos for preprocessing",
-                },
-            ),
-            (
-                "--transcoded_videos", {
-                   "type": Path,
-                   "default": VideoTranscoder.DEFAULT_OUTPUT_DIR,
-                   "help": "Path for output videos after transcoding",
-                },
-            ),
-            (
-                "--resolution", {
-                    "type": Resolution.from_str,
-                    "choices": list(Resolution),
-                    "default": Resolution.R1080P,
-                    "help": "Target resolution for all videos",
-                },
 
-            ),
+@cli.command()
+@click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--transcoded-videos", type=click.Path(path_type=Path), default=VideoTranscoder.DEFAULT_OUTPUT_DIR)
+@click.option("--resolution", type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]), default="1080p")
+@click.option("--codec", default=VideoTranscoder.DEFAULT_CODEC)
+@click.option("--preset", default=VideoTranscoder.DEFAULT_PRESET)
+@click.option("--crf", type=int, default=VideoTranscoder.DEFAULT_CRF)
+@click.option("--gop-size", type=float, default=VideoTranscoder.DEFAULT_GOP_SIZE)
+@click.option("--episodes-info-json", type=click.Path(exists=True, path_type=Path))
+def transcode(videos: Path, transcoded_videos: Path, resolution: str, codec: str, preset: str, crf: int, gop_size: float, episodes_info_json: Path):
+    config = TranscodeConfig(
+        videos=videos,
+        transcoded_videos=transcoded_videos,
+        resolution=Resolution.from_str(resolution),
+        codec=codec,
+        preset=preset,
+        crf=crf,
+        gop_size=gop_size,
+        episodes_info_json=episodes_info_json,
+    )
+    transcoder = VideoTranscoder(config.to_dict())
+    exit_code = transcoder.work()
+    sys.exit(exit_code)
 
-            (
-                "--codec", {
-                   "type": str,
-                   "default": VideoTranscoder.DEFAULT_CODEC,
-                   "help": "Video codec",
-                },
-            ),
-            (
-                "--preset", {
-                   "type": str,
-                   "default": VideoTranscoder.DEFAULT_PRESET,
-                   "help": "FFmpeg preset",
-                },
-            ),
-            (
-                "--crf", {
-                    "type": int,
-                    "default": VideoTranscoder.DEFAULT_CRF,
-                    "help": "Quality (lower = better)",
-                },
-            ),
-            (
-                "--gop-size", {
-                    "type": float,
-                    "default": VideoTranscoder.DEFAULT_GOP_SIZE,
-                    "help": "Keyframe interval in seconds",
-                },
-            ),
-        ],
 
-        "index": [
-            (
-                "--dry-run", {
-                    "action": "store_true",
-                    "help": "Validate data without sending to Elasticsearch.",
-                },
-            ),
-            (
-                "--name", {
-                    "type": str,
-                    "help": "Name of the ElasticSearch index",
-                },
-            ),
-            (
-                "--append", {
-                    "action": "store_true",
-                    "help": "Do NOT delete/create the index. Simply add documents to the existing one.",
-                },
-            ),
-        ],
-    }
+@cli.command()
+@click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--episodes-info-json", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("--transcription-jsons", type=click.Path(path_type=Path), default=TranscriptionGenerator.DEFAULT_OUTPUT_DIR)
+@click.option("--model", default=TranscriptionGenerator.DEFAULT_MODEL)
+@click.option("--language", default=TranscriptionGenerator.DEFAULT_LANGUAGE)
+@click.option("--device", default=TranscriptionGenerator.DEFAULT_DEVICE)
+@click.option("--extra-json-keys", multiple=True)
+@click.option("--name", required=True)
+def transcribe(videos: Path, episodes_info_json: Path, transcription_jsons: Path, model: str, language: str, device: str, extra_json_keys: tuple, name: str):
+    config = TranscriptionConfig(
+        videos=videos,
+        episodes_info_json=episodes_info_json,
+        transcription_jsons=transcription_jsons,
+        model=model,
+        language=language,
+        device=device,
+        extra_json_keys_to_remove=list(extra_json_keys),
+        name=name,
+    )
+    generator = TranscriptionGenerator(config.to_dict())
+    exit_code = generator.work()
+    sys.exit(exit_code)
 
-    unique_flag_names = set()
-    unique_flags = []
 
-    for flags in parser_modes.values():
-        for name, flag in flags:
-            if name not in unique_flag_names:
-                unique_flag_names.add(name)
-                unique_flags.append((name, flag))
+@cli.command()
+@click.option("--name", required=True)
+@click.option("--transcription-jsons", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("--dry-run", is_flag=True)
+@click.option("--append", is_flag=True)
+def index(name: str, transcription_jsons: Path, dry_run: bool, append: bool):
+    config = IndexConfig(
+        name=name,
+        transcription_jsons=transcription_jsons,
+        dry_run=dry_run,
+        append=append,
+    )
+    indexer = ElasticSearchIndexer(config.to_dict())
+    exit_code = indexer.work()
+    sys.exit(exit_code)
 
-    # 'all' to gather all flags from other modes
-    parser_modes["all"] = unique_flags
 
-    # So the help messages are not overwritten for the "all" mode.
-    # We want to display the transcribe/transcode messages for the whole pipeline.
-    parser_modes["index"] += [
-        (
-            "--transcoded_videos", {
-                "type": Path,
-                "help": "Transcoded videos for the ElasticSearch indexing",
-            },
-        ),
-        (
-            "--transcription_jsons", {
-                "type": Path,
-                "help": "Transcriptions in JSON files for the ElasticSearch indexing",
-            },
-        ),
-    ]
+@cli.command()
+@click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--episodes-info-json", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("--transcoded-videos", type=click.Path(path_type=Path), default=VideoTranscoder.DEFAULT_OUTPUT_DIR)
+@click.option("--transcription-jsons", type=click.Path(path_type=Path), default=TranscriptionGenerator.DEFAULT_OUTPUT_DIR)
+@click.option("--name", required=True)
+@click.option("--resolution", type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]), default="1080p")
+@click.option("--codec", default=VideoTranscoder.DEFAULT_CODEC)
+@click.option("--preset", default=VideoTranscoder.DEFAULT_PRESET)
+@click.option("--model", default=TranscriptionGenerator.DEFAULT_MODEL)
+@click.option("--language", default=TranscriptionGenerator.DEFAULT_LANGUAGE)
+@click.option("--device", default=TranscriptionGenerator.DEFAULT_DEVICE)
+@click.option("--dry-run", is_flag=True)
+def all(videos: Path, episodes_info_json: Path, transcoded_videos: Path, transcription_jsons: Path, name: str, resolution: str, codec: str, preset: str, model: str, language: str, device: str, dry_run: bool):
+    exit_codes: List[int] = []
 
-    return parser_modes
+    console.print("\n[bold blue]Step 1/3: Transcoding videos...[/bold blue]")
+    transcode_config = TranscodeConfig(
+        videos=videos,
+        transcoded_videos=transcoded_videos,
+        resolution=Resolution.from_str(resolution),
+        codec=codec,
+        preset=preset,
+        crf=VideoTranscoder.DEFAULT_CRF,
+        gop_size=VideoTranscoder.DEFAULT_GOP_SIZE,
+        episodes_info_json=episodes_info_json,
+    )
+    transcoder = VideoTranscoder(transcode_config.to_dict())
+    exit_codes.append(transcoder.work())
+
+    console.print("\n[bold blue]Step 2/3: Generating transcriptions...[/bold blue]")
+    transcription_config = TranscriptionConfig(
+        videos=videos,
+        episodes_info_json=episodes_info_json,
+        transcription_jsons=transcription_jsons,
+        model=model,
+        language=language,
+        device=device,
+        extra_json_keys_to_remove=[],
+        name=name,
+    )
+    generator = TranscriptionGenerator(transcription_config.to_dict())
+    exit_codes.append(generator.work())
+
+    console.print("\n[bold blue]Step 3/3: Indexing in Elasticsearch...[/bold blue]")
+    index_config = IndexConfig(
+        name=name,
+        transcription_jsons=transcription_jsons,
+        dry_run=dry_run,
+        append=False,
+    )
+    indexer = ElasticSearchIndexer(index_config.to_dict())
+    exit_codes.append(indexer.work())
+
+    sys.exit(max(exit_codes))
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s | %(levelname)s | %(message)s", level=logging.DEBUG)
-
-    args = parse_multi_mode_args(
-        description="Generate JSON audio transcriptions or transcode videos to an acceptable resolution.",
-        modes=generate_parser_modes(),
-        mode_helps={
-            "transcode": "Transcode videos to a format expected by thebot",
-            "transcribe": "Generate audio transcriptions (episode info included)",
-            "index": "Index videos and transcriptions in ElasticSearch",
-            "all": "Transcode videos, generate audio transcriptions and then pass results to ElasticSearch indexing",
-        },
-    )
-
-    return_codes = []
-
-    for worker in MODE_WORKERS[args["mode"]]:
-        return_codes.append(
-            worker(args).work(),
-        )
-
-    sys.exit(max(return_codes))
+    cli()

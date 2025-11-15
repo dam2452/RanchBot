@@ -1,6 +1,8 @@
 from pathlib import Path
-import subprocess
+import json
 from typing import Tuple
+
+from faster_whisper import WhisperModel
 
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -26,6 +28,11 @@ class NormalizedAudioProcessor:
         self.__device: str = device
 
         self.__input_audios.mkdir(parents=True, exist_ok=True)
+        self.__output_dir.mkdir(parents=True, exist_ok=True)
+
+        compute_type = "float16" if device == "cuda" else "int8"
+        self.__logger.info(f"Loading Whisper model {model} on {device} with compute_type={compute_type}")
+        self.__whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
 
     def __call__(self) -> None:
         for audio in self.__input_audios.rglob("*"):
@@ -34,16 +41,47 @@ class NormalizedAudioProcessor:
 
     def __process_normalized_audio(self, normalized_audio: Path) -> None:
         try:
-            subprocess.run(
-                [
-                    "whisper", str(normalized_audio),
-                    "--model", self.__model,
-                    "--language", self.__language,
-                    "--device", self.__device,
-                    "--output_dir", str(self.__output_dir),
-                ],
-                check=True,
+            language_map = {
+                "polish": "pl",
+                "english": "en",
+                "german": "de",
+                "french": "fr",
+                "spanish": "es",
+            }
+            language_code = language_map.get(self.__language.lower(), self.__language)
+
+            segments, info = self.__whisper_model.transcribe(
+                str(normalized_audio),
+                language=language_code,
+                beam_size=5,
             )
+
+            result = {
+                "text": "",
+                "segments": []
+            }
+
+            for segment in segments:
+                result["segments"].append({
+                    "id": segment.id,
+                    "seek": 0,
+                    "start": segment.start,
+                    "end": segment.end,
+                    "text": segment.text,
+                    "tokens": [],
+                    "temperature": 0.0,
+                    "avg_logprob": segment.avg_logprob,
+                    "compression_ratio": segment.compression_ratio,
+                    "no_speech_prob": segment.no_speech_prob,
+                })
+                result["text"] += segment.text
+
+            result["language"] = info.language
+
+            output_file = self.__output_dir / normalized_audio.with_suffix(".json").name
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+
             self.__logger.info(f"Processed: {normalized_audio}")
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error processing file {normalized_audio}: {e}")

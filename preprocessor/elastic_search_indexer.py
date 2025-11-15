@@ -2,17 +2,10 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import (
-    Awaitable,
-    Callable,
-    List,
-)
+from typing import Awaitable, Callable, List
 
 from elasticsearch import exceptions as es_exceptions
-from elasticsearch.helpers import (
-    BulkIndexError,
-    async_bulk,
-)
+from elasticsearch.helpers import BulkIndexError, async_bulk
 
 from bot.search.elastic_search_manager import ElasticSearchManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
