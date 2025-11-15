@@ -1,6 +1,9 @@
 import logging
 
-from pydantic import Field
+from pydantic import (
+    Field,
+    SecretStr,
+)
 from pydantic_settings import BaseSettings
 
 from bot.utils.config_loader import load_env_file
@@ -11,16 +14,16 @@ env_path = load_env_file()
 class Settings(BaseSettings):
     SESSION: str = Field("name")
     API_ID: int = Field(...)
-    API_HASH: str = Field(...)
+    API_HASH: SecretStr = Field(...)
     BOT_USERNAME: str = Field(...)
-    PASSWORD: str = Field(...)
+    PASSWORD: SecretStr = Field(...)
     PHONE: str = Field(...)
 
     SPECIALIZED_TABLE: str = Field(...)
 
     TEST_POSTGRES_DB: str = Field(...)
     TEST_POSTGRES_USER: str = Field(...)
-    TEST_POSTGRES_PASSWORD: str = Field(...)
+    TEST_POSTGRES_PASSWORD: SecretStr = Field(...)
     TEST_POSTGRES_HOST: str = Field(...)
     TEST_POSTGRES_PORT: str = Field(...)
 

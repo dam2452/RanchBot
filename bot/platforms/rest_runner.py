@@ -38,6 +38,7 @@ from bot.adapters.rest.auth.auth_service import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
+    revoke_all_user_refresh_tokens,
     revoke_refresh_token,
     verify_refresh_token,
 )
@@ -157,6 +158,25 @@ async def logout(request: Request, response: Response):
     response.media_type = json_response.media_type
 
     return response
+
+@api_router.post("/auth/logout-all", tags=["Authentication"])
+@limiter.limit("5/minute")
+async def logout_all(data: LoginRequest, request: Request):
+    user = await authenticate_user(data.username, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    revoked_count = await revoke_all_user_refresh_tokens(user.user_id)
+    logger.info(
+        f"User {user.username} (ID: {user.user_id}) revoked {revoked_count} active tokens "
+        f"via logout-all from IP {request.client.host}.",
+    )
+
+    return {
+        "message": f"Successfully logged out from all sessions. {revoked_count} active token(s) revoked.",
+        "revoked_count": revoked_count,
+    }
+
 @api_router.post("/{command_name}", tags=["Commands"])
 async def universal_handler(
     command_name: str = Path(..., regex=COMMAND_PATTERN.pattern),
@@ -170,7 +190,7 @@ async def universal_handler(
     try:
         payload = jwt.decode(
             credentials.credentials,
-            s.JWT_SECRET_KEY,
+            s.JWT_SECRET_KEY.get_secret_value(),
             algorithms=[s.JWT_ALGORITHM],
             issuer=s.JWT_ISSUER,
             audience=s.JWT_AUDIENCE,

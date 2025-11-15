@@ -12,7 +12,7 @@ from bot.settings import settings
 logger = logging.getLogger(__name__)
 
 async def run_telegram_bot():
-    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN.get_secret_value())
     dp = Dispatcher(storage=MemoryStorage())
 
     factories = create_all_factories(logger, bot)

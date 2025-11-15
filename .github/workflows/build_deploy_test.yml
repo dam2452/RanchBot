@@ -32,7 +32,7 @@ jobs:
           context: .
           push: true
           tags: |
-            dam245222/app:test
+            dam245222/ranchbot:test
 
       - name: Deploy test bot
         env:
@@ -82,5 +82,5 @@ jobs:
           context: .
           push: true
           tags: |
-            dam245222/app:prod
-            dam245222/app:latest
+            dam245222/ranchbot:prod
+            dam245222/ranchbot:latest

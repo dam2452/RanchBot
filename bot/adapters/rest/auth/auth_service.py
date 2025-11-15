@@ -57,7 +57,7 @@ def create_access_token(user: UserProfile, expires_minutes: int = s.JWT_EXPIRE_M
         "iss": s.JWT_ISSUER,
         "aud": s.JWT_AUDIENCE,
     }
-    return jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
+    return jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 
 
 async def create_refresh_token(
@@ -75,7 +75,7 @@ async def create_refresh_token(
         "iss": s.JWT_ISSUER,
         "aud": s.JWT_AUDIENCE,
     }
-    token = jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
+    token = jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 
     try:
         await DatabaseManager.insert_refresh_token(
@@ -99,7 +99,7 @@ async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
     try:
         jwt.decode(
             token,
-            s.JWT_SECRET_KEY,
+            s.JWT_SECRET_KEY.get_secret_value(),
             algorithms=[s.JWT_ALGORITHM],
             issuer=s.JWT_ISSUER,
             audience=s.JWT_AUDIENCE,
@@ -112,3 +112,7 @@ async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
 
 async def revoke_refresh_token(token: str) -> None:
     await DatabaseManager.revoke_refresh_token(token)
+
+
+async def revoke_all_user_refresh_tokens(user_id: int) -> int:
+    return await DatabaseManager.revoke_all_user_tokens(user_id)

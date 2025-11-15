@@ -52,7 +52,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             "port": port or settings.POSTGRES_PORT,
             "database": database or settings.POSTGRES_DB,
             "user": user or settings.POSTGRES_USER,
-            "password": password or settings.POSTGRES_PASSWORD,
+            "password": password or settings.POSTGRES_PASSWORD.get_secret_value(),
             "server_settings": {"search_path": schema or settings.POSTGRES_SCHEMA},
         }
         db_manager_logger.info("Creating new database connection pool.")
@@ -873,6 +873,19 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 """,
                 token,
             )
+
+    @staticmethod
+    async def revoke_all_user_tokens(user_id: int) -> int:
+        async with DatabaseManager.get_db_connection() as conn:
+            result = await conn.execute(
+                """
+                UPDATE refresh_tokens
+                SET revoked_at = NOW(), expires_at = NOW()
+                WHERE user_id = $1 AND expires_at > NOW() AND revoked_at IS NULL
+                """,
+                user_id,
+            )
+            return int(result.split()[-1]) if result else 0
 
     @staticmethod
     async def get_credentials_with_profile_by_username(username: str) -> Optional[tuple[UserProfile, str]]:

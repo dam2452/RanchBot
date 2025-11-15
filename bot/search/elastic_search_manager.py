@@ -26,7 +26,7 @@ class ElasticSearchManager:
     async def connect_to_elasticsearch(logger: logging.Logger) -> AsyncElasticsearch:
         es = AsyncElasticsearch(
             hosts=[s.ES_HOST],
-            basic_auth=(s.ES_USER, s.ES_PASS),
+            basic_auth=(s.ES_USER, s.ES_PASS.get_secret_value()),
             verify_certs=False,
         )
         try:
