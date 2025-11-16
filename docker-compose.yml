@@ -21,7 +21,7 @@ services:
       ES_TRANSCRIPTION_INDEX: ${ES_TRANSCRIPTION_INDEX}
     restart: ${RESTART_POLICY:-unless-stopped}
     volumes:
-      - ./bot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO:ro
+      - /mnt/WD_RED_2TB_MIRROR/RANCZO:/app/bot/RANCZO-WIDEO:ro
     deploy:
       resources:
         limits:
