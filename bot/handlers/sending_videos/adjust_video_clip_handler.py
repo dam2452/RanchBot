@@ -74,7 +74,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
 
-        if content[0] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
+        if "/" + content[0] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
             last_clip = await DatabaseManager.get_last_clip_by_chat_id(msg.get_chat_id())
             if last_clip:
                 original_start_time = last_clip.adjusted_start_time or original_start_time
