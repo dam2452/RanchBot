@@ -47,5 +47,3 @@ cookies.txt
 pytest.ini
 .pytest_cache
 *.pyc
-
-
