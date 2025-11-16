@@ -41,6 +41,7 @@ jobs:
           RESTART_POLICY: no
         run: |
           echo "$SECRETS" > .env
+          # shellcheck disable=SC2046
           export $(grep -v '^#' .env | xargs)
           docker compose pull --policy always
           docker compose --project-name bot-test up -d
