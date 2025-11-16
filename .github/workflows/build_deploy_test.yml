@@ -42,6 +42,8 @@ jobs:
         run: |
           echo "$SECRETS" > .env
           export "$(grep -v '^#' .env | xargs)"
+          cat .env
+          echo $ENABLE_TELEGRAM
           docker compose pull --policy always
           docker compose --project-name bot-test up -d
 
