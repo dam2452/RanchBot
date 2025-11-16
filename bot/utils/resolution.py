@@ -11,6 +11,7 @@ class Resolution(Enum):
     R1080P = (1920, 1080)
     R720P  = (1280, 720)
     R480P  = (854,  480)
+    R144P  = (256,  144)
 
     def __init__(self, width: int, height: int):
         self.width = width

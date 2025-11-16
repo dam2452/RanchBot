@@ -2,13 +2,25 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Awaitable, Callable, List
+from typing import (
+    Awaitable,
+    Callable,
+    List,
+    Optional,
+)
 
 from elasticsearch import exceptions as es_exceptions
-from elasticsearch.helpers import BulkIndexError, async_bulk
+from elasticsearch.helpers import (
+    BulkIndexError,
+    async_bulk,
+)
+from rich.console import Console
 
 from bot.search.elastic_search_manager import ElasticSearchManager
+from preprocessor.state_manager import StateManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+
+console = Console()
 
 
 class ElasticSearchIndexer:
@@ -23,6 +35,9 @@ class ElasticSearchIndexer:
             loglevel=logging.DEBUG,
             error_exit_code=1,
         )
+
+        self.state_manager: Optional[StateManager] = args.get("state_manager")
+        self.series_name: str = args.get("series_name", "unknown")
 
     def __call__(self) -> None:
         asyncio.run(self.__exec())
@@ -150,9 +165,23 @@ class ElasticSearchIndexer:
             self.__logger.error(f"Episode info missing in {episode_file}")
             return []
 
+        if "is_special_feature" not in episode_info:
+            episode_info["is_special_feature"] = season == 0
+
+        if season == 0 and "special_feature_type" not in episode_info:
+            episode_info["special_feature_type"] = "special"
+
         series_name = self.__name.lower()
         new_name = f"{series_name}_S{season:02d}E{episode:02d}.mp4"
-        video_path = Path("bot") / f"{series_name.upper()}-WIDEO" / f"Sezon {season}" / new_name
+        if season == 0:
+            video_path = Path("bot") / f"{series_name.upper()}-WIDEO" / "Specjalne" / new_name
+        else:
+            video_path = Path("bot") / f"{series_name.upper()}-WIDEO" / f"Sezon {season}" / new_name
+
+        transcription = data.get("transcription", {})
+        scene_timestamps = data.get("scene_timestamps", {})
+        text_embeddings = data.get("text_embeddings", [])
+        video_embeddings = data.get("video_embeddings", [])
 
         actions = []
         for segment in data.get("segments", []):
@@ -160,22 +189,36 @@ class ElasticSearchIndexer:
                 self.__logger.error(f"Skipping invalid segment in {episode_file}")
                 continue
 
+            source = {
+                "episode_info": episode_info,
+                "text": segment.get("text"),
+                "start": segment.get("start"),
+                "end": segment.get("end"),
+                "id": segment.get("id"),
+                "seek": segment.get("seek"),
+                "author": segment.get("author", ""),
+                "comment": segment.get("comment", ""),
+                "tags": segment.get("tags", []),
+                "location": segment.get("location", ""),
+                "actors": segment.get("actors", []),
+                "video_path": video_path.as_posix(),
+            }
+
+            if transcription:
+                source["transcription"] = transcription
+
+            if scene_timestamps:
+                source["scene_timestamps"] = scene_timestamps
+
+            if text_embeddings:
+                source["text_embeddings"] = text_embeddings
+
+            if video_embeddings:
+                source["video_embeddings"] = video_embeddings
+
             actions.append({
                 "_index": self.__name,
-                "_source": {
-                    "episode_info": episode_info,
-                    "text": segment.get("text"),
-                    "start": segment.get("start"),
-                    "end": segment.get("end"),
-                    "id": segment.get("id"),
-                    "seek": segment.get("seek"),
-                    "author": segment.get("author", ""),
-                    "comment": segment.get("comment", ""),
-                    "tags": segment.get("tags", []),
-                    "location": segment.get("location", ""),
-                    "actors": segment.get("actors", []),
-                    "video_path": video_path.as_posix(),
-                },
+                "_source": source,
             })
 
         return actions

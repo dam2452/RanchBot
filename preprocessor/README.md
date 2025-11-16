@@ -139,6 +139,97 @@ python -m preprocessor transcribe /path/to/videos \
 - `--device`: Device to use: `cuda` or `cpu` (default: `cuda`)
 - `--extra-json-keys`: Additional JSON keys to remove from output (can be specified multiple times)
 
+### 2a. Import Existing Transcriptions (11labs)
+
+Import pre-generated transcriptions from 11labs or other sources:
+
+```bash
+python -m preprocessor import-transcriptions \
+    --source-dir C:\GIT_REPO\testParakeet\11labs\output_ranczo\segmented_json \
+    --output-dir ./transcriptions \
+    --episodes-info-json episodes.json \
+    --name ranczo \
+    --format-type 11labs_segmented
+```
+
+**Options:**
+
+- `--source-dir`: Directory containing source transcription files (required)
+- `--output-dir`: Output directory for converted transcriptions (default: `transcriptions`)
+- `--episodes-info-json`: JSON file with episode metadata (optional)
+- `--name`: Series name (required)
+- `--format-type`: Source format type (default: `11labs_segmented`)
+  - `11labs_segmented`: 11labs segmented JSON format
+  - `11labs`: 11labs full JSON format
+- `--no-state`: Disable state management and progress tracking
+
+**Example with existing Ranczo transcriptions:**
+
+```bash
+# Import all Ranczo transcriptions from 11labs
+python -m preprocessor import-transcriptions \
+    --source-dir "C:\GIT_REPO\testParakeet\11labs\output_ranczo\segmented_json" \
+    --name ranczo \
+    --episodes-info-json episodes.json
+
+# Import Kapitan Bomba transcriptions
+python -m preprocessor import-transcriptions \
+    --source-dir "C:\GIT_REPO\testParakeet\11labs\kapitan_bomba-wideo" \
+    --name kapitan_bomba \
+    --format-type 11labs
+```
+
+**Benefits:**
+- ⚡ Much faster than re-transcribing (reuse existing work)
+- 💰 No API costs (use pre-generated transcriptions)
+- ✅ Support for 11labs high-quality transcriptions
+- 📊 Progress tracking and resume support
+
+### 2b. Generate Transcriptions with 11labs API
+
+Use 11labs API to generate new high-quality transcriptions with speaker diarization:
+
+```bash
+python -m preprocessor transcribe-elevenlabs /path/to/videos \
+    --name ranczo \
+    --episodes-info-json episodes.json \
+    --api-key YOUR_ELEVEN_LABS_API_KEY \
+    --language-code pol \
+    --diarize
+```
+
+**Options:**
+
+- `videos`: Path to input videos directory (required)
+- `--name`: Series name (required)
+- `--output-dir`: Output directory for transcriptions (default: `transcriptions`)
+- `--episodes-info-json`: JSON file with episode metadata (optional)
+- `--api-key`: ElevenLabs API key (or set `ELEVEN_API_KEY` env var)
+- `--model-id`: ElevenLabs model ID (default: `scribe_v1`)
+- `--language-code`: Language code (default: `pol`)
+- `--diarize/--no-diarize`: Enable speaker diarization (default: enabled)
+- `--no-state`: Disable state management
+
+**Example with environment variable:**
+
+```bash
+# Set API key
+export ELEVEN_API_KEY=your_api_key_here
+
+# Transcribe videos
+python -m preprocessor transcribe-elevenlabs /videos/ranczo \
+    --name ranczo \
+    --episodes-info-json episodes.json \
+    --language-code pol
+```
+
+**Benefits:**
+- 🎯 High accuracy with speaker diarization
+- 🗣️ Identifies different speakers automatically
+- 🌍 Supports multiple languages
+- 📊 Progress tracking and resume support
+- ⚡ GPU-accelerated processing on 11labs servers
+
 ### 3. Index in Elasticsearch
 
 Index transcriptions for full-text search:
@@ -174,6 +265,346 @@ python -m preprocessor all /path/to/videos \
 ```
 
 This command combines all three stages: transcoding → transcription → indexing.
+
+### 5. Scrape Episode Descriptions
+
+Scrape episode metadata from web pages using Playwright and LLM:
+
+```bash
+python -m preprocessor scrape-episodes \
+    --urls https://example.com/episode1 \
+    --urls https://example.com/episode2 \
+    --output-file episode_metadata.json \
+    --llm-provider lmstudio
+```
+
+**Options:**
+
+- `--urls`: URL to scrape (can be specified multiple times for multiple sources)
+- `--output-file`: Output JSON file path (required)
+- `--llm-provider`: LLM provider to use: `lmstudio` (default), `ollama`, or `gemini`
+- `--llm-api-key`: API key for LLM (required for Gemini, can use `GEMINI_API_KEY` env var)
+- `--llm-model`: Override default model name
+- `--headless/--no-headless`: Run browser in headless mode (default: headless)
+- `--merge-sources/--no-merge`: Merge data from multiple sources (default: merge)
+
+**Example with multiple sources:**
+
+```bash
+python -m preprocessor scrape-episodes \
+    --urls https://filmweb.pl/serial/Ranczo-2006-276093/season/1/episode/1 \
+    --urls https://wikipedia.org/wiki/Ranczo_S01E01 \
+    --urls https://imdb.com/title/tt0123456 \
+    --output-file ranczo_S01E01_metadata.json \
+    --llm-provider lmstudio
+```
+
+**Example with Gemini:**
+
+```bash
+export GEMINI_API_KEY=your_api_key_here
+python -m preprocessor scrape-episodes \
+    --urls https://example.com/episode \
+    --output-file metadata.json \
+    --llm-provider gemini
+```
+
+**How it works:**
+1. Opens each URL with Playwright (stealth mode)
+2. Extracts all text content from the page
+3. Sends text to LLM for structured extraction
+4. Merges results from multiple sources (if enabled)
+5. Saves to JSON with episode metadata
+
+**Output format:**
+
+```json
+{
+  "sources": ["url1", "url2"],
+  "merged_metadata": {
+    "title": "Episode Title",
+    "description": "Short 1-2 sentence description",
+    "summary": "Detailed 3-5 sentence summary",
+    "season": 1,
+    "episode_number": 1
+  }
+}
+```
+
+### 6. Convert Legacy Elasticsearch Index
+
+Convert old Elasticsearch documents to new format (ad-hoc script):
+
+```bash
+python -m preprocessor convert-elastic \
+    --index-name ranczo \
+    --backup-file backup.json \
+    --dry-run
+```
+
+**Options:**
+
+- `--index-name`: Name of the Elasticsearch index to convert (required)
+- `--backup-file`: Backup file path before conversion (optional)
+- `--dry-run`: Show sample converted document without updating (flag)
+
+**Example workflow:**
+
+```bash
+# Step 1: Dry run to preview changes
+python -m preprocessor convert-elastic \
+    --index-name ranczo \
+    --dry-run
+
+# Step 2: Create backup and convert
+python -m preprocessor convert-elastic \
+    --index-name ranczo \
+    --backup-file ./backups/ranczo_backup.json
+```
+
+**What it does:**
+- Fetches all documents from the index
+- Adds missing fields: `transcription`, `scene_timestamps`, `text_embeddings`, `video_embeddings`
+- Converts legacy `text/start/end` to `transcription.segments` format
+- Updates documents in Elasticsearch with bulk operation
+
+**Note:** This is an ad-hoc script for one-time migration. After conversion, use only the new structure.
+
+### 7. Scene Detection
+
+Detect scene cuts in videos using TransNetV2 or histogram-based method:
+
+```bash
+python -m preprocessor detect-scenes /path/to/videos \
+    --output-dir ./scene_timestamps \
+    --threshold 0.5 \
+    --min-scene-len 10 \
+    --device cuda
+```
+
+**Options:**
+
+- `videos`: Path to video file or directory (required)
+- `--output-dir`: Output directory for scene JSON files (default: `scene_timestamps`)
+- `--threshold`: Scene detection threshold (default: `0.5`)
+- `--min-scene-len`: Minimum scene length in frames (default: `10`)
+- `--device`: Device to use: `cuda` or `cpu` (default: `cuda`)
+
+**Example:**
+
+```bash
+# Detect scenes in all videos
+python -m preprocessor detect-scenes ./transcoded_videos \
+    --threshold 0.5 \
+    --device cuda
+
+# Single video with custom settings
+python -m preprocessor detect-scenes video.mp4 \
+    --output-dir ./scenes \
+    --threshold 0.3 \
+    --min-scene-len 15
+```
+
+**Output format:**
+
+```json
+{
+  "total_scenes": 45,
+  "video_info": {
+    "fps": 25.0,
+    "duration": 1234.56,
+    "total_frames": 30864
+  },
+  "detection_settings": {
+    "threshold": 0.5,
+    "min_scene_len": 10,
+    "method": "transnetv2"
+  },
+  "scenes": [
+    {
+      "scene_number": 1,
+      "start": {
+        "frame": 0,
+        "seconds": 0.0,
+        "timecode": "00:00:00:00"
+      },
+      "end": {
+        "frame": 125,
+        "seconds": 5.0,
+        "timecode": "00:00:05:00"
+      },
+      "duration": 5.0,
+      "frame_count": 125
+    }
+  ]
+}
+```
+
+**Methods:**
+- **TransNetV2** (if installed): Deep learning-based scene detection (recommended)
+- **Histogram-based** (fallback): Color histogram difference detection
+
+### 8. Generate Embeddings
+
+Generate text and video embeddings for semantic search:
+
+```bash
+python -m preprocessor generate-embeddings \
+    --transcription-jsons ./transcriptions \
+    --videos ./transcoded_videos \
+    --device cuda \
+    --keyframe-strategy scene_changes
+```
+
+**Options:**
+
+- `--transcription-jsons`: Directory with transcription JSON files (required)
+- `--videos`: Videos directory for video embeddings (optional)
+- `--output-dir`: Output directory (default: `embeddings`)
+- `--model`: Model name (default: `Alibaba-NLP/gme-Qwen2-VL-7B-Instruct`)
+- `--segments-per-embedding`: Segments to group for text embeddings (default: `5`)
+- `--keyframe-strategy`: Strategy for video embeddings (default: `scene_changes`)
+  - `keyframes`: Extract every N frames
+  - `scene_changes`: Use scene timestamps (recommended)
+  - `color_diff`: Detect color/histogram changes
+- `--generate-text/--no-text`: Generate text embeddings (default: enabled)
+- `--generate-video/--no-video`: Generate video embeddings (default: enabled)
+- `--device`: Device to use: `cuda` or `cpu` (default: `cuda`)
+- `--scene-timestamps-dir`: Scene timestamps directory (for scene_changes strategy)
+
+**Example - Text only:**
+
+```bash
+python -m preprocessor generate-embeddings \
+    --transcription-jsons ./transcriptions \
+    --no-video \
+    --segments-per-embedding 5
+```
+
+**Example - Video only:**
+
+```bash
+python -m preprocessor generate-embeddings \
+    --transcription-jsons ./transcriptions \
+    --videos ./transcoded_videos \
+    --no-text \
+    --keyframe-strategy scene_changes \
+    --device cuda
+```
+
+**Example - Both with GPU:**
+
+```bash
+python -m preprocessor generate-embeddings \
+    --transcription-jsons ./transcriptions \
+    --videos ./transcoded_videos \
+    --device cuda \
+    --keyframe-strategy scene_changes \
+    --segments-per-embedding 5
+```
+
+**How it works:**
+1. **Text embeddings**: Groups N segments, combines text, generates embedding
+2. **Video embeddings**: Extracts keyframes based on strategy, generates embedding per frame
+3. **GPU acceleration**: Runs model on GPU for faster processing
+4. **Updates JSONs**: Adds embeddings directly to transcription JSON files
+
+**Output format (added to transcription JSONs):**
+
+```json
+{
+  "text_embeddings": [
+    {
+      "segment_range": [0, 4],
+      "text": "Combined text from 5 segments...",
+      "embedding": [0.123, -0.456, 0.789, ...]
+    }
+  ],
+  "video_embeddings": [
+    {
+      "frame_number": 125,
+      "timestamp": 5.0,
+      "type": "scene_mid",
+      "embedding": [0.234, -0.567, 0.890, ...]
+    }
+  ]
+}
+```
+
+**Note:** Embeddings are stored but not yet used by search. This is preparation for future semantic search features.
+
+### 9. Season 0 - Special Features
+
+Season 0 is reserved for special materials (movies, deleted scenes, making of, interviews, etc.):
+
+**How it works:**
+
+- Episodes with `season: 0` in episode_info are automatically marked as special features
+- Files are organized in `Specjalne/` directory instead of `Sezon 0/`
+- Elasticsearch documents include:
+  - `is_special_feature: true`
+  - `special_feature_type: "special"` (can be customized)
+
+**Example episodes.json with Season 0:**
+
+```json
+{
+  "seasons": [
+    {
+      "season_number": 0,
+      "episodes": [
+        {
+          "episode_number": 1,
+          "title": "Behind the Scenes",
+          "premiere_date": "2006-12-25",
+          "viewership": 0
+        },
+        {
+          "episode_number": 2,
+          "title": "Deleted Scenes",
+          "premiere_date": "2007-01-01",
+          "viewership": 0
+        }
+      ]
+    },
+    {
+      "season_number": 1,
+      "episodes": [...]
+    }
+  ]
+}
+```
+
+**Directory structure:**
+
+```
+transcoded_videos/
+├── Specjalne/              # Season 0
+│   ├── series_S00E01.mp4
+│   ├── series_S00E02.mp4
+│   └── ...
+├── Sezon 1/
+│   ├── series_S01E01.mp4
+│   └── ...
+└── Sezon 2/
+    └── ...
+
+transcriptions/
+├── Specjalne/              # Season 0
+│   ├── series_S00E01.json
+│   └── ...
+└── Sezon 1/
+    └── ...
+```
+
+**Special feature types:**
+
+You can customize `special_feature_type` in episode_info:
+- `"special"` - General special features (default)
+- `"movie"` - Full-length movies
+- `"deleted"` - Deleted scenes
+- `"making_of"` - Making of / behind the scenes
+- `"interview"` - Interviews
 
 ## Episode Metadata Format
 

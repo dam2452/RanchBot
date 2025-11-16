@@ -1,6 +1,13 @@
-from dataclasses import dataclass, field
+from dataclasses import (
+    dataclass,
+    field,
+)
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import (
+    Dict,
+    List,
+    Optional,
+)
 
 from bot.utils.resolution import Resolution
 

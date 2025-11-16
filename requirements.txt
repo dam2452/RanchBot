@@ -1,3 +1,13 @@
+transnetv2-pytorch
+openai-whisper
+openai
+crawl4ai
+playwright
+opencv-python
+numpy
+torch
+transformers
+pillow
 ffmpeg==1.4
 elasticsearch~=8.14
 urllib3~=2.2.2

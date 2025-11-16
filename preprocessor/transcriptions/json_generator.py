@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import (
+    Any,
     Dict,
     List,
 )
@@ -57,7 +58,7 @@ class JsonGenerator:
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error formatting JSON file {file_path}: {e}")
 
-    def __process_json_segment(self, segment: json) -> json:
+    def __process_json_segment(self, segment: Dict[str, Any]) -> Dict[str, Any]:
         for key in self.__keys_to_remove:
             segment.pop(key, None)
 

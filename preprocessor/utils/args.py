@@ -1,6 +1,6 @@
 import argparse
-import json
 from typing import (
+    Any,
     Dict,
     List,
     Tuple,
@@ -8,7 +8,7 @@ from typing import (
 
 Argument = Tuple[str, Dict[str, str]]
 ParserModes = Dict[str, List[Argument]]
-def parse_multi_mode_args(description: str, modes: ParserModes, mode_helps: Dict[str, str]) -> json:
+def parse_multi_mode_args(description: str, modes: ParserModes, mode_helps: Dict[str, str]) -> Dict[str, Any]:
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(dest="mode", required=True, help="Choose mode")
 

@@ -1,13 +1,20 @@
 import logging
-import tempfile
 from pathlib import Path
-from typing import Dict
+import tempfile
+from typing import (
+    Dict,
+    Optional,
+)
 
+from rich.console import Console
+
+from preprocessor.state_manager import StateManager
 from preprocessor.transcriptions.audio_normalizer import AudioNormalizer
-from preprocessor.transcriptions.episode_info_processor import EpisodeInfoProcessor
-from preprocessor.transcriptions.json_generator import JsonGenerator
+from preprocessor.transcriptions.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcriptions.normalized_audio_processor import NormalizedAudioProcessor
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+
+console = Console()
 
 
 class TranscriptionGenerator:
@@ -20,7 +27,7 @@ class TranscriptionGenerator:
         self.__input_videos: Path = Path(args["videos"])
         if not self.__input_videos.is_dir():
             raise NotADirectoryError(
-                f"Input videos is not a directory: '{self.__input_videos}'"
+                f"Input videos is not a directory: '{self.__input_videos}'",
             )
 
         self.__temp_dir: tempfile.TemporaryDirectory = (
@@ -33,21 +40,21 @@ class TranscriptionGenerator:
             error_exit_code=2,
         )
 
+        self.state_manager: Optional[StateManager] = args.get("state_manager")
+        self.series_name: str = args.get("series_name", "unknown")
+
         self.__init_workers(args)
 
     def work(self) -> int:
         try:
-            self.__logger.info("Step 1/4: Normalizing audio from videos...")
+            self.__logger.info("Step 1/3: Normalizing audio from videos...")
             self.__audio_normalizer()
 
-            self.__logger.info("Step 2/4: Generating transcriptions with Whisper...")
+            self.__logger.info("Step 2/3: Generating transcriptions with Whisper...")
             self.__audio_processor()
 
-            self.__logger.info("Step 3/4: Processing transcription JSONs...")
-            self.__json_generator()
-
-            self.__logger.info("Step 4/4: Adding episode metadata...")
-            self.__episode_info_processor()
+            self.__logger.info("Step 3/3: Generating multi-format output...")
+            self.__multi_format_generator()
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error generating transcriptions: {e}")
@@ -58,7 +65,6 @@ class TranscriptionGenerator:
         temp_dir_path: Path = Path(self.__temp_dir.name) / "transcription_generator"
         normalizer_output = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"
-        json_output: Path = temp_dir_path / "jsons"
 
         self.__audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.__input_videos,
@@ -75,17 +81,10 @@ class TranscriptionGenerator:
             device=args["device"],
         )
 
-        self.__json_generator: JsonGenerator = JsonGenerator(
+        self.__multi_format_generator: MultiFormatGenerator = MultiFormatGenerator(
             jsons_dir=processor_output,
-            output_dir=json_output,
-            logger=self.__logger,
-            extra_keys_to_remove=args["extra_json_keys_to_remove"],
-        )
-
-        self.__episode_info_processor: EpisodeInfoProcessor = EpisodeInfoProcessor(
-            jsons_dir=json_output,
             episodes_info_json=Path(args["episodes_info_json"]),
-            output_path=Path(args["transcription_jsons"]),
+            output_base_path=Path(args["transcription_jsons"]),
             logger=self.__logger,
             series_name=args["name"],
         )

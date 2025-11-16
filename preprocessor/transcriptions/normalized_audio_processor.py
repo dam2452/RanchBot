@@ -1,5 +1,5 @@
-from pathlib import Path
 import json
+from pathlib import Path
 from typing import Tuple
 
 from faster_whisper import WhisperModel
@@ -24,8 +24,6 @@ class NormalizedAudioProcessor:
         self.__logger: ErrorHandlingLogger = logger
 
         self.__language: str = language
-        self.__model: str = model
-        self.__device: str = device
 
         self.__input_audios.mkdir(parents=True, exist_ok=True)
         self.__output_dir.mkdir(parents=True, exist_ok=True)
@@ -54,14 +52,25 @@ class NormalizedAudioProcessor:
                 str(normalized_audio),
                 language=language_code,
                 beam_size=5,
+                word_timestamps=True,
             )
 
             result = {
                 "text": "",
-                "segments": []
+                "segments": [],
             }
 
             for segment in segments:
+                words = []
+                if hasattr(segment, 'words') and segment.words:
+                    for word in segment.words:
+                        words.append({
+                            "word": word.word,
+                            "start": word.start,
+                            "end": word.end,
+                            "probability": word.probability,
+                        })
+
                 result["segments"].append({
                     "id": segment.id,
                     "seek": 0,
@@ -73,6 +82,7 @@ class NormalizedAudioProcessor:
                     "avg_logprob": segment.avg_logprob,
                     "compression_ratio": segment.compression_ratio,
                     "no_speech_prob": segment.no_speech_prob,
+                    "words": words,
                 })
                 result["text"] += segment.text
 
@@ -83,5 +93,5 @@ class NormalizedAudioProcessor:
                 json.dump(result, f, ensure_ascii=False, indent=2)
 
             self.__logger.info(f"Processed: {normalized_audio}")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error processing file {normalized_audio}: {e}")

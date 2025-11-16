@@ -1,12 +1,22 @@
 import json
 import logging
+from pathlib import Path
 import re
 import subprocess
-from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import (
+    List,
+    Optional,
+    Tuple,
+)
+
+from rich.console import Console
+from rich.progress import Progress
 
 from bot.utils.resolution import Resolution
+from preprocessor.state_manager import StateManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+
+console = Console()
 
 
 class VideoTranscoder:
@@ -44,10 +54,55 @@ class VideoTranscoder:
             with open(episodes_json_path, "r", encoding="utf-8") as f:
                 self.episodes_info = json.load(f)
 
+        self.state_manager: Optional[StateManager] = args.get("state_manager")
+        self.series_name: str = args.get("series_name", "unknown")
+
     def work(self) -> int:
-        for video_file in self.__input_videos.rglob("*.mp4"):
-            self.__process_single_video(video_file)
+        video_files: List[Path] = sorted(self.__input_videos.rglob("*.mp4"))
+
+        if not video_files:
+            self.logger.warning("No video files found")
+            return self.logger.finalize()
+
+        console.print(f"[blue]Found {len(video_files)} video files to transcode[/blue]")
+
+        if self.state_manager:
+            progress = self.state_manager.create_progress_bar(
+                len(video_files),
+                "Transcoding videos",
+            )
+        else:
+            progress = Progress()
+
+        with progress:
+            task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
+
+            for video_file in video_files:
+                episode_id = self.__get_episode_id(video_file)
+
+                if self.state_manager and self.state_manager.is_step_completed("transcode", episode_id):
+                    console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
+                    progress.advance(task)
+                    continue
+
+                if self.state_manager:
+                    self.state_manager.mark_step_started("transcode", episode_id)
+
+                self.__process_single_video(video_file)
+
+                if self.state_manager:
+                    self.state_manager.mark_step_completed("transcode", episode_id)
+
+                progress.advance(task)
+
         return self.logger.finalize()
+
+    @staticmethod
+    def __get_episode_id(video_file: Path) -> str:
+        match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
+        if match:
+            return f"E{match.group(1)}"
+        return video_file.stem
 
     def __process_single_video(self, video_file: Path) -> None:
         match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
@@ -62,8 +117,7 @@ class VideoTranscoder:
             self.logger.error(f"Episode {absolute_episode} not found in episodes_info.json")
             return
 
-        series_name = self.__input_videos.resolve().name.lower()
-        output_path = self.__build_output_path(series_name, season_number, relative_episode)
+        output_path = self.__build_output_path(self.series_name, season_number, relative_episode)
 
         try:
             self.__transcode_video(video_file, output_path)
@@ -71,28 +125,29 @@ class VideoTranscoder:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"FFmpeg failed for {video_file}: {e}")
 
-
+    # noinspection PyShadowingNames
     def __find_episode_info(self, absolute_episode: int) -> Tuple[Optional[int], Optional[int]]:
         season_number, relative_episode = 1, absolute_episode
 
         if not self.episodes_info:
             return season_number, relative_episode
 
-        current_absolute = 1
         for season in self.episodes_info.get("seasons", []):
             season_num = season.get("season_number", 1)
             episodes = sorted(season.get("episodes", []), key=lambda ep: ep["episode_number"])
 
-            for ep in episodes:
-                if current_absolute == absolute_episode:
-                    return season_num, ep["episode_number"]
-                current_absolute += 1
+            for idx, ep in enumerate(episodes):
+                if ep["episode_number"] == absolute_episode:
+                    return season_num, idx + 1
 
         return None, None
 
     def __build_output_path(self, series_name: str, season_number: int, relative_episode: int) -> Path:
         transcoded_name = f"{series_name}_S{season_number:02d}E{relative_episode:02d}.mp4"
-        output_dir = self.__output_videos / f"Sezon {season_number}"
+        if season_number == 0:
+            output_dir = self.__output_videos / "Specjalne"
+        else:
+            output_dir = self.__output_videos / f"Sezon {season_number}"
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir / transcoded_name
 
@@ -106,6 +161,9 @@ class VideoTranscoder:
 
         command = [
             "ffmpeg",
+            "-v", "error",
+            "-stats",
+            "-hide_banner",
             "-y",
             "-i", str(input_video),
             "-c:v", self.__codec,
@@ -121,8 +179,8 @@ class VideoTranscoder:
             str(output_video),
         ]
 
-        self.logger.info(f"Executing ffmpeg: {' '.join(command)}")
-        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.logger.debug(f"Transcoding: {input_video.name} -> {output_video.name}")
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     @staticmethod
     def __get_framerate(video: Path) -> float:

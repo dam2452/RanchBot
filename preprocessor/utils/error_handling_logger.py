@@ -24,7 +24,7 @@ class ErrorHandlingLogger:
     def __del__(self) -> None:
         if not self.__is_finalized:
             self.__logger.error(
-                f"ErrorHandlingLogger for '{self.__class_name}' destroyed without finalize()."
+                f"ErrorHandlingLogger for '{self.__class_name}' destroyed without finalize().",
             )
             if self.__errors:
                 self.__logger.error("Logged errors:")
@@ -42,7 +42,7 @@ class ErrorHandlingLogger:
                     rich_tracebacks=True,
                     show_time=True,
                     show_path=False,
-                )
+                ),
             ],
         )
         self.__logger: logging.Logger = logging.getLogger(self.__class_name)
@@ -78,17 +78,17 @@ class ErrorHandlingLogger:
             self.__console.print(
                 Panel(
                     f"[bold red]Processing for '{self.__class_name}' completed with {len(self.__errors)} error(s)[/bold red]",
-                    title="❌ Errors Occurred",
+                    title="Errors Occurred",
                     border_style="red",
-                )
+                ),
             )
             return self.__error_exit_code
 
         self.__console.print(
             Panel(
                 f"[bold green]Processing for '{self.__class_name}' completed successfully[/bold green]",
-                title="✅ Success",
+                title="Success",
                 border_style="green",
-            )
+            ),
         )
         return 0

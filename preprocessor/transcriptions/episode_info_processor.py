@@ -66,7 +66,10 @@ class EpisodeInfoProcessor:
         relative_episode = episode_info["episode_number"]
         new_json_name = f"{self.__series_name}_S{season_number:02d}E{relative_episode:02d}.json"
 
-        output_dir = self.__output_path / f"Sezon {season_number}"
+        if season_number == 0:
+            output_dir = self.__output_path / "Specjalne"
+        else:
+            output_dir = self.__output_path / f"Sezon {season_number}"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         output_path = output_dir / new_json_name
