@@ -76,7 +76,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
         await self._log_system_message(logging.INFO, content[0])
 
-        if content[0] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
+        if content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
             await self._log_system_message(logging.INFO, "Relative adjustment")
             last_clip = await DatabaseManager.get_last_clip_by_chat_id(msg.get_chat_id())
             if last_clip:
