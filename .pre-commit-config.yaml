@@ -28,6 +28,10 @@ repos:
     rev: v8.29.0
     hooks:
       - id: gitleaks
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.91.0
+    hooks:
+      - id: trufflehog
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.5
     hooks:
