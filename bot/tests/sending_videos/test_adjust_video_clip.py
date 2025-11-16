@@ -6,7 +6,7 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "telegram_client")
 class TestAdjustVideoClipHandler(BaseTest):
     async def __execute_both_variants(self, command_args: str, response_key: str):
-        expected_response =  await self.get_response(RK.NO_PREVIOUS_SEARCHES)
+        expected_response =  await self.get_response(response_key)
         await self.expect_command_result_contains(f"/d {command_args}", [expected_response])
         await self.expect_command_result_contains(f"/ad {command_args}", [expected_response])
 
