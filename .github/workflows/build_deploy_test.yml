@@ -41,7 +41,7 @@ jobs:
           RESTART_POLICY: no
         run: |
           echo "$SECRETS" > .env
-          export "$(grep -v '^#' .env | xargs)"
+          export $(grep -v '^#' .env | xargs)
           cat .env
           echo $ENABLE_TELEGRAM
           docker compose pull --policy always
