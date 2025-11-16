@@ -47,6 +47,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         msg = self._message
         content = msg.get_text().split()
         segment_info = {}
+        last_clip = None
 
         if len(content) == 4:
             last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(msg.get_chat_id())
@@ -74,18 +75,19 @@ class AdjustVideoClipHandler(BotMessageHandler):
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
 
-        if content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS:
-            last_clip = await DatabaseManager.get_last_clip_by_chat_id(msg.get_chat_id())
-            if last_clip:
-                await self._log_system_message(logging.INFO, f"Relative adjustment. Last clip: {last_clip}")
-                original_start_time = last_clip.adjusted_start_time or original_start_time
-                original_end_time = last_clip.adjusted_end_time or original_end_time
+        if content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip:
+            original_start_time = last_clip.adjusted_start_time or original_start_time
+            original_end_time = last_clip.adjusted_end_time or original_end_time
+            await self._log_system_message(logging.INFO, f"Relative adjustment. Last clip: {last_clip}")
 
         if await self.__is_adjustment_exceeding_limits(additional_start_offset, additional_end_offset):
             return await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
 
-        start_time = max(0.0, original_start_time - additional_start_offset - settings.EXTEND_BEFORE)
-        end_time = min(original_end_time + additional_end_offset + settings.EXTEND_AFTER, await get_video_duration(segment_info.get("video_path")))
+        extend_before = settings.EXTEND_BEFORE if not last_clip else 0
+        extend_after = settings.EXTEND_AFTER if not last_clip else 0
+
+        start_time = max(0.0, original_start_time - additional_start_offset - extend_before)
+        end_time = min(original_end_time + additional_end_offset + extend_after, await get_video_duration(segment_info.get("video_path")))
 
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None
