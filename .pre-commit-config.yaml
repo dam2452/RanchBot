@@ -11,12 +11,23 @@ repos:
       - id: check-ast
       - id: trailing-whitespace
       - id: check-xml
-      - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=2000"]
       - id: check-symlinks
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
+      - id: requirements-txt-fixer
+      - id: no-commit-to-branch
+      - id: end-of-file-fixer
+      - id: detect-private-key
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.29.0
+    hooks:
+      - id: gitleaks
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.5
     hooks:
