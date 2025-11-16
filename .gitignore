@@ -43,3 +43,7 @@ elsticRANCZO
 Preprocessing/DataExtractionFromWiki/EpisodeInfoKIEPSCY.json
 Preprocessing/DataExtractionFromWiki/EpisodeInfo.json
 bot/RANCZO-WIDEO
+cookies.txt
+/.claude
+/transcriptions
+test_episodes.json

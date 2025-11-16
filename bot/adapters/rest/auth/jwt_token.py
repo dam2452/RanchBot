@@ -36,7 +36,7 @@ def generate_token(user_id: int, username: str, full_name: str, expire_minutes: 
         "iss": s.JWT_ISSUER,
         "aud": s.JWT_AUDIENCE,
     }
-    return jwt.encode(payload, s.JWT_SECRET_KEY, algorithm=s.JWT_ALGORITHM)
+    return jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 
 
 def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
@@ -44,7 +44,7 @@ def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBea
     try:
         payload = jwt.decode(
             token,
-            s.JWT_SECRET_KEY,
+            s.JWT_SECRET_KEY.get_secret_value(),
             algorithms=[s.JWT_ALGORITHM],
             issuer=s.JWT_ISSUER,
             audience=s.JWT_AUDIENCE,

@@ -3,6 +3,7 @@ version: '3.8'
 services:
   bot:
     build: .
+    image: dam245222/ranchbot:${IMAGE_TAG}
     environment:
       ES_HOST: ${ES_HOST}
       ES_USER: ${ES_USER}
@@ -14,6 +15,33 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA}
+      BOT_USERNAME: ${BOT_USERNAME}
+      SPECIALIZED_TABLE: ${SPECIALIZED_TABLE}
+      ES_TRANSCRIPTION_INDEX: ${ES_TRANSCRIPTION_INDEX}
+    restart: ${RESTART_POLICY:-unless-stopped}
     volumes:
-      - ./bot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO
-      - ./bot/RANCZO-TRANSKRYPCJE:/app/bot/RANCZO-TRANSKRYPCJE
+      - ./bot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: false
+    tmpfs:
+      - /tmp
+    networks:
+      - ranczo-network
+
+networks:
+  ranczo-network:
+    driver: bridge
