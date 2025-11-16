@@ -75,7 +75,9 @@ class AdjustVideoClipHandler(BotMessageHandler):
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
 
-        if content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip:
+        is_consecutive_adjustment = last_clip and last_clip.is_adjusted
+
+        if content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS and is_consecutive_adjustment:
             original_start_time = last_clip.adjusted_start_time or original_start_time
             original_end_time = last_clip.adjusted_end_time or original_end_time
             await self._log_system_message(logging.INFO, f"Relative adjustment. Last clip: {last_clip}")
@@ -84,8 +86,8 @@ class AdjustVideoClipHandler(BotMessageHandler):
             return await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
 
         # prevent adding extra padding in sequential adjustments while keeping the minimum clip length for the first use
-        extend_before = 0 if last_clip and last_clip.is_adjusted else settings.EXTEND_BEFORE
-        extend_after = 0 if last_clip and last_clip.is_adjusted else settings.EXTEND_AFTER
+        extend_before = 0 if is_consecutive_adjustment else settings.EXTEND_BEFORE
+        extend_after = 0 if is_consecutive_adjustment else settings.EXTEND_AFTER
 
         start_time = max(0.0, original_start_time - additional_start_offset - extend_before)
         end_time = min(original_end_time + additional_end_offset + extend_after, await get_video_duration(segment_info.get("video_path")))
