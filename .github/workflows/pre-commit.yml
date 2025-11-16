@@ -1,10 +1,6 @@
 name: Pre-commit checks
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
+on: push
 
 jobs:
   pre-commit:
