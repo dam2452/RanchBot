@@ -92,4 +92,3 @@ Jeśli podoba Ci się ten projekt i chciałbyś wesprzeć jego rozwój, rozważ 
 </a>
 
 ---
-
