@@ -3,6 +3,7 @@ import pytest
 from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 
+
 @pytest.mark.usefixtures("db_pool", "telegram_client")
 class TestAdjustVideoClipHandler(BaseTest):
     async def __execute_both_variants(self, command_args: str, response_key: str):
