@@ -75,9 +75,9 @@ class AdjustVideoClipHandler(BotMessageHandler):
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
 
-        is_consecutive_adjustment = last_clip and last_clip.is_adjusted
+        is_consecutive_adjustment = content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
 
-        if content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS and is_consecutive_adjustment:
+        if is_consecutive_adjustment:
             original_start_time = last_clip.adjusted_start_time or original_start_time
             original_end_time = last_clip.adjusted_end_time or original_end_time
             await self._log_system_message(logging.INFO, f"Relative adjustment. Last clip: {last_clip}")
