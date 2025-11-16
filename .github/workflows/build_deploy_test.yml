@@ -57,6 +57,11 @@ jobs:
               exit 1
           fi
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
       - name: Run E2E Tests
         env:
           SECRETS: ${{ secrets.BOT_TEST_ENV }}
