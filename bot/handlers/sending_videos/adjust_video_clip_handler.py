@@ -83,8 +83,9 @@ class AdjustVideoClipHandler(BotMessageHandler):
         if await self.__is_adjustment_exceeding_limits(additional_start_offset, additional_end_offset):
             return await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
 
-        extend_before = settings.EXTEND_BEFORE if not last_clip else 0
-        extend_after = settings.EXTEND_AFTER if not last_clip else 0
+        # prevent adding extra padding in sequential adjustments while keeping the minimum clip length for the first use
+        extend_before = 0 if last_clip and last_clip.is_adjusted else settings.EXTEND_BEFORE
+        extend_after = 0 if last_clip and last_clip.is_adjusted else settings.EXTEND_AFTER
 
         start_time = max(0.0, original_start_time - additional_start_offset - extend_before)
         end_time = min(original_end_time + additional_end_offset + extend_after, await get_video_duration(segment_info.get("video_path")))
