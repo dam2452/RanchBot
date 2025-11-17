@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from typing import (
     Dict,
     List,
@@ -53,7 +54,7 @@ class CompileClipsHandler(BotMessageHandler):
             self._message,
             2,
             await self.get_response(RK.INVALID_ARGS_COUNT),
-            float("inf")
+            math.inf,
         )
 
     async def _do_handle(self) -> None:

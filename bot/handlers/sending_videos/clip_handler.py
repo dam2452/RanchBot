@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
@@ -37,7 +38,7 @@ class ClipHandler(BotMessageHandler):
             self._message,
             1,
             await self.get_response(RK.NO_QUOTE_PROVIDED),
-            float("inf")
+            math.inf,
         )
 
     async def __validate_length(self) -> bool:
