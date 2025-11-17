@@ -15,7 +15,8 @@ class SegmentedJsonGenerator(BaseTranscriptionGenerator):
     def _get_output_filename(self, json_file: Path) -> str:
         return json_file.name.replace(".json", "_segmented.json")
 
-    def _convert_to_segmented_format(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def convert_to_segmented_format(data: Dict[str, Any]) -> Dict[str, Any]:
         segments = data.get("segments", [])
         result_segments = []
 

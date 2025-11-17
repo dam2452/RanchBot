@@ -15,7 +15,8 @@ class FullJsonGenerator(BaseTranscriptionGenerator):
     def _get_output_filename(self, json_file: Path) -> str:
         return json_file.name
 
-    def _convert_to_full_format(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def convert_to_full_format(data: Dict[str, Any]) -> Dict[str, Any]:
         segments = data.get("segments", [])
 
         full_text = " ".join(seg.get("text", "").strip() for seg in segments)

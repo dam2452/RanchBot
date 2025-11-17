@@ -89,7 +89,7 @@ class MultiFormatGenerator:
         output_file = output_dir / filename
 
         generator = FullJsonGenerator(Path("."), output_dir, self.logger)
-        full_json = generator._convert_to_full_format(data)
+        full_json = generator.convert_to_full_format(data)
         full_json["episode_info"] = data.get("episode_info", {})
 
         with open(output_file, "w", encoding="utf-8") as f:
@@ -105,7 +105,7 @@ class MultiFormatGenerator:
         output_file = output_dir / filename
 
         generator = SegmentedJsonGenerator(Path("."), output_dir, self.logger)
-        segmented_json = generator._convert_to_segmented_format(data)
+        segmented_json = generator.convert_to_segmented_format(data)
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(segmented_json, f, indent=2, ensure_ascii=False)
@@ -120,7 +120,7 @@ class MultiFormatGenerator:
         output_file = output_dir / filename
 
         generator = SimpleJsonGenerator(Path("."), output_dir, self.logger)
-        simple_json = generator._convert_to_simple_format(data)
+        simple_json = generator.convert_to_simple_format(data)
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(simple_json, f, indent=2, ensure_ascii=False)
@@ -135,7 +135,7 @@ class MultiFormatGenerator:
         output_file = output_dir / filename
 
         generator = SrtGenerator(Path("."), output_dir, self.logger)
-        srt_content = generator._convert_to_srt_format(data)
+        srt_content = generator.convert_to_srt_format(data)
 
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(srt_content)
@@ -150,7 +150,7 @@ class MultiFormatGenerator:
         output_file = output_dir / filename
 
         generator = TxtGenerator(Path("."), output_dir, self.logger)
-        txt_content = generator._convert_to_txt_format(data)
+        txt_content = generator.convert_to_txt_format(data)
 
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(txt_content)

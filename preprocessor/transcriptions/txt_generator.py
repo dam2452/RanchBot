@@ -14,7 +14,8 @@ class TxtGenerator(BaseTranscriptionGenerator):
     def _get_output_filename(self, json_file: Path) -> str:
         return json_file.name.replace(".json", ".txt")
 
-    def _convert_to_txt_format(self, data: Dict[str, Any]) -> str:
+    @staticmethod
+    def convert_to_txt_format(data: Dict[str, Any]) -> str:
         segments = data.get("segments", [])
 
         text_parts = []

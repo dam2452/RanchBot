@@ -1,24 +1,16 @@
 import asyncio
 from typing import Optional
 
-try:
-    from crawl4ai import AsyncWebCrawler
-    from crawl4ai.async_configs import (
-        BrowserConfig,
-        CrawlerRunConfig,
-    )
-    CRAWL4AI_AVAILABLE = True
-except ImportError:
-    CRAWL4AI_AVAILABLE = False
+from crawl4ai import AsyncWebCrawler
+from crawl4ai.async_configs import (
+    BrowserConfig,
+    CrawlerRunConfig,
+)
 
 
 class ScraperCrawl4AI:
     @staticmethod
     async def _scrape_async(url: str, save_markdown: bool = False) -> Optional[str]:
-        if not CRAWL4AI_AVAILABLE:
-            print("crawl4ai not installed. Install with: pip install crawl4ai")
-            return None
-
         try:
             browser_config = BrowserConfig(headless=True)
             run_config = CrawlerRunConfig()

@@ -119,7 +119,8 @@ class ElevenLabsEngine:
 
         raise TimeoutError(f"Transcription timeout after {max_attempts} attempts")
 
-    def _convert_to_unified_format(self, result) -> Dict:
+    @staticmethod
+    def _convert_to_unified_format(result) -> Dict:
         unified_data = {
             "text": result.text,
             "language_code": result.language_code,

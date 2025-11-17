@@ -14,7 +14,7 @@ class SrtGenerator(BaseTranscriptionGenerator):
     def _get_output_filename(self, json_file: Path) -> str:
         return json_file.name.replace(".json", ".srt")
 
-    def _convert_to_srt_format(self, data: Dict[str, Any]) -> str:
+    def convert_to_srt_format(self, data: Dict[str, Any]) -> str:
         segments = data.get("segments", [])
         srt_lines = []
         index = 1
@@ -39,7 +39,8 @@ class SrtGenerator(BaseTranscriptionGenerator):
 
         return "\n".join(srt_lines)
 
-    def _format_timestamp(self, seconds: float) -> str:
+    @staticmethod
+    def _format_timestamp(seconds: float) -> str:
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)

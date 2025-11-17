@@ -90,6 +90,7 @@ Page content (markdown):
 Extract ALL episodes from this page and return as JSON."""
 
         try:
+            # noinspection PyTypeChecker
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[

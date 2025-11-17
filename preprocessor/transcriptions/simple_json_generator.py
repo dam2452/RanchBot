@@ -14,7 +14,8 @@ class SimpleJsonGenerator(BaseTranscriptionGenerator):
     def _get_output_filename(self, json_file: Path) -> str:
         return json_file.name.replace(".json", "_simple.json")
 
-    def _convert_to_simple_format(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def convert_to_simple_format(data: Dict[str, Any]) -> Dict[str, Any]:
         segments = data.get("segments", [])
         result_segments = []
 

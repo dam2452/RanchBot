@@ -19,7 +19,7 @@ Przetwórz wideo i uzyskaj transkrypcję + indeksację w Elasticu jedną komend�
 pip install -r requirements.txt
 
 # Uruchom pełny pipeline (transcode + transkrypcja + indeksacja)
-python -m preprocessor all /path/to/video.mp4 \
+python -m preprocessor run-all /path/to/video.mp4 \
     --episodes-info-json episodes.json \
     --name my_series
 
@@ -253,7 +253,7 @@ python -m preprocessor index \
 Run all stages sequentially:
 
 ```bash
-python -m preprocessor all /path/to/videos \
+python -m preprocessor run-all /path/to/videos \
     --episodes-info-json episodes.json \
     --name ranczo \
     --transcoded-videos ./output/videos \
@@ -742,15 +742,39 @@ preprocessor/
 ├── video_transcoder.py            # Video transcoding logic
 ├── transciption_generator.py      # Transcription orchestration
 ├── elastic_search_indexer.py     # Elasticsearch indexing
+├── elevenlabs_transcriber.py     # ElevenLabs API transcription
+├── transcription_importer.py     # Import existing transcriptions
+├── episode_scraper.py            # Web scraping for episode metadata
+├── scene_detector.py             # Scene detection with TransNetV2
+├── embedding_generator.py        # Text/video embedding generation
+├── legacy_converter.py           # Elasticsearch migration tool
+├── state_manager.py              # Progress tracking and resume
+├── llm_provider.py               # LLM provider abstraction
 ├── convert_legacy_episodes_info.py # Legacy format converter
+├── engines/
+│   ├── base_engine.py            # Base engine interface
+│   ├── whisper_engine.py         # Whisper transcription engine
+│   ├── elevenlabs_engine.py      # ElevenLabs API engine
+│   ├── scraper_clipboard.py      # Clipboard scraper
+│   └── scraper_crawl4ai.py       # Crawl4AI web scraper
 ├── utils/
 │   ├── args.py                    # Argument parsing utilities
-│   └── error_handling_logger.py  # Rich-enhanced logging
+│   ├── error_handling_logger.py  # Rich-enhanced logging
+│   ├── episode_utils.py          # Episode number utilities
+│   ├── video_utils.py            # Video processing utilities
+│   └── transcription_utils.py    # Transcription format utilities
 └── transcriptions/
+    ├── base_generator.py          # Base transcription generator
     ├── audio_normalizer.py        # Audio extraction and normalization
     ├── normalized_audio_processor.py # Whisper transcription
     ├── json_generator.py          # JSON processing and cleanup
-    └── episode_info_processor.py  # Episode metadata integration
+    ├── episode_info_processor.py  # Episode metadata integration
+    ├── full_json_generator.py     # Full JSON format generator
+    ├── segmented_json_generator.py # Segmented JSON format generator
+    ├── simple_json_generator.py   # Simple JSON format generator
+    ├── srt_generator.py           # SRT subtitle generator
+    ├── txt_generator.py           # Plain text generator
+    └── multi_format_generator.py  # Multi-format output generator
 ```
 
 ### Pipeline Flow
@@ -850,7 +874,7 @@ python -m preprocessor index \
 ### Complete Pipeline (All in One)
 
 ```bash
-python -m preprocessor all ./raw_videos \
+python -m preprocessor run-all ./raw_videos \
     --episodes-info-json episodes.json \
     --name ranczo \
     --device cuda
