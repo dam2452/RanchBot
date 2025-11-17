@@ -35,6 +35,7 @@ class SendClipHandler(BotMessageHandler):
             self._message,
             1,
             await self.get_response(RK.GIVE_CLIP_NAME),
+            float("inf")
         )
 
     async def __check_clip_existence(self) -> bool:

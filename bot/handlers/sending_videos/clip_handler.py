@@ -37,6 +37,7 @@ class ClipHandler(BotMessageHandler):
             self._message,
             1,
             await self.get_response(RK.NO_QUOTE_PROVIDED),
+            float("inf")
         )
 
     async def __validate_length(self) -> bool:

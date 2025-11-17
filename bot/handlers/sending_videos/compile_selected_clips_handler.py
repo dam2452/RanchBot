@@ -39,6 +39,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             self._message,
             2,
             await self.get_response(RK.INVALID_ARGS_COUNT),
+            float("inf")
         )
 
     async def __check_user_has_clips(self) -> bool:

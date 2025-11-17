@@ -125,9 +125,9 @@ class BotMessageHandler(ABC):
     async def _validate_argument_count(
             self,
             message: AbstractMessage,
-            min_args: int,
+            min_args: float,
             error_message: str,
-            max_args: Optional[int] = None,
+            max_args: Optional[float] = None,
     ) -> bool:
         if max_args is None:
             max_args = min_args

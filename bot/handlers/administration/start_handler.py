@@ -64,6 +64,7 @@ class StartHandler(BotMessageHandler):
             self._message,
             0,
             await self.get_response(RK.INVALID_COMMAND_MESSAGE),
+            1
         )
 
     async def _do_handle(self) -> None:

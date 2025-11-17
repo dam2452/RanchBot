@@ -50,7 +50,10 @@ class CompileClipsHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.INVALID_ARGS_COUNT),
+            self._message,
+            2,
+            await self.get_response(RK.INVALID_ARGS_COUNT),
+            float("inf")
         )
 
     async def _do_handle(self) -> None:
