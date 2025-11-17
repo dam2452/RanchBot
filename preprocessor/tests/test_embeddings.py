@@ -5,6 +5,7 @@ import sys
 import pytest
 
 from preprocessor.embedding_generator import EmbeddingGenerator
+from preprocessor.tests.conftest import require_transcription_files
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -16,16 +17,7 @@ OUTPUT_DIR = Path(__file__).parent / "output" / "embeddings"
 
 @pytest.mark.slow
 def test_embeddings():
-    assert TRANSCRIPTION_DIR.exists(), (
-        f"Transcription directory not found: {TRANSCRIPTION_DIR}. "
-        "Run test_transcription.py first!"
-    )
-
-    transcription_files = list(TRANSCRIPTION_DIR.glob("**/*.json"))
-    assert len(transcription_files) > 0, (
-        f"No transcription files found in {TRANSCRIPTION_DIR}. "
-        "Run test_transcription.py first!"
-    )
+    transcription_files = require_transcription_files()
 
     generator = EmbeddingGenerator({
         "transcription_jsons": TRANSCRIPTION_DIR,

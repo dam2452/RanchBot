@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 import sys
 
 import pytest
@@ -10,7 +11,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 SOURCE_DIR = Path(__file__).parent / "mock_11labs_data"
 OUTPUT_DIR = Path(__file__).parent / "output" / "transcriptions_11labs"
-EPISODES_INFO = Path(__file__).parent / "test_episodes_info.json"
 
 
 @pytest.fixture(scope="module")
@@ -42,42 +42,14 @@ def mock_11labs_data():
 
     yield SOURCE_DIR
 
-    import shutil
     shutil.rmtree(SOURCE_DIR, ignore_errors=True)
 
 
-@pytest.fixture(scope="module")
-def episodes_info():
-    episodes_info_data = {
-        "seasons": [
-            {
-                "season_number": 1,
-                "episodes": [
-                    {
-                        "episode_number": 13,
-                        "title": "Test Episode S01E13",
-                        "premiere_date": "2006-06-05",
-                        "viewership": 5000000,
-                    },
-                ],
-            },
-        ],
-    }
-
-    EPISODES_INFO.parent.mkdir(parents=True, exist_ok=True)
-    with open(EPISODES_INFO, "w", encoding="utf-8") as f:
-        json.dump(episodes_info_data, f, indent=2, ensure_ascii=False)
-
-    yield EPISODES_INFO
-
-    EPISODES_INFO.unlink(missing_ok=True)
-
-
-def test_elevenlabs_import(mock_11labs_data, episodes_info):
+def test_elevenlabs_import(mock_11labs_data, episodes_info_single):  # pylint: disable=redefined-outer-name
     importer = TranscriptionImporter({
         "source_dir": mock_11labs_data,
         "output_dir": OUTPUT_DIR,
-        "episodes_info_json": episodes_info,
+        "episodes_info_json": episodes_info_single,
         "series_name": "test",
         "format_type": "11labs_segmented",
         "state_manager": None,

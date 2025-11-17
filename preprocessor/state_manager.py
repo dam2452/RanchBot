@@ -164,7 +164,7 @@ class StateManager:
                 try:
                     temp_path.unlink()
                     console.print(f"[yellow]Removed temp file: {temp_file}[/yellow]")
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     console.print(f"[red]Failed to remove {temp_file}: {e}[/red]")
 
         self.state.in_progress = None

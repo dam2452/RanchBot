@@ -38,7 +38,7 @@ class NormalizedAudioProcessor:
                 self.__process_normalized_audio(audio)
 
     def __process_normalized_audio(self, normalized_audio: Path) -> None:
-        try:
+        try:  # pylint: disable=too-many-try-statements
             language_map = {
                 "polish": "pl",
                 "english": "en",

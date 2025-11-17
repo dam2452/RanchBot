@@ -3,7 +3,10 @@ from typing import Optional
 
 try:
     from crawl4ai import AsyncWebCrawler
-    from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig
+    from crawl4ai.async_configs import (
+        BrowserConfig,
+        CrawlerRunConfig,
+    )
     CRAWL4AI_AVAILABLE = True
 except ImportError:
     CRAWL4AI_AVAILABLE = False
@@ -31,11 +34,10 @@ class ScraperCrawl4AI:
                             f.write(result.markdown)
                         print(f"Saved markdown to: {md_file}")
                     return result.markdown
-                else:
-                    print(f"Crawl4AI failed: {result.error_message}")
-                    return None
+                print(f"Crawl4AI failed: {result.error_message}")
+                return None
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Crawl4AI error: {e}")
             return None
 

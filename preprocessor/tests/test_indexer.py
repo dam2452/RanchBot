@@ -4,6 +4,7 @@ import sys
 import pytest
 
 from preprocessor.elastic_search_indexer import ElasticSearchIndexer
+from preprocessor.tests.conftest import require_transcription_files
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -13,16 +14,7 @@ INDEX_NAME = "test_ranczo"
 
 @pytest.mark.elasticsearch
 def test_indexer():
-    assert TRANSCRIPTION_DIR.exists(), (
-        f"Transcription directory not found: {TRANSCRIPTION_DIR}. "
-        "Run test_transcription.py first!"
-    )
-
-    transcription_files = list(TRANSCRIPTION_DIR.glob("**/*.json"))
-    assert len(transcription_files) > 0, (
-        f"No transcription files found in {TRANSCRIPTION_DIR}. "
-        "Run test_transcription.py first!"
-    )
+    require_transcription_files()
 
     indexer = ElasticSearchIndexer({
         "name": INDEX_NAME,

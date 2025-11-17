@@ -27,7 +27,7 @@ def test_scene_detection():
     output_file = OUTPUT_DIR / f"{TEST_VIDEO.stem}_scenes.json"
     assert output_file.exists(), f"Output file not created: {output_file}"
 
-    with open(output_file, "r") as f:
+    with open(output_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     assert "total_scenes" in data, "Missing 'total_scenes' in output"

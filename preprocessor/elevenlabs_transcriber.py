@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -15,6 +14,11 @@ from rich.progress import Progress
 
 from preprocessor.engines.elevenlabs_engine import ElevenLabsEngine
 from preprocessor.state_manager import StateManager
+from preprocessor.utils.episode_utils import (
+    build_output_path,
+    extract_season_episode_from_filename,
+    get_episode_metadata,
+)
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 console = Console()
@@ -91,7 +95,7 @@ class ElevenLabsTranscriber:
                     if self.state_manager:
                         self.state_manager.mark_step_completed("transcribe_11labs", episode_id)
 
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to transcribe {video_file.name}: {e}")
 
                 finally:
@@ -125,8 +129,8 @@ class ElevenLabsTranscriber:
         return audio_path
 
     def _save_transcription(self, data: Dict, video_file: Path) -> None:
-        season, episode = self._extract_season_episode(video_file)
-        episode_info = self._get_episode_metadata(season, episode)
+        season, episode = extract_season_episode_from_filename(video_file)
+        episode_info = get_episode_metadata(self.episodes_info, season, episode)
 
         output_data = {
             "transcription": data,
@@ -136,51 +140,10 @@ class ElevenLabsTranscriber:
         if episode_info:
             output_data["episode_info"] = episode_info
 
-        output_file = self._build_output_path(season, episode)
+        output_file = build_output_path(self.output_dir, self.series_name, season, episode)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
 
         self.logger.info(f"Saved transcription: {output_file.name}")
-
-    @staticmethod
-    def _extract_season_episode(file_path: Path) -> tuple[int, int]:
-        match = re.search(r'S(\d+)E(\d+)', file_path.name, re.IGNORECASE)
-        if match:
-            return int(match.group(1)), int(match.group(2))
-        return 1, 1
-
-    def _get_episode_metadata(self, season: int, episode: int) -> Optional[Dict]:
-        if not self.episodes_info:
-            return {
-                "season": season,
-                "episode_number": episode,
-                "title": f"Episode {episode}",
-            }
-
-        for season_data in self.episodes_info.get("seasons", []):
-            if season_data.get("season_number") == season:
-                for ep_data in season_data.get("episodes", []):
-                    if ep_data.get("episode_number") == episode:
-                        return {
-                            "season": season,
-                            "episode_number": episode,
-                            "title": ep_data.get("title", f"Episode {episode}"),
-                            "premiere_date": ep_data.get("premiere_date"),
-                            "viewership": ep_data.get("viewership"),
-                        }
-
-        return {
-            "season": season,
-            "episode_number": episode,
-            "title": f"Episode {episode}",
-        }
-
-    def _build_output_path(self, season: int, episode: int) -> Path:
-        filename = f"{self.series_name}_S{season:02d}E{episode:02d}.json"
-        if season == 0:
-            season_dir = self.output_dir / "Specjalne"
-        else:
-            season_dir = self.output_dir / f"Sezon {season}"
-        return season_dir / filename

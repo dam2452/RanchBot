@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
-import re
-from typing import (
-    Optional,
-    Tuple,
-)
+from typing import Tuple
 
+from preprocessor.utils.episode_utils import (
+    extract_episode_number,
+    find_episode_info_by_absolute,
+)
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -40,12 +40,12 @@ class EpisodeInfoProcessor:
     def __process_file(self, transcription_file: Path) -> None:
         try:
             transcription = self.__load_transcription(transcription_file)
-            absolute_episode = self.__get_episode_number(transcription_file)
+            absolute_episode = extract_episode_number(transcription_file)
             if absolute_episode is None:
                 self.__logger.error(f"Cannot extract episode number from {transcription_file.name}")
                 return
 
-            episode_info = self.__find_episode_info(absolute_episode)
+            episode_info = find_episode_info_by_absolute(self.__episodes_info, absolute_episode)
             if not episode_info:
                 self.__logger.error(f"No episode info found for episode {absolute_episode} in {transcription_file}")
                 return
@@ -93,27 +93,3 @@ class EpisodeInfoProcessor:
         else:
             original_path.rename(new_src)
             self.__logger.info(f"Renamed source transcription file: {original_path} -> {new_src}")
-
-    def __find_episode_info(self, absolute_episode: int) -> Optional[dict]:
-        for season in self.__episodes_info.get("seasons", []):
-            season_number = season["season_number"]
-            episodes = sorted(season.get("episodes", []), key=lambda ep: ep["episode_number"])
-            for idx, ep_data in enumerate(episodes):
-                if ep_data.get("episode_number") == absolute_episode:
-                    return {
-                        "season": season_number,
-                        "episode_number": idx + 1,
-                        "premiere_date": ep_data["premiere_date"],
-                        "title": ep_data["title"],
-                        "viewership": ep_data["viewership"],
-                    }
-        return None
-
-    @staticmethod
-    def __get_episode_number(transcription_file: Path) -> Optional[int]:
-        pattern = r"(?:E(?P<ep>\d+))|(?:_S\d{2}E(?P<ep2>\d+))"
-        match = re.search(pattern, transcription_file.stem, re.IGNORECASE)
-        if match:
-            episode = match.group("ep") or match.group("ep2")
-            return int(episode)
-        return None

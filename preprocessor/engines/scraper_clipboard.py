@@ -1,4 +1,5 @@
 from typing import Optional
+
 from playwright.sync_api import sync_playwright
 
 
@@ -21,6 +22,6 @@ class ScraperClipboard:
                 browser.close()
                 return clipboard_text
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Clipboard scraping failed: {e}")
             return None

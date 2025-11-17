@@ -20,6 +20,7 @@ from transformers import (
 )
 
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
 console = Console()
 
@@ -56,7 +57,7 @@ class EmbeddingGenerator:
     def work(self) -> int:
         try:
             self._exec()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Embedding generation failed: {e}")
         return self.logger.finalize()
 
@@ -79,7 +80,7 @@ class EmbeddingGenerator:
             for trans_file in transcription_files:
                 try:
                     self._process_transcription(trans_file)
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to process {trans_file}: {e}")
                 finally:
                     progress.advance(task)
@@ -150,7 +151,7 @@ class EmbeddingGenerator:
                         "embedding": embedding.tolist(),
                     },
                 )
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 self.logger.error(f"Failed to generate text embedding for segments {i}-{i+len(chunk)}: {e}")
 
         return embeddings
@@ -197,7 +198,7 @@ class EmbeddingGenerator:
                         "embedding": embedding.tolist(),
                     },
                 )
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 self.logger.error(f"Failed to generate video embedding for frame {mid_frame}: {e}")
 
         cap.release()
@@ -225,7 +226,7 @@ class EmbeddingGenerator:
                             "embedding": embedding.tolist(),
                         },
                     )
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to generate video embedding for frame {frame_num}: {e}")
 
             frame_num += 1
@@ -237,24 +238,12 @@ class EmbeddingGenerator:
         embeddings = []
         cap = cv2.VideoCapture(str(video_path))
         fps = cap.get(cv2.CAP_PROP_FPS)
+        cap.release()
 
         prev_hist = None
-        frame_num = 0
         threshold = 0.3
 
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            if frame_num % 5 != 0:
-                frame_num += 1
-                continue
-
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-            hist = cv2.normalize(hist, hist).flatten()
-
+        for frame_num, frame, hist in iterate_frames_with_histogram(str(video_path)):
             if prev_hist is not None:
                 diff = np.sum(np.abs(hist - prev_hist))
                 if diff > threshold:
@@ -268,13 +257,11 @@ class EmbeddingGenerator:
                                 "embedding": embedding.tolist(),
                             },
                         )
-                    except Exception as e:
+                    except Exception as e:  # pylint: disable=broad-exception-caught
                         self.logger.error(f"Failed to generate video embedding for frame {frame_num}: {e}")
 
             prev_hist = hist
-            frame_num += 1
 
-        cap.release()
         return embeddings
 
     def _encode_text(self, text: str) -> np.ndarray:

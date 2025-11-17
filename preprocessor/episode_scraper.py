@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from playwright.sync_api import sync_playwright, ViewportSize
+from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
 from rich.console import Console
 from rich.progress import Progress
 
@@ -41,7 +41,7 @@ class EpisodeScraper:
     def work(self) -> int:
         try:
             self._exec()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Episode scraping failed: {e}")
         return self.logger.finalize()
 
@@ -73,7 +73,7 @@ class EpisodeScraper:
                             self.logger.error(f"Failed to extract season data from {url}")
                     else:
                         self.logger.error(f"Failed to scrape {url}")
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Error processing {url}: {e}")
                 finally:
                     progress.advance(task)
@@ -103,8 +103,7 @@ class EpisodeScraper:
 
         if self.scraper_method == "clipboard":
             return ScraperClipboard.scrape(url, headless=self.headless)
-        elif self.scraper_method == "crawl4ai":
+        if self.scraper_method == "crawl4ai":
             return ScraperCrawl4AI.scrape(url, save_markdown=True)
-        else:
-            self.logger.error(f"Unknown scraper method: {self.scraper_method}")
-            return None
+        self.logger.error(f"Unknown scraper method: {self.scraper_method}")
+        return None

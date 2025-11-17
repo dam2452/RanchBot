@@ -39,14 +39,14 @@ class LegacyConverter:
     def work(self) -> int:
         try:
             asyncio.run(self._exec())
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Conversion failed: {e}")
         return self.logger.finalize()
 
     async def _exec(self) -> None:
         self.client = await ElasticSearchManager.connect_to_elasticsearch(self.logger)
 
-        try:
+        try:  # pylint: disable=too-many-try-statements
             if not await self.client.indices.exists(index=self.index_name):
                 self.logger.error(f"Index '{self.index_name}' does not exist")
                 return

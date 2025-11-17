@@ -1,14 +1,16 @@
 import json
 from pathlib import Path
-import re
-from typing import Optional
 
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.transcriptions.full_json_generator import FullJsonGenerator
 from preprocessor.transcriptions.segmented_json_generator import SegmentedJsonGenerator
 from preprocessor.transcriptions.simple_json_generator import SimpleJsonGenerator
 from preprocessor.transcriptions.srt_generator import SrtGenerator
 from preprocessor.transcriptions.txt_generator import TxtGenerator
+from preprocessor.utils.episode_utils import (
+    extract_episode_number,
+    find_episode_info_by_absolute,
+)
+from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
 class MultiFormatGenerator:
@@ -43,16 +45,16 @@ class MultiFormatGenerator:
             self._process_file(transcription_file)
 
     def _process_file(self, transcription_file: Path) -> None:
-        try:
+        try:  # pylint: disable=too-many-try-statements
             with open(transcription_file, "r", encoding="utf-8") as f:
                 transcription = json.load(f)
 
-            absolute_episode = self._get_episode_number(transcription_file)
+            absolute_episode = extract_episode_number(transcription_file)
             if absolute_episode is None:
                 self.logger.error(f"Cannot extract episode number from {transcription_file.name}")
                 return
 
-            episode_info = self._find_episode_info(absolute_episode)
+            episode_info = find_episode_info_by_absolute(self.episodes_info, absolute_episode)
             if not episode_info:
                 self.logger.error(f"No episode info found for episode {absolute_episode}")
                 return
@@ -76,7 +78,7 @@ class MultiFormatGenerator:
             self._generate_srt(transcription, season_dir, season_number, relative_episode)
             self._generate_txt(transcription, season_dir, season_number, relative_episode)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Error processing file {transcription_file}: {e}")
 
     def _generate_full_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
@@ -154,27 +156,3 @@ class MultiFormatGenerator:
             f.write(txt_content)
 
         self.logger.info(f"Generated TXT: {output_file}")
-
-    def _find_episode_info(self, absolute_episode: int) -> Optional[dict]:
-        for season in self.episodes_info.get("seasons", []):
-            season_number = season["season_number"]
-            episodes = sorted(season.get("episodes", []), key=lambda ep: ep["episode_number"])
-            for idx, ep_data in enumerate(episodes):
-                if ep_data.get("episode_number") == absolute_episode:
-                    return {
-                        "season": season_number,
-                        "episode_number": idx + 1,
-                        "premiere_date": ep_data["premiere_date"],
-                        "title": ep_data["title"],
-                        "viewership": ep_data["viewership"],
-                    }
-        return None
-
-    @staticmethod
-    def _get_episode_number(transcription_file: Path) -> Optional[int]:
-        pattern = r"(?:E(?P<ep>\d+))|(?:_S\d{2}E(?P<ep2>\d+))"
-        match = re.search(pattern, transcription_file.stem, re.IGNORECASE)
-        if match:
-            episode = match.group("ep") or match.group("ep2")
-            return int(episode)
-        return None

@@ -1,3 +1,4 @@
+import json
 from typing import (
     List,
     Optional,
@@ -107,13 +108,12 @@ Extract ALL episodes from this page and return as JSON."""
                 temperature=0.1,
             )
 
-            import json
             content = response.choices[0].message.content
             data = json.loads(content)
             metadata = SeasonMetadata(**data)
             return metadata
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             console.print(f"[red]LLM extraction failed for {url}: {e}[/red]")
             return None
 
@@ -149,7 +149,7 @@ Extract the episode metadata from above."""
             metadata = response.choices[0].message.parsed
             return metadata
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             console.print(f"[red]LLM extraction failed for {url}: {e}[/red]")
             return None
 
@@ -193,6 +193,6 @@ Create a single, unified metadata entry."""
             merged = response.choices[0].message.parsed
             return merged
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             console.print(f"[red]LLM merge failed: {e}[/red]")
             return metadata_list[0]

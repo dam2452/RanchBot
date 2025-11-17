@@ -2,8 +2,6 @@ import json
 from pathlib import Path
 import sys
 
-import pytest
-
 from preprocessor.transciption_generator import TranscriptionGenerator
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -11,48 +9,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 TEST_VIDEO = Path(__file__).parent / "test_ranczo_S01E13.mp4"
 TEST_VIDEO_DIR = Path(__file__).parent
 OUTPUT_DIR = Path(__file__).parent / "output" / "transcriptions"
-EPISODES_INFO = Path(__file__).parent / "test_episodes_info.json"
 
 
-@pytest.fixture(scope="module")
-def episodes_info():
-    episodes_info_data = {
-        "seasons": [
-            {
-                "season_number": 1,
-                "episodes": [
-                    {
-                        "episode_number": 1,
-                        "title": "Test Episode S01E01",
-                        "premiere_date": "2006-06-05",
-                        "viewership": 5000000,
-                    },
-                    {
-                        "episode_number": 13,
-                        "title": "Test Episode S01E13",
-                        "premiere_date": "2006-06-05",
-                        "viewership": 5000000,
-                    },
-                ],
-            },
-        ],
-    }
-
-    EPISODES_INFO.parent.mkdir(parents=True, exist_ok=True)
-    with open(EPISODES_INFO, "w", encoding="utf-8") as f:
-        json.dump(episodes_info_data, f, indent=2, ensure_ascii=False)
-
-    yield EPISODES_INFO
-
-    EPISODES_INFO.unlink(missing_ok=True)
-
-
-def test_transcription(episodes_info):
+def test_transcription(episodes_info_multiple):
     assert TEST_VIDEO.exists(), f"Test video not found: {TEST_VIDEO}"
 
     generator = TranscriptionGenerator({
         "videos": TEST_VIDEO_DIR,
-        "episodes_info_json": episodes_info,
+        "episodes_info_json": episodes_info_multiple,
         "transcription_jsons": OUTPUT_DIR,
         "model": "base",
         "language": "Polish",
@@ -100,7 +64,7 @@ def test_transcription(episodes_info):
         txt_content = f.read()
     assert len(txt_content) > 0, "TXT file is empty"
 
-    print(f"\nGenerated all 5 formats successfully:")
+    print("\nGenerated all 5 formats successfully:")
     print(f"  - Full JSON: {len(json_data.get('words', []))} words")
     print(f"  - Segmented JSON: {len(seg_data['segments'])} segments")
     print(f"  - Simple JSON: {len(simple_data['segments'])} segments")

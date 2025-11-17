@@ -15,6 +15,7 @@ import torch
 from transnetv2_pytorch import TransNetV2
 
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
 console = Console()
 
@@ -42,7 +43,7 @@ class SceneDetector:
     def work(self) -> int:
         try:
             self._exec()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Scene detection failed: {e}")
         return self.logger.finalize()
 
@@ -64,7 +65,7 @@ class SceneDetector:
             for video_file in video_files:
                 try:
                     self._process_video(video_file)
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to process {video_file}: {e}")
                 finally:
                     progress.advance(task)
@@ -143,11 +144,13 @@ class SceneDetector:
                 "duration": duration,
                 "total_frames": total_frames,
             }
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Error reading video info: {e}")
             return None
 
-    def _detect_scenes_transnetv2(self, video_file: Path, video_info: Dict) -> List[Dict]:
+    def _detect_scenes_transnetv2(  # pylint: disable=too-many-try-statements
+        self, video_file: Path, video_info: Dict,
+    ) -> List[Dict]:
         try:
             _, single_frame_predictions, _ = self.model.predict_video(str(video_file))
 
@@ -200,42 +203,25 @@ class SceneDetector:
 
             return scenes
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"TransNetV2 detection failed: {e}")
             return []
 
     def _detect_scenes_simple(self, video_file: Path, video_info: Dict) -> List[Dict]:
-        cap = cv2.VideoCapture(str(video_file))
         fps = video_info["fps"]
         total_frames = video_info["total_frames"]
 
         scenes = []
-        prev_frame = None
+        prev_hist = None
         scene_changes = []
 
-        frame_num = 0
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            if frame_num % 5 != 0:
-                frame_num += 1
-                continue
-
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-            hist = cv2.normalize(hist, hist).flatten()
-
-            if prev_frame is not None:
-                diff = np.sum(np.abs(hist - prev_frame))
+        for frame_num, _, hist in iterate_frames_with_histogram(str(video_file)):
+            if prev_hist is not None:
+                diff = np.sum(np.abs(hist - prev_hist))
                 if diff > self.threshold:
                     scene_changes.append(frame_num)
 
-            prev_frame = hist
-            frame_num += 1
-
-        cap.release()
+            prev_hist = hist
 
         prev_change = 0
         for change_frame in scene_changes:
