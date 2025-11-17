@@ -174,6 +174,7 @@ INSERT INTO common_messages (handler_name, key, message) VALUES
 
 -- Shortcuts Message
 ('StartHandler', 'shortcuts_message', '🐐 RanczoKlipy Skróty komend 🐐\n═════════════════════\n📋 Skróty komend 📋\n═════════════════════\n🐐 /s, /start - Uruchamia główne menu.\n🔎 /k, /klip - Wyszukuje klip na podstawie cytatu.\n🔎 /sz, /szukaj - Wyszukuje klip na podstawie cytatu.\n📋 /l, /lista - Wyświetla wszystkie klipy znalezione przez /szukaj.\n✅ /w, /wybierz - Wybiera klip z listy uzyskanej przez /szukaj.\n📺 /o, /odcinki - Wyświetla listę odcinków dla podanego sezonu.\n✂️ /d, /dostosuj - Dostosowuje wybrany klip (relatywnie).\n✂️ /ad, /adostosuj - Dostosowuje wybrany klip (absolutnie).\n🎞️ /kom, /kompiluj - Tworzy kompilację klipów.\n🔗 /pk, /polaczklipy - Łączy zapisane klipy w jeden.\n🗑️ /uk, /usunklip - Usuwa zapisany klip.\n📂 /mk, /mojeklipy - Wyświetla listę zapisanych klipów.\n💾 /z, /zapisz - Zapisuje wybrany klip.\n📤 /wys, /wyślij - Wysyła zapisany klip.\n🐛 /r, /report - Raportuje błąd do administratora.\n🔔 /sub, /subskrypcja - Sprawdza stan Twojej subskrypcji.')
+
 -- Invalid Command Message
 ('StartHandler', 'invalid_command_message', '❌ Niepoprawna komenda w menu startowym. Użyj /start, aby zobaczyć dostępne opcje. ❌');
 
