@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from typing import (
     Dict,
     List,
@@ -50,7 +51,10 @@ class CompileClipsHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.INVALID_ARGS_COUNT),
+            self._message,
+            2,
+            await self.get_response(RK.INVALID_ARGS_COUNT),
+            math.inf,
         )
 
     async def _do_handle(self) -> None:
@@ -99,7 +103,7 @@ class CompileClipsHandler(BotMessageHandler):
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, ClipType.COMPILED)
         await self._responder.send_video(compiled_output)
-        await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
+        return await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
 
     async def __parse_segments(
         self, content: List[str], segments: List[Dict[str, Union[str, float]]],

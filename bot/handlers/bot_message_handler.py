@@ -125,14 +125,18 @@ class BotMessageHandler(ABC):
     async def _validate_argument_count(
             self,
             message: AbstractMessage,
-            min_args: int,
+            min_args: float,
             error_message: str,
+            max_args: Optional[float] = None,
     ) -> bool:
-        content = message.get_text().split()
-        if len(content) < min_args:
-            await self._reply_invalid_args_count(error_message)
-            return False
-        return True
+        if max_args is None:
+            max_args = min_args
+
+        if min_args <= (len(message.get_text().split()) - 1) <= max_args:
+            return True
+
+        await self._reply_invalid_args_count(error_message)
+        return False
 
     async def reply(
             self,

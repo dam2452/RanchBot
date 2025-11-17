@@ -1,4 +1,5 @@
 import logging
+import math
 from pathlib import Path
 import tempfile
 from typing import (
@@ -33,8 +34,9 @@ class SendClipHandler(BotMessageHandler):
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            2,
+            1,
             await self.get_response(RK.GIVE_CLIP_NAME),
+            math.inf,
         )
 
     async def __check_clip_existence(self) -> bool:
@@ -70,7 +72,7 @@ class SendClipHandler(BotMessageHandler):
             clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
 
         if await self._handle_clip_duration_limit_exceeded(clip.duration):
-            return
+            return None
 
         video_data = clip.video_data
         if not video_data:
@@ -85,7 +87,7 @@ class SendClipHandler(BotMessageHandler):
 
         await self._responder.send_video(temp_file_path)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_clip_sent_message(clip.name, self._message.get_username()),
         )

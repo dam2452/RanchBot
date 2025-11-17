@@ -1,4 +1,5 @@
 import logging
+import math
 import tempfile
 from typing import List
 
@@ -39,6 +40,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             self._message,
             2,
             await self.get_response(RK.INVALID_ARGS_COUNT),
+            math.inf,
         )
 
     async def __check_user_has_clips(self) -> bool:
@@ -82,13 +84,13 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         total_duration = sum(clip.duration for clip in selected_clips)
 
         if await self._handle_clip_duration_limit_exceeded(total_duration):
-            return
+            return None
 
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, ClipType.COMPILED)
         await self._responder.send_video(compiled_output)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_compiled_clip_sent_message(self._message.get_username()),
         )

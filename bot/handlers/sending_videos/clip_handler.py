@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
@@ -35,8 +36,9 @@ class ClipHandler(BotMessageHandler):
     async def __validate_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            2,
+            1,
             await self.get_response(RK.NO_QUOTE_PROVIDED),
+            math.inf,
         )
 
     async def __validate_length(self) -> bool:
@@ -63,7 +65,7 @@ class ClipHandler(BotMessageHandler):
 
         clip_duration = end_time - start_time
         if await self._handle_clip_duration_limit_exceeded(clip_duration):
-            return
+            return None
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
@@ -81,7 +83,7 @@ class ClipHandler(BotMessageHandler):
             is_adjusted=False,
         )
 
-        await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
+        return await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
 
     async def __reply_no_segments_found(self, quote: str) -> None:
         await self._responder.send_text(await self.get_response(RK.NO_SEGMENTS_FOUND))

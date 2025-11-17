@@ -50,7 +50,7 @@ class SubscriptionStatusHandler(BotMessageHandler):
                 args=[username, str(subscription_end), str(days_remaining)],
             )
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_subscription_status_sent_message(username),
         )

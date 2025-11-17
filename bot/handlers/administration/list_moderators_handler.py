@@ -28,7 +28,7 @@ class ListModeratorsHandler(BotMessageHandler):
             return await self.__reply_no_moderators_found()
 
         response = format_moderators_list(users)
-        await self.__reply_moderators_list(response, users)
+        return await self.__reply_moderators_list(response, users)
 
     async def __reply_no_moderators_found(self) -> None:
         message = get_no_moderators_found_message()
