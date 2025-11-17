@@ -52,7 +52,7 @@ jobs:
           fi
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -61,6 +61,7 @@ jobs:
           SECRETS: ${{ secrets.BOT_TEST_ENV }}
         run: |
           echo "$SECRETS" > .env
+          # shellcheck disable=SC2046
           export $(grep -v '^#' .env | xargs)
           python3 -m pip install -r requirements.txt
           python3 -m pytest
