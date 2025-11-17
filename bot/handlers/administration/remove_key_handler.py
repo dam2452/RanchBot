@@ -18,8 +18,7 @@ class RemoveKeyHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        usage_message = await self.get_response(RK.REMOVE_KEY_USAGE)
-        return await self._validate_argument_count(self._message, 2, usage_message)
+        return await self._validate_argument_count(self._message, 1, await self.get_response(RK.REMOVE_KEY_USAGE))
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split(maxsplit=1)

@@ -28,7 +28,7 @@ class ListAdminsHandler(BotMessageHandler):
             return await self.__reply_no_admins_found()
 
         response = format_admins_list(users)
-        await self.__reply_admins_list(response, users)
+        return await self.__reply_admins_list(response, users)
 
     async def __reply_no_admins_found(self) -> None:
         message = get_no_admins_found_message()

@@ -49,15 +49,14 @@ class SaveClipHandler(BotMessageHandler):
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
             self._message,
-            2,
+            1,
             await self.get_response(RK.CLIP_NAME_NOT_PROVIDED),
         )
 
     async def __check_clip_name_format(self) -> bool:
         parts = self._message.get_text().split(maxsplit=1)
-        if len(parts) < 2:
-            return False
         clip_name = parts[1]
+
         if clip_name.isdigit():
             await self.reply_error(RK.CLIP_NAME_CANNOT_BE_NUMERIC)
             log_message = get_log_clip_name_numeric_message(clip_name, self._message.get_username())

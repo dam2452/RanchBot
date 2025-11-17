@@ -22,7 +22,7 @@ class AddWhitelistHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         if not await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.NO_USERNAME_PROVIDED),
+            self._message, 1, await self.get_response(RK.NO_USERNAME_PROVIDED),
         ):
             await self.__reply_user_not_found()
             return False

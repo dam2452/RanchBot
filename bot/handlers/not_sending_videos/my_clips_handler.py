@@ -48,7 +48,7 @@ class MyClipsHandler(BotMessageHandler):
             )
             await self._answer_markdown(markdown)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_saved_clips_sent_message(self._message.get_username()),
         )

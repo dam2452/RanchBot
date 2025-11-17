@@ -42,8 +42,10 @@ class StandaloneUserAdder:
 
     async def __connect_to_db(self) -> asyncpg.Connection:
         schema = self.__db_config['server_settings']['search_path']
-        print(f"Connecting to PostgreSQL: {self.__db_config['user']}@{self.__db_config['host']}:"
-              f"{self.__db_config['port']}/{self.__db_config['database']} (schema: {schema})")
+        print(
+            f"Connecting to PostgreSQL: {self.__db_config['user']}@{self.__db_config['host']}:"
+            f"{self.__db_config['port']}/{self.__db_config['database']} (schema: {schema})",
+        )
 
         try:
             return await asyncpg.connect(**self.__db_config)
