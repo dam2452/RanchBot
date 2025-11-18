@@ -56,3 +56,5 @@ preprocessor/tests/README.md
 /preprocessor/tests/output_11labs_cache
 /preprocessor/tests/output_whisper_cache
 /preprocessor/tests/output_whisper
+USAGE_LOG.md
+/data
