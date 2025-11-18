@@ -8,8 +8,8 @@ from unittest.mock import (
 
 import pytest
 
-from preprocessor.episode_scraper import EpisodeScraper
 from preprocessor.llm_provider import EpisodeMetadata
+from preprocessor.processing.episode_scraper import EpisodeScraper
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

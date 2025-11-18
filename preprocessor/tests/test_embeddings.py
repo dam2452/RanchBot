@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from preprocessor.embedding_generator import EmbeddingGenerator
+from preprocessor.processing.embedding_generator import EmbeddingGenerator
 from preprocessor.tests.conftest import require_transcription_files
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

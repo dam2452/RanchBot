@@ -1,88 +1,35 @@
 # Video Preprocessing Pipeline
 
-A comprehensive video preprocessing pipeline for transcoding, transcription generation, and Elasticsearch indexing of video content.
-
-## Overview
-
-This preprocessing pipeline provides a complete solution for processing video files through three main stages:
-
-1. **Transcoding**: Convert videos to a standardized format and resolution using FFmpeg
-2. **Transcription**: Generate audio transcriptions using OpenAI's Whisper model
-3. **Indexing**: Index transcriptions in Elasticsearch for searchable content
+Pipeline do przetwarzania wideo: transkodowanie, transkrypcja (Whisper/11labs), indeksacja w Elasticsearch.
 
 ## Quick Start
 
-Przetwórz wideo i uzyskaj transkrypcję + indeksację w Elasticu jedną komendą:
-
 ```bash
-# Install dependencies
+# Instalacja
 pip install -r requirements.txt
 
-# Uruchom pełny pipeline (transcode + transkrypcja + indeksacja)
-python -m preprocessor run-all /path/to/video.mp4 \
+# Pełny pipeline (transcode + transkrypcja + indeksacja)
+python -m preprocessor run-all /path/to/videos \
     --episodes-info-json episodes.json \
-    --name my_series
+    --name my_series \
+    --device cuda
 
-# Wynik:
-# - transcoded_videos/ - przetworzone wideo
-# - transcriptions/ - JSON z transkrypcją
-# - Elasticsearch index "my_series" - wyindeksowana transkrypcja
+# LUB krok po kroku:
+python -m preprocessor transcode /path/to/videos --episodes-info-json episodes.json
+python -m preprocessor transcribe /path/to/videos --episodes-info-json episodes.json --name my_series
+python -m preprocessor index --name my_series --transcription-jsons ./transcriptions
+
+# Import gotowych transkrypcji (11labs)
+python -m preprocessor import-transcriptions \
+    --source-dir /path/to/11labs/output \
+    --name my_series \
+    --episodes-info-json episodes.json
+
+# Wyświetl dostępne komendy
+python -m preprocessor --help
 ```
 
-Wymagania: Python 3.8+, FFmpeg, Elasticsearch (localhost:9200)
-
-## Features
-
-- 🎬 **Video Transcoding**: Standardize videos with configurable resolution, codec, and quality settings
-- 🎙️ **Audio Transcription**: High-quality speech-to-text using Whisper models
-- 🔍 **Elasticsearch Integration**: Full-text search capabilities for video content
-- 📊 **Episode Metadata**: Automatic organization with season/episode information
-- 🎨 **Rich Console Output**: Beautiful terminal UI with progress indicators
-- ⚡ **Efficient Processing**: Temporary file management and pipeline optimization
-
-## Requirements
-
-### System Dependencies
-
-- **Python**: 3.8 or higher
-- **FFmpeg**: For video/audio processing
-- **FFprobe**: For media file inspection (usually included with FFmpeg)
-- **CUDA** (optional): For GPU-accelerated transcription
-
-### Python Dependencies
-
-Install required packages:
-
-```bash
-pip install click rich elasticsearch openai-whisper
-```
-
-For GPU support (recommended for transcription):
-
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
-
-## Installation
-
-1. Ensure FFmpeg is installed and available in your system PATH:
-
-```bash
-ffmpeg -version
-```
-
-2. Install Python dependencies:
-
-```bash
-cd /path/to/RANCZO_KLIPY
-pip install -r requirements.txt
-```
-
-3. Verify Elasticsearch is running (for indexing):
-
-```bash
-curl -X GET "localhost:9200/"
-```
+**Wymagania**: Python 3.8+, FFmpeg, Elasticsearch (localhost:9200), CUDA (opcjonalnie)
 
 ## Usage
 
@@ -731,53 +678,7 @@ python -m preprocessor index \
     --dry-run
 ```
 
-## Architecture
-
-### Module Structure
-
-```
-preprocessor/
-├── __main__.py                    # CLI entry point with Click commands
-├── config.py                      # Configuration dataclasses
-├── video_transcoder.py            # Video transcoding logic
-├── transciption_generator.py      # Transcription orchestration
-├── elastic_search_indexer.py     # Elasticsearch indexing
-├── elevenlabs_transcriber.py     # ElevenLabs API transcription
-├── transcription_importer.py     # Import existing transcriptions
-├── episode_scraper.py            # Web scraping for episode metadata
-├── scene_detector.py             # Scene detection with TransNetV2
-├── embedding_generator.py        # Text/video embedding generation
-├── legacy_converter.py           # Elasticsearch migration tool
-├── state_manager.py              # Progress tracking and resume
-├── llm_provider.py               # LLM provider abstraction
-├── convert_legacy_episodes_info.py # Legacy format converter
-├── engines/
-│   ├── base_engine.py            # Base engine interface
-│   ├── whisper_engine.py         # Whisper transcription engine
-│   ├── elevenlabs_engine.py      # ElevenLabs API engine
-│   ├── scraper_clipboard.py      # Clipboard scraper
-│   └── scraper_crawl4ai.py       # Crawl4AI web scraper
-├── utils/
-│   ├── args.py                    # Argument parsing utilities
-│   ├── error_handling_logger.py  # Rich-enhanced logging
-│   ├── episode_utils.py          # Episode number utilities
-│   ├── video_utils.py            # Video processing utilities
-│   └── transcription_utils.py    # Transcription format utilities
-└── transcriptions/
-    ├── base_generator.py          # Base transcription generator
-    ├── audio_normalizer.py        # Audio extraction and normalization
-    ├── normalized_audio_processor.py # Whisper transcription
-    ├── json_generator.py          # JSON processing and cleanup
-    ├── episode_info_processor.py  # Episode metadata integration
-    ├── full_json_generator.py     # Full JSON format generator
-    ├── segmented_json_generator.py # Segmented JSON format generator
-    ├── simple_json_generator.py   # Simple JSON format generator
-    ├── srt_generator.py           # SRT subtitle generator
-    ├── txt_generator.py           # Plain text generator
-    └── multi_format_generator.py  # Multi-format output generator
-```
-
-### Pipeline Flow
+## Pipeline Flow
 
 ```
 Videos → Transcode → Extract Audio → Normalize Audio →
@@ -837,53 +738,3 @@ Ensure video files follow the naming pattern:
    - Accurate: `large`, `large-v3-turbo`
 4. **Storage**: Ensure sufficient disk space (transcoding can double storage requirements)
 
-## Legacy Format Conversion
-
-If you have episode data in the old format:
-
-```bash
-python -m preprocessor.convert_legacy_episodes_info \
-    old_episodes.json \
-    new_episodes.json
-```
-
-This converts from the legacy format to the current structure.
-
-## Examples
-
-### Basic Workflow
-
-```bash
-# Step 1: Transcode videos
-python -m preprocessor transcode ./raw_videos \
-    --episodes-info-json episodes.json \
-    --resolution 1080p
-
-# Step 2: Generate transcriptions
-python -m preprocessor transcribe ./raw_videos \
-    --episodes-info-json episodes.json \
-    --name ranczo \
-    --device cuda
-
-# Step 3: Index in Elasticsearch
-python -m preprocessor index \
-    --name ranczo \
-    --transcription-jsons ./transcriptions
-```
-
-### Complete Pipeline (All in One)
-
-```bash
-python -m preprocessor run-all ./raw_videos \
-    --episodes-info-json episodes.json \
-    --name ranczo \
-    --device cuda
-```
-
-## License
-
-This preprocessor is part of the Ranczo Klipy project.
-
-## Support
-
-For issues and questions, please refer to the main project documentation or create an issue in the project repository.

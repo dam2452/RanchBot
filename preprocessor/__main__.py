@@ -11,14 +11,14 @@ from preprocessor.config import (
     TranscodeConfig,
     TranscriptionConfig,
 )
-from preprocessor.elastic_search_indexer import ElasticSearchIndexer
 from preprocessor.elevenlabs_transcriber import ElevenLabsTranscriber
-from preprocessor.embedding_generator import EmbeddingGenerator
-from preprocessor.episode_scraper import EpisodeScraper
-from preprocessor.legacy_converter import LegacyConverter
-from preprocessor.scene_detector import SceneDetector
+from preprocessor.processing.elastic_search_indexer import ElasticSearchIndexer
+from preprocessor.processing.embedding_generator import EmbeddingGenerator
+from preprocessor.processing.episode_scraper import EpisodeScraper
+from preprocessor.processing.legacy_converter import LegacyConverter
+from preprocessor.processing.scene_detector import SceneDetector
 from preprocessor.state_manager import StateManager
-from preprocessor.transciption_generator import TranscriptionGenerator
+from preprocessor.transcription_generator import TranscriptionGenerator
 from preprocessor.transcription_importer import TranscriptionImporter
 from preprocessor.video_transcoder import VideoTranscoder
 

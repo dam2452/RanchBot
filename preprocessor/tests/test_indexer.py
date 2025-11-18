@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from preprocessor.elastic_search_indexer import ElasticSearchIndexer
+from preprocessor.processing.elastic_search_indexer import ElasticSearchIndexer
 from preprocessor.tests.conftest import require_transcription_files
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

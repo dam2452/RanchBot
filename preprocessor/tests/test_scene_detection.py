@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import sys
 
-from preprocessor.scene_detector import SceneDetector
+from preprocessor.processing.scene_detector import SceneDetector
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
