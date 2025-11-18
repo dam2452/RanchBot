@@ -53,3 +53,6 @@ test_episodes.json
 TODO.md
 preprocessor/tests/README.md
 /preprocessor/tests/output_11labs
+/preprocessor/tests/output_11labs_cache
+/preprocessor/tests/output_whisper_cache
+/preprocessor/tests/output_whisper

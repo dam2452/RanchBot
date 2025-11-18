@@ -11,7 +11,7 @@ def convert_word_to_standard_format(word: Dict[str, Any]) -> Dict[str, Any]:
         "start": word.get("start", 0.0),
         "end": word.get("end", 0.0),
         "type": "word",
-        "speaker_id": "speaker_unknown",
+        "speaker_id": word.get("speaker_id", "speaker_unknown"),
         "logprob": word.get("probability", 0.0),
     }
 

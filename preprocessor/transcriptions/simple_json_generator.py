@@ -21,9 +21,14 @@ class SimpleJsonGenerator(BaseTranscriptionGenerator):
 
         for seg in segments:
             text = seg.get("text", "").strip()
+            seg_words = seg.get("words", [])
+
+            speaker = "speaker_unknown"
+            if seg_words:
+                speaker = seg_words[0].get("speaker_id", "speaker_unknown")
 
             result_segments.append({
-                "speaker": "speaker_unknown",
+                "speaker": speaker,
                 "text": text,
             })
 
