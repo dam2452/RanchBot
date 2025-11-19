@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import List
 
 from bot.database.response_keys import ResponseKey as RK
@@ -26,6 +27,7 @@ class TranscriptionHandler(BotMessageHandler):
             self._message,
             1,
             await self.get_response(RK.NO_QUOTE_PROVIDED),
+            math.inf,
         )
 
     async def _do_handle(self) -> None:
