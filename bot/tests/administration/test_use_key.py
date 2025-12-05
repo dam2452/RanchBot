@@ -5,7 +5,7 @@ from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool", "http_client", "auth_token")
 class TestSaveUserKeyHandler(BaseTest):
 
     @pytest.mark.quick

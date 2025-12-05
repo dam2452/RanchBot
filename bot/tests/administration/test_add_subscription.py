@@ -11,7 +11,7 @@ from bot.tests.base_test import BaseTest
 from bot.tests.settings import settings as s
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool", "http_client", "auth_token")
 class TestAddSubscriptionHandler(BaseTest):
 
     @pytest.mark.quick

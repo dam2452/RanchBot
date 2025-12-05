@@ -9,7 +9,7 @@ from bot.responses.administration.list_moderators_handler_responses import (
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool", "http_client", "auth_token")
 class TestListModeratorsCommand(BaseTest):
 
     @pytest.mark.asyncio

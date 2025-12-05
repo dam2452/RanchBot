@@ -1,11 +1,10 @@
 import asyncio
 import logging
 
+import httpx
 import pytest
-from telethon.sync import TelegramClient
 
 from bot.database.database_manager import DatabaseManager
-import bot.tests.messages as msg
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -30,18 +29,28 @@ async def db_pool():
     await DatabaseManager.pool.close()
 
 @pytest.fixture(scope="class")
-def telegram_client():
-    client = TelegramClient(
-        s.SESSION,
-        s.API_ID,
-        s.API_HASH.get_secret_value(),
-    )
-    client.start(password=s.PASSWORD.get_secret_value(), phone=s.PHONE)
+async def http_client():
+    async with httpx.AsyncClient(
+        base_url=s.REST_API_BASE_URL,
+        timeout=30.0,
+    ) as client:
+        logger.info("HTTP client started for REST API testing")
+        yield client
+        logger.info("HTTP client disconnected")
 
-    logger.info(msg.client_started())
-    yield client
-    client.disconnect()
-    logger.info(msg.client_disconnected())
+@pytest.fixture(scope="class")
+async def auth_token(http_client):
+    login_response = await http_client.post(
+        "/auth/login",
+        json={
+            "username": s.ADMIN_USERNAME,
+            "password": s.ADMIN_PASSWORD.get_secret_value(),
+        },
+    )
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
+    token_data = login_response.json()
+    logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
+    return token_data["access_token"]
 
 @pytest.fixture(autouse=True)
 async def prepare_database():
