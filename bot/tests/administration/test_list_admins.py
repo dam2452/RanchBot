@@ -5,13 +5,12 @@ import bot.responses.administration.list_admins_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "http_client", "auth_token")
+@pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListAdminsCommand(BaseTest):
 
     @pytest.mark.quick
-    @pytest.mark.asyncio
-    async def test_list_admins_with_admins(self):
-        admin_user = await self.add_test_admin_user()
+    def test_list_admins_with_admins(self):
+        admin_user = self.add_test_admin_user()
 
         admins = [
             UserProfile(
@@ -23,4 +22,4 @@ class TestListAdminsCommand(BaseTest):
             ),
         ]
 
-        await self.expect_command_result_contains('/listadmins', [msg.format_admins_list(admins)])
+        self.expect_command_result_contains('/listadmins', [msg.format_admins_list(admins)])

@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import logging
@@ -12,24 +11,23 @@ from typing import (
     Union,
 )
 
-import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
 from bot.responses.bot_message_handler_responses import get_response
 from bot.search.transcription_finder import TranscriptionFinder
-from bot.tests.settings import settings as s
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class BaseTest:
-    client: httpx.AsyncClient
+    client: TestClient
     token: str
 
     @pytest.fixture(autouse=True)
-    def setup_client(self, http_client, auth_token) -> None:
-        self.client = http_client
+    def setup_client(self, test_client, auth_token) -> None:
+        self.client = test_client
         self.token = auth_token
     @staticmethod
     def __sanitize_text(text: str) -> str:
@@ -52,7 +50,8 @@ class BaseTest:
     def remove_until_first_space(text: str) -> str:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
-    async def send_command(self, command_text: str, args: Optional[List[str]] = None) -> httpx.Response:
+    def send_command(self, command_text: str, args: Optional[List[str]] = None):
+        """Send a command to the REST API and return the response."""
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -60,15 +59,15 @@ class BaseTest:
             if args is None:
                 args = [parts[1]]
 
-        response = await self.client.post(
-            f"/{command_name}",
+        response = self.client.post(
+            f"/api/v1/{command_name}",
             json={"args": args or [], "reply_json": True},
             headers={"Authorization": f"Bearer {self.token}"},
         )
         logger.info(f"REST API response for /{command_name}: {response.status_code}")
         return response
 
-    def assert_response_contains(self, response: httpx.Response, expected_fragments: List[str]) -> bool:
+    def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
         response_text = self._extract_text_from_response(response)
         sanitized_response = self.__sanitize_text(response_text)
 
@@ -79,7 +78,7 @@ class BaseTest:
         return True
 
     @staticmethod
-    def _extract_text_from_response(response: httpx.Response) -> str:
+    def _extract_text_from_response(response) -> str:
         if response.status_code != 200:
             return f"Error: {response.status_code}"
 
@@ -95,9 +94,9 @@ class BaseTest:
         except Exception:
             return response.text
 
-    async def assert_command_result_file_matches(
+    def assert_command_result_file_matches(
             self,
-            response: httpx.Response,
+            response,
             expected_filename: str,
             expected_extension: Optional[str] = None,
             received_filename: str = 'received_file',
@@ -133,8 +132,9 @@ class BaseTest:
         lines = text.splitlines()
         return "\n".join(lines[n:])
 
-    async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
-        response = await self.send_command(command, args=args)
+    def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
+        """Send command and verify response contains expected fragments."""
+        response = self.send_command(command, args=args)
         self.assert_response_contains(response, expected)
 
     @staticmethod
@@ -204,9 +204,9 @@ class BaseTest:
     async def calculate_hash_of_message(message: str) -> str:
         return hashlib.sha256(message.encode()).hexdigest()
 
-    async def assert_message_hash_matches(
+    def assert_message_hash_matches(
             self,
-            response: httpx.Response,
+            response,
             expected_key: str,
             expected_hashes_file: str = 'expected_file_hashes.json',
     ) -> None:
@@ -237,7 +237,7 @@ class BaseTest:
     def remove_first_line(text: str) -> str:
         return "\n".join(text.splitlines()[1:])
 
-    async def expect_command_result_hash(
+    def expect_command_result_hash(
         self,
         command: str,
         expected_key: str,
@@ -245,8 +245,8 @@ class BaseTest:
         args: Optional[List[str]] = None,
     ) -> None:
         """Send command and verify response hash matches expected hash."""
-        response = await self.send_command(command, args=args)
-        await self.assert_message_hash_matches(
+        response = self.send_command(command, args=args)
+        self.assert_message_hash_matches(
             response,
             expected_key=expected_key,
             expected_hashes_file=expected_hashes_file,

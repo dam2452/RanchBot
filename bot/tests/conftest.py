@@ -1,10 +1,11 @@
 import asyncio
 import logging
 
-import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
+from bot.platforms.rest_runner import app
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -29,19 +30,18 @@ async def db_pool():
     await DatabaseManager.pool.close()
 
 @pytest.fixture(scope="class")
-async def http_client():
-    async with httpx.AsyncClient(
-        base_url=s.REST_API_BASE_URL,
-        timeout=30.0,
-    ) as client:
-        logger.info("HTTP client started for REST API testing")
+def test_client():
+    """Create FastAPI TestClient for testing REST API."""
+    with TestClient(app) as client:
+        logger.info("TestClient started for REST API testing")
         yield client
-        logger.info("HTTP client disconnected")
+        logger.info("TestClient closed")
 
 @pytest.fixture(scope="class")
-async def auth_token(http_client):
-    login_response = await http_client.post(
-        "/auth/login",
+def auth_token(test_client):
+    """Authenticate and return access token for the default admin user."""
+    login_response = test_client.post(
+        "/api/v1/auth/login",
         json={
             "username": s.ADMIN_USERNAME,
             "password": s.ADMIN_PASSWORD.get_secret_value(),

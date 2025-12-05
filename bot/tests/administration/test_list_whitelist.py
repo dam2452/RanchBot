@@ -7,10 +7,9 @@ from bot.tests.base_test import BaseTest
 from bot.tests.settings import settings as s
 
 
-@pytest.mark.usefixtures("db_pool", "http_client", "auth_token")
+@pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListWhitelistCommand(BaseTest):
-    @pytest.mark.asyncio
-    async def test_list_whitelist_with_users(self):
+    def test_list_whitelist_with_users(self):
         user1 = {
             "user_id": 123456,
             "username": "test_user1",
@@ -22,14 +21,14 @@ class TestListWhitelistCommand(BaseTest):
             "full_name": "Test User 2",
         }
 
-        await DatabaseManager.add_user(
+        DatabaseManager.add_user(
             user_id=user1["user_id"],
             username=user1["username"],
             full_name=user1["full_name"],
             note=None,
             subscription_days=None,
         )
-        await DatabaseManager.add_user(
+        DatabaseManager.add_user(
             user_id=user2["user_id"],
             username=user2["username"],
             full_name=user2["full_name"],
@@ -60,4 +59,4 @@ class TestListWhitelistCommand(BaseTest):
                 note=None,
             ),
         ]
-        await self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])
+        self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])
