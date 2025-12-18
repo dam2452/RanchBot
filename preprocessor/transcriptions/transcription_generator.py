@@ -4,12 +4,10 @@ import tempfile
 from typing import (
     Any,
     Dict,
-    Optional,
 )
 
 from rich.console import Console
 
-from preprocessor.core.state_manager import StateManager
 from preprocessor.transcriptions.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcriptions.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcriptions.processors.normalized_audio_processor import NormalizedAudioProcessor
@@ -33,9 +31,9 @@ class TranscriptionGenerator:
 
         ramdisk_path = args.get("ramdisk_path")
         if ramdisk_path and Path(ramdisk_path).exists():
-            self.__temp_dir = tempfile.TemporaryDirectory(dir=str(ramdisk_path))
+            self.__temp_dir = tempfile.TemporaryDirectory(dir=str(ramdisk_path))  # pylint: disable=consider-using-with
         else:
-            self.__temp_dir = tempfile.TemporaryDirectory()
+            self.__temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         self.__logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
