@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  preprocessor:
+    build:
+      context: ..
+      dockerfile: preprocessor/Dockerfile
+    image: ranczo-preprocessor:latest
+    container_name: ranczo-preprocessor
+
+    runtime: nvidia
+
+    env_file:
+      - .env
+
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Set to 'false' to skip model downloads on startup
+      - PULL_EXTRA_MODELS=true
+      # Model cache paths
+      - HF_HOME=/app/.cache/huggingface
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - TORCH_HOME=/app/.cache/torch
+      - WHISPER_CACHE=/app/.cache/whisper
+      - OLLAMA_MODELS=/root/.ollama/models
+
+    volumes:
+      # Input data (read-only)
+      - ./videos:/videos:ro
+      - ./episodes.json:/app/preprocessor/episodes.json:ro
+      - ./.env:/app/.env:ro
+
+      # Output data
+      - ./preprocessed:/app/preprocessed
+
+      # =========================================================
+      # MODEL CACHE VOLUMES - persist across rebuilds!
+      # =========================================================
+      # ML models (HuggingFace, Whisper, TransNet, Torch)
+      - model_cache:/app/.cache
+      # Ollama models (qwen3-coder, etc.)
+      - ollama_models:/root/.ollama
+
+    ports:
+      - "11434:11434"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    stdin_open: true
+    tty: true
+
+    command: bash
+
+# =============================================================================
+# NAMED VOLUMES - These persist on the host filesystem!
+# =============================================================================
+# Location: /var/lib/docker/volumes/
+#
+# To inspect: docker volume inspect ranczo-preprocessor_model_cache
+# To backup:  docker run --rm -v model_cache:/data -v $(pwd):/backup alpine tar czf /backup/models.tar.gz /data
+# To clear:   docker volume rm ranczo-preprocessor_model_cache
+# =============================================================================
+volumes:
+  model_cache:
+    name: ranczo-model-cache
+    driver: local
+  ollama_models:
+    name: ranczo-ollama-models
+    driver: local

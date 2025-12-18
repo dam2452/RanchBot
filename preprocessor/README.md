@@ -1,498 +1,306 @@
-# Video Preprocessing Pipeline
+# Video Preprocessing Pipeline - User Guide
 
-Pipeline do przetwarzania wideo: transkodowanie, transkrypcja (Whisper/11labs), indeksacja w Elasticsearch.
+A complete toolkit for processing video files: transcoding, transcription (Whisper/ElevenLabs), and indexing in Elasticsearch.
 
-## Quick Start
+---
+
+## 📋 Table of Contents
+
+- [Quick Start](#quick-start)
+- [Requirements](#requirements)
+- [Basic Workflows](#basic-workflows)
+- [Command Reference](#command-reference)
+- [Configuration Files](#configuration-files)
+- [Advanced Features](#advanced-features)
+- [Docker Guide](#docker-guide)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Using Docker (Recommended)
+
+**Build and run:**
+```bash
+cd preprocessor
+docker-compose up -d
+docker-compose exec preprocessor bash
+```
+
+**Inside container:**
+```bash
+init-models.sh
+python -m preprocessor run-all /videos --episodes-info-json episodes.json --name ranczo --device cuda
+```
+
+### Option 2: Manual Installation
 
 ```bash
-# Instalacja
 pip install -r requirements.txt
+```
 
-# Pełny pipeline (transcode + transkrypcja + indeksacja)
+### Run Everything at Once
+
+```bash
+python -m preprocessor run-all /path/to/videos \
+    --episodes-info-json episodes.json \
+    --name my_series \
+    --device cuda \
+    --max-workers 2
+```
+
+This single command will:
+1. Convert videos to standard format
+2. Generate transcriptions
+3. Index everything in Elasticsearch
+
+**Use `--max-workers` to process multiple episodes in parallel!**
+
+### Or Run Step-by-Step
+
+```bash
+# Step 1: Convert videos (2 episodes at once)
+python -m preprocessor transcode /path/to/videos \
+    --episodes-info-json episodes.json \
+    --max-workers 2
+
+# Step 2: Generate transcriptions (parallel audio normalization)
+python -m preprocessor transcribe /path/to/videos \
+    --episodes-info-json episodes.json \
+    --name my_series \
+    --max-workers 2
+
+# Step 3: Index in Elasticsearch
+python -m preprocessor index --name my_series --transcription-jsons ./transcriptions
+```
+
+---
+
+## 💻 Requirements
+
+### Option 1: Docker (Recommended)
+
+- **Docker**: With NVIDIA Container Toolkit
+- **NVIDIA GPU**: With CUDA support
+- All models and dependencies included in the image
+
+### Option 2: Manual Installation
+
+- **Python**: 3.8 or newer
+- **FFmpeg**: For video processing ([download here](https://ffmpeg.org/download.html))
+- **Elasticsearch**: Running on localhost:9200
+- **CUDA**: Optional, for GPU acceleration (10-50x faster)
+
+---
+
+## 📖 Basic Workflows
+
+### Workflow 1: New Videos → Full Processing
+
+**When to use**: You have video files and want to process them from scratch.
+
+```bash
 python -m preprocessor run-all /path/to/videos \
     --episodes-info-json episodes.json \
     --name my_series \
     --device cuda
+```
 
-# LUB krok po kroku:
-python -m preprocessor transcode /path/to/videos --episodes-info-json episodes.json
-python -m preprocessor transcribe /path/to/videos --episodes-info-json episodes.json --name my_series
-python -m preprocessor index --name my_series --transcription-jsons ./transcriptions
+### Workflow 2: Import Existing Transcriptions
 
-# Import gotowych transkrypcji (11labs)
+**When to use**: You already have transcriptions from ElevenLabs and want to skip transcription.
+
+```bash
 python -m preprocessor import-transcriptions \
     --source-dir /path/to/11labs/output \
     --name my_series \
     --episodes-info-json episodes.json
-
-# Wyświetl dostępne komendy
-python -m preprocessor --help
 ```
 
-**Wymagania**: Python 3.8+, FFmpeg, Elasticsearch (localhost:9200), CUDA (opcjonalnie)
+Benefits: Much faster, no API costs, reuses existing work.
 
-## Usage
+### Workflow 3: Generate New Transcriptions with ElevenLabs
 
-The preprocessor provides four main commands:
+**When to use**: You want high-quality transcriptions with speaker identification.
 
-### 1. Transcode Videos
+```bash
+export ELEVEN_API_KEY=your_api_key_here
 
-Convert videos to a standardized format:
+python -m preprocessor transcribe-elevenlabs /path/to/videos \
+    --name my_series \
+    --episodes-info-json episodes.json
+```
+
+Benefits: High accuracy, speaker diarization, multiple languages.
+
+---
+
+## 🔧 Command Reference
+
+### 1. `transcode` - Convert Videos
+
+**Purpose**: Standardize video format for consistent playback.
 
 ```bash
 python -m preprocessor transcode /path/to/videos \
     --transcoded-videos ./output/videos \
     --resolution 1080p \
-    --codec h264_nvenc \
-    --preset slow \
-    --crf 31 \
-    --episodes-info-json episodes.json
+    --episodes-info-json episodes.json \
+    --max-workers 2
 ```
 
-**Options:**
+**Common Options**:
+- `--resolution`: Video quality (360p, 720p, 1080p, 2160p)
+- `--codec`: Encoder (h264_nvenc for GPU, libx264 for CPU)
+- `--crf`: Quality level (lower = better, default: 31)
+- `--max-workers`: Process multiple episodes in parallel (default: 1)
 
-- `videos`: Path to input videos directory (required)
-- `--transcoded-videos`: Output directory for transcoded videos (default: `transcoded_videos`)
-- `--resolution`: Target resolution: 360p, 480p, 720p, 1080p, 1440p, 2160p (default: `1080p`)
-- `--codec`: Video codec (default: `h264_nvenc`)
-- `--preset`: FFmpeg encoding preset (default: `slow`)
-- `--crf`: Constant Rate Factor - quality setting, lower is better (default: `31`)
-- `--gop-size`: Keyframe interval in seconds (default: `0.5`)
-- `--episodes-info-json`: JSON file with episode metadata
+### 2. `transcribe` - Generate Transcriptions (Whisper)
 
-### 2. Generate Transcriptions
-
-Create audio transcriptions from videos using Whisper:
+**Purpose**: Convert speech to text using local Whisper model.
 
 ```bash
 python -m preprocessor transcribe /path/to/videos \
     --episodes-info-json episodes.json \
-    --name ranczo \
-    --transcription-jsons ./output/transcriptions \
-    --model large-v3-turbo \
-    --language Polish \
-    --device cuda
+    --name my_series \
+    --device cuda \
+    --max-workers 2
 ```
 
-**Options:**
+**Common Options**:
+- `--model`: Whisper model size
+  - Fast: `tiny`, `base`
+  - Balanced: `small`, `medium`
+  - Accurate: `large-v3-turbo`
+- `--language`: Transcription language (default: Polish)
+- `--device`: Use `cuda` for GPU or `cpu` for CPU
+- `--max-workers`: Parallel workers for audio normalization (default: 1)
 
-- `videos`: Path to input videos directory (required)
-- `--episodes-info-json`: JSON file with episode metadata (required)
-- `--name`: Series name for output files (required)
-- `--transcription-jsons`: Output directory for transcription JSONs (default: `transcriptions`)
-- `--model`: Whisper model name (default: `large-v3-turbo`)
-  - Available models: `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3-turbo`
-- `--language`: Language for transcription (default: `Polish`)
-- `--device`: Device to use: `cuda` or `cpu` (default: `cuda`)
-- `--extra-json-keys`: Additional JSON keys to remove from output (can be specified multiple times)
+### 3. `import-transcriptions` - Import Existing Files
 
-### 2a. Import Existing Transcriptions (11labs)
-
-Import pre-generated transcriptions from 11labs or other sources:
+**Purpose**: Use pre-generated transcriptions instead of creating new ones.
 
 ```bash
 python -m preprocessor import-transcriptions \
-    --source-dir C:\GIT_REPO\testParakeet\11labs\output_ranczo\segmented_json \
-    --output-dir ./transcriptions \
-    --episodes-info-json episodes.json \
-    --name ranczo \
-    --format-type 11labs_segmented
-```
-
-**Options:**
-
-- `--source-dir`: Directory containing source transcription files (required)
-- `--output-dir`: Output directory for converted transcriptions (default: `transcriptions`)
-- `--episodes-info-json`: JSON file with episode metadata (optional)
-- `--name`: Series name (required)
-- `--format-type`: Source format type (default: `11labs_segmented`)
-  - `11labs_segmented`: 11labs segmented JSON format
-  - `11labs`: 11labs full JSON format
-- `--no-state`: Disable state management and progress tracking
-
-**Example with existing Ranczo transcriptions:**
-
-```bash
-# Import all Ranczo transcriptions from 11labs
-python -m preprocessor import-transcriptions \
-    --source-dir "C:\GIT_REPO\testParakeet\11labs\output_ranczo\segmented_json" \
-    --name ranczo \
+    --source-dir /path/to/transcriptions \
+    --name my_series \
     --episodes-info-json episodes.json
-
-# Import Kapitan Bomba transcriptions
-python -m preprocessor import-transcriptions \
-    --source-dir "C:\GIT_REPO\testParakeet\11labs\kapitan_bomba-wideo" \
-    --name kapitan_bomba \
-    --format-type 11labs
 ```
 
-**Benefits:**
-- ⚡ Much faster than re-transcribing (reuse existing work)
-- 💰 No API costs (use pre-generated transcriptions)
-- ✅ Support for 11labs high-quality transcriptions
-- 📊 Progress tracking and resume support
+**Supported Formats**:
+- `11labs_segmented`: ElevenLabs segmented JSON
+- `11labs`: ElevenLabs full JSON
 
-### 2b. Generate Transcriptions with 11labs API
+### 4. `transcribe-elevenlabs` - Generate with ElevenLabs API
 
-Use 11labs API to generate new high-quality transcriptions with speaker diarization:
+**Purpose**: Create high-quality transcriptions with speaker identification.
 
 ```bash
 python -m preprocessor transcribe-elevenlabs /path/to/videos \
-    --name ranczo \
-    --episodes-info-json episodes.json \
-    --api-key YOUR_ELEVEN_LABS_API_KEY \
-    --language-code pol \
-    --diarize
+    --name my_series \
+    --api-key YOUR_API_KEY
 ```
 
-**Options:**
+**Common Options**:
+- `--diarize`: Enable speaker identification (default: on)
+- `--language-code`: Language (pol, eng, etc.)
 
-- `videos`: Path to input videos directory (required)
-- `--name`: Series name (required)
-- `--output-dir`: Output directory for transcriptions (default: `transcriptions`)
-- `--episodes-info-json`: JSON file with episode metadata (optional)
-- `--api-key`: ElevenLabs API key (or set `ELEVEN_API_KEY` env var)
-- `--model-id`: ElevenLabs model ID (default: `scribe_v1`)
-- `--language-code`: Language code (default: `pol`)
-- `--diarize/--no-diarize`: Enable speaker diarization (default: enabled)
-- `--no-state`: Disable state management
+### 5. `index` - Add to Elasticsearch
 
-**Example with environment variable:**
-
-```bash
-# Set API key
-export ELEVEN_API_KEY=your_api_key_here
-
-# Transcribe videos
-python -m preprocessor transcribe-elevenlabs /videos/ranczo \
-    --name ranczo \
-    --episodes-info-json episodes.json \
-    --language-code pol
-```
-
-**Benefits:**
-- 🎯 High accuracy with speaker diarization
-- 🗣️ Identifies different speakers automatically
-- 🌍 Supports multiple languages
-- 📊 Progress tracking and resume support
-- ⚡ GPU-accelerated processing on 11labs servers
-
-### 3. Index in Elasticsearch
-
-Index transcriptions for full-text search:
+**Purpose**: Make transcriptions searchable.
 
 ```bash
 python -m preprocessor index \
-    --name ranczo \
-    --transcription-jsons ./output/transcriptions \
-    --append
+    --name my_series \
+    --transcription-jsons ./transcriptions
 ```
 
-**Options:**
+**Common Options**:
+- `--append`: Add to existing index (don't recreate)
+- `--dry-run`: Test without actually indexing
 
-- `--name`: Name of the Elasticsearch index (required)
-- `--transcription-jsons`: Directory containing transcription JSON files (required)
-- `--dry-run`: Validate data without sending to Elasticsearch (flag)
-- `--append`: Append to existing index instead of recreating (flag)
+### 6. `scrape-episodes` - Extract Episode Info from Web
 
-### 4. Complete Pipeline
-
-Run all stages sequentially:
-
-```bash
-python -m preprocessor run-all /path/to/videos \
-    --episodes-info-json episodes.json \
-    --name ranczo \
-    --transcoded-videos ./output/videos \
-    --transcription-jsons ./output/transcriptions \
-    --resolution 1080p \
-    --model large-v3-turbo \
-    --language Polish \
-    --device cuda
-```
-
-This command combines all three stages: transcoding → transcription → indexing.
-
-### 5. Scrape Episode Descriptions
-
-Scrape episode metadata from web pages using Playwright and LLM:
+**Purpose**: Automatically gather episode metadata from websites.
 
 ```bash
 python -m preprocessor scrape-episodes \
-    --urls https://example.com/episode1 \
-    --urls https://example.com/episode2 \
-    --output-file episode_metadata.json \
+    --urls https://filmweb.pl/serial/... \
+    --output-file episodes.json \
     --llm-provider lmstudio
 ```
 
-**Options:**
+**Common Options**:
+- `--urls`: Website URL (can use multiple times)
+- `--llm-provider`: AI model to use (lmstudio, ollama, gemini)
+- `--merge-sources`: Combine info from multiple sites
 
-- `--urls`: URL to scrape (can be specified multiple times for multiple sources)
-- `--output-file`: Output JSON file path (required)
-- `--llm-provider`: LLM provider to use: `lmstudio` (default), `ollama`, or `gemini`
-- `--llm-api-key`: API key for LLM (required for Gemini, can use `GEMINI_API_KEY` env var)
-- `--llm-model`: Override default model name
-- `--headless/--no-headless`: Run browser in headless mode (default: headless)
-- `--merge-sources/--no-merge`: Merge data from multiple sources (default: merge)
+### 7. `detect-scenes` - Find Scene Changes
 
-**Example with multiple sources:**
-
-```bash
-python -m preprocessor scrape-episodes \
-    --urls https://filmweb.pl/serial/Ranczo-2006-276093/season/1/episode/1 \
-    --urls https://wikipedia.org/wiki/Ranczo_S01E01 \
-    --urls https://imdb.com/title/tt0123456 \
-    --output-file ranczo_S01E01_metadata.json \
-    --llm-provider lmstudio
-```
-
-**Example with Gemini:**
-
-```bash
-export GEMINI_API_KEY=your_api_key_here
-python -m preprocessor scrape-episodes \
-    --urls https://example.com/episode \
-    --output-file metadata.json \
-    --llm-provider gemini
-```
-
-**How it works:**
-1. Opens each URL with Playwright (stealth mode)
-2. Extracts all text content from the page
-3. Sends text to LLM for structured extraction
-4. Merges results from multiple sources (if enabled)
-5. Saves to JSON with episode metadata
-
-**Output format:**
-
-```json
-{
-  "sources": ["url1", "url2"],
-  "merged_metadata": {
-    "title": "Episode Title",
-    "description": "Short 1-2 sentence description",
-    "summary": "Detailed 3-5 sentence summary",
-    "season": 1,
-    "episode_number": 1
-  }
-}
-```
-
-### 6. Convert Legacy Elasticsearch Index
-
-Convert old Elasticsearch documents to new format (ad-hoc script):
-
-```bash
-python -m preprocessor convert-elastic \
-    --index-name ranczo \
-    --backup-file backup.json \
-    --dry-run
-```
-
-**Options:**
-
-- `--index-name`: Name of the Elasticsearch index to convert (required)
-- `--backup-file`: Backup file path before conversion (optional)
-- `--dry-run`: Show sample converted document without updating (flag)
-
-**Example workflow:**
-
-```bash
-# Step 1: Dry run to preview changes
-python -m preprocessor convert-elastic \
-    --index-name ranczo \
-    --dry-run
-
-# Step 2: Create backup and convert
-python -m preprocessor convert-elastic \
-    --index-name ranczo \
-    --backup-file ./backups/ranczo_backup.json
-```
-
-**What it does:**
-- Fetches all documents from the index
-- Adds missing fields: `transcription`, `scene_timestamps`, `text_embeddings`, `video_embeddings`
-- Converts legacy `text/start/end` to `transcription.segments` format
-- Updates documents in Elasticsearch with bulk operation
-
-**Note:** This is an ad-hoc script for one-time migration. After conversion, use only the new structure.
-
-### 7. Scene Detection
-
-Detect scene cuts in videos using TransNetV2 or histogram-based method:
+**Purpose**: Identify where scenes change in videos.
 
 ```bash
 python -m preprocessor detect-scenes /path/to/videos \
     --output-dir ./scene_timestamps \
-    --threshold 0.5 \
-    --min-scene-len 10 \
     --device cuda
 ```
 
-**Options:**
+**Common Options**:
+- `--threshold`: Sensitivity (0.3 = sensitive, 0.7 = less sensitive)
+- `--min-scene-len`: Minimum scene duration in frames
 
-- `videos`: Path to video file or directory (required)
-- `--output-dir`: Output directory for scene JSON files (default: `scene_timestamps`)
-- `--threshold`: Scene detection threshold (default: `0.5`)
-- `--min-scene-len`: Minimum scene length in frames (default: `10`)
-- `--device`: Device to use: `cuda` or `cpu` (default: `cuda`)
+### 8. `generate-embeddings` - Create Semantic Search Data
 
-**Example:**
+**Purpose**: Enable AI-powered search by meaning, not just keywords.
 
 ```bash
-# Detect scenes in all videos
-python -m preprocessor detect-scenes ./transcoded_videos \
-    --threshold 0.5 \
+python -m preprocessor generate-embeddings \
+    --transcription-jsons ./transcriptions \
+    --videos ./transcoded_videos \
     --device cuda
-
-# Single video with custom settings
-python -m preprocessor detect-scenes video.mp4 \
-    --output-dir ./scenes \
-    --threshold 0.3 \
-    --min-scene-len 15
 ```
 
-**Output format:**
+**Common Options**:
+- `--no-text`: Skip text embeddings
+- `--no-video`: Skip video embeddings
+- `--keyframe-strategy`: How to sample video (scene_changes recommended)
+- `--keyframe-interval`: Process every Nth keyframe/scene (higher = faster but less detailed)
+
+---
+
+## 📁 Configuration Files
+
+### Episode Metadata (`episodes.json`)
+
+This file tells the system about your episodes:
 
 ```json
 {
-  "total_scenes": 45,
-  "video_info": {
-    "fps": 25.0,
-    "duration": 1234.56,
-    "total_frames": 30864
-  },
-  "detection_settings": {
-    "threshold": 0.5,
-    "min_scene_len": 10,
-    "method": "transnetv2"
-  },
-  "scenes": [
+  "seasons": [
     {
-      "scene_number": 1,
-      "start": {
-        "frame": 0,
-        "seconds": 0.0,
-        "timecode": "00:00:00:00"
-      },
-      "end": {
-        "frame": 125,
-        "seconds": 5.0,
-        "timecode": "00:00:05:00"
-      },
-      "duration": 5.0,
-      "frame_count": 125
+      "season_number": 1,
+      "episodes": [
+        {
+          "episode_number": 1,
+          "title": "Pilot Episode",
+          "premiere_date": "2006-03-05",
+          "viewership": 4500000
+        },
+        {
+          "episode_number": 2,
+          "title": "Second Episode",
+          "premiere_date": "2006-03-12",
+          "viewership": 4600000
+        }
+      ]
     }
   ]
 }
 ```
 
-**Methods:**
-- **TransNetV2** (if installed): Deep learning-based scene detection (recommended)
-- **Histogram-based** (fallback): Color histogram difference detection
-
-### 8. Generate Embeddings
-
-Generate text and video embeddings for semantic search:
-
-```bash
-python -m preprocessor generate-embeddings \
-    --transcription-jsons ./transcriptions \
-    --videos ./transcoded_videos \
-    --device cuda \
-    --keyframe-strategy scene_changes
-```
-
-**Options:**
-
-- `--transcription-jsons`: Directory with transcription JSON files (required)
-- `--videos`: Videos directory for video embeddings (optional)
-- `--output-dir`: Output directory (default: `embeddings`)
-- `--model`: Model name (default: `Alibaba-NLP/gme-Qwen2-VL-7B-Instruct`)
-- `--segments-per-embedding`: Segments to group for text embeddings (default: `5`)
-- `--keyframe-strategy`: Strategy for video embeddings (default: `scene_changes`)
-  - `keyframes`: Extract every N frames
-  - `scene_changes`: Use scene timestamps (recommended)
-  - `color_diff`: Detect color/histogram changes
-- `--generate-text/--no-text`: Generate text embeddings (default: enabled)
-- `--generate-video/--no-video`: Generate video embeddings (default: enabled)
-- `--device`: Device to use: `cuda` or `cpu` (default: `cuda`)
-- `--scene-timestamps-dir`: Scene timestamps directory (for scene_changes strategy)
-
-**Example - Text only:**
-
-```bash
-python -m preprocessor generate-embeddings \
-    --transcription-jsons ./transcriptions \
-    --no-video \
-    --segments-per-embedding 5
-```
-
-**Example - Video only:**
-
-```bash
-python -m preprocessor generate-embeddings \
-    --transcription-jsons ./transcriptions \
-    --videos ./transcoded_videos \
-    --no-text \
-    --keyframe-strategy scene_changes \
-    --device cuda
-```
-
-**Example - Both with GPU:**
-
-```bash
-python -m preprocessor generate-embeddings \
-    --transcription-jsons ./transcriptions \
-    --videos ./transcoded_videos \
-    --device cuda \
-    --keyframe-strategy scene_changes \
-    --segments-per-embedding 5
-```
-
-**How it works:**
-1. **Text embeddings**: Groups N segments, combines text, generates embedding
-2. **Video embeddings**: Extracts keyframes based on strategy, generates embedding per frame
-3. **GPU acceleration**: Runs model on GPU for faster processing
-4. **Updates JSONs**: Adds embeddings directly to transcription JSON files
-
-**Output format (added to transcription JSONs):**
-
-```json
-{
-  "text_embeddings": [
-    {
-      "segment_range": [0, 4],
-      "text": "Combined text from 5 segments...",
-      "embedding": [0.123, -0.456, 0.789, ...]
-    }
-  ],
-  "video_embeddings": [
-    {
-      "frame_number": 125,
-      "timestamp": 5.0,
-      "type": "scene_mid",
-      "embedding": [0.234, -0.567, 0.890, ...]
-    }
-  ]
-}
-```
-
-**Note:** Embeddings are stored but not yet used by search. This is preparation for future semantic search features.
-
-### 9. Season 0 - Special Features
-
-Season 0 is reserved for special materials (movies, deleted scenes, making of, interviews, etc.):
-
-**How it works:**
-
-- Episodes with `season: 0` in episode_info are automatically marked as special features
-- Files are organized in `Specjalne/` directory instead of `Sezon 0/`
-- Elasticsearch documents include:
-  - `is_special_feature: true`
-  - `special_feature_type: "special"` (can be customized)
-
-**Example episodes.json with Season 0:**
+**Special Features (Season 0)**:
+Season 0 is for bonus content (movies, deleted scenes, interviews):
 
 ```json
 {
@@ -505,236 +313,307 @@ Season 0 is reserved for special materials (movies, deleted scenes, making of, i
           "title": "Behind the Scenes",
           "premiere_date": "2006-12-25",
           "viewership": 0
-        },
-        {
-          "episode_number": 2,
-          "title": "Deleted Scenes",
-          "premiere_date": "2007-01-01",
-          "viewership": 0
         }
       ]
-    },
-    {
-      "season_number": 1,
-      "episodes": [...]
     }
   ]
 }
 ```
 
-**Directory structure:**
+### Video File Naming
+
+Videos must include episode numbers:
+- ✅ `SeriesName_E01.mp4` → Season 1, Episode 1
+- ✅ `Show_S02E05.mp4` → Season 2, Episode 5
+- ❌ `video.mp4` → Won't be recognized
+
+---
+
+## 📂 Output Structure
+
+After processing, your files will be organized like this:
 
 ```
 transcoded_videos/
-├── Specjalne/              # Season 0
-│   ├── series_S00E01.mp4
-│   ├── series_S00E02.mp4
-│   └── ...
 ├── Sezon 1/
 │   ├── series_S01E01.mp4
+│   ├── series_S01E02.mp4
 │   └── ...
-└── Sezon 2/
+├── Sezon 2/
+│   └── ...
+└── Specjalne/          # Season 0 (bonus content)
     └── ...
 
 transcriptions/
-├── Specjalne/              # Season 0
-│   ├── series_S00E01.json
-│   └── ...
-└── Sezon 1/
-    └── ...
-```
-
-**Special feature types:**
-
-You can customize `special_feature_type` in episode_info:
-- `"special"` - General special features (default)
-- `"movie"` - Full-length movies
-- `"deleted"` - Deleted scenes
-- `"making_of"` - Making of / behind the scenes
-- `"interview"` - Interviews
-
-## Episode Metadata Format
-
-The `episodes.json` file should follow this structure:
-
-```json
-{
-  "seasons": [
-    {
-      "season_number": 1,
-      "episodes": [
-        {
-          "episode_number": 1,
-          "title": "Episode Title",
-          "premiere_date": "2006-03-05",
-          "viewership": 4500000
-        },
-        {
-          "episode_number": 2,
-          "title": "Another Episode",
-          "premiere_date": "2006-03-12",
-          "viewership": 4600000
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Output Structure
-
-### Transcoded Videos
-
-```
-transcoded_videos/
 ├── Sezon 1/
-│   ├── ranczo_S01E01.mp4
-│   ├── ranczo_S01E02.mp4
+│   ├── series_S01E01.json
 │   └── ...
 └── Sezon 2/
-    ├── ranczo_S02E01.mp4
     └── ...
+
+scene_timestamps/       # Optional: scene detection data
+embeddings/            # Optional: semantic search data
 ```
 
-### Transcription JSONs
+---
 
-```
-transcriptions/
-├── Sezon 1/
-│   ├── ranczo_S01E01.json
-│   ├── ranczo_S01E02.json
-│   └── ...
-└── Sezon 2/
-    ├── ranczo_S02E01.json
-    └── ...
-```
-
-Each transcription JSON contains:
-
-```json
-{
-  "episode_info": {
-    "season": 1,
-    "episode_number": 1,
-    "title": "Episode Title",
-    "premiere_date": "2006-03-05",
-    "viewership": 4500000
-  },
-  "segments": [
-    {
-      "id": 0,
-      "start": 0.0,
-      "end": 5.5,
-      "text": "Transcribed text here...",
-      "author": "",
-      "comment": "",
-      "tags": [],
-      "location": "",
-      "actors": []
-    }
-  ]
-}
-```
-
-## Advanced Usage
-
-### Custom Video Naming
-
-Videos should be named with episode numbers for proper organization:
-
-- `SeriesName_E01.mp4` → Season 1, Episode 1
-- `SeriesName_E02.mp4` → Season 1, Episode 2
-
-The preprocessor uses the episode metadata JSON to map absolute episode numbers to season/episode combinations.
+## 🎯 Advanced Features
 
 ### GPU Acceleration
 
-For faster transcription, use CUDA-enabled GPU:
+**10-50x faster transcription** with NVIDIA GPU:
 
 ```bash
 python -m preprocessor transcribe /path/to/videos \
     --device cuda \
-    --model large-v3-turbo \
-    ...
+    --model large-v3-turbo
 ```
 
-To use CPU only:
+Without GPU (slower but works on any computer):
 
 ```bash
 python -m preprocessor transcribe /path/to/videos \
     --device cpu \
-    --model base \
-    ...
+    --model base
 ```
 
-### Dry Run Mode
+### Custom Video Quality
 
-Test Elasticsearch indexing without actually sending data:
+Balance quality vs file size:
+
+```bash
+python -m preprocessor transcode /path/to/videos \
+    --crf 23        # Lower = better quality (18-28 recommended)
+    --preset slow   # Slower encoding = better compression
+```
+
+### Multiple Language Support
+
+Transcribe in different languages:
+
+```bash
+python -m preprocessor transcribe /path/to/videos \
+    --language English
+```
+
+### Testing Before Full Run
+
+Preview changes without committing:
 
 ```bash
 python -m preprocessor index \
-    --name ranczo \
+    --name my_series \
     --transcription-jsons ./transcriptions \
     --dry-run
 ```
 
-## Pipeline Flow
+---
 
-```
-Videos → Transcode → Extract Audio → Normalize Audio →
-Transcribe with Whisper → Process JSONs → Add Episode Info →
-Index in Elasticsearch
-```
+## 🔍 Troubleshooting
 
-## Troubleshooting
+### Problem: FFmpeg Not Found
 
-### FFmpeg Not Found
+**Solution**: Install FFmpeg:
+- **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+- **Mac**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
 
-Ensure FFmpeg is installed and in your PATH:
+### Problem: CUDA Out of Memory
 
-```bash
-# Ubuntu/Debian
-sudo apt install ffmpeg
-
-# macOS
-brew install ffmpeg
-
-# Windows
-# Download from https://ffmpeg.org/download.html
-```
-
-### CUDA Out of Memory
-
-If GPU runs out of memory during transcription:
-
-1. Use a smaller Whisper model: `--model base` or `--model small`
+**Solutions**:
+1. Use smaller model: `--model small`
 2. Switch to CPU: `--device cpu`
-3. Process videos one at a time
+3. Process one video at a time
 
-### Elasticsearch Connection Error
+### Problem: Elasticsearch Connection Failed
 
-Verify Elasticsearch is running:
-
+**Check if running**:
 ```bash
-curl -X GET "localhost:9200/_cluster/health?pretty"
+curl http://localhost:9200
 ```
 
-Check connection settings in the bot configuration.
+**Start Elasticsearch** if needed (varies by installation method).
 
-### Episode Number Not Detected
+### Problem: Episode Numbers Not Detected
 
-Ensure video files follow the naming pattern:
+**Fix**: Rename files to include episode numbers:
+- From: `video1.mp4`
+- To: `Show_E01.mp4`
 
-- Must contain `E` followed by episode number: `E01`, `E02`, etc.
-- Example: `Ranczo_E01.mp4`, `Show_S01E01.mp4`
+### Problem: Transcription Too Slow
 
-## Performance Tips
+**Solutions**:
+1. Use GPU: `--device cuda`
+2. Use smaller model: `--model base`
+3. Import existing transcriptions instead
 
-1. **GPU Acceleration**: Use CUDA for Whisper transcription (10-50x faster)
-2. **Parallel Processing**: Process multiple videos by running separate preprocessor instances
-3. **Model Selection**: Balance speed vs accuracy:
-   - Fast: `tiny`, `base`
-   - Balanced: `small`, `medium`
-   - Accurate: `large`, `large-v3-turbo`
-4. **Storage**: Ensure sufficient disk space (transcoding can double storage requirements)
+---
 
+## 💡 Performance Tips
+
+1. **Use GPU**: 10-50x faster for transcription
+2. **Choose Right Model**:
+   - Fast development: `base` or `small`
+   - Production quality: `large-v3-turbo`
+3. **Parallel Processing**: Use `--max-workers N` to process multiple episodes simultaneously
+   ```bash
+   # Process 4 episodes at once
+   python -m preprocessor transcode /videos --episodes-info-json episodes.json --max-workers 4
+   python -m preprocessor transcribe /videos --episodes-info-json episodes.json --name ranczo --max-workers 2
+   ```
+4. **Disk Space**: Ensure 2x video size available (transcoding creates copies)
+
+### Parallelization Guidelines
+
+**Transcoding** (`--max-workers`):
+- CPU encoding: Workers = CPU cores / 2
+- GPU encoding (NVENC): Workers = 2-4 (GPU has limited encoders)
+- Example: 8-core CPU with GPU → `--max-workers 2`
+
+**Transcription** (`--max-workers`):
+- For audio normalization only (Whisper runs sequentially)
+- CPU: Workers = CPU cores
+- GPU: Workers = 2-4 (doesn't affect Whisper GPU usage)
+- Example: 16-core CPU → `--max-workers 8`
+
+**Full Pipeline** (`run-all --max-workers`):
+- Conservative: `--max-workers 1` (default, sequential)
+- Moderate: `--max-workers 2` (2 episodes in pipeline)
+- Aggressive: `--max-workers 4` (requires good CPU/GPU)
+
+---
+
+## 🐳 Docker Guide
+
+### Setup
+
+**Prerequisites:**
+- Docker with NVIDIA Container Toolkit installed
+- NVIDIA GPU with CUDA support
+
+**Installation:**
+```bash
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+```
+
+### Build Image
+
+```bash
+cd preprocessor
+docker-compose build
+```
+
+This will:
+- Install CUDA 12.1 with cuDNN
+- Install Python 3.11, FFmpeg, Ollama
+- Download Whisper models (large-v3-turbo)
+- Download embedding model (gme-Qwen2-VL-7B-Instruct)
+- Download TransNetV2 for scene detection
+- Pull Ollama qwen3-coder:30b and configure with 50k context window
+
+### Run Container
+
+```bash
+docker-compose up -d
+docker-compose exec preprocessor bash
+```
+
+### Verify Models
+
+```bash
+init-models.sh
+```
+
+### Example Usage
+
+```bash
+python -m preprocessor run-all /videos \
+    --episodes-info-json episodes.json \
+    --name ranczo \
+    --device cuda
+
+python -m preprocessor generate-embeddings \
+    --transcription-jsons ./transcriptions \
+    --videos /videos \
+    --device cuda
+
+python -m preprocessor scrape-episodes \
+    --urls https://example.com \
+    --output-file episodes.json \
+    --llm-provider ollama
+```
+
+### Volume Mounts
+
+Docker compose automatically mounts:
+- `./videos` → `/videos` (input videos)
+- `./transcoded_videos` → `/app/transcoded_videos`
+- `./transcriptions` → `/app/transcriptions`
+- `./embeddings` → `/app/embeddings`
+- `./scene_timestamps` → `/app/scene_timestamps`
+- `./episodes.json` → `/app/episodes.json`
+- Model cache (persistent volume)
+
+### GPU Settings
+
+To use specific GPU:
+```bash
+CUDA_VISIBLE_DEVICES=0 docker-compose up -d
+```
+
+To use multiple GPUs, edit `docker-compose.yml`:
+```yaml
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all  # Use all GPUs
+          capabilities: [gpu]
+```
+
+### Troubleshooting Docker
+
+**GPU not detected:**
+```bash
+docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
+```
+
+**Rebuild after changes:**
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+**Check logs:**
+```bash
+docker-compose logs -f preprocessor
+```
+
+**Free up space:**
+```bash
+docker system prune -a --volumes
+```
+
+---
+
+## 📞 Getting Help
+
+View all available commands:
+```bash
+python -m preprocessor --help
+```
+
+View help for specific command:
+```bash
+python -m preprocessor transcode --help
+```
+
+---
+
+**Ready to start?** Jump to [Quick Start](#quick-start) and process your first video in minutes!

@@ -1,5 +1,6 @@
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import re
 import subprocess
@@ -26,6 +27,7 @@ class VideoTranscoder:
     DEFAULT_PRESET: str = "slow"
     DEFAULT_CRF: int = 31
     DEFAULT_GOP_SIZE: float = 0.5
+    DEFAULT_MAX_WORKERS: int = 1
 
     def __init__(self, args: dict):
         self.__resolution: Resolution = args["resolution"]
@@ -41,6 +43,7 @@ class VideoTranscoder:
         self.__preset: str = str(args["preset"])
         self.__crf: int = int(args["crf"])
         self.__gop_size: float = float(args["gop_size"])
+        self.__max_workers: int = int(args.get("max_workers", self.DEFAULT_MAX_WORKERS))
 
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
@@ -65,6 +68,7 @@ class VideoTranscoder:
             return self.logger.finalize()
 
         console.print(f"[blue]Found {len(video_files)} video files to transcode[/blue]")
+        console.print(f"[cyan]Using {self.__max_workers} worker(s)[/cyan]")
 
         if self.state_manager:
             progress = self.state_manager.create_progress_bar(
@@ -74,6 +78,12 @@ class VideoTranscoder:
         else:
             progress = Progress()
 
+        if self.__max_workers == 1:
+            return self._work_sequential(video_files, progress)
+        else:
+            return self._work_parallel(video_files, progress)
+
+    def _work_sequential(self, video_files: List[Path], progress: Progress) -> int:
         with progress:
             task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
 
@@ -94,6 +104,39 @@ class VideoTranscoder:
                     self.state_manager.mark_step_completed("transcode", episode_id)
 
                 progress.advance(task)
+
+        return self.logger.finalize()
+
+    def _work_parallel(self, video_files: List[Path], progress: Progress) -> int:
+        with progress:
+            task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
+
+            with ThreadPoolExecutor(max_workers=self.__max_workers) as executor:
+                futures = {}
+                for video_file in video_files:
+                    episode_id = self.__get_episode_id(video_file)
+
+                    if self.state_manager and self.state_manager.is_step_completed("transcode", episode_id):
+                        console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
+                        progress.advance(task)
+                        continue
+
+                    if self.state_manager:
+                        self.state_manager.mark_step_started("transcode", episode_id)
+
+                    future = executor.submit(self.__process_single_video, video_file)
+                    futures[future] = (video_file, episode_id)
+
+                for future in as_completed(futures):
+                    video_file, episode_id = futures[future]
+                    try:
+                        future.result()
+                        if self.state_manager:
+                            self.state_manager.mark_step_completed("transcode", episode_id)
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to process {video_file}: {e}")
+                    finally:
+                        progress.advance(task)
 
         return self.logger.finalize()
 

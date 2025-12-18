@@ -107,6 +107,11 @@ class MultiFormatGenerator:
         generator = SegmentedJsonGenerator(Path("."), output_dir, self.logger)
         segmented_json = generator.convert_to_segmented_format(data)
 
+        segmented_json["episode_info"] = {
+            "season": season,
+            "episode_number": episode,
+        }
+
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(segmented_json, f, indent=2, ensure_ascii=False)
 
@@ -121,6 +126,11 @@ class MultiFormatGenerator:
 
         generator = SimpleJsonGenerator(Path("."), output_dir, self.logger)
         simple_json = generator.convert_to_simple_format(data)
+
+        simple_json["episode_info"] = {
+            "season": season,
+            "episode_number": episode,
+        }
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(simple_json, f, indent=2, ensure_ascii=False)

@@ -66,6 +66,8 @@ class TranscriptionGenerator:
         normalizer_output = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"
 
+        max_workers = args.get("max_workers", 1)
+
         self.__audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.__input_videos,
             output_dir=normalizer_output,

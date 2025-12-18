@@ -1,5 +1,6 @@
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import (
     Dict,
@@ -30,6 +31,8 @@ class EmbeddingGenerator:
     DEFAULT_OUTPUT_DIR = Path("embeddings")
     DEFAULT_SEGMENTS_PER_EMBEDDING = 5
     DEFAULT_KEYFRAME_STRATEGY = "scene_changes"
+    DEFAULT_KEYFRAME_INTERVAL = 4
+    DEFAULT_MAX_WORKERS = 1
     OPTIMAL_IMAGE_SIZE = (1335, 751)
     MAX_PIXEL_BUDGET = 1003520
 
@@ -40,8 +43,10 @@ class EmbeddingGenerator:
         self.model_name: str = args.get("model", self.DEFAULT_MODEL)
         self.segments_per_embedding: int = args.get("segments_per_embedding", self.DEFAULT_SEGMENTS_PER_EMBEDDING)
         self.keyframe_strategy: str = args.get("keyframe_strategy", self.DEFAULT_KEYFRAME_STRATEGY)
+        self.keyframe_interval: int = args.get("keyframe_interval", self.DEFAULT_KEYFRAME_INTERVAL)
         self.generate_text: bool = args.get("generate_text", True)
         self.generate_video: bool = args.get("generate_video", True)
+        self.max_workers: int = args.get("max_workers", self.DEFAULT_MAX_WORKERS)
         self.device: str = args.get("device", "cuda" if torch.cuda.is_available() else "cpu")
         self.scene_timestamps_dir: Optional[Path] = args.get("scene_timestamps_dir")
 
@@ -64,6 +69,8 @@ class EmbeddingGenerator:
     def _exec(self) -> None:
         console.print(f"[cyan]Loading model: {self.model_name}[/cyan]")
         console.print(f"[cyan]Device: {self.device}[/cyan]")
+        console.print(f"[cyan]Parallel workers: {self.max_workers}[/cyan]")
+        console.print(f"[yellow]DEBUG: self.videos={self.videos}, self.generate_video={self.generate_video}[/yellow]")
 
         self._load_model()
 
@@ -74,6 +81,14 @@ class EmbeddingGenerator:
 
         console.print(f"[blue]Processing {len(transcription_files)} transcriptions...[/blue]")
 
+        if self.max_workers == 1:
+            self._process_sequential(transcription_files)
+        else:
+            self._process_parallel(transcription_files)
+
+        console.print("[green]Embedding generation completed[/green]")
+
+    def _process_sequential(self, transcription_files: List[Path]) -> None:
         with Progress() as progress:
             task = progress.add_task("[cyan]Generating embeddings...", total=len(transcription_files))
 
@@ -85,7 +100,21 @@ class EmbeddingGenerator:
                 finally:
                     progress.advance(task)
 
-        console.print("[green]Embedding generation completed[/green]")
+    def _process_parallel(self, transcription_files: List[Path]) -> None:
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Generating embeddings...", total=len(transcription_files))
+
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {executor.submit(self._process_transcription, f): f for f in transcription_files}
+
+                for future in as_completed(futures):
+                    trans_file = futures[future]
+                    try:
+                        future.result()
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to process {trans_file}: {e}")
+                    finally:
+                        progress.advance(task)
 
     def _load_model(self) -> None:
         try:
@@ -116,8 +145,18 @@ class EmbeddingGenerator:
 
         if self.generate_video and self.videos:
             video_path = self._get_video_path(trans_file, data)
+            console.print(f"[yellow]Debug: self.videos={self.videos}, self.generate_video={self.generate_video}[/yellow]")
+            console.print(f"[yellow]Debug: video_path={video_path}, exists={video_path.exists() if video_path else 'N/A (None)'}[/yellow]")
             if video_path and video_path.exists():
+                console.print(f"[green]Debug: Video found! Processing video embeddings...[/green]")
+                if self.scene_timestamps_dir and "scene_timestamps" not in data:
+                    scene_data = self._load_scene_timestamps(video_path)
+                    console.print(f"[yellow]Debug: Loaded scene_data with {len(scene_data.get('scenes', []))} scenes[/yellow]" if scene_data else "[yellow]Debug: No scene_data loaded[/yellow]")
+                    if scene_data:
+                        data["scene_timestamps"] = scene_data
                 video_embeddings = self._generate_video_embeddings(video_path, data)
+            else:
+                console.print(f"[red]Debug: Video not found or video_path is None[/red]")
 
         data["text_embeddings"] = text_embeddings
         data["video_embeddings"] = video_embeddings
@@ -166,6 +205,29 @@ class EmbeddingGenerator:
         self.logger.error(f"Unknown keyframe strategy: {self.keyframe_strategy}")
         return []
 
+    def _load_scene_timestamps(self, video_path: Path) -> Optional[Dict]:
+        if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
+            return None
+
+        import re
+        video_name = video_path.stem
+        episode_match = re.search(r'S\d{2}E\d{2}', video_name, re.IGNORECASE)
+        if not episode_match:
+            return None
+
+        episode_code = episode_match.group(0).upper()
+        scene_files = list(self.scene_timestamps_dir.glob(f"*{episode_code}*_scenes.json"))
+
+        if not scene_files:
+            return None
+
+        try:
+            with open(scene_files[0], "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error(f"Failed to load scene timestamps from {scene_files[0]}: {e}")
+            return None
+
     def _generate_from_scenes(self, video_path: Path, data: Dict) -> List[Dict]:
         scene_timestamps = data.get("scene_timestamps", {})
         scenes = scene_timestamps.get("scenes", [])
@@ -177,7 +239,10 @@ class EmbeddingGenerator:
         embeddings = []
         cap = cv2.VideoCapture(str(video_path))
 
-        for scene in scenes:
+        for i, scene in enumerate(scenes):
+            if i % self.keyframe_interval != 0:
+                continue
+
             start_frame = scene.get("start", {}).get("frame", 0)
             mid_frame = start_frame + (scene.get("frame_count", 1) // 2)
 
@@ -199,7 +264,9 @@ class EmbeddingGenerator:
                     },
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
+                import traceback
                 self.logger.error(f"Failed to generate video embedding for frame {mid_frame}: {e}")
+                self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         cap.release()
         return embeddings
@@ -210,24 +277,28 @@ class EmbeddingGenerator:
         fps = cap.get(cv2.CAP_PROP_FPS)
 
         frame_num = 0
+        keyframe_count = 0
+        keyframe_interval_frames = int(fps * 5)
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
 
-            if frame_num % int(fps * 5) == 0:
-                try:
-                    embedding = self._encode_frame(frame)
-                    embeddings.append(
-                        {
-                            "frame_number": int(frame_num),
-                            "timestamp": float(frame_num / fps),
-                            "type": "keyframe",
-                            "embedding": embedding.tolist(),
-                        },
-                    )
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Failed to generate video embedding for frame {frame_num}: {e}")
+            if frame_num % keyframe_interval_frames == 0:
+                if keyframe_count % self.keyframe_interval == 0:
+                    try:
+                        embedding = self._encode_frame(frame)
+                        embeddings.append(
+                            {
+                                "frame_number": int(frame_num),
+                                "timestamp": float(frame_num / fps),
+                                "type": "keyframe",
+                                "embedding": embedding.tolist(),
+                            },
+                        )
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to generate video embedding for frame {frame_num}: {e}")
+                keyframe_count += 1
 
             frame_num += 1
 
@@ -265,31 +336,8 @@ class EmbeddingGenerator:
         return embeddings
 
     def _encode_text(self, text: str) -> np.ndarray:
-        inputs = self.processor(text=text, return_tensors="pt", padding=True, truncation=True)
-        if self.device == "cuda":
-            inputs = {k: v.cuda() for k, v in inputs.items()}
-
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            if isinstance(outputs, torch.Tensor):
-                if outputs.dim() == 2:
-                    embedding = outputs[0].cpu().numpy()
-                elif outputs.dim() == 3:
-                    embedding = outputs[:, 0, :].cpu().numpy()[0]
-                else:
-                    embedding = outputs.cpu().numpy().reshape(-1)
-            elif hasattr(outputs, 'pooler_output') and outputs.pooler_output is not None:
-                embedding = outputs.pooler_output.cpu().numpy()[0]
-            elif hasattr(outputs, 'last_hidden_state'):
-                last_hidden = outputs.last_hidden_state
-                if last_hidden.dim() == 2:
-                    embedding = last_hidden[0].cpu().numpy()
-                else:
-                    embedding = last_hidden[:, 0, :].cpu().numpy()[0]
-            else:
-                embedding = outputs.cpu().numpy().reshape(-1)
-
-        return embedding
+        embeddings = self.model.get_text_embeddings(texts=[text])
+        return embeddings[0].cpu().numpy()
 
     def _encode_frame(self, frame: np.ndarray) -> np.ndarray:
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -305,31 +353,8 @@ class EmbeddingGenerator:
             if current_pixels > self.MAX_PIXEL_BUDGET:
                 pil_image = pil_image.resize(self.OPTIMAL_IMAGE_SIZE, Image.Resampling.LANCZOS)
 
-        inputs = self.processor(images=pil_image, return_tensors="pt")
-        if self.device == "cuda":
-            inputs = {k: v.cuda() for k, v in inputs.items()}
-
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            if isinstance(outputs, torch.Tensor):
-                if outputs.dim() == 2:
-                    embedding = outputs[0].cpu().numpy()
-                elif outputs.dim() == 3:
-                    embedding = outputs[:, 0, :].cpu().numpy()[0]
-                else:
-                    embedding = outputs.cpu().numpy().reshape(-1)
-            elif hasattr(outputs, 'pooler_output') and outputs.pooler_output is not None:
-                embedding = outputs.pooler_output.cpu().numpy()[0]
-            elif hasattr(outputs, 'last_hidden_state'):
-                last_hidden = outputs.last_hidden_state
-                if last_hidden.dim() == 2:
-                    embedding = last_hidden[0].cpu().numpy()
-                else:
-                    embedding = last_hidden[:, 0, :].cpu().numpy()[0]
-            else:
-                embedding = outputs.cpu().numpy().reshape(-1)
-
-        return embedding
+        embeddings = self.model.get_image_embeddings(images=[pil_image])
+        return embeddings[0].cpu().numpy()
 
     def _get_video_path(self, trans_file: Path, data: Dict) -> Optional[Path]:
         if not self.videos:
@@ -342,14 +367,22 @@ class EmbeddingGenerator:
         if season is None or episode is None:
             return None
 
-        series_name = trans_file.parent.parent.name.lower()
-        video_name = f"{series_name}_S{season:02d}E{episode:02d}.mp4"
-
         if self.videos.is_file():
             return self.videos
 
-        video_path = self.videos / f"Sezon {season}" / video_name
-        if not video_path.exists():
-            video_path = self.videos / video_name
+        import re
+        episode_code = f"S{season:02d}E{episode:02d}"
 
-        return video_path if video_path.exists() else None
+        search_dirs = [
+            self.videos / f"Sezon {season}",
+            self.videos,
+        ]
+
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+            for video_file in search_dir.glob("*.mp4"):
+                if re.search(episode_code, video_file.name, re.IGNORECASE):
+                    return video_file
+
+        return None

@@ -1,0 +1,87 @@
+{
+  "seasons": [
+    {
+      "season_number": 1,
+      "episodes": [
+        {
+          "episode_number": 1,
+          "title": "Spadek",
+          "premiere_date": "2006-03-05",
+          "viewership": 4396564
+        },
+        {
+          "episode_number": 2,
+          "title": "Goście z zaświatów",
+          "premiere_date": "2006-03-12",
+          "viewership": 4308423
+        },
+        {
+          "episode_number": 3,
+          "title": "Ksiądz z inicjatywą",
+          "premiere_date": "2006-03-19",
+          "viewership": 4674041
+        },
+        {
+          "episode_number": 4,
+          "title": "Otrzeźwienie",
+          "premiere_date": "2006-03-26",
+          "viewership": 4917123
+        },
+        {
+          "episode_number": 5,
+          "title": "Wieść gminna",
+          "premiere_date": "2006-04-08",
+          "viewership": 4930817
+        },
+        {
+          "episode_number": 6,
+          "title": "Racja gminy",
+          "premiere_date": "2006-04-23",
+          "viewership": 4416068
+        },
+        {
+          "episode_number": 7,
+          "title": "Podwójny agent",
+          "premiere_date": "2006-04-30",
+          "viewership": 4314409
+        },
+        {
+          "episode_number": 8,
+          "title": "Kozy ofiarne",
+          "premiere_date": "2006-05-07",
+          "viewership": 4245310
+        },
+        {
+          "episode_number": 9,
+          "title": "Odwyk i antykoncepcja",
+          "premiere_date": "2006-05-07",
+          "viewership": 4832273
+        },
+        {
+          "episode_number": 10,
+          "title": "Porwanie",
+          "premiere_date": "2006-05-14",
+          "viewership": 4459323
+        },
+        {
+          "episode_number": 11,
+          "title": "Wspólny wróg",
+          "premiere_date": "2006-05-14",
+          "viewership": 5017929
+        },
+        {
+          "episode_number": 12,
+          "title": "Honor gminy",
+          "premiere_date": "2006-05-21",
+          "viewership": 5218512
+        },
+        {
+          "episode_number": 13,
+          "title": "Wielkie wybory",
+          "premiere_date": "2006-05-21",
+          "viewership": 5611213
+        }
+      ]
+    }
+  ]
+}

@@ -34,14 +34,14 @@ class EpisodeMetadata(BaseModel):
 class LLMProvider:
     PROVIDERS = {
         "lmstudio": {
-            "base_url": "http://192.168.1.209:1235/v1",
+            "base_url": "http://127.0.0.1:1235/v1",
             "api_key": "lm-studio",
-            "model": "qwen/qwen3-coder-30b",
+            "model": "qwen3-coder-30b-a3b-instruct-1m",
         },
         "ollama": {
             "base_url": "http://localhost:11434/v1",
             "api_key": "ollama",
-            "model": "gpt-oss:20b",
+            "model": "qwen3-coder-50k",
         },
         "gemini": {
             "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
