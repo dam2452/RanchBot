@@ -58,3 +58,4 @@ preprocessor/tests/README.md
 /preprocessor/tests/output_whisper
 USAGE_LOG.md
 /data
+/preprocessor/preprocessed
