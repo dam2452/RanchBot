@@ -19,12 +19,12 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       # Set to 'false' to skip model downloads on startup
       - PULL_EXTRA_MODELS=true
-      # Model cache paths
-      - HF_HOME=/app/.cache/huggingface
-      - TRANSFORMERS_CACHE=/app/.cache/huggingface
-      - TORCH_HOME=/app/.cache/torch
-      - WHISPER_CACHE=/app/.cache/whisper
-      - OLLAMA_MODELS=/root/.ollama/models
+      # Model cache paths (unified under /models)
+      - HF_HOME=/models/huggingface
+      - TRANSFORMERS_CACHE=/models/huggingface
+      - TORCH_HOME=/models/torch
+      - WHISPER_CACHE=/models/whisper
+      - OLLAMA_MODELS=/models/ollama
 
     volumes:
       # Input data (read-only)
@@ -44,12 +44,10 @@ services:
       # - /mnt/ramdisk:/mnt/ramdisk
 
       # =========================================================
-      # MODEL CACHE VOLUMES - persist across rebuilds!
+      # MODEL CACHE VOLUME - persist across rebuilds!
       # =========================================================
-      # ML models (HuggingFace, Whisper, TransNet, Torch)
-      - model_cache:/app/.cache
-      # Ollama models (qwen3-coder, etc.)
-      - ollama_models:/root/.ollama
+      # All ML models (HuggingFace, Whisper, TransNet, Torch, Ollama)
+      - ml_models:/models
 
     ports:
       - "11434:11434"
@@ -68,18 +66,15 @@ services:
     command: bash
 
 # =============================================================================
-# NAMED VOLUMES - These persist on the host filesystem!
+# NAMED VOLUMES - Persist on the host filesystem!
 # =============================================================================
-# Location: /var/lib/docker/volumes/
+# Location: /var/lib/docker/volumes/ranczo-ml-models
 #
-# To inspect: docker volume inspect ranczo-preprocessor_model_cache
-# To backup:  docker run --rm -v model_cache:/data -v $(pwd):/backup alpine tar czf /backup/models.tar.gz /data
-# To clear:   docker volume rm ranczo-preprocessor_model_cache
+# To inspect: docker volume inspect ranczo-ml-models
+# To backup:  docker run --rm -v ml_models:/data -v $(pwd):/backup alpine tar czf /backup/models.tar.gz /data
+# To clear:   docker volume rm ranczo-ml-models
 # =============================================================================
 volumes:
-  model_cache:
-    name: ranczo-model-cache
-    driver: local
-  ollama_models:
-    name: ranczo-ollama-models
+  ml_models:
+    name: ranczo-ml-models
     driver: local

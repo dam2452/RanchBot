@@ -82,7 +82,6 @@ class StateManager:
 
     def __init__(self, series_name: str, working_dir: Path = Path(".")) -> None:
         self.__series_name: str = series_name
-        self.__working_dir: Path = working_dir
         self.__state_file: Path = working_dir / self.STATE_FILE
         self.__state: Optional[ProcessingState] = None
         self.__cleanup_registered: bool = False
@@ -164,7 +163,7 @@ class StateManager:
                 try:
                     temp_path.unlink()
                     console.print(f"[yellow]Removed temp file: {temp_file}[/yellow]")
-                except Exception as e:
+                except OSError as e:
                     console.print(f"[red]Failed to remove {temp_file}: {e}[/red]")
 
         self.__state.in_progress = None

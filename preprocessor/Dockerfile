@@ -1,15 +1,18 @@
 # =============================================================================
-# OPTIMIZED DOCKERFILE - All models cached in external volumes
+# OPTIMIZED DOCKERFILE - All models cached in single volume
 # =============================================================================
 #
 # CACHE STRATEGY:
-#   /app/.cache/          → model_cache volume (HuggingFace, Torch, Whisper)
-#   /root/.ollama/        → ollama_models volume (Ollama models)
+#   /models/              → ml_models volume (all ML models)
+#     ├── huggingface/    → HuggingFace models
+#     ├── torch/          → PyTorch models
+#     ├── whisper/        → Whisper models
+#     └── ollama/         → Ollama models
 #
 # USAGE:
 #   docker-compose build
 #   docker-compose up -d
-#   # First run auto-downloads all models to volumes
+#   # First run auto-downloads all models to volume
 #   # Subsequent runs/rebuilds use cached models
 #
 # =============================================================================
@@ -73,18 +76,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # -----------------------------------------------------------------------------
 # Layer 4: Environment configuration
 # -----------------------------------------------------------------------------
-ENV HF_HOME=/app/.cache/huggingface
-ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
-ENV TORCH_HOME=/app/.cache/torch
-ENV WHISPER_CACHE=/app/.cache/whisper
-ENV OLLAMA_MODELS=/root/.ollama/models
+ENV HF_HOME=/models/huggingface
+ENV TRANSFORMERS_CACHE=/models/huggingface
+ENV TORCH_HOME=/models/torch
+ENV WHISPER_CACHE=/models/whisper
+ENV OLLAMA_MODELS=/models/ollama
 ENV LD_LIBRARY_PATH="/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.11/dist-packages/ctranslate2.libs:${LD_LIBRARY_PATH}"
 
-# Create cache directories (will be overlaid by volumes)
-RUN mkdir -p /app/.cache/huggingface \
-             /app/.cache/torch \
-             /app/.cache/whisper \
-             /root/.ollama/models
+# Create model directories (will be overlaid by volume)
+RUN mkdir -p /models/huggingface \
+             /models/torch \
+             /models/whisper \
+             /models/ollama
 
 # -----------------------------------------------------------------------------
 # Layer 5: Scripts (changes rarely)

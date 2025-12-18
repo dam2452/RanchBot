@@ -1,10 +1,10 @@
-import json
-import logging
 from concurrent.futures import (
     Future,
     ThreadPoolExecutor,
     as_completed,
 )
+import json
+import logging
 from pathlib import Path
 import re
 import subprocess
@@ -86,8 +86,7 @@ class VideoTranscoder:
 
         if self.__max_workers == 1:
             return self.__work_sequential(video_files, progress)
-        else:
-            return self.__work_parallel(video_files, progress)
+        return self.__work_parallel(video_files, progress)
 
     def __work_sequential(self, video_files: List[Path], progress: Progress) -> int:
         with progress:
@@ -139,7 +138,7 @@ class VideoTranscoder:
                         future.result()
                         if self.__state_manager:
                             self.__state_manager.mark_step_completed("transcode", episode_id)
-                    except Exception as e:
+                    except (subprocess.CalledProcessError, OSError, ValueError) as e:
                         self.__logger.error(f"Failed to process {video_file}: {e}")
                     finally:
                         progress.advance(task)
@@ -186,7 +185,7 @@ class VideoTranscoder:
             season_num: int = season.get("season_number", 1)
             episodes: List[Dict[str, Any]] = sorted(
                 season.get("episodes", []),
-                key=lambda ep: ep["episode_number"]
+                key=lambda ep: ep["episode_number"],
             )
 
             for idx, ep in enumerate(episodes):

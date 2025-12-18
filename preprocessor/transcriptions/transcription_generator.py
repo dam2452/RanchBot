@@ -10,8 +10,8 @@ from typing import (
 from rich.console import Console
 
 from preprocessor.core.state_manager import StateManager
-from preprocessor.transcriptions.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcriptions.generators.multi_format_generator import MultiFormatGenerator
+from preprocessor.transcriptions.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcriptions.processors.normalized_audio_processor import NormalizedAudioProcessor
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -33,22 +33,15 @@ class TranscriptionGenerator:
 
         ramdisk_path = args.get("ramdisk_path")
         if ramdisk_path and Path(ramdisk_path).exists():
-            self.__temp_dir: tempfile.TemporaryDirectory = (
-                tempfile.TemporaryDirectory(dir=str(ramdisk_path))
-            )
+            self.__temp_dir = tempfile.TemporaryDirectory(dir=str(ramdisk_path))
         else:
-            self.__temp_dir: tempfile.TemporaryDirectory = (
-                tempfile.TemporaryDirectory()
-            )
+            self.__temp_dir = tempfile.TemporaryDirectory()
 
         self.__logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
             loglevel=logging.DEBUG,
             error_exit_code=2,
         )
-
-        self.__state_manager: Optional[StateManager] = args.get("state_manager")
-        self.__series_name: str = args.get("series_name", "unknown")
 
         self.__init_workers(args)
 
@@ -63,8 +56,10 @@ class TranscriptionGenerator:
             self.__logger.info("Step 3/3: Generating multi-format output...")
             self.__multi_format_generator()
 
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError) as e:
             self.__logger.error(f"Error generating transcriptions: {e}")
+        finally:
+            self.__temp_dir.cleanup()
 
         return self.__logger.finalize()
 
