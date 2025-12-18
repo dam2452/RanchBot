@@ -3,8 +3,10 @@ import json
 import logging
 from pathlib import Path
 from typing import (
+    Any,
     Awaitable,
     Callable,
+    Dict,
     List,
     Optional,
 )
@@ -17,14 +19,14 @@ from elasticsearch.helpers import (
 from rich.console import Console
 
 from bot.search.elastic_search_manager import ElasticSearchManager
-from preprocessor.state_manager import StateManager
+from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 console = Console()
 
 
 class ElasticSearchIndexer:
-    def __init__(self, args: dict):
+    def __init__(self, args: Dict[str, Any]) -> None:
         self.__dry_run = args.get("dry_run", False)
         self.__name = args["name"]
         self.__transcription_jsons = args["transcription_jsons"]

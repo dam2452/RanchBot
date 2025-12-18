@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import re
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -11,7 +12,7 @@ from typing import (
 from rich.console import Console
 from rich.progress import Progress
 
-from preprocessor.state_manager import StateManager
+from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.episode_utils import (
     build_output_path,
     get_episode_metadata,
@@ -22,7 +23,7 @@ console = Console()
 
 
 class TranscriptionImporter:
-    def __init__(self, args: dict):
+    def __init__(self, args: Dict[str, Any]) -> None:
         self.source_dir: Path = Path(args["source_dir"])
         self.output_dir: Path = Path(args["output_dir"])
         self.episodes_info_json: Optional[Path] = args.get("episodes_info_json")
@@ -48,7 +49,7 @@ class TranscriptionImporter:
                 self.episodes_info = json.load(f)
 
     def work(self) -> int:
-        json_files = self._find_transcription_files()
+        json_files = self.__find_transcription_files()
 
         if not json_files:
             self.logger.warning(f"No transcription files found in {self.source_dir}")
@@ -60,7 +61,7 @@ class TranscriptionImporter:
             task = progress.add_task("[cyan]Importing transcriptions...", total=len(json_files))
 
             for json_file in json_files:
-                episode_id = self._extract_episode_id(json_file)
+                episode_id = self.__extract_episode_id(json_file)
 
                 if self.state_manager and self.state_manager.is_step_completed("import", episode_id):
                     console.print(f"[yellow]Skipping (already imported): {episode_id}[/yellow]")
@@ -71,7 +72,7 @@ class TranscriptionImporter:
                     self.state_manager.mark_step_started("import", episode_id)
 
                 try:
-                    self._import_single_file(json_file)
+                    self.__import_single_file(json_file)
                     if self.state_manager:
                         self.state_manager.mark_step_completed("import", episode_id)
                 except Exception as e:  # pylint: disable=broad-exception-caught
@@ -81,7 +82,7 @@ class TranscriptionImporter:
 
         return self.logger.finalize()
 
-    def _find_transcription_files(self) -> List[Path]:
+    def __find_transcription_files(self) -> List[Path]:
         if self.format_type == "11labs_segmented":
             pattern = "*_segmented.json"
         elif self.format_type == "11labs":
@@ -95,7 +96,7 @@ class TranscriptionImporter:
         return files
 
     @staticmethod
-    def _extract_episode_id(file_path: Path) -> str:
+    def __extract_episode_id(file_path: Path) -> str:
         match = re.search(r'S(\d+)E(\d+)', file_path.name, re.IGNORECASE)
         if match:
             return f"S{match.group(1)}E{match.group(2)}"
@@ -106,19 +107,19 @@ class TranscriptionImporter:
 
         return file_path.stem
 
-    def _import_single_file(self, json_file: Path) -> None:
+    def __import_single_file(self, json_file: Path) -> None:
         with open(json_file, "r", encoding="utf-8") as f:
             source_data = json.load(f)
 
         if self.format_type == "11labs_segmented":
-            converted_data = self._convert_11labs_segmented(source_data, json_file)
+            converted_data = self.__convert_11labs_segmented(source_data, json_file)
         elif self.format_type == "11labs":
-            converted_data = self._convert_11labs_full(source_data, json_file)
+            converted_data = self.__convert_11labs_full(source_data, json_file)
         else:
             self.logger.error(f"Unknown format type: {self.format_type}")
             return
 
-        season_num, episode_num = self._extract_season_episode(json_file)
+        season_num, episode_num = self.__extract_season_episode(json_file)
         episode_info = get_episode_metadata(self.episodes_info, season_num, episode_num)
 
         if episode_info:
@@ -133,7 +134,7 @@ class TranscriptionImporter:
         self.logger.info(f"Imported: {json_file.name} -> {output_file.name}")
 
     @staticmethod
-    def _convert_11labs_segmented(data: Dict, source_file: Path) -> Dict:
+    def __convert_11labs_segmented(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
         segments = []
 
         for i, segment in enumerate(data.get("segments", [])):
@@ -157,7 +158,7 @@ class TranscriptionImporter:
         }
 
     @staticmethod
-    def _convert_11labs_full(data: Dict, source_file: Path) -> Dict:
+    def __convert_11labs_full(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
         segments = []
         words = data.get("words", [])
 
@@ -205,7 +206,7 @@ class TranscriptionImporter:
         }
 
     @staticmethod
-    def _extract_season_episode(file_path: Path) -> tuple[int, int]:
+    def __extract_season_episode(file_path: Path) -> tuple[int, int]:
         match = re.search(r'S(\d+)E(\d+)', file_path.name, re.IGNORECASE)
         if match:
             return int(match.group(1)), int(match.group(2))

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import time
 from typing import (
+    Any,
     Dict,
     Optional,
 )
@@ -54,20 +55,20 @@ class ElevenLabsEngine:
 
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def transcribe(self, audio_path: Path) -> Dict:
+    def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         console.print(f"[cyan]Transcribing with 11labs: {audio_path.name}[/cyan]")
 
         if not audio_path.exists():
             raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
-        transcription_id = self._submit_job(audio_path)
-        result = self._poll_for_results(transcription_id)
+        transcription_id = self.__submit_job(audio_path)
+        result = self.__poll_for_results(transcription_id)
 
         console.print(f"[green]Transcription completed: {audio_path.name}[/green]")
 
-        return self._convert_to_unified_format(result)
+        return self.__convert_to_unified_format(result)
 
-    def _submit_job(self, audio_path: Path) -> str:
+    def __submit_job(self, audio_path: Path) -> str:
         try:
             with open(audio_path, "rb") as audio_file:
                 audio_data = audio_file.read()
@@ -93,7 +94,7 @@ class ElevenLabsEngine:
             self.logger.error(f"API error during job submission: {e.body}")
             raise
 
-    def _poll_for_results(self, transcription_id: str):
+    def __poll_for_results(self, transcription_id: str):
         self.logger.info(f"Polling for results (ID: {transcription_id})...")
 
         max_attempts = 60
@@ -120,7 +121,7 @@ class ElevenLabsEngine:
         raise TimeoutError(f"Transcription timeout after {max_attempts} attempts")
 
     @staticmethod
-    def _convert_to_unified_format(result) -> Dict:
+    def __convert_to_unified_format(result) -> Dict[str, Any]:
         unified_data = {
             "text": result.text,
             "language_code": result.language_code,

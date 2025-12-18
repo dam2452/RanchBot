@@ -4,7 +4,7 @@ from typing import (
     Dict,
 )
 
-from preprocessor.transcriptions.base_generator import BaseTranscriptionGenerator
+from preprocessor.transcriptions.generators.base_generator import BaseTranscriptionGenerator
 
 
 class TxtGenerator(BaseTranscriptionGenerator):

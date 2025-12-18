@@ -4,7 +4,7 @@ from typing import (
     Dict,
 )
 
-from preprocessor.transcriptions.base_generator import BaseTranscriptionGenerator
+from preprocessor.transcriptions.generators.base_generator import BaseTranscriptionGenerator
 
 
 class SrtGenerator(BaseTranscriptionGenerator):
@@ -27,8 +27,8 @@ class SrtGenerator(BaseTranscriptionGenerator):
             if not text:
                 continue
 
-            start_time = self._format_timestamp(start)
-            end_time = self._format_timestamp(end)
+            start_time = self.__format_timestamp(start)
+            end_time = self.__format_timestamp(end)
 
             srt_lines.append(f"{index}")
             srt_lines.append(f"{start_time} --> {end_time}")
@@ -40,7 +40,7 @@ class SrtGenerator(BaseTranscriptionGenerator):
         return "\n".join(srt_lines)
 
     @staticmethod
-    def _format_timestamp(seconds: float) -> str:
+    def __format_timestamp(seconds: float) -> str:
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)

@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from preprocessor.transcription_importer import TranscriptionImporter
+from preprocessor.transcriptions.transcription_importer import TranscriptionImporter
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

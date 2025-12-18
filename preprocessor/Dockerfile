@@ -90,8 +90,8 @@ RUN mkdir -p /app/.cache/huggingface \
 # Layer 5: Scripts (changes rarely)
 # -----------------------------------------------------------------------------
 COPY preprocessor/entrypoint.sh /app/entrypoint.sh
-COPY preprocessor/download_models.py /app/download_models.py
-RUN chmod +x /app/entrypoint.sh /app/download_models.py
+COPY preprocessor/scripts/download_models.py /app/download_models.py
+RUN chmod +x /app/entrypoint.sh
 
 # -----------------------------------------------------------------------------
 # Layer 6: Application code (changes frequently - LAST!)

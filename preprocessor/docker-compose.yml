@@ -36,6 +36,14 @@ services:
       - ./preprocessed:/app/preprocessed
 
       # =========================================================
+      # PERFORMANCE: RAMDISK for temporary files (64GB RAM)
+      # =========================================================
+      # Uncomment for 20-30% faster audio normalization
+      # Requires: 16GB free RAM, tmpfs mount on host
+      # Setup: sudo mount -t tmpfs -o size=16G tmpfs /mnt/ramdisk
+      # - /mnt/ramdisk:/mnt/ramdisk
+
+      # =========================================================
       # MODEL CACHE VOLUMES - persist across rebuilds!
       # =========================================================
       # ML models (HuggingFace, Whisper, TransNet, Torch)

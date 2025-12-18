@@ -1,87 +1,87 @@
 {
   "seasons": [
     {
-      "season_number": 1,
       "episodes": [
         {
           "episode_number": 1,
-          "title": "Spadek",
           "premiere_date": "2006-03-05",
+          "title": "Spadek",
           "viewership": 4396564
         },
         {
           "episode_number": 2,
-          "title": "Goście z zaświatów",
           "premiere_date": "2006-03-12",
+          "title": "Go\u015bcie z za\u015bwiat\u00f3w",
           "viewership": 4308423
         },
         {
           "episode_number": 3,
-          "title": "Ksiądz z inicjatywą",
           "premiere_date": "2006-03-19",
+          "title": "Ksi\u0105dz z inicjatyw\u0105",
           "viewership": 4674041
         },
         {
           "episode_number": 4,
-          "title": "Otrzeźwienie",
           "premiere_date": "2006-03-26",
+          "title": "Otrze\u017awienie",
           "viewership": 4917123
         },
         {
           "episode_number": 5,
-          "title": "Wieść gminna",
           "premiere_date": "2006-04-08",
+          "title": "Wie\u015b\u0107 gminna",
           "viewership": 4930817
         },
         {
           "episode_number": 6,
-          "title": "Racja gminy",
           "premiere_date": "2006-04-23",
+          "title": "Racja gminy",
           "viewership": 4416068
         },
         {
           "episode_number": 7,
-          "title": "Podwójny agent",
           "premiere_date": "2006-04-30",
+          "title": "Podw\u00f3jny agent",
           "viewership": 4314409
         },
         {
           "episode_number": 8,
-          "title": "Kozy ofiarne",
           "premiere_date": "2006-05-07",
+          "title": "Kozy ofiarne",
           "viewership": 4245310
         },
         {
           "episode_number": 9,
-          "title": "Odwyk i antykoncepcja",
           "premiere_date": "2006-05-07",
+          "title": "Odwyk i antykoncepcja",
           "viewership": 4832273
         },
         {
           "episode_number": 10,
-          "title": "Porwanie",
           "premiere_date": "2006-05-14",
+          "title": "Porwanie",
           "viewership": 4459323
         },
         {
           "episode_number": 11,
-          "title": "Wspólny wróg",
           "premiere_date": "2006-05-14",
+          "title": "Wsp\u00f3lny wr\u00f3g",
           "viewership": 5017929
         },
         {
           "episode_number": 12,
-          "title": "Honor gminy",
           "premiere_date": "2006-05-21",
+          "title": "Honor gminy",
           "viewership": 5218512
         },
         {
           "episode_number": 13,
-          "title": "Wielkie wybory",
           "premiere_date": "2006-05-21",
+          "title": "Wielkie wybory",
           "viewership": 5611213
         }
-      ]
+      ],
+      "season_number": 1
     }
   ]
 }

@@ -4,6 +4,7 @@ from dataclasses import (
 )
 from pathlib import Path
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -23,7 +24,7 @@ class TranscodeConfig:
     gop_size: float
     episodes_info_json: Optional[Path] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "videos": self.videos,
             "transcoded_videos": self.transcoded_videos,
@@ -47,7 +48,7 @@ class TranscriptionConfig:
     name: str
     extra_json_keys_to_remove: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "videos": self.videos,
             "episodes_info_json": self.episodes_info_json,
@@ -67,7 +68,7 @@ class IndexConfig:
     dry_run: bool = False
     append: bool = False
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "transcription_jsons": self.transcription_jsons,

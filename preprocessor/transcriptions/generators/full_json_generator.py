@@ -4,7 +4,7 @@ from typing import (
     Dict,
 )
 
-from preprocessor.transcriptions.base_generator import BaseTranscriptionGenerator
+from preprocessor.transcriptions.generators.base_generator import BaseTranscriptionGenerator
 from preprocessor.utils.transcription_utils import convert_words_list
 
 

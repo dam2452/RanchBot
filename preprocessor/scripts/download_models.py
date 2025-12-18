@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import os
-import sys
-from pathlib import Path
+
 
 def log(msg):
     print(f"[download_models] {msg}", flush=True)
 
 def download_whisper_model():
     try:
+        # noinspection PyUnresolvedReferences
         import whisper
         model_name = os.getenv("WHISPER_MODEL", "large-v3-turbo")
         log(f"Checking Whisper model: {model_name}")
@@ -18,6 +18,7 @@ def download_whisper_model():
 
 def download_embedding_model():
     try:
+        # noinspection PyUnresolvedReferences
         from transformers import AutoModel, AutoProcessor
         model_name = "cyanic-selkie/gme-Qwen2-VL-7B-Instruct"
         log(f"Checking embedding model: {model_name}")
@@ -29,6 +30,7 @@ def download_embedding_model():
 
 def download_transnet_model():
     try:
+        # noinspection PyUnresolvedReferences
         import transnetv2
         log("Checking TransNetV2 model")
         log("✓ TransNetV2 model ready")

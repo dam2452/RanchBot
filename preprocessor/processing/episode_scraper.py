@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -11,16 +12,16 @@ from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable
 from rich.console import Console
 from rich.progress import Progress
 
-from preprocessor.engines.scraper_clipboard import ScraperClipboard
-from preprocessor.engines.scraper_crawl4ai import ScraperCrawl4AI
-from preprocessor.llm_provider import LLMProvider
+from preprocessor.providers.llm_provider import LLMProvider
+from preprocessor.scrapers.scraper_clipboard import ScraperClipboard
+from preprocessor.scrapers.scraper_crawl4ai import ScraperCrawl4AI
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 console = Console()
 
 
 class EpisodeScraper:
-    def __init__(self, args: Dict):
+    def __init__(self, args: Dict[str, Any]):
         self.urls: List[str] = args["urls"]
         self.output_file: Path = args["output_file"]
         self.llm_provider: str = args.get("llm_provider", "lmstudio")
@@ -40,12 +41,12 @@ class EpisodeScraper:
 
     def work(self) -> int:
         try:
-            self._exec()
+            self.__exec()
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Episode scraping failed: {e}")
         return self.logger.finalize()
 
-    def _exec(self) -> None:
+    def __exec(self) -> None:
         self.llm = LLMProvider(
             provider=self.llm_provider,
             api_key=self.llm_api_key,
@@ -60,7 +61,7 @@ class EpisodeScraper:
 
             for url in self.urls:
                 try:
-                    page_text = self._scrape_url(url)
+                    page_text = self.__scrape_url(url)
                     if page_text:
                         season_data = self.llm.extract_season_episodes(page_text, url)
                         if season_data:
@@ -98,7 +99,7 @@ class EpisodeScraper:
 
         console.print(f"[green]✓ Saved to: {self.output_file}[/green]")
 
-    def _scrape_url(self, url: str) -> Optional[str]:
+    def __scrape_url(self, url: str) -> Optional[str]:
         console.print(f"[cyan]Scraping method: {self.scraper_method}[/cyan]")
 
         if self.scraper_method == "clipboard":

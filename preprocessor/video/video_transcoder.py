@@ -1,10 +1,16 @@
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    Future,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from pathlib import Path
 import re
 import subprocess
 from typing import (
+    Any,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -14,7 +20,7 @@ from rich.console import Console
 from rich.progress import Progress
 
 from bot.utils.resolution import Resolution
-from preprocessor.state_manager import StateManager
+from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 console = Console()
@@ -29,7 +35,7 @@ class VideoTranscoder:
     DEFAULT_GOP_SIZE: float = 0.5
     DEFAULT_MAX_WORKERS: int = 1
 
-    def __init__(self, args: dict):
+    def __init__(self, args: Dict[str, Any]) -> None:
         self.__resolution: Resolution = args["resolution"]
 
         self.__input_videos: Path = Path(args["videos"])
@@ -45,33 +51,33 @@ class VideoTranscoder:
         self.__gop_size: float = float(args["gop_size"])
         self.__max_workers: int = int(args.get("max_workers", self.DEFAULT_MAX_WORKERS))
 
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
+        self.__logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
             loglevel=logging.DEBUG,
             error_exit_code=3,
         )
 
-        self.episodes_info: Optional[dict] = None
+        self.__episodes_info: Optional[Dict[str, Any]] = None
         episodes_json_path = args.get("episodes_info_json")
         if episodes_json_path:
             with open(episodes_json_path, "r", encoding="utf-8") as f:
-                self.episodes_info = json.load(f)
+                self.__episodes_info = json.load(f)
 
-        self.state_manager: Optional[StateManager] = args.get("state_manager")
-        self.series_name: str = args.get("series_name", "unknown")
+        self.__state_manager: Optional[StateManager] = args.get("state_manager")
+        self.__series_name: str = args.get("series_name", "unknown")
 
     def work(self) -> int:
         video_files: List[Path] = sorted(self.__input_videos.rglob("*.mp4"))
 
         if not video_files:
-            self.logger.warning("No video files found")
-            return self.logger.finalize()
+            self.__logger.warning("No video files found")
+            return self.__logger.finalize()
 
         console.print(f"[blue]Found {len(video_files)} video files to transcode[/blue]")
         console.print(f"[cyan]Using {self.__max_workers} worker(s)[/cyan]")
 
-        if self.state_manager:
-            progress = self.state_manager.create_progress_bar(
+        if self.__state_manager:
+            progress = self.__state_manager.create_progress_bar(
                 len(video_files),
                 "Transcoding videos",
             )
@@ -79,50 +85,50 @@ class VideoTranscoder:
             progress = Progress()
 
         if self.__max_workers == 1:
-            return self._work_sequential(video_files, progress)
+            return self.__work_sequential(video_files, progress)
         else:
-            return self._work_parallel(video_files, progress)
+            return self.__work_parallel(video_files, progress)
 
-    def _work_sequential(self, video_files: List[Path], progress: Progress) -> int:
+    def __work_sequential(self, video_files: List[Path], progress: Progress) -> int:
         with progress:
             task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
 
             for video_file in video_files:
                 episode_id = self.__get_episode_id(video_file)
 
-                if self.state_manager and self.state_manager.is_step_completed("transcode", episode_id):
+                if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
                     console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
                     progress.advance(task)
                     continue
 
-                if self.state_manager:
-                    self.state_manager.mark_step_started("transcode", episode_id)
+                if self.__state_manager:
+                    self.__state_manager.mark_step_started("transcode", episode_id)
 
                 self.__process_single_video(video_file)
 
-                if self.state_manager:
-                    self.state_manager.mark_step_completed("transcode", episode_id)
+                if self.__state_manager:
+                    self.__state_manager.mark_step_completed("transcode", episode_id)
 
                 progress.advance(task)
 
-        return self.logger.finalize()
+        return self.__logger.finalize()
 
-    def _work_parallel(self, video_files: List[Path], progress: Progress) -> int:
+    def __work_parallel(self, video_files: List[Path], progress: Progress) -> int:
         with progress:
             task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
 
             with ThreadPoolExecutor(max_workers=self.__max_workers) as executor:
-                futures = {}
+                futures: Dict[Future, Tuple[Path, str]] = {}
                 for video_file in video_files:
                     episode_id = self.__get_episode_id(video_file)
 
-                    if self.state_manager and self.state_manager.is_step_completed("transcode", episode_id):
+                    if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
                         console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
                         progress.advance(task)
                         continue
 
-                    if self.state_manager:
-                        self.state_manager.mark_step_started("transcode", episode_id)
+                    if self.__state_manager:
+                        self.__state_manager.mark_step_started("transcode", episode_id)
 
                     future = executor.submit(self.__process_single_video, video_file)
                     futures[future] = (video_file, episode_id)
@@ -131,14 +137,14 @@ class VideoTranscoder:
                     video_file, episode_id = futures[future]
                     try:
                         future.result()
-                        if self.state_manager:
-                            self.state_manager.mark_step_completed("transcode", episode_id)
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        self.logger.error(f"Failed to process {video_file}: {e}")
+                        if self.__state_manager:
+                            self.__state_manager.mark_step_completed("transcode", episode_id)
+                    except Exception as e:
+                        self.__logger.error(f"Failed to process {video_file}: {e}")
                     finally:
                         progress.advance(task)
 
-        return self.logger.finalize()
+        return self.__logger.finalize()
 
     @staticmethod
     def __get_episode_id(video_file: Path) -> str:
@@ -150,34 +156,38 @@ class VideoTranscoder:
     def __process_single_video(self, video_file: Path) -> None:
         match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
         if not match:
-            self.logger.error(f"Cannot extract episode number from {video_file.name}")
+            self.__logger.error(f"Cannot extract episode number from {video_file.name}")
             return
 
         absolute_episode = int(match.group(1))
         season_number, relative_episode = self.__find_episode_info(absolute_episode)
 
         if season_number is None:
-            self.logger.error(f"Episode {absolute_episode} not found in episodes_info.json")
+            self.__logger.error(f"Episode {absolute_episode} not found in episodes_info.json")
             return
 
-        output_path = self.__build_output_path(self.series_name, season_number, relative_episode)
+        output_path = self.__build_output_path(self.__series_name, season_number, relative_episode)
 
         try:
             self.__transcode_video(video_file, output_path)
-            self.logger.info(f"Processed: {video_file} -> {output_path}")
+            self.__logger.info(f"Processed: {video_file} -> {output_path}")
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"FFmpeg failed for {video_file}: {e}")
+            self.__logger.error(f"FFmpeg failed for {video_file}: {e}")
 
     # noinspection PyShadowingNames
     def __find_episode_info(self, absolute_episode: int) -> Tuple[Optional[int], Optional[int]]:
-        season_number, relative_episode = 1, absolute_episode
+        season_number: int = 1
+        relative_episode: int = absolute_episode
 
-        if not self.episodes_info:
+        if not self.__episodes_info:
             return season_number, relative_episode
 
-        for season in self.episodes_info.get("seasons", []):
-            season_num = season.get("season_number", 1)
-            episodes = sorted(season.get("episodes", []), key=lambda ep: ep["episode_number"])
+        for season in self.__episodes_info.get("seasons", []):
+            season_num: int = season.get("season_number", 1)
+            episodes: List[Dict[str, Any]] = sorted(
+                season.get("episodes", []),
+                key=lambda ep: ep["episode_number"]
+            )
 
             for idx, ep in enumerate(episodes):
                 if ep["episode_number"] == absolute_episode:
@@ -222,7 +232,7 @@ class VideoTranscoder:
             str(output_video),
         ]
 
-        self.logger.debug(f"Transcoding: {input_video.name} -> {output_video.name}")
+        self.__logger.debug(f"Transcoding: {input_video.name} -> {output_video.name}")
         subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     @staticmethod
@@ -235,11 +245,11 @@ class VideoTranscoder:
             str(video),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        probe_data = json.loads(result.stdout)
-        streams = probe_data.get("streams", [])
+        probe_data: Dict[str, Any] = json.loads(result.stdout)
+        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
         if not streams:
             raise ValueError(f"No video streams found in {video}")
-        r_frame_rate = streams[0].get("r_frame_rate")
+        r_frame_rate: Optional[str] = streams[0].get("r_frame_rate")
         if not r_frame_rate:
             raise ValueError(f"Frame rate not found in {video}")
         num, denom = [int(x) for x in r_frame_rate.split("/")]

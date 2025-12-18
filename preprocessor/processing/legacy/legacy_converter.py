@@ -23,7 +23,7 @@ console = Console()
 
 
 class LegacyConverter:
-    def __init__(self, args: Dict):
+    def __init__(self, args: Dict[str, Any]):
         self.index_name: str = args["index_name"]
         self.backup_file: Optional[Path] = args.get("backup_file")
         self.dry_run: bool = args.get("dry_run", False)
@@ -38,12 +38,12 @@ class LegacyConverter:
 
     def work(self) -> int:
         try:
-            asyncio.run(self._exec())
+            asyncio.run(self.__exec())
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Conversion failed: {e}")
         return self.logger.finalize()
 
-    async def _exec(self) -> None:
+    async def __exec(self) -> None:
         self.client = await ElasticSearchManager.connect_to_elasticsearch(self.logger)
 
         try:  # pylint: disable=too-many-try-statements
@@ -54,9 +54,9 @@ class LegacyConverter:
             console.print(f"[blue]Converting documents in index: {self.index_name}[/blue]")
 
             if self.backup_file:
-                await self._backup_index()
+                await self.__backup_index()
 
-            documents = await self._fetch_all_documents()
+            documents = await self.__fetch_all_documents()
 
             if not documents:
                 console.print("[yellow]No documents found to convert[/yellow]")
@@ -64,20 +64,20 @@ class LegacyConverter:
 
             console.print(f"[blue]Found {len(documents)} documents to convert[/blue]")
 
-            converted = self._convert_documents(documents)
+            converted = self.__convert_documents(documents)
 
             if self.dry_run:
                 console.print("[yellow]Dry run - showing sample converted document:[/yellow]")
                 console.print(json.dumps(converted[0], indent=2, ensure_ascii=False))
                 console.print(f"[yellow]Would convert {len(converted)} documents[/yellow]")
             else:
-                await self._update_documents(converted)
+                await self.__update_documents(converted)
                 console.print(f"[green]Successfully converted {len(converted)} documents[/green]")
 
         finally:
             await self.client.close()
 
-    async def _backup_index(self) -> None:
+    async def __backup_index(self) -> None:
         console.print(f"[cyan]Creating backup: {self.backup_file}[/cyan]")
 
         documents = []
@@ -94,7 +94,7 @@ class LegacyConverter:
 
         console.print(f"[green]Backup created: {len(documents)} documents[/green]")
 
-    async def _fetch_all_documents(self) -> List[Dict]:
+    async def __fetch_all_documents(self) -> List[Dict]:
         documents = []
 
         with Progress() as progress:
@@ -110,20 +110,20 @@ class LegacyConverter:
 
         return documents
 
-    def _convert_documents(self, documents: List[Dict]) -> List[Dict]:
+    def __convert_documents(self, documents: List[Dict]) -> List[Dict]:
         converted = []
 
         with Progress() as progress:
             task = progress.add_task("[cyan]Converting documents...", total=len(documents))
 
             for doc in documents:
-                converted_doc = self._convert_single_document(doc)
+                converted_doc = self.__convert_single_document(doc)
                 converted.append(converted_doc)
                 progress.advance(task)
 
         return converted
 
-    def _convert_single_document(self, doc: Dict[str, Any]) -> Dict[str, Any]:
+    def __convert_single_document(self, doc: Dict[str, Any]) -> Dict[str, Any]:
         doc_id = doc["_id"]
         source = doc["_source"]
 
@@ -163,7 +163,7 @@ class LegacyConverter:
             "_source": converted_source,
         }
 
-    async def _update_documents(self, documents: List[Dict]) -> None:
+    async def __update_documents(self, documents: List[Dict]) -> None:
         actions = []
         for doc in documents:
             actions.append({

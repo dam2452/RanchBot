@@ -4,19 +4,18 @@ from typing import (
     Dict,
 )
 
-from preprocessor.transcriptions.base_generator import BaseTranscriptionGenerator
-from preprocessor.utils.transcription_utils import convert_words_list
+from preprocessor.transcriptions.generators.base_generator import BaseTranscriptionGenerator
 
 
-class SegmentedJsonGenerator(BaseTranscriptionGenerator):
+class SimpleJsonGenerator(BaseTranscriptionGenerator):
     def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
         pass
 
     def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(".json", "_segmented.json")
+        return json_file.name.replace(".json", "_simple.json")
 
     @staticmethod
-    def convert_to_segmented_format(data: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_to_simple_format(data: Dict[str, Any]) -> Dict[str, Any]:
         segments = data.get("segments", [])
         result_segments = []
 
@@ -24,9 +23,13 @@ class SegmentedJsonGenerator(BaseTranscriptionGenerator):
             text = seg.get("text", "").strip()
             seg_words = seg.get("words", [])
 
+            speaker = "speaker_unknown"
+            if seg_words:
+                speaker = seg_words[0].get("speaker_id", "speaker_unknown")
+
             result_segments.append({
+                "speaker": speaker,
                 "text": text,
-                "words": convert_words_list(seg_words),
             })
 
         return {"segments": result_segments}

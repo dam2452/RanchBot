@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
 
-from preprocessor.transcriptions.full_json_generator import FullJsonGenerator
-from preprocessor.transcriptions.segmented_json_generator import SegmentedJsonGenerator
-from preprocessor.transcriptions.simple_json_generator import SimpleJsonGenerator
-from preprocessor.transcriptions.srt_generator import SrtGenerator
-from preprocessor.transcriptions.txt_generator import TxtGenerator
+from preprocessor.transcriptions.generators.full_json_generator import FullJsonGenerator
+from preprocessor.transcriptions.generators.segmented_json_generator import SegmentedJsonGenerator
+from preprocessor.transcriptions.generators.simple_json_generator import SimpleJsonGenerator
+from preprocessor.transcriptions.generators.srt_generator import SrtGenerator
+from preprocessor.transcriptions.generators.txt_generator import TxtGenerator
 from preprocessor.utils.episode_utils import (
     extract_episode_number,
     find_episode_info_by_absolute,
@@ -42,9 +42,9 @@ class MultiFormatGenerator:
 
     def generate(self) -> None:
         for transcription_file in self.jsons_dir.rglob("*.json"):
-            self._process_file(transcription_file)
+            self.__process_file(transcription_file)
 
-    def _process_file(self, transcription_file: Path) -> None:
+    def __process_file(self, transcription_file: Path) -> None:
         try:  # pylint: disable=too-many-try-statements
             with open(transcription_file, "r", encoding="utf-8") as f:
                 transcription = json.load(f)
@@ -72,16 +72,16 @@ class MultiFormatGenerator:
                 **transcription,
             }
 
-            self._generate_full_json(transcription_with_info, season_dir, season_number, relative_episode)
-            self._generate_segmented_json(transcription, season_dir, season_number, relative_episode)
-            self._generate_simple_json(transcription, season_dir, season_number, relative_episode)
-            self._generate_srt(transcription, season_dir, season_number, relative_episode)
-            self._generate_txt(transcription, season_dir, season_number, relative_episode)
+            self.__generate_full_json(transcription_with_info, season_dir, season_number, relative_episode)
+            self.__generate_segmented_json(transcription, season_dir, season_number, relative_episode)
+            self.__generate_simple_json(transcription, season_dir, season_number, relative_episode)
+            self.__generate_srt(transcription, season_dir, season_number, relative_episode)
+            self.__generate_txt(transcription, season_dir, season_number, relative_episode)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Error processing file {transcription_file}: {e}")
 
-    def _generate_full_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
+    def __generate_full_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
         output_dir = self.format_dirs["json"] / season_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -97,7 +97,7 @@ class MultiFormatGenerator:
 
         self.logger.info(f"Generated full JSON: {output_file}")
 
-    def _generate_segmented_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
+    def __generate_segmented_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
         output_dir = self.format_dirs["segmented_json"] / season_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -117,7 +117,7 @@ class MultiFormatGenerator:
 
         self.logger.info(f"Generated segmented JSON: {output_file}")
 
-    def _generate_simple_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
+    def __generate_simple_json(self, data: dict, season_dir: str, season: int, episode: int) -> None:
         output_dir = self.format_dirs["simple_json"] / season_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -137,7 +137,7 @@ class MultiFormatGenerator:
 
         self.logger.info(f"Generated simple JSON: {output_file}")
 
-    def _generate_srt(self, data: dict, season_dir: str, season: int, episode: int) -> None:
+    def __generate_srt(self, data: dict, season_dir: str, season: int, episode: int) -> None:
         output_dir = self.format_dirs["srt"] / season_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -152,7 +152,7 @@ class MultiFormatGenerator:
 
         self.logger.info(f"Generated SRT: {output_file}")
 
-    def _generate_txt(self, data: dict, season_dir: str, season: int, episode: int) -> None:
+    def __generate_txt(self, data: dict, season_dir: str, season: int, episode: int) -> None:
         output_dir = self.format_dirs["txt"] / season_dir
         output_dir.mkdir(parents=True, exist_ok=True)
 

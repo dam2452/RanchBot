@@ -2,16 +2,17 @@ import logging
 from pathlib import Path
 import tempfile
 from typing import (
+    Any,
     Dict,
     Optional,
 )
 
 from rich.console import Console
 
-from preprocessor.state_manager import StateManager
-from preprocessor.transcriptions.audio_normalizer import AudioNormalizer
-from preprocessor.transcriptions.multi_format_generator import MultiFormatGenerator
-from preprocessor.transcriptions.normalized_audio_processor import NormalizedAudioProcessor
+from preprocessor.core.state_manager import StateManager
+from preprocessor.transcriptions.processors.audio_normalizer import AudioNormalizer
+from preprocessor.transcriptions.generators.multi_format_generator import MultiFormatGenerator
+from preprocessor.transcriptions.processors.normalized_audio_processor import NormalizedAudioProcessor
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 console = Console()
@@ -23,16 +24,22 @@ class TranscriptionGenerator:
     DEFAULT_LANGUAGE: str = "Polish"
     DEFAULT_DEVICE: str = "cuda"
 
-    def __init__(self, args: Dict):
+    def __init__(self, args: Dict[str, Any]) -> None:
         self.__input_videos: Path = Path(args["videos"])
         if not self.__input_videos.is_dir():
             raise NotADirectoryError(
                 f"Input videos is not a directory: '{self.__input_videos}'",
             )
 
-        self.__temp_dir: tempfile.TemporaryDirectory = (
-            tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        )
+        ramdisk_path = args.get("ramdisk_path")
+        if ramdisk_path and Path(ramdisk_path).exists():
+            self.__temp_dir: tempfile.TemporaryDirectory = (
+                tempfile.TemporaryDirectory(dir=str(ramdisk_path))
+            )
+        else:
+            self.__temp_dir: tempfile.TemporaryDirectory = (
+                tempfile.TemporaryDirectory()
+            )
 
         self.__logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
@@ -40,8 +47,8 @@ class TranscriptionGenerator:
             error_exit_code=2,
         )
 
-        self.state_manager: Optional[StateManager] = args.get("state_manager")
-        self.series_name: str = args.get("series_name", "unknown")
+        self.__state_manager: Optional[StateManager] = args.get("state_manager")
+        self.__series_name: str = args.get("series_name", "unknown")
 
         self.__init_workers(args)
 
@@ -56,17 +63,15 @@ class TranscriptionGenerator:
             self.__logger.info("Step 3/3: Generating multi-format output...")
             self.__multi_format_generator()
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error generating transcriptions: {e}")
 
         return self.__logger.finalize()
 
-    def __init_workers(self, args: Dict) -> None:
+    def __init_workers(self, args: Dict[str, Any]) -> None:
         temp_dir_path: Path = Path(self.__temp_dir.name) / "transcription_generator"
-        normalizer_output = temp_dir_path / "normalizer"
+        normalizer_output: Path = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"
-
-        max_workers = args.get("max_workers", 1)
 
         self.__audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.__input_videos,

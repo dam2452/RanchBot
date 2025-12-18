@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -13,8 +14,8 @@ from rich.console import Console
 from rich.progress import Progress
 
 from preprocessor.engines.elevenlabs_engine import ElevenLabsEngine
-from preprocessor.state_manager import StateManager
-from preprocessor.transcriptions.multi_format_generator import MultiFormatGenerator
+from preprocessor.core.state_manager import StateManager
+from preprocessor.transcriptions.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.utils.episode_utils import (
     build_output_path,
     extract_season_episode_from_filename,
@@ -26,7 +27,7 @@ console = Console()
 
 
 class ElevenLabsTranscriber:
-    def __init__(self, args: Dict):
+    def __init__(self, args: Dict[str, Any]):
         self.input_videos: Path = Path(args["videos"])
         if not self.input_videos.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{self.input_videos}'")
@@ -85,13 +86,13 @@ class ElevenLabsTranscriber:
                 audio_path = None
                 try:
                     if self.state_manager:
-                        audio_path = self._extract_audio(video_file)
+                        audio_path = self.__extract_audio(video_file)
                         self.state_manager.mark_step_started("transcribe_11labs", episode_id, [str(audio_path)])
 
-                    audio_path = audio_path or self._extract_audio(video_file)
+                    audio_path = audio_path or self.__extract_audio(video_file)
                     transcription_data = self.engine.transcribe(audio_path)
 
-                    self._save_transcription(transcription_data, video_file)
+                    self.__save_transcription(transcription_data, video_file)
 
                     if self.state_manager:
                         self.state_manager.mark_step_completed("transcribe_11labs", episode_id)
@@ -120,7 +121,7 @@ class ElevenLabsTranscriber:
         return self.logger.finalize()
 
     @staticmethod
-    def _create_segments_from_words(words: List[Dict]) -> List[Dict]:
+    def __create_segments_from_words(words: List[Dict]) -> List[Dict]:
         if not words:
             return []
 
@@ -155,7 +156,7 @@ class ElevenLabsTranscriber:
         return segments
 
     @staticmethod
-    def _extract_audio(video_file: Path) -> Path:
+    def __extract_audio(video_file: Path) -> Path:
         temp_dir = Path(tempfile.gettempdir())
         audio_path = temp_dir / f"{video_file.stem}_audio.mp3"
 
@@ -176,7 +177,7 @@ class ElevenLabsTranscriber:
         subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         return audio_path
 
-    def _save_transcription(self, data: Dict, video_file: Path) -> None:
+    def __save_transcription(self, data: Dict[str, Any], video_file: Path) -> None:
         season, episode = extract_season_episode_from_filename(video_file)
         episode_info = get_episode_metadata(self.episodes_info, season, episode)
 
@@ -194,7 +195,7 @@ class ElevenLabsTranscriber:
                 words.extend(segment_words)
         else:
             words = api_words
-            segments = self._create_segments_from_words(words)
+            segments = self.__create_segments_from_words(words)
 
         output_data = {
             "text": data.get("text", ""),

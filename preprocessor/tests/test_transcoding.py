@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from bot.utils.resolution import Resolution
-from preprocessor.video_transcoder import VideoTranscoder
+from preprocessor.video.video_transcoder import VideoTranscoder
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

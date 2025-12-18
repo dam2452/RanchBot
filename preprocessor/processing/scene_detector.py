@@ -2,12 +2,13 @@ import json
 import logging
 from pathlib import Path
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
 )
 
-import cv2
+import decord
 import numpy as np
 from rich.console import Console
 from rich.progress import Progress
@@ -25,7 +26,7 @@ class SceneDetector:
     DEFAULT_MIN_SCENE_LEN = 10
     DEFAULT_OUTPUT_DIR = Path("scene_timestamps")
 
-    def __init__(self, args: Dict):
+    def __init__(self, args: Dict[str, Any]):
         self.videos: Path = args["videos"]
         self.output_dir: Path = args.get("output_dir", self.DEFAULT_OUTPUT_DIR)
         self.threshold: float = args.get("threshold", self.DEFAULT_THRESHOLD)
@@ -42,17 +43,17 @@ class SceneDetector:
 
     def work(self) -> int:
         try:
-            self._exec()
+            self.__exec()
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Scene detection failed: {e}")
         return self.logger.finalize()
 
-    def _exec(self) -> None:
+    def __exec(self) -> None:
         console.print(f"[cyan]Scene detection using device: {self.device}[/cyan]")
 
-        self._load_model()
+        self.__load_model()
 
-        video_files = self._get_video_files()
+        video_files = self.__get_video_files()
         if not video_files:
             console.print("[yellow]No video files found[/yellow]")
             return
@@ -64,7 +65,7 @@ class SceneDetector:
 
             for video_file in video_files:
                 try:
-                    self._process_video(video_file)
+                    self.__process_video(video_file)
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to process {video_file}: {e}")
                 finally:
@@ -72,7 +73,7 @@ class SceneDetector:
 
         console.print("[green]Scene detection completed[/green]")
 
-    def _load_model(self) -> None:
+    def __load_model(self) -> None:
         try:
             self.model = TransNetV2()
             if self.device == "cuda":
@@ -84,7 +85,7 @@ class SceneDetector:
             console.print("[yellow]TransNetV2 not installed. Using simplified detection.[/yellow]")
             self.model = None
 
-    def _get_video_files(self) -> List[Path]:
+    def __get_video_files(self) -> List[Path]:
         video_files = []
 
         if self.videos.is_file():
@@ -95,18 +96,18 @@ class SceneDetector:
 
         return sorted(video_files)
 
-    def _process_video(self, video_file: Path) -> None:
+    def __process_video(self, video_file: Path) -> None:
         console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
 
-        video_info = self._get_video_info(video_file)
+        video_info = self.__get_video_info(video_file)
         if not video_info:
             self.logger.error(f"Failed to get video info for {video_file}")
             return
 
         if self.model:
-            scene_list = self._detect_scenes_transnetv2(video_file, video_info)
+            scene_list = self.__detect_scenes_transnetv2(video_file, video_info)
         else:
-            scene_list = self._detect_scenes_simple(video_file, video_info)
+            scene_list = self.__detect_scenes_simple(video_file, video_info)
 
         if not scene_list:
             console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
@@ -131,26 +132,25 @@ class SceneDetector:
 
         console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
 
-    def _get_video_info(self, video_file: Path) -> Optional[Dict]:
+    def __get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
         try:
-            cap = cv2.VideoCapture(str(video_file))
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+            fps = vr.get_avg_fps()
+            total_frames = len(vr)
             duration = total_frames / fps if fps > 0 else 0
-            cap.release()
 
             return {
                 "fps": fps,
                 "duration": duration,
                 "total_frames": total_frames,
             }
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (RuntimeError, ValueError, OSError) as e:
             self.logger.error(f"Error reading video info: {e}")
             return None
 
-    def _detect_scenes_transnetv2(  # pylint: disable=too-many-try-statements
-        self, video_file: Path, video_info: Dict,
-    ) -> List[Dict]:
+    def __detect_scenes_transnetv2(  # pylint: disable=too-many-try-statements
+        self, video_file: Path, video_info: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
         try:
             _, single_frame_predictions, _ = self.model.predict_video(str(video_file))
 
@@ -169,12 +169,12 @@ class SceneDetector:
                     "start": {
                         "frame": int(prev_frame),
                         "seconds": float(prev_frame / fps),
-                        "timecode": self._frame_to_timecode(prev_frame, fps),
+                        "timecode": self.__frame_to_timecode(prev_frame, fps),
                     },
                     "end": {
                         "frame": int(frame_num),
                         "seconds": float(frame_num / fps),
-                        "timecode": self._frame_to_timecode(frame_num, fps),
+                        "timecode": self.__frame_to_timecode(frame_num, fps),
                     },
                     "duration": float((frame_num - prev_frame) / fps),
                     "frame_count": int(frame_num - prev_frame),
@@ -189,12 +189,12 @@ class SceneDetector:
                     "start": {
                         "frame": int(prev_frame),
                         "seconds": float(prev_frame / fps),
-                        "timecode": self._frame_to_timecode(prev_frame, fps),
+                        "timecode": self.__frame_to_timecode(prev_frame, fps),
                     },
                     "end": {
                         "frame": int(total_frames),
                         "seconds": float(total_frames / fps),
-                        "timecode": self._frame_to_timecode(total_frames, fps),
+                        "timecode": self.__frame_to_timecode(total_frames, fps),
                     },
                     "duration": float((total_frames - prev_frame) / fps),
                     "frame_count": int(total_frames - prev_frame),
@@ -203,11 +203,11 @@ class SceneDetector:
 
             return scenes
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (RuntimeError, ValueError, OSError) as e:
             self.logger.error(f"TransNetV2 detection failed: {e}")
             return []
 
-    def _detect_scenes_simple(self, video_file: Path, video_info: Dict) -> List[Dict]:
+    def __detect_scenes_simple(self, video_file: Path, video_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         fps = video_info["fps"]
         total_frames = video_info["total_frames"]
 
@@ -233,12 +233,12 @@ class SceneDetector:
                 "start": {
                     "frame": int(prev_change),
                     "seconds": float(prev_change / fps),
-                    "timecode": self._frame_to_timecode(prev_change, fps),
+                    "timecode": self.__frame_to_timecode(prev_change, fps),
                 },
                 "end": {
                     "frame": int(change_frame),
                     "seconds": float(change_frame / fps),
-                    "timecode": self._frame_to_timecode(change_frame, fps),
+                    "timecode": self.__frame_to_timecode(change_frame, fps),
                 },
                 "duration": float((change_frame - prev_change) / fps),
                 "frame_count": int(change_frame - prev_change),
@@ -252,12 +252,12 @@ class SceneDetector:
                 "start": {
                     "frame": int(prev_change),
                     "seconds": float(prev_change / fps),
-                    "timecode": self._frame_to_timecode(prev_change, fps),
+                    "timecode": self.__frame_to_timecode(prev_change, fps),
                 },
                 "end": {
                     "frame": int(total_frames),
                     "seconds": float(total_frames / fps),
-                    "timecode": self._frame_to_timecode(total_frames, fps),
+                    "timecode": self.__frame_to_timecode(total_frames, fps),
                 },
                 "duration": float((total_frames - prev_change) / fps),
                 "frame_count": int(total_frames - prev_change),
@@ -267,7 +267,7 @@ class SceneDetector:
         return scenes
 
     @staticmethod
-    def _frame_to_timecode(frame: int, fps: float) -> str:
+    def __frame_to_timecode(frame: int, fps: float) -> str:
         seconds = frame / fps
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)

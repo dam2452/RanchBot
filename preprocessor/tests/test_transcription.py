@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import sys
 
-from preprocessor.transcription_generator import TranscriptionGenerator
+from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

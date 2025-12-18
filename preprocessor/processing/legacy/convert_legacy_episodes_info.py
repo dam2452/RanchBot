@@ -1,6 +1,10 @@
 import json
 import logging
 from pathlib import Path
+from typing import (
+    Any,
+    Dict,
+)
 
 import click
 
@@ -16,13 +20,13 @@ logger = logging.getLogger("EpisodesInfoConverter")
 @click.argument("output_json", type=click.Path(path_type=Path))
 def convert(input_json: Path, output_json: Path) -> None:
     with input_json.open("r", encoding="utf-8") as f:
-        old_data = json.load(f)
+        old_data: Dict[str, Any] = json.load(f)
 
-    new_data = {"seasons": []}
+    new_data: Dict[str, Any] = {"seasons": []}
 
     for season_str, season_data in old_data.items():
         try:
-            season_number = int(season_str)
+            season_number: int = int(season_str)
         except ValueError:
             logger.error(f"Invalid season key '{season_str}' — must be integer as string.")
             continue
@@ -42,4 +46,4 @@ def convert(input_json: Path, output_json: Path) -> None:
 
 
 if __name__ == "__main__":
-    convert()  # pylint: disable=no-value-for-parameter
+    convert.main(standalone_mode=False)

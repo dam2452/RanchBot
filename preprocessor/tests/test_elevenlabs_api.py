@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from preprocessor.elevenlabs_transcriber import ElevenLabsTranscriber
+from preprocessor.transcriptions.elevenlabs_transcriber import ElevenLabsTranscriber
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

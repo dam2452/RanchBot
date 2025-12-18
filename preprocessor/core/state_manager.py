@@ -78,49 +78,49 @@ class ProcessingState:
 
 
 class StateManager:
-    STATE_FILE = ".preprocessing_state.json"
+    STATE_FILE: str = ".preprocessing_state.json"
 
-    def __init__(self, series_name: str, working_dir: Path = Path(".")):
-        self.series_name = series_name
-        self.working_dir = working_dir
-        self.state_file = working_dir / self.STATE_FILE
-        self.state: Optional[ProcessingState] = None
-        self._cleanup_registered = False
-        self._interrupted = False
+    def __init__(self, series_name: str, working_dir: Path = Path(".")) -> None:
+        self.__series_name: str = series_name
+        self.__working_dir: Path = working_dir
+        self.__state_file: Path = working_dir / self.STATE_FILE
+        self.__state: Optional[ProcessingState] = None
+        self.__cleanup_registered: bool = False
+        self.__interrupted: bool = False
 
     def load_or_create_state(self) -> ProcessingState:
-        if self.state_file.exists():
-            console.print(f"[yellow]Found existing state file: {self.state_file}[/yellow]")
-            with open(self.state_file, "r", encoding="utf-8") as f:
+        if self.__state_file.exists():
+            console.print(f"[yellow]Found existing state file: {self.__state_file}[/yellow]")
+            with open(self.__state_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                self.state = ProcessingState.from_dict(data)
-                console.print(f"[green]Loaded state for series: {self.state.series_name}[/green]")
-                console.print(f"[green]Completed steps: {len(self.state.completed_steps)}[/green]")
-                return self.state
+                self.__state = ProcessingState.from_dict(data)
+                console.print(f"[green]Loaded state for series: {self.__state.series_name}[/green]")
+                console.print(f"[green]Completed steps: {len(self.__state.completed_steps)}[/green]")
+                return self.__state
         else:
             console.print("[blue]Creating new processing state...[/blue]")
             now = datetime.now().isoformat()
-            self.state = ProcessingState(
-                series_name=self.series_name,
+            self.__state = ProcessingState(
+                series_name=self.__series_name,
                 started_at=now,
                 last_checkpoint=now,
             )
             self.save_state()
-            return self.state
+            return self.__state
 
-    def save_state(self):
-        if self.state is None:
+    def save_state(self) -> None:
+        if self.__state is None:
             return
 
-        self.state.last_checkpoint = datetime.now().isoformat()
-        with open(self.state_file, "w", encoding="utf-8") as f:
-            json.dump(self.state.to_dict(), f, indent=2, ensure_ascii=False)
+        self.__state.last_checkpoint = datetime.now().isoformat()
+        with open(self.__state_file, "w", encoding="utf-8") as f:
+            json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
 
-    def mark_step_started(self, step: str, episode: str, temp_files: List[str] = None):
-        if self.state is None:
+    def mark_step_started(self, step: str, episode: str, temp_files: Optional[List[str]] = None) -> None:
+        if self.__state is None:
             raise RuntimeError("State not initialized")
 
-        self.state.in_progress = InProgressStep(
+        self.__state.in_progress = InProgressStep(
             step=step,
             episode=episode,
             started_at=datetime.now().isoformat(),
@@ -129,8 +129,8 @@ class StateManager:
         self.save_state()
         console.print(f"[cyan]Started: {step} for {episode}[/cyan]")
 
-    def mark_step_completed(self, step: str, episode: str):
-        if self.state is None:
+    def mark_step_completed(self, step: str, episode: str) -> None:
+        if self.__state is None:
             raise RuntimeError("State not initialized")
 
         checkpoint = StepCheckpoint(
@@ -138,53 +138,53 @@ class StateManager:
             episode=episode,
             completed_at=datetime.now().isoformat(),
         )
-        self.state.completed_steps.append(checkpoint)
-        self.state.in_progress = None
+        self.__state.completed_steps.append(checkpoint)
+        self.__state.in_progress = None
         self.save_state()
         console.print(f"[green]✓ Completed: {step} for {episode}[/green]")
 
     def is_step_completed(self, step: str, episode: str) -> bool:
-        if self.state is None:
+        if self.__state is None:
             return False
 
         return any(
             s.step == step and s.episode == episode
-            for s in self.state.completed_steps
+            for s in self.__state.completed_steps
         )
 
-    def rollback_in_progress(self):
-        if self.state is None or self.state.in_progress is None:
+    def rollback_in_progress(self) -> None:
+        if self.__state is None or self.__state.in_progress is None:
             return
 
-        console.print(f"[yellow]Rolling back in-progress step: {self.state.in_progress.step}[/yellow]")
+        console.print(f"[yellow]Rolling back in-progress step: {self.__state.in_progress.step}[/yellow]")
 
-        for temp_file in self.state.in_progress.temp_files:
+        for temp_file in self.__state.in_progress.temp_files:
             temp_path = Path(temp_file)
             if temp_path.exists():
                 try:
                     temp_path.unlink()
                     console.print(f"[yellow]Removed temp file: {temp_file}[/yellow]")
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                except Exception as e:
                     console.print(f"[red]Failed to remove {temp_file}: {e}[/red]")
 
-        self.state.in_progress = None
+        self.__state.in_progress = None
         self.save_state()
 
-    def cleanup(self):
-        if self.state_file.exists():
-            console.print(f"[blue]Cleaning up state file: {self.state_file}[/blue]")
-            self.state_file.unlink()
+    def cleanup(self) -> None:
+        if self.__state_file.exists():
+            console.print(f"[blue]Cleaning up state file: {self.__state_file}[/blue]")
+            self.__state_file.unlink()
 
-    def register_interrupt_handler(self):
-        if self._cleanup_registered:
+    def register_interrupt_handler(self) -> None:
+        if self.__cleanup_registered:
             return
 
-        def signal_handler(_sig, _frame):
-            if self._interrupted:
+        def signal_handler(_sig: int, _frame: Any) -> None:
+            if self.__interrupted:
                 console.print("\n[red]Force quit! Not cleaning up.[/red]")
                 sys.exit(1)
 
-            self._interrupted = True
+            self.__interrupted = True
             console.print("\n[yellow]Interrupt received (Ctrl+C)...[/yellow]")
             console.print("[yellow]Rolling back incomplete work...[/yellow]")
             self.rollback_in_progress()
@@ -194,14 +194,14 @@ class StateManager:
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
-        self._cleanup_registered = True
+        self.__cleanup_registered = True
         console.print("[blue]Interrupt handler registered (Ctrl+C to safely stop)[/blue]")
 
     def get_resume_info(self) -> Optional[str]:
-        if self.state is None or not self.state.completed_steps:
+        if self.__state is None or not self.__state.completed_steps:
             return None
 
-        last_step = self.state.completed_steps[-1]
+        last_step = self.__state.completed_steps[-1]
         return f"Resuming from: {last_step.step} ({last_step.episode}) at {last_step.completed_at}"
 
     @staticmethod
