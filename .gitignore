@@ -59,3 +59,4 @@ preprocessor/tests/README.md
 USAGE_LOG.md
 /data
 /preprocessor/preprocessed
+/preprocessor/output_data
