@@ -37,7 +37,6 @@ class ErrorHandlingLogger:
         logging.basicConfig(
             level=level,
             format="%(message)s",
-            stream=sys.stderr,
             handlers=[
                 RichHandler(
                     console=console,

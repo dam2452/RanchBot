@@ -13,7 +13,7 @@ SOURCE_DIR = Path(__file__).parent / "mock_11labs_data"
 OUTPUT_DIR = Path(__file__).parent / "output" / "transcriptions_11labs"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def mock_11labs_data():
     mock_transcription = {
         "segments": [
@@ -22,14 +22,22 @@ def mock_11labs_data():
                 "end": 5.0,
                 "text": "Test segment 1",
                 "speaker": "SPEAKER_00",
-                "words": [],
+                "words": [
+                    {"start": 0.0, "end": 1.0, "text": "Test"},
+                    {"start": 1.0, "end": 2.0, "text": "segment"},
+                    {"start": 2.0, "end": 3.0, "text": "1"},
+                ],
             },
             {
                 "start": 5.0,
                 "end": 10.0,
                 "text": "Test segment 2",
                 "speaker": "SPEAKER_01",
-                "words": [],
+                "words": [
+                    {"start": 5.0, "end": 6.0, "text": "Test"},
+                    {"start": 6.0, "end": 7.0, "text": "segment"},
+                    {"start": 7.0, "end": 8.0, "text": "2"},
+                ],
             },
         ],
     }
@@ -45,7 +53,10 @@ def mock_11labs_data():
     shutil.rmtree(SOURCE_DIR, ignore_errors=True)
 
 
-def test_elevenlabs_import(mock_11labs_data, episodes_info_single):  # pylint: disable=redefined-outer-name
+@pytest.mark.elevenlabs
+def test_elevenlabs_import(mock_11labs_data, episodes_info_single):
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     importer = TranscriptionImporter({
         "source_dir": mock_11labs_data,
         "output_dir": OUTPUT_DIR,
@@ -68,5 +79,18 @@ def test_elevenlabs_import(mock_11labs_data, episodes_info_single):  # pylint: d
     assert "segments" in data, "Missing 'segments' in output"
     assert len(data["segments"]) > 0, "No segments in output"
 
+    assert data["transcription"]["format"] == "11labs_segmented", "Incorrect format"
+    assert data["transcription"]["source"] == "elevenlabs", "Incorrect source"
+
+    for seg in data["segments"]:
+        assert "start" in seg, "Missing 'start' in segment"
+        assert "end" in seg, "Missing 'end' in segment"
+        assert "text" in seg, "Missing 'text' in segment"
+        assert "speaker" in seg, "Missing 'speaker' in segment"
+
+    has_speakers = any(seg.get("speaker") and seg["speaker"] != "unknown" for seg in data["segments"])
+    assert has_speakers, "No speaker information in imported segments"
+
     print(f"\n✓ Imported {len(data['segments'])} segments")
     print(f"✓ Transcription format: {data['transcription'].get('format', 'unknown')}")
+    print("✓ Speaker diarization: Yes")

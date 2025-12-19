@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
 from typing import List
+from unittest.mock import MagicMock
 
 import pytest
 
 EPISODES_INFO_PATH = Path(__file__).parent / "test_episodes_info.json"
 TRANSCRIPTION_DIR = Path(__file__).parent / "output" / "transcriptions" / "json"
+TEST_OUTPUT_DIR = Path(__file__).parent / "output"
 
 
 def require_transcription_files() -> List[Path]:
@@ -21,6 +23,16 @@ def require_transcription_files() -> List[Path]:
     )
 
     return transcription_files
+
+
+@pytest.fixture(scope="function")
+def mock_state_manager():
+    mock = MagicMock()
+    mock.is_step_completed.return_value = False
+    mock.mark_step_started.return_value = None
+    mock.mark_step_completed.return_value = None
+    mock.create_progress_bar.return_value = MagicMock()
+    return mock
 
 
 @pytest.fixture(scope="module")
@@ -81,3 +93,9 @@ def episodes_info_multiple():
     yield EPISODES_INFO_PATH
 
     EPISODES_INFO_PATH.unlink(missing_ok=True)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    TEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    yield

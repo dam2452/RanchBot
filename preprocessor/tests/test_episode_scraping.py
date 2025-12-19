@@ -36,24 +36,18 @@ Odcinek kończy się uroczystością wiejską, podczas której wszyscy się inte
 """
 
 
-@pytest.fixture
-def mock_playwright_scraper():
-    with patch('preprocessor.episode_scraper.sync_playwright') as mock_pw:
-        mock_browser = MagicMock()
-        mock_context = MagicMock()
-        mock_page = MagicMock()
-
-        mock_page.inner_text.return_value = MOCK_PAGE_TEXT
-        mock_context.new_page.return_value = mock_page
-        mock_browser.new_context.return_value = mock_context
-        mock_pw.return_value.__enter__.return_value.chromium.launch.return_value = mock_browser
-
-        yield mock_pw
+@pytest.fixture(autouse=True)
+def mock_crawl4ai_scraper():
+    with patch('preprocessor.processing.episode_scraper.Crawl4AIScraper') as mock_scraper_class:
+        mock_scraper = MagicMock()
+        mock_scraper.scrape.return_value = MOCK_PAGE_TEXT
+        mock_scraper_class.return_value = mock_scraper
+        yield mock_scraper_class
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_llm_provider():
-    with patch('preprocessor.episode_scraper.LLMProvider') as mock_llm_class:
+    with patch('preprocessor.processing.episode_scraper.LLMProvider') as mock_llm_class:
         mock_llm = MagicMock()
 
         mock_metadata = EpisodeMetadata(
@@ -72,14 +66,16 @@ def mock_llm_provider():
 
 
 @pytest.mark.scraping
-def test_episode_scraping(_mock_playwright_scraper, _mock_llm_provider):
+def test_episode_scraping():
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
     scraper = EpisodeScraper({
         "urls": ["https://example.com/episode1", "https://example.com/episode2"],
         "output_file": OUTPUT_FILE,
         "llm_provider": "lmstudio",
         "llm_model": None,
-        "headless": True,
         "merge_sources": True,
+        "scraper_type": "crawl4ai",
     })
 
     exit_code = scraper.work()
@@ -92,6 +88,10 @@ def test_episode_scraping(_mock_playwright_scraper, _mock_llm_provider):
 
     assert "sources" in data, "Missing 'sources' in output"
     assert len(data["sources"]) == 2, f"Expected 2 sources, got {len(data['sources'])}"
+
+    for source in data["sources"]:
+        assert "url" in source, "Missing 'url' in source"
+        assert "metadata" in source or "error" in source, "Missing 'metadata' or 'error' in source"
 
     if "merged_metadata" in data:
         metadata = data["merged_metadata"]
@@ -109,13 +109,36 @@ def test_episode_scraping(_mock_playwright_scraper, _mock_llm_provider):
 
 
 @pytest.mark.scraping
+def test_episode_scraping_no_merge():
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    scraper = EpisodeScraper({
+        "urls": ["https://example.com/episode1"],
+        "output_file": OUTPUT_FILE,
+        "llm_provider": "lmstudio",
+        "llm_model": None,
+        "merge_sources": False,
+        "scraper_type": "crawl4ai",
+    })
+
+    exit_code = scraper.work()
+    assert exit_code == 0, "Episode scraping failed"
+
+    assert OUTPUT_FILE.exists(), f"Output file not created: {OUTPUT_FILE}"
+
+    with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert "sources" in data, "Missing 'sources' in output"
+    assert "metadata_per_source" in data, "Missing 'metadata_per_source' in output"
+
+    print(f"\n✓ Scraped {len(data['metadata_per_source'])} sources without merging")
+
+
+@pytest.mark.scraping
 @pytest.mark.real_scraping
 @pytest.mark.skip(reason="Real scraping test - requires LM Studio running. Run manually.")
 def test_real_episode_scraping():
-    """
-    Test with real URLs and real LLM (requires LM Studio running).
-    Run with: pytest test_episode_scraping.py::test_real_episode_scraping -v
-    """
     real_urls = [
         "https://www.filmweb.pl/serial/Ranczo-2006-276093",
     ]
@@ -127,8 +150,8 @@ def test_real_episode_scraping():
         "output_file": OUTPUT_FILE,
         "llm_provider": "lmstudio",
         "llm_model": None,
-        "headless": True,
         "merge_sources": False,
+        "scraper_type": "crawl4ai",
     })
 
     exit_code = scraper.work()

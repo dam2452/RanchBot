@@ -17,7 +17,7 @@ services:
       - CUDA_VISIBLE_DEVICES=0
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-      - PULL_EXTRA_MODELS=false
+      - PULL_EXTRA_MODELS=true
       - DOCKER_CONTAINER=true
       - PYTHONUNBUFFERED=1
       - HF_HOME=/models/huggingface

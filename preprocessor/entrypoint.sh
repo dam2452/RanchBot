@@ -5,7 +5,7 @@ set -e
 # UNIFIED ENTRYPOINT - Handles Ollama + ML models with intelligent caching
 # =============================================================================
 
-MARKER_FILE="/app/.cache/.models_initialized"
+MARKER_FILE="/models/.models_initialized"
 OLLAMA_MARKER="/root/.ollama/.ollama_models_ready"
 
 # -----------------------------------------------------------------------------
@@ -94,8 +94,7 @@ setup_ml_models() {
     if [ -f "/app/download_models.py" ]; then
         python /app/download_models.py
 
-        # Create marker
-        mkdir -p "$(dirname "$MARKER_FILE")"
+        # Create marker in persistent volume
         date > "$MARKER_FILE"
         log "✓ ML models initialized"
     else
@@ -118,4 +117,4 @@ log "============================================"
 # -----------------------------------------------------------------------------
 # Execute main command
 # -----------------------------------------------------------------------------
-exec "$@"
+exec /app/run_preprocessor.sh "$@"
