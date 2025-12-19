@@ -94,7 +94,8 @@ RUN mkdir -p /models/huggingface \
 # -----------------------------------------------------------------------------
 COPY preprocessor/entrypoint.sh /app/entrypoint.sh
 COPY preprocessor/scripts/download_models.py /app/download_models.py
-RUN chmod +x /app/entrypoint.sh
+COPY preprocessor/run_preprocessor.sh /app/run_preprocessor.sh
+RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 
 # -----------------------------------------------------------------------------
 # Layer 6: Application code (changes frequently - LAST!)
@@ -103,12 +104,12 @@ COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
 # Create working directories
-RUN mkdir -p /app/preprocessed/transcoded_videos \
-             /app/preprocessed/transcriptions \
-             /app/preprocessed/embeddings \
-             /app/preprocessed/scene_timestamps
+RUN mkdir -p /app/output_data/transcoded_videos \
+             /app/output_data/transcriptions \
+             /app/output_data/embeddings \
+             /app/output_data/scene_timestamps
 
 EXPOSE 11434
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["bash"]
+CMD ["/app/run_preprocessor.sh"]

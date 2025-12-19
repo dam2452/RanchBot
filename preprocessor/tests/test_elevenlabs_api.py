@@ -16,7 +16,7 @@ OUTPUT_DIR = Path(__file__).parent / "output" / "transcriptions_elevenlabs_api"
 @pytest.mark.skip(reason="11labs API test - requires API key. Run manually with: ELEVEN_API_KEY=YOUR_KEY pytest test_elevenlabs_api.py")
 @pytest.mark.elevenlabs_api
 def test_elevenlabs_api_transcription(episodes_info_single):
-    import os
+    import os  # pylint: disable=import-outside-toplevel
     assert TEST_VIDEO.exists(), f"Test video not found: {TEST_VIDEO}"
 
     if not os.getenv("ELEVEN_API_KEY"):
@@ -54,5 +54,3 @@ def test_elevenlabs_api_transcription(episodes_info_single):
     print(f"\n✓ Total segments: {len(data['segments'])}")
     print(f"✓ Speaker diarization: {'Yes' if has_speakers else 'No'}")
     print(f"✓ Transcription format: {data['transcription'].get('format', 'unknown')}")
-
-

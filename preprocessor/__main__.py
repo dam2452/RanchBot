@@ -7,13 +7,13 @@ import sys
 from typing import List
 
 import click
-from rich.console import Console
 
 from bot.utils.resolution import Resolution
 from preprocessor.config.config import (
     IndexConfig,
     TranscodeConfig,
     TranscriptionConfig,
+    settings,
 )
 from preprocessor.core.state_manager import StateManager
 from preprocessor.processing.elastic_search_indexer import ElasticSearchIndexer
@@ -24,9 +24,8 @@ from preprocessor.processing.scene_detector import SceneDetector
 from preprocessor.transcriptions.elevenlabs_transcriber import ElevenLabsTranscriber
 from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator
 from preprocessor.transcriptions.transcription_importer import TranscriptionImporter
+from preprocessor.utils.console import console
 from preprocessor.video.video_transcoder import VideoTranscoder
-
-console = Console()
 
 
 @click.group()
@@ -502,16 +501,16 @@ def convert_elastic(index_name: str, backup_file: Path, dry_run: bool):
 @cli.command(name="detect-scenes")
 @click.argument("videos", type=click.Path(exists=True, path_type=Path))
 @click.option(
-    "--output-dir", type=click.Path(path_type=Path), default=SceneDetector.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for scene JSON files (default: {SceneDetector.DEFAULT_OUTPUT_DIR})",
+    "--output-dir", type=click.Path(path_type=Path), default=str(settings.scene_detection_output_dir),
+    help=f"Output directory for scene JSON files (default: {settings.scene_detection_output_dir})",
 )
 @click.option(
-    "--threshold", type=float, default=SceneDetector.DEFAULT_THRESHOLD,
-    help=f"Scene detection threshold 0.0-1.0 (default: {SceneDetector.DEFAULT_THRESHOLD})",
+    "--threshold", type=float, default=settings.scene_detection_threshold,
+    help=f"Scene detection threshold 0.0-1.0 (default: {settings.scene_detection_threshold})",
 )
 @click.option(
-    "--min-scene-len", type=int, default=SceneDetector.DEFAULT_MIN_SCENE_LEN,
-    help=f"Minimum scene length in frames (default: {SceneDetector.DEFAULT_MIN_SCENE_LEN})",
+    "--min-scene-len", type=int, default=settings.scene_detection_min_scene_len,
+    help=f"Minimum scene length in frames (default: {settings.scene_detection_min_scene_len})",
 )
 @click.option(
     "--device", type=click.Choice(["cuda", "cpu"]), default="cuda",
@@ -552,25 +551,25 @@ def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_le
     help="Videos directory for video embeddings (optional)",
 )
 @click.option(
-    "--output-dir", type=click.Path(path_type=Path), default=EmbeddingGenerator.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory (default: {EmbeddingGenerator.DEFAULT_OUTPUT_DIR})",
+    "--output-dir", type=click.Path(path_type=Path), default=str(settings.embedding_default_output_dir),
+    help=f"Output directory (default: {settings.embedding_default_output_dir})",
 )
 @click.option(
-    "--model", default=EmbeddingGenerator.DEFAULT_MODEL,
-    help=f"Model name (default: {EmbeddingGenerator.DEFAULT_MODEL})",
+    "--model", default=settings.embedding_model_name,
+    help=f"Model name (default: {settings.embedding_model_name})",
 )
 @click.option(
-    "--segments-per-embedding", type=int, default=EmbeddingGenerator.DEFAULT_SEGMENTS_PER_EMBEDDING,
-    help=f"Segments to group for text embeddings (default: {EmbeddingGenerator.DEFAULT_SEGMENTS_PER_EMBEDDING})",
+    "--segments-per-embedding", type=int, default=settings.embedding_segments_per_embedding,
+    help=f"Segments to group for text embeddings (default: {settings.embedding_segments_per_embedding})",
 )
 @click.option(
     "--keyframe-strategy", type=click.Choice(["keyframes", "scene_changes", "color_diff"]),
-    default=EmbeddingGenerator.DEFAULT_KEYFRAME_STRATEGY,
-    help=f"Strategy: keyframes (every 5s), scene_changes, color_diff (default: {EmbeddingGenerator.DEFAULT_KEYFRAME_STRATEGY})",
+    default=settings.embedding_keyframe_strategy,
+    help=f"Strategy: keyframes (every 5s), scene_changes, color_diff (default: {settings.embedding_keyframe_strategy})",
 )
 @click.option(
-    "--keyframe-interval", type=int, default=EmbeddingGenerator.DEFAULT_KEYFRAME_INTERVAL,
-    help=f"Extract every Nth keyframe/scene (default: {EmbeddingGenerator.DEFAULT_KEYFRAME_INTERVAL})",
+    "--keyframe-interval", type=int, default=settings.embedding_keyframe_interval,
+    help=f"Extract every Nth keyframe/scene (default: {settings.embedding_keyframe_interval})",
 )
 @click.option(
     "--generate-text/--no-text", default=True,
@@ -585,12 +584,12 @@ def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_le
     help="Device: cuda (GPU) or cpu (default: cuda)",
 )
 @click.option(
-    "--max-workers", type=int, default=EmbeddingGenerator.DEFAULT_MAX_WORKERS,
-    help=f"Number of parallel workers for processing episodes (default: {EmbeddingGenerator.DEFAULT_MAX_WORKERS})",
+    "--max-workers", type=int, default=settings.embedding_max_workers,
+    help=f"Number of parallel workers for processing episodes (default: {settings.embedding_max_workers})",
 )
 @click.option(
-    "--batch-size", type=int, default=EmbeddingGenerator.DEFAULT_BATCH_SIZE,
-    help=f"Batch size for GPU inference (default: {EmbeddingGenerator.DEFAULT_BATCH_SIZE})",
+    "--batch-size", type=int, default=settings.embedding_batch_size,
+    help=f"Batch size for GPU inference (default: {settings.embedding_batch_size})",
 )
 @click.option(
     "--scene-timestamps-dir", type=click.Path(path_type=Path),
@@ -673,8 +672,8 @@ def generate_embeddings(
     help=f"Output directory for transcription JSONs (default: {TranscriptionGenerator.DEFAULT_OUTPUT_DIR})",
 )
 @click.option(
-    "--scene-timestamps-dir", type=click.Path(path_type=Path), default=SceneDetector.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for scene timestamps (default: {SceneDetector.DEFAULT_OUTPUT_DIR})",
+    "--scene-timestamps-dir", type=click.Path(path_type=Path), default=str(settings.scene_detection_output_dir),
+    help=f"Output directory for scene timestamps (default: {settings.scene_detection_output_dir})",
 )
 @click.option("--name", required=True, help="Series name (required)")
 @click.option(
@@ -862,8 +861,8 @@ def run_all(
         scene_detector_args = {
             "videos": transcoded_videos,
             "output_dir": scene_timestamps_dir,
-            "threshold": SceneDetector.DEFAULT_THRESHOLD,
-            "min_scene_len": SceneDetector.DEFAULT_MIN_SCENE_LEN,
+            "threshold": settings.scene_detection_threshold,
+            "min_scene_len": settings.scene_detection_min_scene_len,
             "device": device,
         }
 
@@ -917,8 +916,8 @@ def run_all(
         detector = SceneDetector({
             "videos": transcoded_videos,
             "output_dir": scene_timestamps_dir,
-            "threshold": SceneDetector.DEFAULT_THRESHOLD,
-            "min_scene_len": SceneDetector.DEFAULT_MIN_SCENE_LEN,
+            "threshold": settings.scene_detection_threshold,
+            "min_scene_len": settings.scene_detection_min_scene_len,
             "device": device,
         })
         exit_codes.append(detector.work())
@@ -927,16 +926,16 @@ def run_all(
     embedding_generator = EmbeddingGenerator({
         "transcription_jsons": transcription_jsons,
         "videos": transcoded_videos,
-        "output_dir": EmbeddingGenerator.DEFAULT_OUTPUT_DIR,
-        "model": EmbeddingGenerator.DEFAULT_MODEL,
-        "segments_per_embedding": EmbeddingGenerator.DEFAULT_SEGMENTS_PER_EMBEDDING,
+        "output_dir": settings.embedding_default_output_dir,
+        "model": settings.embedding_model_name,
+        "segments_per_embedding": settings.embedding_segments_per_embedding,
         "keyframe_strategy": "scene_changes",
-        "keyframe_interval": EmbeddingGenerator.DEFAULT_KEYFRAME_INTERVAL,
+        "keyframe_interval": settings.embedding_keyframe_interval,
         "generate_text": True,
         "generate_video": True,
         "device": device,
         "max_workers": 1,
-        "batch_size": EmbeddingGenerator.DEFAULT_BATCH_SIZE,
+        "batch_size": settings.embedding_batch_size,
         "scene_timestamps_dir": scene_timestamps_dir,
     })
     exit_codes.append(embedding_generator.work())

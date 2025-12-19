@@ -10,20 +10,18 @@ from typing import (
     Optional,
 )
 
-from rich.console import Console
 from rich.progress import Progress
 
 from preprocessor.core.state_manager import StateManager
 from preprocessor.engines.elevenlabs_engine import ElevenLabsEngine
 from preprocessor.transcriptions.generators.multi_format_generator import MultiFormatGenerator
+from preprocessor.utils.console import console
 from preprocessor.utils.episode_utils import (
     build_output_path,
     extract_season_episode_from_filename,
     get_episode_metadata,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-console = Console()
 
 
 class ElevenLabsTranscriber:

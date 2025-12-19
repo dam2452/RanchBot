@@ -16,13 +16,10 @@ from elasticsearch.helpers import (
     BulkIndexError,
     async_bulk,
 )
-from rich.console import Console
 
 from bot.search.elastic_search_manager import ElasticSearchManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-console = Console()
 
 
 class ElasticSearchIndexer:

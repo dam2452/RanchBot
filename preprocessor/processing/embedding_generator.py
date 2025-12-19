@@ -17,7 +17,6 @@ from typing import (
 from PIL import Image
 import decord
 import numpy as np
-from rich.console import Console
 from rich.progress import Progress
 import torch
 import torchvision.transforms.functional as TF
@@ -27,12 +26,11 @@ from transformers import (
 )
 
 from preprocessor.config.config import settings
+from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
 decord.bridge.set_bridge('torch')
-
-console = Console()
 
 
 # pylint: disable=too-many-instance-attributes

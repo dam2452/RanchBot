@@ -6,11 +6,9 @@ from typing import (
 
 from openai import OpenAI
 from pydantic import BaseModel
-from rich.console import Console
 
 from preprocessor.config.config import settings
-
-console = Console()
+from preprocessor.utils.console import console
 
 
 class EpisodeInfo(BaseModel):

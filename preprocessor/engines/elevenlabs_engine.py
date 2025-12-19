@@ -10,11 +10,9 @@ from typing import (
 
 from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
-from rich.console import Console
 
 from preprocessor.config.config import settings
-
-console = Console()
+from preprocessor.utils.console import console
 
 
 class ElevenLabsEngine:

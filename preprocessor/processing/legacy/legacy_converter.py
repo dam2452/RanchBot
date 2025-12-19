@@ -13,13 +13,11 @@ from elasticsearch.helpers import (
     async_bulk,
     async_scan,
 )
-from rich.console import Console
 from rich.progress import Progress
 
 from bot.search.elastic_search_manager import ElasticSearchManager
+from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-console = Console()
 
 
 class LegacyConverter:

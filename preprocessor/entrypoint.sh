@@ -12,7 +12,7 @@ OLLAMA_MARKER="/root/.ollama/.ollama_models_ready"
 # Helper functions
 # -----------------------------------------------------------------------------
 log() {
-    echo "[$(date '+%H:%M:%S')] $1"
+    echo "[ENTRYPOINT] [$(date '+%Y-%m-%d %H:%M:%S')] $1" >&2
 }
 
 wait_for_ollama() {
@@ -29,46 +29,6 @@ wait_for_ollama() {
     done
     log "Ollama is ready!"
 }
-
-# -----------------------------------------------------------------------------
-# Setup NVENC (create symlinks for CUDA libraries if needed)
-# -----------------------------------------------------------------------------
-setup_nvenc() {
-    # Prefer WSL drivers (real GPU driver), fallback to CUDA compat libs
-    CUDA_LIB=""
-
-    # Try WSL drivers first (version 1.1)
-    CUDA_LIB=$(ls /usr/lib/wsl/drivers/*/libcuda.so.1.1 2>/dev/null | head -1)
-
-    # Fallback to version 1
-    if [ -z "$CUDA_LIB" ]; then
-        CUDA_LIB=$(ls /usr/lib/wsl/drivers/*/libcuda.so.1 2>/dev/null | head -1)
-    fi
-
-    # Last resort: find anywhere (will get compat lib)
-    if [ -z "$CUDA_LIB" ]; then
-        CUDA_LIB=$(find /usr -name "libcuda.so.1*" 2>/dev/null | grep -v "compat" | head -1)
-    fi
-
-    # If still nothing, use compat
-    if [ -z "$CUDA_LIB" ]; then
-        CUDA_LIB=$(find /usr -name "libcuda.so.1*" 2>/dev/null | head -1)
-    fi
-
-    if [ -n "$CUDA_LIB" ]; then
-        log "Setting up NVENC support with: $CUDA_LIB"
-        # Always recreate symlink (force overwrite)
-        rm -f /usr/lib/x86_64-linux-gnu/libcuda.so.1
-        ln -sf "$CUDA_LIB" /usr/lib/x86_64-linux-gnu/libcuda.so.1
-        # Verify symlink
-        ACTUAL_TARGET=$(readlink -f /usr/lib/x86_64-linux-gnu/libcuda.so.1)
-        log "✓ NVENC configured -> $ACTUAL_TARGET"
-    else
-        log "⚠ CUDA library not found, NVENC may not work"
-    fi
-}
-
-setup_nvenc
 
 # -----------------------------------------------------------------------------
 # Start Ollama service

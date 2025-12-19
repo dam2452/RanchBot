@@ -9,15 +9,13 @@ from typing import (
 )
 
 from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
-from rich.console import Console
 from rich.progress import Progress
 
 from preprocessor.providers.llm_provider import LLMProvider
 from preprocessor.scrapers.scraper_clipboard import ScraperClipboard
 from preprocessor.scrapers.scraper_crawl4ai import ScraperCrawl4AI
+from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-console = Console()
 
 
 class EpisodeScraper:

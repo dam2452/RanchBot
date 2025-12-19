@@ -1,9 +1,11 @@
 import logging
+import sys
 from typing import List
 
-from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
+
+from preprocessor.utils.console import console
 
 
 class LoggerNotFinalizedException(Exception):
@@ -17,7 +19,6 @@ class ErrorHandlingLogger:
         self.__error_exit_code: int = error_exit_code
         self.__errors: List[str] = []
         self.__is_finalized: bool = False
-        self.__console = Console()
 
         self.__setup_logger(loglevel)
 
@@ -36,14 +37,16 @@ class ErrorHandlingLogger:
         logging.basicConfig(
             level=level,
             format="%(message)s",
+            stream=sys.stderr,
             handlers=[
                 RichHandler(
-                    console=self.__console,
+                    console=console,
                     rich_tracebacks=True,
                     show_time=True,
                     show_path=False,
                 ),
             ],
+            force=True,
         )
         self.__logger: logging.Logger = logging.getLogger(self.__class_name)
 
@@ -75,7 +78,7 @@ class ErrorHandlingLogger:
     def finalize(self) -> int:
         self.__is_finalized = True
         if self.__errors:
-            self.__console.print(
+            console.print(
                 Panel(
                     f"[bold red]Processing for '{self.__class_name}' completed with {len(self.__errors)} error(s)[/bold red]",
                     title="Errors Occurred",
@@ -84,7 +87,7 @@ class ErrorHandlingLogger:
             )
             return self.__error_exit_code
 
-        self.__console.print(
+        console.print(
             Panel(
                 f"[bold green]Processing for '{self.__class_name}' completed successfully[/bold green]",
                 title="Success",

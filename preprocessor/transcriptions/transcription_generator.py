@@ -6,18 +6,14 @@ from typing import (
     Dict,
 )
 
-from rich.console import Console
-
 from preprocessor.transcriptions.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcriptions.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcriptions.processors.normalized_audio_processor import NormalizedAudioProcessor
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
-console = Console()
-
 
 class TranscriptionGenerator:
-    DEFAULT_OUTPUT_DIR: Path = Path("transcriptions")
+    DEFAULT_OUTPUT_DIR: Path = Path("/app/output_data/transcriptions")
     DEFAULT_MODEL: str = "large-v3-turbo"
     DEFAULT_LANGUAGE: str = "Polish"
     DEFAULT_DEVICE: str = "cuda"
@@ -31,7 +27,7 @@ class TranscriptionGenerator:
 
         ramdisk_path = args.get("ramdisk_path")
         if ramdisk_path and Path(ramdisk_path).exists():
-            self.__temp_dir = tempfile.TemporaryDirectory(dir=str(ramdisk_path))  # pylint: disable=consider-using-with
+            self.__temp_dir = tempfile.TemporaryDirectory(dir=str(ramdisk_path))
         else:
             self.__temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 

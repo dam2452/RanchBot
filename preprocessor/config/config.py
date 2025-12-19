@@ -17,7 +17,7 @@ from pydantic import SecretStr
 from bot.utils.resolution import Resolution
 
 
-class Settings:
+class Settings:  # pylint: disable=too-many-instance-attributes
     def __init__(self):
         self._eleven_api_key = SecretStr(os.getenv("ELEVEN_API_KEY", "")) if os.getenv("ELEVEN_API_KEY") else None
         self._gemini_api_key = SecretStr(os.getenv("GEMINI_API_KEY", "")) if os.getenv("GEMINI_API_KEY") else None
@@ -26,7 +26,7 @@ class Settings:
 
         self.embedding_model_name: str = "Alibaba-NLP/gme-Qwen2-VL-7B-Instruct"
 
-        self.embedding_default_output_dir: Path = Path("embeddings")
+        self.embedding_default_output_dir: Path = Path("/app/output_data/embeddings")
         self.embedding_segments_per_embedding: int = 5
         self.embedding_keyframe_strategy: str = "scene_changes"
         self.embedding_keyframe_interval: int = 4
@@ -37,7 +37,7 @@ class Settings:
 
         self.scene_detection_threshold: float = 0.5
         self.scene_detection_min_scene_len: int = 10
-        self.scene_detection_output_dir: Path = Path("scene_timestamps")
+        self.scene_detection_output_dir: Path = Path("/app/output_data/scene_timestamps")
 
         self.elevenlabs_model_id: str = "scribe_v1"
         self.elevenlabs_language_code: str = "pol"

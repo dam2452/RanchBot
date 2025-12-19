@@ -2,12 +2,10 @@ import logging
 from pathlib import Path
 from typing import Dict
 
-from rich.console import Console
 import whisper
 
 from preprocessor.engines.base_engine import TranscriptionEngine
-
-console = Console()
+from preprocessor.utils.console import console
 
 
 class WhisperEngine(TranscriptionEngine):

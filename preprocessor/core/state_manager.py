@@ -15,7 +15,6 @@ from typing import (
     Optional,
 )
 
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -25,7 +24,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-console = Console()
+from preprocessor.utils.console import console
 
 
 @dataclass

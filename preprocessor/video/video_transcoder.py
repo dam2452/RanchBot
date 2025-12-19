@@ -16,18 +16,16 @@ from typing import (
     Tuple,
 )
 
-from rich.console import Console
 from rich.progress import Progress
 
 from bot.utils.resolution import Resolution
 from preprocessor.core.state_manager import StateManager
+from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-console = Console()
 
 
 class VideoTranscoder:
-    DEFAULT_OUTPUT_DIR: Path = Path("transcoded_videos")
+    DEFAULT_OUTPUT_DIR: Path = Path("/app/output_data/transcoded_videos")
     DEFAULT_RESOLUTION: Resolution = Resolution.R1080P
     DEFAULT_CODEC: str = "h264_nvenc"
     DEFAULT_PRESET: str = "slow"

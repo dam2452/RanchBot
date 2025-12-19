@@ -17,44 +17,18 @@ services:
       - CUDA_VISIBLE_DEVICES=0
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-      # Set to 'false' to skip model downloads on startup
       - PULL_EXTRA_MODELS=false
-      # Model cache paths (unified under /models)
+      - DOCKER_CONTAINER=true
+      - PYTHONUNBUFFERED=1
       - HF_HOME=/models/huggingface
       - TRANSFORMERS_CACHE=/models/huggingface
       - TORCH_HOME=/models/torch
       - WHISPER_CACHE=/models/whisper
       - OLLAMA_MODELS=/models/ollama
-      - LD_LIBRARY_PATH=/usr/lib/wsl/drivers/nv_dispi.inf_amd64_4646b47d9477048e:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.11/dist-packages/ctranslate2.libs
 
     volumes:
-      # Input data (read-only)
-      - ./videos:/videos:ro
-      - ./episodes.json:/app/preprocessor/episodes.json:ro
-      - ./.env:/app/.env:ro
-
-      # Output data
-      - ./preprocessed:/app/preprocessed
-
-      # =========================================================
-      # NVENC SUPPORT (WSL2): Uncomment if you want GPU encoding
-      # =========================================================
-      # Without this mount, NVENC won't work in WSL2 and CPU codec will be used
-      # This is NOT data, it's GPU driver infrastructure (read-only)
-      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
-
-      # =========================================================
-      # PERFORMANCE: RAMDISK for temporary files (64GB RAM)
-      # =========================================================
-      # Uncomment for 20-30% faster audio normalization
-      # Requires: 16GB free RAM, tmpfs mount on host
-      # Setup: sudo mount -t tmpfs -o size=16G tmpfs /mnt/ramdisk
-      # - /mnt/ramdisk:/mnt/ramdisk
-
-      # =========================================================
-      # MODEL CACHE VOLUME - persist across rebuilds!
-      # =========================================================
-      # All ML models (HuggingFace, Whisper, TransNet, Torch, Ollama)
+      - ./input_data:/input_data:ro
+      - ./output_data:/app/output_data
       - ml_models:/models
 
     ports:
@@ -67,11 +41,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu, video, compute, utility]
-
-    stdin_open: true
-    tty: true
-
-    command: bash
 
 # =============================================================================
 # NAMED VOLUMES - Persist on the host filesystem!

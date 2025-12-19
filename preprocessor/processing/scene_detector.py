@@ -10,16 +10,14 @@ from typing import (
 
 import decord
 import numpy as np
-from rich.console import Console
 from rich.progress import Progress
 import torch
 from transnetv2_pytorch import TransNetV2
 
 from preprocessor.config.config import settings
+from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
-
-console = Console()
 
 
 class SceneDetector:

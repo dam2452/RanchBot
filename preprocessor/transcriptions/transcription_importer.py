@@ -9,17 +9,15 @@ from typing import (
     Optional,
 )
 
-from rich.console import Console
 from rich.progress import Progress
 
 from preprocessor.core.state_manager import StateManager
+from preprocessor.utils.console import console
 from preprocessor.utils.episode_utils import (
     build_output_path,
     get_episode_metadata,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-console = Console()
 
 
 class TranscriptionImporter:
