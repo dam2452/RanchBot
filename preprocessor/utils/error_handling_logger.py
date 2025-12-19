@@ -1,5 +1,4 @@
 import logging
-import sys
 from typing import List
 
 from rich.logging import RichHandler

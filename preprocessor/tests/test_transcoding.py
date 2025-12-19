@@ -4,6 +4,7 @@ import sys
 import pytest
 
 from bot.utils.resolution import Resolution
+from preprocessor.core.state_manager import StateManager
 from preprocessor.video.video_transcoder import VideoTranscoder
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -84,8 +85,6 @@ def test_transcoding_multiple_episodes(episodes_info_multiple, mock_state_manage
 @pytest.mark.transcoding
 @pytest.mark.slow
 def test_transcoding_with_state_manager(episodes_info_single):
-    from preprocessor.core.state_manager import StateManager
-
     assert TEST_VIDEO.exists(), f"Test video not found: {TEST_VIDEO}"
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

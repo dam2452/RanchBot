@@ -782,7 +782,7 @@ def run_all(
     exit_codes: List[int] = []
 
     if scrape_urls and not episodes_info_json:
-        episodes_info_json = Path(f"{name}_episodes.json")
+        episodes_info_json = Path("/app/output_data") / f"{name}_episodes.json"
 
     if not episodes_info_json:
         console.print("[red]Error: Either --episodes-info-json or --scrape-urls must be provided[/red]")

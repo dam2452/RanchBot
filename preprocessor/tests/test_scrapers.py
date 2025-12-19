@@ -9,6 +9,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# pylint: disable=unused-argument,import-outside-toplevel
+
 
 @pytest.mark.scrapers
 def test_scraper_crawl4ai_mock():
@@ -20,7 +22,7 @@ def test_scraper_crawl4ai_mock():
         mock_result.success = True
         mock_result.markdown = "# Test Content\n\nThis is a test."
 
-        async def mock_arun(*args, **kwargs):
+        async def mock_arun(*_args, **_kwargs):
             return mock_result
 
         mock_crawler.arun = mock_arun
@@ -43,7 +45,7 @@ def test_scraper_crawl4ai_failure_mock():
         mock_result.success = False
         mock_result.error_message = "Test error"
 
-        async def mock_arun(*args, **kwargs):
+        async def mock_arun(*_args, **_kwargs):
             return mock_result
 
         mock_crawler.arun = mock_arun

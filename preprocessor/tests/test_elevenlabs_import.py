@@ -9,6 +9,8 @@ from preprocessor.transcriptions.transcription_importer import TranscriptionImpo
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# pylint: disable=redefined-outer-name
+
 SOURCE_DIR = Path(__file__).parent / "mock_11labs_data"
 OUTPUT_DIR = Path(__file__).parent / "output" / "transcriptions_11labs"
 
