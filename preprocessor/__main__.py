@@ -421,10 +421,6 @@ def transcribe_elevenlabs(
     "--llm-provider", type=click.Choice(["lmstudio", "ollama", "gemini"]), default="lmstudio",
     help="LLM provider: lmstudio, ollama, gemini (default: lmstudio)",
 )
-@click.option(
-    "--llm-api-key", envvar="GEMINI_API_KEY",
-    help="API key for LLM (for Gemini, or set GEMINI_API_KEY env var)",
-)
 @click.option("--llm-model", help="LLM model name (override default for provider)")
 @click.option(
     "--headless/--no-headless", default=True,
@@ -438,7 +434,6 @@ def scrape_episodes(
     urls: tuple,
     output_file: Path,
     llm_provider: str,
-    llm_api_key: str,
     llm_model: str,
     headless: bool,
     merge_sources: bool,
@@ -460,7 +455,6 @@ def scrape_episodes(
         "urls": list(urls),
         "output_file": output_file,
         "llm_provider": llm_provider,
-        "llm_api_key": llm_api_key,
         "llm_model": llm_model,
         "headless": headless,
         "merge_sources": merge_sources,
@@ -814,7 +808,6 @@ def run_all(
             "urls": list(scrape_urls),
             "output_file": episodes_info_json,
             "llm_provider": llm_provider,
-            "llm_api_key": None,
             "llm_model": None,
             "headless": True,
             "merge_sources": True,

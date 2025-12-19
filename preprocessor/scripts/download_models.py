@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os
+from preprocessor.config.config import settings
 
 
 def log(msg):
@@ -8,7 +8,7 @@ def log(msg):
 def download_whisper_model():
     try:
         import whisper  # pylint: disable=import-outside-toplevel
-        model_name = os.getenv("WHISPER_MODEL", "large-v3-turbo")
+        model_name = settings.whisper_model
         log(f"Checking Whisper model: {model_name}")
         whisper.load_model(model_name)
         log(f"✓ Whisper model '{model_name}' ready")
@@ -21,7 +21,7 @@ def download_embedding_model():
             AutoModel,
             AutoProcessor,
         )
-        model_name = "cyanic-selkie/gme-Qwen2-VL-7B-Instruct"
+        model_name = settings.embedding_model_name
         log(f"Checking embedding model: {model_name}")
         AutoProcessor.from_pretrained(model_name)
         AutoModel.from_pretrained(model_name)

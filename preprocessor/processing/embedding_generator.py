@@ -26,6 +26,7 @@ from transformers import (
     AutoProcessor,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
@@ -36,28 +37,18 @@ console = Console()
 
 # pylint: disable=too-many-instance-attributes
 class EmbeddingGenerator:
-    DEFAULT_MODEL = "Alibaba-NLP/gme-Qwen2-VL-7B-Instruct"
-    DEFAULT_OUTPUT_DIR = Path("embeddings")
-    DEFAULT_SEGMENTS_PER_EMBEDDING = 5
-    DEFAULT_KEYFRAME_STRATEGY = "scene_changes"
-    DEFAULT_KEYFRAME_INTERVAL = 4
-    DEFAULT_MAX_WORKERS = 1
-    DEFAULT_BATCH_SIZE = 24
-    OPTIMAL_IMAGE_SIZE = (1335, 751)
-    MAX_PIXEL_BUDGET = 1003520
-
     def __init__(self, args: Dict[str, Any]):
         self.transcription_jsons: Path = args["transcription_jsons"]
         self.videos: Optional[Path] = args.get("videos")
-        self.output_dir: Path = args.get("output_dir", self.DEFAULT_OUTPUT_DIR)
-        self.model_name: str = args.get("model", self.DEFAULT_MODEL)
-        self.segments_per_embedding: int = args.get("segments_per_embedding", self.DEFAULT_SEGMENTS_PER_EMBEDDING)
-        self.keyframe_strategy: str = args.get("keyframe_strategy", self.DEFAULT_KEYFRAME_STRATEGY)
-        self.keyframe_interval: int = args.get("keyframe_interval", self.DEFAULT_KEYFRAME_INTERVAL)
+        self.output_dir: Path = args.get("output_dir", settings.embedding_default_output_dir)
+        self.model_name: str = args.get("model", settings.embedding_model_name)
+        self.segments_per_embedding: int = args.get("segments_per_embedding", settings.embedding_segments_per_embedding)
+        self.keyframe_strategy: str = args.get("keyframe_strategy", settings.embedding_keyframe_strategy)
+        self.keyframe_interval: int = args.get("keyframe_interval", settings.embedding_keyframe_interval)
         self.generate_text: bool = args.get("generate_text", True)
         self.generate_video: bool = args.get("generate_video", True)
-        self.max_workers: int = args.get("max_workers", self.DEFAULT_MAX_WORKERS)
-        self.batch_size: int = args.get("batch_size", self.DEFAULT_BATCH_SIZE)
+        self.max_workers: int = args.get("max_workers", settings.embedding_max_workers)
+        self.batch_size: int = args.get("batch_size", settings.embedding_batch_size)
         self.device: str = args.get("device", "cuda" if torch.cuda.is_available() else "cpu")
         self.scene_timestamps_dir: Optional[Path] = args.get("scene_timestamps_dir")
 
@@ -397,16 +388,16 @@ class EmbeddingGenerator:
                 frame = frame.cuda()
 
             current_pixels = frame.shape[0] * frame.shape[1]
-            if current_pixels > self.MAX_PIXEL_BUDGET and self.device == "cuda":
+            if current_pixels > settings.embedding_max_pixel_budget and self.device == "cuda":
                 frame_float = frame.permute(2, 0, 1).unsqueeze(0).float()
-                frame_resized = TF.resize(frame_float, list(reversed(self.OPTIMAL_IMAGE_SIZE)), antialias=True)
+                frame_resized = TF.resize(frame_float, list(reversed(settings.embedding_optimal_image_size)), antialias=True)
                 frame_final = frame_resized.squeeze(0).permute(1, 2, 0).byte().cpu().numpy()
                 pil_image = Image.fromarray(frame_final)
             else:
                 frame_np = frame.cpu().numpy()
                 pil_image = Image.fromarray(frame_np)
-                if current_pixels > self.MAX_PIXEL_BUDGET:
-                    pil_image = pil_image.resize(self.OPTIMAL_IMAGE_SIZE, Image.Resampling.LANCZOS)
+                if current_pixels > settings.embedding_max_pixel_budget:
+                    pil_image = pil_image.resize(settings.embedding_optimal_image_size, Image.Resampling.LANCZOS)
 
             pil_images.append(pil_image)
 
@@ -415,15 +406,15 @@ class EmbeddingGenerator:
 
     def __encode_frame(self, frame: np.ndarray) -> np.ndarray:
         current_pixels = frame.shape[0] * frame.shape[1]
-        if current_pixels > self.MAX_PIXEL_BUDGET and self.device == "cuda":
+        if current_pixels > settings.embedding_max_pixel_budget and self.device == "cuda":
             frame_tensor = torch.from_numpy(frame).permute(2, 0, 1).unsqueeze(0).float().cuda()
-            frame_tensor = TF.resize(frame_tensor, list(reversed(self.OPTIMAL_IMAGE_SIZE)), antialias=True)
+            frame_tensor = TF.resize(frame_tensor, list(reversed(settings.embedding_optimal_image_size)), antialias=True)
             frame_tensor = frame_tensor.squeeze(0).permute(1, 2, 0).byte().cpu().numpy()
             pil_image = Image.fromarray(frame_tensor)
         else:
             pil_image = Image.fromarray(frame)
-            if current_pixels > self.MAX_PIXEL_BUDGET:
-                pil_image = pil_image.resize(self.OPTIMAL_IMAGE_SIZE, Image.Resampling.LANCZOS)
+            if current_pixels > settings.embedding_max_pixel_budget:
+                pil_image = pil_image.resize(settings.embedding_optimal_image_size, Image.Resampling.LANCZOS)
 
         embeddings = self.model.get_image_embeddings(images=[pil_image])
         return embeddings[0].cpu().numpy()

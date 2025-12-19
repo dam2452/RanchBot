@@ -38,7 +38,6 @@ class ElevenLabsTranscriber:
         self.episodes_info_json: Optional[Path] = args.get("episodes_info_json")
         self.series_name: str = args["series_name"]
 
-        self.api_key: Optional[str] = args.get("api_key")
         self.model_id: str = args.get("model_id", "scribe_v1")
         self.language_code: str = args.get("language_code", "pol")
         self.diarize: bool = args.get("diarize", True)
@@ -57,7 +56,6 @@ class ElevenLabsTranscriber:
                 self.episodes_info = json.load(f)
 
         self.engine = ElevenLabsEngine(
-            api_key=self.api_key,
             model_id=self.model_id,
             language_code=self.language_code,
             diarize=self.diarize,

@@ -25,7 +25,6 @@ class EpisodeScraper:
         self.urls: List[str] = args["urls"]
         self.output_file: Path = args["output_file"]
         self.llm_provider: str = args.get("llm_provider", "lmstudio")
-        self.llm_api_key: Optional[str] = args.get("llm_api_key")
         self.llm_model: Optional[str] = args.get("llm_model")
         self.headless: bool = args.get("headless", True)
         self.merge_sources: bool = args.get("merge_sources", True)
@@ -49,7 +48,6 @@ class EpisodeScraper:
     def __exec(self) -> None:
         self.llm = LLMProvider(
             provider=self.llm_provider,
-            api_key=self.llm_api_key,
             model=self.llm_model,
         )
 

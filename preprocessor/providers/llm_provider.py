@@ -8,6 +8,8 @@ from openai import OpenAI
 from pydantic import BaseModel
 from rich.console import Console
 
+from preprocessor.config.config import settings
+
 console = Console()
 
 
@@ -50,18 +52,18 @@ class LLMProvider:
         },
     }
 
-    def __init__(self, provider: str = "lmstudio", api_key: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, provider: str = "lmstudio", model: Optional[str] = None):
         if provider not in self.PROVIDERS:
             raise ValueError(f"Unknown provider: {provider}. Available: {list(self.PROVIDERS.keys())}")
 
         config = self.PROVIDERS[provider]
         self.provider = provider
         self.base_url = config["base_url"]
-        self.api_key = api_key or config["api_key"]
+        self.api_key = settings.gemini_api_key if provider == "gemini" else config["api_key"]
         self.model = model or config["model"]
 
-        if provider == "gemini" and not api_key:
-            raise ValueError("Gemini provider requires API key. Set --api-key or GEMINI_API_KEY env var")
+        if provider == "gemini" and not self.api_key:
+            raise ValueError("Gemini provider requires API key. Set GEMINI_API_KEY env var")
 
         self.client = OpenAI(
             base_url=self.base_url,

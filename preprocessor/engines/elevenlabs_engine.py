@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 import time
 from typing import (
@@ -13,33 +12,33 @@ from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
 from rich.console import Console
 
+from preprocessor.config.config import settings
+
 console = Console()
 
 
 class ElevenLabsEngine:
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model_id: str = "scribe_v1",
-        language_code: str = "pol",
-        diarize: bool = True,
-        diarization_threshold: float = 0.4,
-        temperature: float = 0.0,
-        polling_interval: int = 20,
+        model_id: Optional[str] = None,
+        language_code: Optional[str] = None,
+        diarize: Optional[bool] = None,
+        diarization_threshold: Optional[float] = None,
+        temperature: Optional[float] = None,
+        polling_interval: Optional[int] = None,
     ):
-        api_key = api_key or os.getenv("ELEVEN_API_KEY")
-        if not api_key:
+        if not settings.eleven_api_key:
             raise ValueError(
-                "ElevenLabs API key not provided. Set ELEVEN_API_KEY environment variable or pass api_key parameter.",
+                "ElevenLabs API key not provided. Set ELEVEN_API_KEY environment variable.",
             )
 
-        self.client = ElevenLabs(api_key=api_key)
-        self.model_id = model_id
-        self.language_code = language_code
-        self.diarize = diarize
-        self.diarization_threshold = diarization_threshold
-        self.temperature = temperature
-        self.polling_interval = polling_interval
+        self.client = ElevenLabs(api_key=settings.eleven_api_key)
+        self.model_id = model_id or settings.elevenlabs_model_id
+        self.language_code = language_code or settings.elevenlabs_language_code
+        self.diarize = diarize if diarize is not None else settings.elevenlabs_diarize
+        self.diarization_threshold = diarization_threshold or settings.elevenlabs_diarization_threshold
+        self.temperature = temperature if temperature is not None else settings.elevenlabs_temperature
+        self.polling_interval = polling_interval or settings.elevenlabs_polling_interval
 
         self.additional_formats = [
             {"format": "srt"},
@@ -97,7 +96,7 @@ class ElevenLabsEngine:
     def __poll_for_results(self, transcription_id: str):
         self.logger.info(f"Polling for results (ID: {transcription_id})...")
 
-        max_attempts = 60
+        max_attempts = settings.elevenlabs_max_attempts
         attempt = 0
 
         while attempt < max_attempts:

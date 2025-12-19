@@ -15,6 +15,7 @@ from rich.progress import Progress
 import torch
 from transnetv2_pytorch import TransNetV2
 
+from preprocessor.config.config import settings
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
@@ -22,15 +23,11 @@ console = Console()
 
 
 class SceneDetector:
-    DEFAULT_THRESHOLD = 0.5
-    DEFAULT_MIN_SCENE_LEN = 10
-    DEFAULT_OUTPUT_DIR = Path("scene_timestamps")
-
     def __init__(self, args: Dict[str, Any]):
         self.videos: Path = args["videos"]
-        self.output_dir: Path = args.get("output_dir", self.DEFAULT_OUTPUT_DIR)
-        self.threshold: float = args.get("threshold", self.DEFAULT_THRESHOLD)
-        self.min_scene_len: int = args.get("min_scene_len", self.DEFAULT_MIN_SCENE_LEN)
+        self.output_dir: Path = args.get("output_dir", settings.scene_detection_output_dir)
+        self.threshold: float = args.get("threshold", settings.scene_detection_threshold)
+        self.min_scene_len: int = args.get("min_scene_len", settings.scene_detection_min_scene_len)
         self.device: str = args.get("device", "cuda" if torch.cuda.is_available() else "cpu")
 
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(

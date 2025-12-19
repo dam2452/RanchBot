@@ -13,21 +13,20 @@ TEST_VIDEO_DIR = Path(__file__).parent
 OUTPUT_DIR = Path(__file__).parent / "output" / "transcriptions_elevenlabs_api"
 
 
-@pytest.mark.skip(reason="11labs API test - requires API key. Run manually with: pytest test_elevenlabs_api.py --api-key=YOUR_KEY")
+@pytest.mark.skip(reason="11labs API test - requires API key. Run manually with: ELEVEN_API_KEY=YOUR_KEY pytest test_elevenlabs_api.py")
 @pytest.mark.elevenlabs_api
-def test_elevenlabs_api_transcription(request, episodes_info_single):
+def test_elevenlabs_api_transcription(episodes_info_single):
+    import os
     assert TEST_VIDEO.exists(), f"Test video not found: {TEST_VIDEO}"
 
-    api_key = request.config.getoption("--api-key", default=None)
-    if not api_key:
-        pytest.skip("No API key provided. Use --api-key=YOUR_KEY")
+    if not os.getenv("ELEVEN_API_KEY"):
+        pytest.skip("No API key provided. Set ELEVEN_API_KEY environment variable")
 
     transcriber = ElevenLabsTranscriber({
         "videos": TEST_VIDEO_DIR,
         "output_dir": OUTPUT_DIR,
         "episodes_info_json": episodes_info_single,
         "series_name": "test_ranczo",
-        "api_key": api_key,
         "model_id": "scribe_v1",
         "language_code": "pol",
         "diarize": True,
@@ -57,10 +56,3 @@ def test_elevenlabs_api_transcription(request, episodes_info_single):
     print(f"✓ Transcription format: {data['transcription'].get('format', 'unknown')}")
 
 
-def pytest_addoption(parser):
-    parser.addoption(
-        "--api-key",
-        action="store",
-        default=None,
-        help="11labs API key for testing",
-    )
