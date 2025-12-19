@@ -6,7 +6,7 @@ services:
       context: ..
       dockerfile: preprocessor/Dockerfile
     image: ranczo-preprocessor:latest
-    container_name: ranczo-preprocessor
+    container_name: ranchbot-preprocessing-app
 
     runtime: nvidia
 
@@ -16,15 +16,16 @@ services:
     environment:
       - CUDA_VISIBLE_DEVICES=0
       - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - NVIDIA_DRIVER_CAPABILITIES=all
       # Set to 'false' to skip model downloads on startup
-      - PULL_EXTRA_MODELS=true
+      - PULL_EXTRA_MODELS=false
       # Model cache paths (unified under /models)
       - HF_HOME=/models/huggingface
       - TRANSFORMERS_CACHE=/models/huggingface
       - TORCH_HOME=/models/torch
       - WHISPER_CACHE=/models/whisper
       - OLLAMA_MODELS=/models/ollama
+      - LD_LIBRARY_PATH=/usr/lib/wsl/drivers/nv_dispi.inf_amd64_4646b47d9477048e:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.11/dist-packages/ctranslate2.libs
 
     volumes:
       # Input data (read-only)
@@ -34,6 +35,13 @@ services:
 
       # Output data
       - ./preprocessed:/app/preprocessed
+
+      # =========================================================
+      # NVENC SUPPORT (WSL2): Uncomment if you want GPU encoding
+      # =========================================================
+      # Without this mount, NVENC won't work in WSL2 and CPU codec will be used
+      # This is NOT data, it's GPU driver infrastructure (read-only)
+      - /usr/lib/wsl/drivers:/usr/lib/wsl/drivers:ro
 
       # =========================================================
       # PERFORMANCE: RAMDISK for temporary files (64GB RAM)
@@ -58,7 +66,7 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [gpu, video, compute, utility]
 
     stdin_open: true
     tty: true
@@ -76,5 +84,5 @@ services:
 # =============================================================================
 volumes:
   ml_models:
-    name: ranczo-ml-models
+    name: ranchbot-ai-models
     driver: local
