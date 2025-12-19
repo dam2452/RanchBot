@@ -33,25 +33,19 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     build-essential \
-    autoconf \
-    automake \
-    cmake \
-    libtool \
-    libtool-bin \
-    nasm \
-    yasm \
     pkg-config \
-    libass-dev \
-    libfreetype6-dev \
-    libfontconfig1-dev \
-    libfribidi-dev \
-    libharfbuzz-dev \
-    libmp3lame-dev \
-    libopus-dev \
-    libvorbis-dev \
-    libvpx-dev \
-    libx264-dev \
-    libx265-dev \
+    libass9 \
+    libfreetype6 \
+    libfontconfig1 \
+    libfribidi0 \
+    libharfbuzz0b \
+    libmp3lame0 \
+    libopus0 \
+    libvorbis0a \
+    libvorbisenc2 \
+    libvpx7 \
+    libx264-163 \
+    libx265-199 \
     libnspr4 \
     libnss3 \
     libatk1.0-0 \
@@ -73,33 +67,16 @@ RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
     ln -sf /usr/bin/python3.11 /usr/bin/python3
 
 # -----------------------------------------------------------------------------
-# Layer 1.5: Build FFmpeg with NVENC support
+# Layer 1.5: Copy FFmpeg from linuxserver/ffmpeg (with NVENC support)
 # -----------------------------------------------------------------------------
-RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
-    cd nv-codec-headers && \
-    make && \
-    make install && \
-    cd .. && \
-    rm -rf nv-codec-headers
+COPY --from=linuxserver/ffmpeg:8.0.1 /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
+COPY --from=linuxserver/ffmpeg:8.0.1 /usr/local/bin/ffprobe /usr/local/bin/ffprobe
+COPY --from=linuxserver/ffmpeg:8.0.1 /usr/local/lib /usr/local/lib
 
-RUN wget https://ffmpeg.org/releases/ffmpeg-6.0.tar.xz && \
-    tar -xf ffmpeg-6.0.tar.xz && \
-    rm ffmpeg-6.0.tar.xz && \
-    cd ffmpeg-6.0 && \
-    ./configure --prefix=/usr/local \
-        --enable-nonfree \
-        --enable-nvenc \
-        --enable-gpl \
-        --enable-libx264 \
-        --enable-libx265 \
-        --disable-debug \
-        --disable-ffplay && \
-    make -j$(nproc) && \
-    make install && \
-    cd .. && \
-    rm -rf ffmpeg-6.0
+RUN ldconfig
 
 ENV PATH="/usr/local/bin:${PATH}"
+ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
 
 # -----------------------------------------------------------------------------
 # Layer 2: Ollama binary (changes rarely)
