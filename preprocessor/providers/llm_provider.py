@@ -23,6 +23,10 @@ class SeasonMetadata(BaseModel):
     episodes: List[EpisodeInfo]
 
 
+class AllSeasonsMetadata(BaseModel):
+    seasons: List[SeasonMetadata]
+
+
 class EpisodeMetadata(BaseModel):
     title: str
     description: str
@@ -32,43 +36,21 @@ class EpisodeMetadata(BaseModel):
 
 
 class LLMProvider:
-    PROVIDERS = {
-        "lmstudio": {
-            "base_url": "http://127.0.0.1:1235/v1",
-            "api_key": "lm-studio",
-            "model": "qwen3-coder-30b-a3b-instruct-1m",
-        },
-        "ollama": {
-            "base_url": "http://localhost:11434/v1",
-            "api_key": "ollama",
-            "model": "qwen3-coder-50k",
-        },
-        "gemini": {
-            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-            "api_key": None,
-            "model": "gemini-2.5-flash",
-        },
-    }
+    BASE_URL = "http://localhost:11434/v1"
+    API_KEY = "ollama"
+    MODEL = "qwen3-coder-50k"
 
-    def __init__(self, provider: str = "lmstudio", model: Optional[str] = None):
-        if provider not in self.PROVIDERS:
-            raise ValueError(f"Unknown provider: {provider}. Available: {list(self.PROVIDERS.keys())}")
-
-        config = self.PROVIDERS[provider]
-        self.provider = provider
-        self.base_url = config["base_url"]
-        self.api_key = settings.gemini_api_key if provider == "gemini" else config["api_key"]
-        self.model = model or config["model"]
-
-        if provider == "gemini" and not self.api_key:
-            raise ValueError("Gemini provider requires API key. Set GEMINI_API_KEY env var")
+    def __init__(self, model: Optional[str] = None):
+        self.base_url = self.BASE_URL
+        self.api_key = self.API_KEY
+        self.model = model or self.MODEL
 
         self.client = OpenAI(
             base_url=self.base_url,
             api_key=self.api_key,
         )
 
-        console.print(f"[cyan]LLM Provider: {provider} (model: {self.model})[/cyan]")
+        console.print(f"[cyan]LLM Provider: Ollama (model: {self.model}, context: 50k)[/cyan]")
 
     def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
         system_prompt = """You are extracting episode data from a TV series page.
@@ -90,7 +72,6 @@ Page content (markdown):
 Extract ALL episodes from this page and return as JSON."""
 
         try:
-            # noinspection PyTypeChecker
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -105,8 +86,6 @@ Extract ALL episodes from this page and return as JSON."""
                         "schema": SeasonMetadata.model_json_schema(),
                     },
                 },
-                max_tokens=4096,
-                temperature=0.1,
             )
 
             content = response.choices[0].message.content
@@ -197,3 +176,54 @@ Create a single, unified metadata entry."""
         except Exception as e:  # pylint: disable=broad-exception-caught
             console.print(f"[red]LLM merge failed: {e}[/red]")
             return metadata_list[0]
+
+    def extract_all_seasons(self, scraped_pages: List[dict]) -> Optional[List[SeasonMetadata]]:
+        system_prompt = """You are extracting episode data from multiple TV series pages.
+Extract ALL episodes from ALL pages. Each page may contain one or multiple seasons.
+
+For each episode extract:
+- episode_number: integer
+- title: string (clean title without markdown formatting)
+- premiere_date: string (date format as found on page)
+- viewership: integer (remove spaces from numbers like "4 396 564" -> 4396564, use 0 if not available)
+
+Group episodes by season_number. Return ALL seasons found across ALL pages."""
+
+        combined_content = ""
+        for i, page in enumerate(scraped_pages, 1):
+            url = page["url"]
+            markdown = page["markdown"][:15000]
+            combined_content += f"\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n"
+
+        user_prompt = f"""Extract ALL episodes from ALL {len(scraped_pages)} sources below.
+Return a complete list of ALL seasons found.
+
+{combined_content}
+
+Extract ALL seasons and episodes from above sources."""
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "AllSeasonsMetadata",
+                        "strict": True,
+                        "schema": AllSeasonsMetadata.model_json_schema(),
+                    },
+                },
+            )
+
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            all_seasons_meta = AllSeasonsMetadata(**data)
+            return all_seasons_meta.seasons
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            console.print(f"[red]LLM extraction failed: {e}[/red]")
+            return None

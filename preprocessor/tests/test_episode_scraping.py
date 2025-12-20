@@ -72,10 +72,8 @@ def test_episode_scraping():
     scraper = EpisodeScraper({
         "urls": ["https://example.com/episode1", "https://example.com/episode2"],
         "output_file": OUTPUT_FILE,
-        "llm_provider": "lmstudio",
-        "llm_model": None,
         "merge_sources": True,
-        "scraper_type": "crawl4ai",
+        "scraper_method": "crawl4ai",
     })
 
     exit_code = scraper.work()
@@ -115,10 +113,8 @@ def test_episode_scraping_no_merge():
     scraper = EpisodeScraper({
         "urls": ["https://example.com/episode1"],
         "output_file": OUTPUT_FILE,
-        "llm_provider": "lmstudio",
-        "llm_model": None,
         "merge_sources": False,
-        "scraper_type": "crawl4ai",
+        "scraper_method": "crawl4ai",
     })
 
     exit_code = scraper.work()
@@ -137,7 +133,7 @@ def test_episode_scraping_no_merge():
 
 @pytest.mark.scraping
 @pytest.mark.real_scraping
-@pytest.mark.skip(reason="Real scraping test - requires LM Studio running. Run manually.")
+@pytest.mark.skip(reason="Real scraping test - requires Ollama running. Run manually.")
 def test_real_episode_scraping():
     real_urls = [
         "https://www.filmweb.pl/serial/Ranczo-2006-276093",
@@ -148,10 +144,8 @@ def test_real_episode_scraping():
     scraper = EpisodeScraper({
         "urls": real_urls,
         "output_file": OUTPUT_FILE,
-        "llm_provider": "lmstudio",
-        "llm_model": None,
         "merge_sources": False,
-        "scraper_type": "crawl4ai",
+        "scraper_method": "crawl4ai",
     })
 
     exit_code = scraper.work()

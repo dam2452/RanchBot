@@ -20,19 +20,13 @@ def test_llm_provider_initialization():
         mock_client = MagicMock()
         mock_openai.return_value = mock_client
 
-        provider = LLMProvider(provider="lmstudio", model="test-model")
+        provider = LLMProvider(model="test-model")
 
-        assert provider.provider == "lmstudio"
         assert provider.model == "test-model"
-        assert provider.base_url == "http://127.0.0.1:1235/v1"
-        assert provider.api_key == "lm-studio"
+        assert provider.base_url == "http://localhost:11434/v1"
+        assert provider.api_key == "ollama"
 
         mock_openai.assert_called_once()
-
-
-def test_llm_provider_invalid_provider():
-    with pytest.raises(ValueError, match="Unknown provider: invalid"):
-        LLMProvider(provider="invalid")
 
 
 def test_llm_provider_default_model():
@@ -40,26 +34,16 @@ def test_llm_provider_default_model():
         mock_client = MagicMock()
         mock_openai.return_value = mock_client
 
-        provider = LLMProvider(provider="lmstudio")
+        provider = LLMProvider()
 
-        assert provider.model == "qwen3-coder-30b-a3b-instruct-1m"
-
-
-def test_llm_provider_ollama_configuration():
-    with patch('preprocessor.providers.llm_provider.OpenAI') as mock_openai:
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
-
-        provider = LLMProvider(provider="ollama")
-
+        assert provider.model == "qwen3-coder-50k"
         assert provider.base_url == "http://localhost:11434/v1"
         assert provider.api_key == "ollama"
-        assert provider.model == "qwen3-coder-50k"
 
 
-@pytest.mark.skip(reason="Requires LM Studio running. Run manually.")
+@pytest.mark.skip(reason="Requires Ollama running. Run manually.")
 def test_llm_provider_extract_episode_metadata():
-    provider = LLMProvider(provider="lmstudio")
+    provider = LLMProvider()
 
     page_text = """
     Ranczo - Sezon 1, Odcinek 13
@@ -100,7 +84,7 @@ def test_llm_provider_merge_episode_data_mock():
         mock_client.chat.completions.create.return_value = mock_completion
         mock_openai.return_value = mock_client
 
-        provider = LLMProvider(provider="lmstudio")
+        provider = LLMProvider()
 
         metadata_list = [
             EpisodeMetadata(

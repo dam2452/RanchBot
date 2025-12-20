@@ -22,8 +22,6 @@ class EpisodeScraper:
     def __init__(self, args: Dict[str, Any]):
         self.urls: List[str] = args["urls"]
         self.output_file: Path = args["output_file"]
-        self.llm_provider: str = args.get("llm_provider", "lmstudio")
-        self.llm_model: Optional[str] = args.get("llm_model")
         self.headless: bool = args.get("headless", True)
         self.merge_sources: bool = args.get("merge_sources", True)
         self.scraper_method: str = args.get("scraper_method", "crawl4ai")
@@ -44,56 +42,57 @@ class EpisodeScraper:
         return self.logger.finalize()
 
     def __exec(self) -> None:
-        self.llm = LLMProvider(
-            provider=self.llm_provider,
-            model=self.llm_model,
-        )
+        self.llm = LLMProvider()
 
         console.print(f"[blue]Scraping {len(self.urls)} URLs...[/blue]")
 
-        scraped_data = []
+        scraped_pages = []
         with Progress() as progress:
-            task = progress.add_task("[cyan]Scraping pages...", total=len(self.urls))
+            task = progress.add_task("[cyan]Fetching pages...", total=len(self.urls))
 
             for url in self.urls:
                 try:
                     page_text = self.__scrape_url(url)
                     if page_text:
-                        season_data = self.llm.extract_season_episodes(page_text, url)
-                        if season_data:
-                            scraped_data.append({
-                                "url": url,
-                                "season_data": season_data,
-                            })
-                            console.print(f"[green]✓[/green] {url}: Season {season_data.season_number} ({len(season_data.episodes)} episodes)")
-                        else:
-                            self.logger.error(f"Failed to extract season data from {url}")
+                        scraped_pages.append({
+                            "url": url,
+                            "markdown": page_text,
+                        })
+                        console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
                     else:
                         self.logger.error(f"Failed to scrape {url}")
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Error processing {url}: {e}")
+                    self.logger.error(f"Error scraping {url}: {e}")
                 finally:
                     progress.advance(task)
 
-        if not scraped_data:
-            console.print("[yellow]No data scraped[/yellow]")
+        if not scraped_pages:
+            console.print("[yellow]No pages scraped[/yellow]")
             return
 
-        console.print(f"[blue]Scraped {len(scraped_data)} pages successfully[/blue]")
+        console.print(f"[blue]Scraped {len(scraped_pages)} pages, sending to LLM...[/blue]")
 
-        if len(scraped_data) == 1:
-            result = scraped_data[0]["season_data"].model_dump()
-        else:
+        try:
+            all_seasons = self.llm.extract_all_seasons(scraped_pages)
+            if not all_seasons:
+                self.logger.error("LLM failed to extract any season data")
+                return
+
             result = {
-                "sources": [item["url"] for item in scraped_data],
-                "seasons": [item["season_data"].model_dump() for item in scraped_data],
+                "sources": [item["url"] for item in scraped_pages],
+                "seasons": [season.model_dump() for season in all_seasons],
             }
 
-        self.output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+            self.output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.output_file, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
 
-        console.print(f"[green]✓ Saved to: {self.output_file}[/green]")
+            total_episodes = sum(len(season.episodes) for season in all_seasons)
+            console.print(f"[green]✓ Extracted {len(all_seasons)} seasons, {total_episodes} episodes[/green]")
+            console.print(f"[green]✓ Saved to: {self.output_file}[/green]")
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error(f"LLM extraction failed: {e}")
 
     def __scrape_url(self, url: str) -> Optional[str]:
         console.print(f"[cyan]Scraping method: {self.scraper_method}[/cyan]")

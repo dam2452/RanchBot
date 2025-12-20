@@ -9,7 +9,6 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
 )
 
 from pydantic import SecretStr
@@ -20,7 +19,6 @@ from bot.utils.resolution import Resolution
 class Settings:  # pylint: disable=too-many-instance-attributes
     def __init__(self):
         self._eleven_api_key = SecretStr(os.getenv("ELEVEN_API_KEY", "")) if os.getenv("ELEVEN_API_KEY") else None
-        self._gemini_api_key = SecretStr(os.getenv("GEMINI_API_KEY", "")) if os.getenv("GEMINI_API_KEY") else None
 
         self.whisper_model: str = os.getenv("WHISPER_MODEL", "large-v3-turbo")
 
@@ -29,11 +27,10 @@ class Settings:  # pylint: disable=too-many-instance-attributes
         self.embedding_default_output_dir: Path = Path("/app/output_data/embeddings")
         self.embedding_segments_per_embedding: int = 5
         self.embedding_keyframe_strategy: str = "scene_changes"
-        self.embedding_keyframe_interval: int = 4
+        self.embedding_keyframe_interval: int = 1
+        self.embedding_frames_per_scene: int = 3
         self.embedding_max_workers: int = 1
         self.embedding_batch_size: int = 24
-        self.embedding_optimal_image_size: Tuple[int, int] = (1335, 751)
-        self.embedding_max_pixel_budget: int = 1003520
 
         self.scene_detection_threshold: float = 0.5
         self.scene_detection_min_scene_len: int = 10
@@ -50,10 +47,6 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     @property
     def eleven_api_key(self) -> Optional[str]:
         return self._eleven_api_key.get_secret_value() if self._eleven_api_key else None
-
-    @property
-    def gemini_api_key(self) -> Optional[str]:
-        return self._gemini_api_key.get_secret_value() if self._gemini_api_key else None
 
 
 settings = Settings()

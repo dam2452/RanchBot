@@ -7,32 +7,47 @@ def log(msg):
 
 def download_whisper_model():
     try:
-        import whisper  # pylint: disable=import-outside-toplevel
+        from faster_whisper import WhisperModel  # pylint: disable=import-outside-toplevel
         model_name = settings.whisper_model
         log(f"Checking Whisper model: {model_name}")
-        whisper.load_model(model_name)
+        WhisperModel(model_name, device="cuda", compute_type="float16")
         log(f"✓ Whisper model '{model_name}' ready")
     except Exception as e:  # pylint: disable=broad-exception-caught
         log(f"⚠ Whisper model download failed: {e}")
 
 def download_embedding_model():
     try:
+        import torch  # pylint: disable=import-outside-toplevel
         from transformers import (  # pylint: disable=import-outside-toplevel
             AutoModel,
             AutoProcessor,
         )
         model_name = settings.embedding_model_name
         log(f"Checking embedding model: {model_name}")
-        AutoProcessor.from_pretrained(model_name)
-        AutoModel.from_pretrained(model_name)
-        log(f"✓ Embedding model '{model_name}' ready")
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is not available, GPU is required for embedding model")
+        AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+        AutoModel.from_pretrained(
+            model_name,
+            torch_dtype="float16",
+            device_map="cuda",
+            trust_remote_code=True
+        )
+        log(f"✓ Embedding model '{model_name}' ready on cuda")
     except Exception as e:  # pylint: disable=broad-exception-caught
         log(f"⚠ Embedding model download failed: {e}")
 
 def download_transnet_model():
     try:
+        from transnetv2_pytorch import TransNetV2  # pylint: disable=import-outside-toplevel
+        import torch  # pylint: disable=import-outside-toplevel
+
         log("Checking TransNetV2 model")
-        log("✓ TransNetV2 model ready")
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is not available, GPU is required")
+        model = TransNetV2()
+        model = model.cuda()
+        log("✓ TransNetV2 model ready on cuda")
     except Exception as e:  # pylint: disable=broad-exception-caught
         log(f"⚠ TransNetV2 model check failed: {e}")
 

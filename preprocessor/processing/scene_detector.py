@@ -1,3 +1,4 @@
+import gc
 import json
 import logging
 from pathlib import Path
@@ -17,7 +18,6 @@ from transnetv2_pytorch import TransNetV2
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
 
 class SceneDetector:
@@ -26,7 +26,6 @@ class SceneDetector:
         self.output_dir: Path = args.get("output_dir", settings.scene_detection_output_dir)
         self.threshold: float = args.get("threshold", settings.scene_detection_threshold)
         self.min_scene_len: int = args.get("min_scene_len", settings.scene_detection_min_scene_len)
-        self.device: str = args.get("device", "cuda" if torch.cuda.is_available() else "cpu")
 
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
@@ -44,7 +43,7 @@ class SceneDetector:
         return self.logger.finalize()
 
     def __exec(self) -> None:
-        console.print(f"[cyan]Scene detection using device: {self.device}[/cyan]")
+        console.print("[cyan]Scene detection using TransNetV2 on CUDA[/cyan]")
 
         self.__load_model()
 
@@ -69,16 +68,12 @@ class SceneDetector:
         console.print("[green]Scene detection completed[/green]")
 
     def __load_model(self) -> None:
-        try:
-            self.model = TransNetV2()
-            if self.device == "cuda":
-                self.model = self.model.cuda()
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is not available. TransNetV2 requires GPU.")
 
-            console.print("[green]TransNetV2 model loaded[/green]")
-
-        except ImportError:
-            console.print("[yellow]TransNetV2 not installed. Using simplified detection.[/yellow]")
-            self.model = None
+        console.print("[cyan]Loading TransNetV2 model on CUDA...[/cyan]")
+        self.model = TransNetV2().cuda()
+        console.print("[green]✓ TransNetV2 ready on CUDA[/green]")
 
     def __get_video_files(self) -> List[Path]:
         video_files = []
@@ -99,10 +94,7 @@ class SceneDetector:
             self.logger.error(f"Failed to get video info for {video_file}")
             return
 
-        if self.model:
-            scene_list = self.__detect_scenes_transnetv2(video_file, video_info)
-        else:
-            scene_list = self.__detect_scenes_simple(video_file, video_info)
+        scene_list = self.__detect_scenes_transnetv2(video_file, video_info)
 
         if not scene_list:
             console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
@@ -114,7 +106,7 @@ class SceneDetector:
             "detection_settings": {
                 "threshold": self.threshold,
                 "min_scene_len": self.min_scene_len,
-                "method": "transnetv2" if self.model else "simple_histogram",
+                "method": "transnetv2",
             },
             "scenes": scene_list,
         }
@@ -129,7 +121,7 @@ class SceneDetector:
 
     def __get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
         try:
-            vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+            vr = decord.VideoReader(str(video_file), ctx=decord.gpu(0))
             fps = vr.get_avg_fps()
             total_frames = len(vr)
             duration = total_frames / fps if fps > 0 else 0
@@ -202,65 +194,6 @@ class SceneDetector:
             self.logger.error(f"TransNetV2 detection failed: {e}")
             return []
 
-    def __detect_scenes_simple(self, video_file: Path, video_info: Dict[str, Any]) -> List[Dict[str, Any]]:
-        fps = video_info["fps"]
-        total_frames = video_info["total_frames"]
-
-        scenes = []
-        prev_hist = None
-        scene_changes = []
-
-        for frame_num, _, hist in iterate_frames_with_histogram(str(video_file)):
-            if prev_hist is not None:
-                diff = np.sum(np.abs(hist - prev_hist))
-                if diff > self.threshold:
-                    scene_changes.append(frame_num)
-
-            prev_hist = hist
-
-        prev_change = 0
-        for change_frame in scene_changes:
-            if change_frame - prev_change < self.min_scene_len:
-                continue
-
-            scene = {
-                "scene_number": len(scenes) + 1,
-                "start": {
-                    "frame": int(prev_change),
-                    "seconds": float(prev_change / fps),
-                    "timecode": self.__frame_to_timecode(prev_change, fps),
-                },
-                "end": {
-                    "frame": int(change_frame),
-                    "seconds": float(change_frame / fps),
-                    "timecode": self.__frame_to_timecode(change_frame, fps),
-                },
-                "duration": float((change_frame - prev_change) / fps),
-                "frame_count": int(change_frame - prev_change),
-            }
-            scenes.append(scene)
-            prev_change = change_frame
-
-        if total_frames - prev_change > self.min_scene_len:
-            scene = {
-                "scene_number": len(scenes) + 1,
-                "start": {
-                    "frame": int(prev_change),
-                    "seconds": float(prev_change / fps),
-                    "timecode": self.__frame_to_timecode(prev_change, fps),
-                },
-                "end": {
-                    "frame": int(total_frames),
-                    "seconds": float(total_frames / fps),
-                    "timecode": self.__frame_to_timecode(total_frames, fps),
-                },
-                "duration": float((total_frames - prev_change) / fps),
-                "frame_count": int(total_frames - prev_change),
-            }
-            scenes.append(scene)
-
-        return scenes
-
     @staticmethod
     def __frame_to_timecode(frame: int, fps: float) -> str:
         seconds = frame / fps
@@ -269,3 +202,13 @@ class SceneDetector:
         secs = int(seconds % 60)
         frames = int((seconds % 1) * fps)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}:{frames:02d}"
+
+    def cleanup(self) -> None:
+        console.print("[cyan]Unloading TransNetV2 model and clearing GPU memory...[/cyan]")
+        if hasattr(self, 'model') and self.model is not None:
+            del self.model
+            self.model = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        console.print("[green]✓ TransNetV2 model unloaded, GPU memory cleared[/green]")

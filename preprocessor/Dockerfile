@@ -1,21 +1,6 @@
 # =============================================================================
 # OPTIMIZED DOCKERFILE - All models cached in single volume
 # =============================================================================
-#
-# CACHE STRATEGY:
-#   /models/              → ml_models volume (all ML models)
-#     ├── huggingface/    → HuggingFace models
-#     ├── torch/          → PyTorch models
-#     ├── whisper/        → Whisper models
-#     └── ollama/         → Ollama models
-#
-# USAGE:
-#   docker-compose build
-#   docker-compose up -d
-#   # First run auto-downloads all models to volume
-#   # Subsequent runs/rebuilds use cached models
-#
-# =============================================================================
 
 FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
 
@@ -23,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
 # -----------------------------------------------------------------------------
-# Layer 1: System dependencies (changes rarely)
+# Layer 1: System dependencies (Removed standard ffmpeg)
 # -----------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y \
     python3.11 \
@@ -32,20 +17,10 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     curl \
+    gnupg \
+    lsb-release \
     build-essential \
     pkg-config \
-    libass9 \
-    libfreetype6 \
-    libfontconfig1 \
-    libfribidi0 \
-    libharfbuzz0b \
-    libmp3lame0 \
-    libopus0 \
-    libvorbis0a \
-    libvorbisenc2 \
-    libvpx7 \
-    libx264-163 \
-    libx265-199 \
     libnspr4 \
     libnss3 \
     libatk1.0-0 \
@@ -67,45 +42,59 @@ RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
     ln -sf /usr/bin/python3.11 /usr/bin/python3
 
 # -----------------------------------------------------------------------------
-# Layer 1.5: Copy FFmpeg from linuxserver/ffmpeg (with NVENC support)
+# Layer 1.5: Jellyfin FFmpeg (NVENC Support)
 # -----------------------------------------------------------------------------
-COPY --from=linuxserver/ffmpeg:8.0.1 /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
-COPY --from=linuxserver/ffmpeg:8.0.1 /usr/local/bin/ffprobe /usr/local/bin/ffprobe
-COPY --from=linuxserver/ffmpeg:8.0.1 /usr/local/lib /usr/local/lib
-
-RUN ldconfig
-
-ENV PATH="/usr/local/bin:${PATH}"
-ENV PKG_CONFIG_PATH="/usr/local/lib/pkgconfig"
+# Dodajemy repozytorium Jellyfin i instalujemy specjalną wersję ffmpeg
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/debian jammy main" > /etc/apt/sources.list.d/jellyfin.list && \
+    apt-get update && \
+    apt-get install -y jellyfin-ffmpeg7 && \
+    # Tworzymy symlinki, aby 'ffmpeg' w terminalu to był ten od Jellyfin
+    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe && \
+    rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------
-# Layer 2: Ollama binary (changes rarely)
+# Layer 2: Python and Playwright
 # -----------------------------------------------------------------------------
-RUN curl -fsSL https://ollama.com/install.sh | sh
-
 WORKDIR /app
 
-# -----------------------------------------------------------------------------
-# Layer 3: Python requirements (changes occasionally)
-# -----------------------------------------------------------------------------
 COPY preprocessor/requirements.txt .
-
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121 && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir accelerate playwright && \
+    pip install --no-cache-dir playwright && \
     playwright install chromium && \
     playwright install-deps chromium
 
 # -----------------------------------------------------------------------------
-# Layer 4: Environment configuration
+# Layer 3: Ollama binary (changes rarely)
+# -----------------------------------------------------------------------------
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# -----------------------------------------------------------------------------
+# Layer 4: Python ML requirements (changes occasionally)
+# -----------------------------------------------------------------------------
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121 && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir accelerate && \
+    pip install --no-cache-dir nvidia-cublas-cu12 nvidia-cudnn-cu12
+
+# -----------------------------------------------------------------------------
+# Layer 4.5: Initialize TransNetV2 model weights (download during build)
+# -----------------------------------------------------------------------------
+RUN python3 -c "from transnetv2_pytorch import TransNetV2; model = TransNetV2(); print('TransNetV2 weights downloaded')"
+
+# -----------------------------------------------------------------------------
+# Layer 5: Environment configuration
 # -----------------------------------------------------------------------------
 ENV HF_HOME=/models/huggingface
 ENV TRANSFORMERS_CACHE=/models/huggingface
 ENV TORCH_HOME=/models/torch
 ENV WHISPER_CACHE=/models/whisper
 ENV OLLAMA_MODELS=/models/ollama
-ENV LD_LIBRARY_PATH="/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.11/dist-packages/ctranslate2.libs:${LD_LIBRARY_PATH}"
+ENV OLLAMA_MAX_LOADED_MODELS=1
+ENV OLLAMA_HOST=0.0.0.0
+ENV LD_LIBRARY_PATH="/usr/local/lib/python3.11/dist-packages/nvidia/cublas/lib:/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:/usr/local/lib/python3.11/dist-packages/ctranslate2.libs:${LD_LIBRARY_PATH}"
 
 # Create model directories (will be overlaid by volume)
 RUN mkdir -p /models/huggingface \
@@ -114,7 +103,7 @@ RUN mkdir -p /models/huggingface \
              /models/ollama
 
 # -----------------------------------------------------------------------------
-# Layer 5: Scripts (changes rarely)
+# Layer 6: Scripts (changes rarely)
 # -----------------------------------------------------------------------------
 COPY preprocessor/entrypoint.sh /app/entrypoint.sh
 COPY preprocessor/scripts/download_models.py /app/download_models.py
@@ -122,7 +111,7 @@ COPY preprocessor/run_preprocessor.sh /app/run_preprocessor.sh
 RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 
 # -----------------------------------------------------------------------------
-# Layer 6: Application code (changes frequently - LAST!)
+# Layer 7: Application code (changes frequently - LAST!)
 # -----------------------------------------------------------------------------
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor

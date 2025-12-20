@@ -1,7 +1,3 @@
-from concurrent.futures import (
-    ThreadPoolExecutor,
-    as_completed,
-)
 from pathlib import Path
 import sys
 from typing import List
@@ -17,15 +13,18 @@ from preprocessor.config.config import (
 )
 from preprocessor.core.state_manager import StateManager
 from preprocessor.processing.elastic_search_indexer import ElasticSearchIndexer
-from preprocessor.processing.embedding_generator import EmbeddingGenerator
 from preprocessor.processing.episode_scraper import EpisodeScraper
 from preprocessor.processing.legacy.legacy_converter import LegacyConverter
 from preprocessor.processing.scene_detector import SceneDetector
 from preprocessor.transcriptions.elevenlabs_transcriber import ElevenLabsTranscriber
-from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator
 from preprocessor.transcriptions.transcription_importer import TranscriptionImporter
 from preprocessor.utils.console import console
 from preprocessor.video.video_transcoder import VideoTranscoder
+
+TRANSCRIPTION_DEFAULT_OUTPUT_DIR = Path("/app/output_data/transcriptions")
+TRANSCRIPTION_DEFAULT_MODEL = "large-v3-turbo"
+TRANSCRIPTION_DEFAULT_LANGUAGE = "Polish"
+TRANSCRIPTION_DEFAULT_DEVICE = "cuda"
 
 
 @click.group()
@@ -155,20 +154,20 @@ def transcode(
     help="JSON file with episode metadata (required)",
 )
 @click.option(
-    "--transcription-jsons", type=click.Path(path_type=Path), default=TranscriptionGenerator.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for transcription JSONs (default: {TranscriptionGenerator.DEFAULT_OUTPUT_DIR})",
+    "--transcription-jsons", type=click.Path(path_type=Path), default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
+    help=f"Output directory for transcription JSONs (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
 )
 @click.option(
-    "--model", default=TranscriptionGenerator.DEFAULT_MODEL,
-    help=f"Whisper model: tiny, base, small, medium, large, large-v3-turbo (default: {TranscriptionGenerator.DEFAULT_MODEL})",
+    "--model", default=TRANSCRIPTION_DEFAULT_MODEL,
+    help=f"Whisper model: tiny, base, small, medium, large, large-v3-turbo (default: {TRANSCRIPTION_DEFAULT_MODEL})",
 )
 @click.option(
-    "--language", default=TranscriptionGenerator.DEFAULT_LANGUAGE,
-    help=f"Language for transcription (default: {TranscriptionGenerator.DEFAULT_LANGUAGE})",
+    "--language", default=TRANSCRIPTION_DEFAULT_LANGUAGE,
+    help=f"Language for transcription (default: {TRANSCRIPTION_DEFAULT_LANGUAGE})",
 )
 @click.option(
-    "--device", default=TranscriptionGenerator.DEFAULT_DEVICE,
-    help=f"Device: cuda (GPU) or cpu (default: {TranscriptionGenerator.DEFAULT_DEVICE})",
+    "--device", default=TRANSCRIPTION_DEFAULT_DEVICE,
+    help=f"Device: cuda (GPU) or cpu (default: {TRANSCRIPTION_DEFAULT_DEVICE})",
 )
 @click.option(
     "--extra-json-keys", multiple=True,
@@ -220,6 +219,8 @@ def transcribe(
         extra_json_keys_to_remove=list(extra_json_keys),
         name=name,
     )
+    from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
+
     config_dict = config.to_dict()
     config_dict["max_workers"] = max_workers
     generator = TranscriptionGenerator(config_dict)
@@ -265,8 +266,8 @@ def index(name: str, transcription_jsons: Path, dry_run: bool, append: bool):
     help="Directory with source transcriptions (11labs format)",
 )
 @click.option(
-    "--output-dir", type=click.Path(path_type=Path), default=TranscriptionGenerator.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for converted transcriptions (default: {TranscriptionGenerator.DEFAULT_OUTPUT_DIR})",
+    "--output-dir", type=click.Path(path_type=Path), default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
+    help=f"Output directory for converted transcriptions (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
 )
 @click.option(
     "--episodes-info-json", type=click.Path(exists=True, path_type=Path),
@@ -328,8 +329,8 @@ def import_transcriptions(
 @cli.command(name="transcribe-elevenlabs")
 @click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
-    "--output-dir", type=click.Path(path_type=Path), default=TranscriptionGenerator.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for transcriptions (default: {TranscriptionGenerator.DEFAULT_OUTPUT_DIR})",
+    "--output-dir", type=click.Path(path_type=Path), default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
+    help=f"Output directory for transcriptions (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
 )
 @click.option(
     "--episodes-info-json", type=click.Path(exists=True, path_type=Path),
@@ -417,11 +418,6 @@ def transcribe_elevenlabs(
     help="Output JSON file path (required)",
 )
 @click.option(
-    "--llm-provider", type=click.Choice(["lmstudio", "ollama", "gemini"]), default="lmstudio",
-    help="LLM provider: lmstudio, ollama, gemini (default: lmstudio)",
-)
-@click.option("--llm-model", help="LLM model name (override default for provider)")
-@click.option(
     "--headless/--no-headless", default=True,
     help="Run browser in headless mode (default: enabled)",
 )
@@ -432,29 +428,23 @@ def transcribe_elevenlabs(
 def scrape_episodes(
     urls: tuple,
     output_file: Path,
-    llm_provider: str,
-    llm_model: str,
     headless: bool,
     merge_sources: bool,
 ):
     """
-    Scrape episode metadata from web pages using LLM.
+    Scrape episode metadata from web pages using Ollama LLM.
 
-    Uses Playwright to extract page content and LLM to structure data.
-    Supports multiple sources for cross-referencing.
+    Uses crawl4ai to extract page content (markdown) and Ollama (qwen3-coder-50k) to structure data.
+    All pages are sent to LLM in single request for batch processing.
 
     \b
     Example:
-      python -m preprocessor scrape-episodes --urls https://filmweb.pl/serial/Ranczo-2006/season/1/episode/1 --output-file metadata.json
+      python -m preprocessor scrape-episodes --urls https://filmweb.pl/serial/Ranczo-2006 --output-file metadata.json
       python -m preprocessor scrape-episodes --urls https://filmweb.pl/... --urls https://wikipedia.org/... --output-file metadata.json
-      export GEMINI_API_KEY=your_key
-      python -m preprocessor scrape-episodes --urls https://example.com --output-file metadata.json --llm-provider gemini
     """
     scraper = EpisodeScraper({
         "urls": list(urls),
         "output_file": output_file,
-        "llm_provider": llm_provider,
-        "llm_model": llm_model,
         "headless": headless,
         "merge_sources": merge_sources,
     })
@@ -512,32 +502,27 @@ def convert_elastic(index_name: str, backup_file: Path, dry_run: bool):
     "--min-scene-len", type=int, default=settings.scene_detection_min_scene_len,
     help=f"Minimum scene length in frames (default: {settings.scene_detection_min_scene_len})",
 )
-@click.option(
-    "--device", type=click.Choice(["cuda", "cpu"]), default="cuda",
-    help="Device: cuda (GPU) or cpu (default: cuda)",
-)
-def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_len: int, device: str):
+def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_len: int):
     """
-    Detect scene cuts in videos using TransNetV2 or histogram.
+    Detect scene cuts in videos using TransNetV2 on GPU.
 
-    Identifies scene changes and outputs timestamps.
-    GPU acceleration recommended for TransNetV2.
+    Identifies scene changes and outputs timestamps using TransNetV2 model.
+    Requires CUDA-capable GPU.
 
     \b
     Example:
       python -m preprocessor detect-scenes /videos
       python -m preprocessor detect-scenes video.mp4 --threshold 0.3 --min-scene-len 15
-      python -m preprocessor detect-scenes /videos --device cpu
     """
     detector = SceneDetector({
         "videos": videos,
         "output_dir": output_dir,
         "threshold": threshold,
         "min_scene_len": min_scene_len,
-        "device": device,
     })
 
     exit_code = detector.work()
+    detector.cleanup()
     sys.exit(exit_code)
 
 
@@ -565,11 +550,15 @@ def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_le
 @click.option(
     "--keyframe-strategy", type=click.Choice(["keyframes", "scene_changes", "color_diff"]),
     default=settings.embedding_keyframe_strategy,
-    help=f"Strategy: keyframes (every 5s), scene_changes, color_diff (default: {settings.embedding_keyframe_strategy})",
+    help=f"Strategy: keyframes (simple every 5s), scene_changes (smart from scenes), color_diff (default: {settings.embedding_keyframe_strategy})",
 )
 @click.option(
     "--keyframe-interval", type=int, default=settings.embedding_keyframe_interval,
-    help=f"Extract every Nth keyframe/scene (default: {settings.embedding_keyframe_interval})",
+    help=f"For 'keyframes' strategy: extract every Nth keyframe (1=all, 2=every 2nd) (default: {settings.embedding_keyframe_interval})",
+)
+@click.option(
+    "--frames-per-scene", type=int, default=settings.embedding_frames_per_scene,
+    help=f"For 'scene_changes' strategy: frames per scene (3, 5, 7, etc.) (default: {settings.embedding_frames_per_scene})",
 )
 @click.option(
     "--generate-text/--no-text", default=True,
@@ -580,8 +569,8 @@ def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_le
     help="Generate video embeddings (default: enabled)",
 )
 @click.option(
-    "--device", type=click.Choice(["cuda", "cpu"]), default="cuda",
-    help="Device: cuda (GPU) or cpu (default: cuda)",
+    "--device", type=click.Choice(["cuda"]), default="cuda",
+    help="Device: cuda (GPU only)",
 )
 @click.option(
     "--max-workers", type=int, default=settings.embedding_max_workers,
@@ -604,6 +593,7 @@ def generate_embeddings(
     segments_per_embedding: int,
     keyframe_strategy: str,
     keyframe_interval: int,
+    frames_per_scene: int,
     generate_text: bool,
     generate_video: bool,
     device: str,
@@ -615,13 +605,12 @@ def generate_embeddings(
     Generate text and video embeddings for semantic search.
 
     Creates embeddings from transcriptions and video keyframes using GPU-accelerated
-    batch inference with Decord video decoder. For scene_changes strategy, extracts
-    3 frames per scene (start, mid, end) for better representation.
+    batch inference with Decord video decoder.
 
     \b
     Strategies:
-      keyframes      - Extract every 5 seconds
-      scene_changes  - Use scene timestamps, 3 frames per scene (recommended)
+      keyframes      - Simple: extract every 5s, skip every Nth with --keyframe-interval
+      scene_changes  - Smart (DEFAULT): extract N frames per scene with --frames-per-scene
       color_diff     - Detect color/histogram changes
 
     \b
@@ -631,12 +620,24 @@ def generate_embeddings(
       - scene_changes strategy with Decord provides 5-10x speedup vs OpenCV
 
     \b
-    Example:
+    Examples:
+      # Scene-based (smart, default): 3 frames per scene from all scenes
       python -m preprocessor generate-embeddings --transcription-jsons ./transcriptions --videos ./videos
-      python -m preprocessor generate-embeddings --transcription-jsons ./transcriptions --videos ./videos --batch-size 32
+
+      # Scene-based with more frames: 5 frames per scene
       python -m preprocessor generate-embeddings --transcription-jsons ./transcriptions --videos ./videos \
-          --keyframe-interval 2 --scene-timestamps-dir ./scene_timestamps
+          --frames-per-scene 5 --scene-timestamps-dir ./scene_timestamps
+
+      # Keyframe-based (simple): every 5s
+      python -m preprocessor generate-embeddings --transcription-jsons ./transcriptions --videos ./videos \
+          --keyframe-strategy keyframes --keyframe-interval 1
+
+      # Keyframe-based: every 10s (skip every 2nd)
+      python -m preprocessor generate-embeddings --transcription-jsons ./transcriptions --videos ./videos \
+          --keyframe-strategy keyframes --keyframe-interval 2
     """
+    from preprocessor.processing.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
+
     generator = EmbeddingGenerator({
         "transcription_jsons": transcription_jsons,
         "videos": videos,
@@ -645,6 +646,7 @@ def generate_embeddings(
         "segments_per_embedding": segments_per_embedding,
         "keyframe_strategy": keyframe_strategy,
         "keyframe_interval": keyframe_interval,
+        "frames_per_scene": frames_per_scene,
         "generate_text": generate_text,
         "generate_video": generate_video,
         "device": device,
@@ -654,6 +656,7 @@ def generate_embeddings(
     })
 
     exit_code = generator.work()
+    generator.cleanup()
     sys.exit(exit_code)
 
 
@@ -668,8 +671,8 @@ def generate_embeddings(
     help=f"Output directory for transcoded videos (default: {VideoTranscoder.DEFAULT_OUTPUT_DIR})",
 )
 @click.option(
-    "--transcription-jsons", type=click.Path(path_type=Path), default=TranscriptionGenerator.DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for transcription JSONs (default: {TranscriptionGenerator.DEFAULT_OUTPUT_DIR})",
+    "--transcription-jsons", type=click.Path(path_type=Path), default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
+    help=f"Output directory for transcription JSONs (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
 )
 @click.option(
     "--scene-timestamps-dir", type=click.Path(path_type=Path), default=str(settings.scene_detection_output_dir),
@@ -689,26 +692,22 @@ def generate_embeddings(
     help=f"FFmpeg preset (default: {VideoTranscoder.DEFAULT_PRESET})",
 )
 @click.option(
-    "--model", default=TranscriptionGenerator.DEFAULT_MODEL,
-    help=f"Whisper model (default: {TranscriptionGenerator.DEFAULT_MODEL})",
+    "--model", default=TRANSCRIPTION_DEFAULT_MODEL,
+    help=f"Whisper model (default: {TRANSCRIPTION_DEFAULT_MODEL})",
 )
 @click.option(
-    "--language", default=TranscriptionGenerator.DEFAULT_LANGUAGE,
-    help=f"Language for transcription (default: {TranscriptionGenerator.DEFAULT_LANGUAGE})",
+    "--language", default=TRANSCRIPTION_DEFAULT_LANGUAGE,
+    help=f"Language for transcription (default: {TRANSCRIPTION_DEFAULT_LANGUAGE})",
 )
 @click.option(
-    "--device", default=TranscriptionGenerator.DEFAULT_DEVICE,
-    help=f"Device: cuda or cpu (default: {TranscriptionGenerator.DEFAULT_DEVICE})",
+    "--device", default=TRANSCRIPTION_DEFAULT_DEVICE,
+    help=f"Device: cuda or cpu (default: {TRANSCRIPTION_DEFAULT_DEVICE})",
 )
 @click.option("--dry-run", is_flag=True, help="Dry run for Elasticsearch indexing")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 @click.option(
     "--max-workers", type=int, default=1,
-    help="Number of parallel workers per step (default: 1)",
-)
-@click.option(
-    "--parallel-steps/--no-parallel-steps", default=True,
-    help="Run transcribe and scene detection in parallel (default: enabled)",
+    help="Number of parallel workers per step for processing multiple episodes (default: 1)",
 )
 @click.option(
     "--ramdisk-path", type=click.Path(path_type=Path),
@@ -717,10 +716,6 @@ def generate_embeddings(
 @click.option(
     "--scrape-urls", multiple=True,
     help="URLs to scrape episode metadata from (Step 0: optional)",
-)
-@click.option(
-    "--llm-provider", type=click.Choice(["lmstudio", "ollama", "gemini"]), default="ollama",
-    help="LLM provider for scraping (default: ollama)",
 )
 # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 def run_all(
@@ -739,31 +734,30 @@ def run_all(
     dry_run: bool,
     no_state: bool,
     max_workers: int,
-    parallel_steps: bool,
     ramdisk_path: Path,
     scrape_urls: tuple,
-    llm_provider: str,
 ):
     """
-    Run complete pipeline: [scrape] → transcode → [transcribe || scenes] → embeddings → index.
+    Run complete pipeline: [scrape] → transcode → transcribe → scenes → embeddings → index.
 
-    Optimized for high-end systems (64GB RAM, RTX 3090).
-    By default runs transcribe and scene detection in parallel.
+    Sequential phases, each processing multiple episodes in parallel (limited by GPU VRAM).
+    Optimized for RTX 3090 (24GB VRAM), 64GB RAM.
 
     \b
     Steps:
       0. [Optional] Scrape episode metadata from URLs
-      1. Transcode videos (NVENC GPU)
-      2. [Transcribe (Whisper) || Scene Detection (TransNetV2)] - parallel
-      3. Generate embeddings (batch + decord)
-      4. Index to Elasticsearch
+      1. Transcode videos (NVENC GPU, multiple episodes in parallel)
+      2. Transcribe (Whisper GPU, multiple episodes in parallel)
+      3. Scene Detection (TransNetV2 GPU, multiple episodes in parallel)
+      4. Generate embeddings (Qwen2-VL GPU batch)
+      5. Index to Elasticsearch
 
     \b
     Performance optimizations:
-      - Parallel transcribe + scene detection (saves ~30-40% time)
+      - Multiple episodes processed per phase (--max-workers)
+      - GPU batch processing (embeddings)
       - Optional ramdisk for temp files (with 64GB RAM)
-      - Batch embeddings with Decord (5-10x faster)
-      - Multi-worker support for each step
+      - Decord GPU video decoding (5-10x faster)
 
     \b
     Example:
@@ -775,9 +769,9 @@ def run_all(
           --scrape-urls https://filmweb.pl/... \
           --scrape-urls https://wikipedia.org/...
 
-      # With all optimizations:
+      # With ramdisk:
       python -m preprocessor run-all /videos --episodes-info-json episodes.json --name ranczo \
-          --ramdisk-path /mnt/ramdisk --parallel-steps
+          --ramdisk-path /mnt/ramdisk
     """
     exit_codes: List[int] = []
 
@@ -806,8 +800,6 @@ def run_all(
         scraper = EpisodeScraper({
             "urls": list(scrape_urls),
             "output_file": episodes_info_json,
-            "llm_provider": llm_provider,
-            "llm_model": None,
             "headless": True,
             "merge_sources": True,
         })
@@ -839,90 +831,44 @@ def run_all(
     transcoder = VideoTranscoder(transcode_dict)
     exit_codes.append(transcoder.work())
 
-    if parallel_steps:
-        console.print("\n[bold blue]Step 2/5: Running transcription + scene detection in parallel...[/bold blue]")
+    console.print("\n[bold blue]Step 2/5: Generating transcriptions...[/bold blue]")
+    transcription_config = TranscriptionConfig(
+        videos=videos,
+        episodes_info_json=episodes_info_json,
+        transcription_jsons=transcription_jsons,
+        model=model,
+        language=language,
+        device=device,
+        extra_json_keys_to_remove=[],
+        name=name,
+    )
+    transcription_dict = transcription_config.to_dict()
+    transcription_dict["state_manager"] = state_manager
+    transcription_dict["series_name"] = name
+    transcription_dict["max_workers"] = max_workers
+    transcription_dict["ramdisk_path"] = ramdisk_path
 
-        transcription_config = TranscriptionConfig(
-            videos=videos,
-            episodes_info_json=episodes_info_json,
-            transcription_jsons=transcription_jsons,
-            model=model,
-            language=language,
-            device=device,
-            extra_json_keys_to_remove=[],
-            name=name,
-        )
-        transcription_dict = transcription_config.to_dict()
-        transcription_dict["state_manager"] = state_manager
-        transcription_dict["series_name"] = name
-        transcription_dict["max_workers"] = max_workers
-        transcription_dict["ramdisk_path"] = ramdisk_path
+    from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
 
-        scene_detector_args = {
-            "videos": transcoded_videos,
-            "output_dir": scene_timestamps_dir,
-            "threshold": settings.scene_detection_threshold,
-            "min_scene_len": settings.scene_detection_min_scene_len,
-            "device": device,
-        }
+    generator = TranscriptionGenerator(transcription_dict)
+    exit_codes.append(generator.work())
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            future_transcribe = executor.submit(
-                lambda: TranscriptionGenerator(transcription_dict).work(),
-            )
-            future_scenes = executor.submit(
-                lambda: SceneDetector(scene_detector_args).work(),
-            )
+    console.print("\n[bold blue]Step 3/5: Detecting scenes...[/bold blue]")
+    detector = SceneDetector({
+        "videos": transcoded_videos,
+        "output_dir": scene_timestamps_dir,
+        "threshold": settings.scene_detection_threshold,
+        "min_scene_len": settings.scene_detection_min_scene_len,
+        "device": device,
+    })
+    exit_codes.append(detector.work())
 
-            results = {}
-            for future in as_completed([future_transcribe, future_scenes]):
-                try:
-                    result = future.result()
-                    if future == future_transcribe:
-                        console.print("[green]Transcription completed[/green]")
-                        results['transcribe'] = result
-                    else:
-                        console.print("[green]Scene detection completed[/green]")
-                        results['scenes'] = result
-                except (RuntimeError, ValueError, OSError) as e:
-                    console.print(f"[red]Error in parallel step: {e}[/red]")
-                    exit_codes.append(1)
-
-        exit_codes.append(results.get('transcribe', 0))
-        exit_codes.append(results.get('scenes', 0))
-
-    else:
-        console.print("\n[bold blue]Step 2/5: Generating transcriptions...[/bold blue]")
-        transcription_config = TranscriptionConfig(
-            videos=videos,
-            episodes_info_json=episodes_info_json,
-            transcription_jsons=transcription_jsons,
-            model=model,
-            language=language,
-            device=device,
-            extra_json_keys_to_remove=[],
-            name=name,
-        )
-        transcription_dict = transcription_config.to_dict()
-        transcription_dict["state_manager"] = state_manager
-        transcription_dict["series_name"] = name
-        transcription_dict["max_workers"] = max_workers
-        transcription_dict["ramdisk_path"] = ramdisk_path
-
-        generator = TranscriptionGenerator(transcription_dict)
-        exit_codes.append(generator.work())
-
-        console.print("\n[bold blue]Step 3/5: Detecting scenes...[/bold blue]")
-        detector = SceneDetector({
-            "videos": transcoded_videos,
-            "output_dir": scene_timestamps_dir,
-            "threshold": settings.scene_detection_threshold,
-            "min_scene_len": settings.scene_detection_min_scene_len,
-            "device": device,
-        })
-        exit_codes.append(detector.work())
+    console.print("[cyan]Cleaning up scene detection model...[/cyan]")
+    detector.cleanup()
 
     console.print("\n[bold blue]Step 4/5: Generating embeddings...[/bold blue]")
+    from preprocessor.processing.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
+
     embedding_generator = EmbeddingGenerator({
         "transcription_jsons": transcription_jsons,
         "videos": transcoded_videos,
@@ -931,6 +877,7 @@ def run_all(
         "segments_per_embedding": settings.embedding_segments_per_embedding,
         "keyframe_strategy": "scene_changes",
         "keyframe_interval": settings.embedding_keyframe_interval,
+        "frames_per_scene": settings.embedding_frames_per_scene,
         "generate_text": True,
         "generate_video": True,
         "device": device,
@@ -939,6 +886,9 @@ def run_all(
         "scene_timestamps_dir": scene_timestamps_dir,
     })
     exit_codes.append(embedding_generator.work())
+
+    console.print("[cyan]Cleaning up embedding model...[/cyan]")
+    embedding_generator.cleanup()
 
     console.print("\n[bold blue]Step 5/5: Indexing in Elasticsearch...[/bold blue]")
     index_config = IndexConfig(

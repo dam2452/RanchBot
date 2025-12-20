@@ -31,13 +31,28 @@ wait_for_ollama() {
 }
 
 # -----------------------------------------------------------------------------
-# Start Ollama service
+# Determine if Ollama is needed
 # -----------------------------------------------------------------------------
-log "Starting Ollama service..."
-ollama serve &
-OLLAMA_PID=$!
+NEEDS_OLLAMA=false
+for arg in "$@"; do
+    if [[ "$arg" == "scrape-episodes" ]] || [[ "$arg" == "--scrape-urls" ]]; then
+        NEEDS_OLLAMA=true
+        break
+    fi
+done
 
-wait_for_ollama
+# -----------------------------------------------------------------------------
+# Start Ollama service (only if needed)
+# -----------------------------------------------------------------------------
+if [ "$NEEDS_OLLAMA" = true ]; then
+    log "Starting Ollama service..."
+    ollama serve &
+    OLLAMA_PID=$!
+    wait_for_ollama
+else
+    log "Skipping Ollama (not needed for this command)"
+    OLLAMA_PID=""
+fi
 
 # -----------------------------------------------------------------------------
 # Download Ollama models (only if not cached)
@@ -58,10 +73,11 @@ setup_ollama_models() {
         return 1
     fi
 
-    log "Creating custom model with 50k context..."
+    log "Creating custom model with 50k context (GPU-only)..."
     cat > /tmp/Modelfile-qwen3-50k <<EOF
 FROM ${MODEL_NAME}
 PARAMETER num_ctx 50000
+PARAMETER num_gpu 999
 EOF
 
     if ollama create "$CUSTOM_MODEL" -f /tmp/Modelfile-qwen3-50k; then
@@ -73,11 +89,15 @@ EOF
     rm -f /tmp/Modelfile-qwen3-50k
 }
 
-# Only setup if PULL_EXTRA_MODELS is not explicitly false
-if [ "${PULL_EXTRA_MODELS}" != "false" ]; then
+# Only setup if PULL_EXTRA_MODELS is not explicitly false AND Ollama is needed
+if [ "$NEEDS_OLLAMA" = true ] && [ "${PULL_EXTRA_MODELS}" != "false" ]; then
     setup_ollama_models
 else
-    log "Skipping Ollama model pull (PULL_EXTRA_MODELS=false)"
+    if [ "$NEEDS_OLLAMA" = false ]; then
+        log "Skipping Ollama model pull (not needed for this command)"
+    else
+        log "Skipping Ollama model pull (PULL_EXTRA_MODELS=false)"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -102,16 +122,33 @@ setup_ml_models() {
     fi
 }
 
-setup_ml_models
+# Skip ML model setup for commands that don't need it (avoid GPU conflicts)
+SKIP_ML_SETUP=false
+for arg in "$@"; do
+    if [[ "$arg" == "detect-scenes" ]]; then
+        SKIP_ML_SETUP=true
+        break
+    fi
+done
+
+if [ "$SKIP_ML_SETUP" = false ]; then
+    setup_ml_models
+else
+    log "Skipping ALL ML model checks (GPU reserved for scene detection)"
+fi
 
 # -----------------------------------------------------------------------------
 # Status report
 # -----------------------------------------------------------------------------
 log "============================================"
 log "Initialization complete!"
-log "Ollama running on: http://localhost:11434"
-log "Available Ollama models:"
-ollama list 2>/dev/null || echo "  (none yet)"
+if [ "$NEEDS_OLLAMA" = true ]; then
+    log "Ollama running on: http://localhost:11434"
+    log "Available Ollama models:"
+    ollama list 2>/dev/null || echo "  (none yet)"
+else
+    log "Ollama: NOT RUNNING (GPU available for other tasks)"
+fi
 log "============================================"
 
 # -----------------------------------------------------------------------------

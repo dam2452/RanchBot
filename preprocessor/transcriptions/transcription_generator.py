@@ -47,6 +47,9 @@ class TranscriptionGenerator:
             self.__logger.info("Step 2/3: Generating transcriptions with Whisper...")
             self.__audio_processor()
 
+            self.__logger.info("Cleaning up Whisper model...")
+            self.__audio_processor.cleanup()
+
             self.__logger.info("Step 3/3: Generating multi-format output...")
             self.__multi_format_generator()
 

@@ -1,8 +1,10 @@
+import gc
 import json
 from pathlib import Path
 from typing import Tuple
 
 from faster_whisper import WhisperModel
+import torch
 
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -28,7 +30,10 @@ class NormalizedAudioProcessor:
         self.__input_audios.mkdir(parents=True, exist_ok=True)
         self.__output_dir.mkdir(parents=True, exist_ok=True)
 
-        compute_type = "float16" if device == "cuda" else "int8"
+        if device != "cuda":
+            raise ValueError(f"Only GPU (cuda) is supported, got device={device}")
+
+        compute_type = "float16"
         self.__logger.info(f"Loading Whisper model {model} on {device} with compute_type={compute_type}")
         self.__whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
 
@@ -51,8 +56,11 @@ class NormalizedAudioProcessor:
             segments, info = self.__whisper_model.transcribe(
                 str(normalized_audio),
                 language=language_code,
-                beam_size=5,
+                beam_size=10,
                 word_timestamps=True,
+                condition_on_previous_text=False,
+                temperature=0.0,
+                compression_ratio_threshold=None,
             )
 
             result = {
@@ -95,3 +103,12 @@ class NormalizedAudioProcessor:
             self.__logger.info(f"Processed: {normalized_audio}")
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.__logger.error(f"Error processing file {normalized_audio}: {e}")
+
+    def cleanup(self) -> None:
+        self.__logger.info("Unloading Whisper model and clearing GPU memory...")
+        if hasattr(self, '_NormalizedAudioProcessor__whisper_model'):
+            del self.__whisper_model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        self.__logger.info("Whisper model unloaded, GPU memory cleared")

@@ -2,6 +2,7 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
 )
+import gc
 import json
 import logging
 from pathlib import Path
@@ -19,7 +20,6 @@ import decord
 import numpy as np
 from rich.progress import Progress
 import torch
-import torchvision.transforms.functional as TF
 from transformers import (
     AutoModel,
     AutoProcessor,
@@ -43,11 +43,14 @@ class EmbeddingGenerator:
         self.segments_per_embedding: int = args.get("segments_per_embedding", settings.embedding_segments_per_embedding)
         self.keyframe_strategy: str = args.get("keyframe_strategy", settings.embedding_keyframe_strategy)
         self.keyframe_interval: int = args.get("keyframe_interval", settings.embedding_keyframe_interval)
+        self.frames_per_scene: int = args.get("frames_per_scene", settings.embedding_frames_per_scene)
         self.generate_text: bool = args.get("generate_text", True)
         self.generate_video: bool = args.get("generate_video", True)
         self.max_workers: int = args.get("max_workers", settings.embedding_max_workers)
         self.batch_size: int = args.get("batch_size", settings.embedding_batch_size)
-        self.device: str = args.get("device", "cuda" if torch.cuda.is_available() else "cpu")
+        self.device: str = "cuda"
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is not available. This application requires GPU.")
         self.scene_timestamps_dir: Optional[Path] = args.get("scene_timestamps_dir")
 
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
@@ -122,10 +125,11 @@ class EmbeddingGenerator:
             self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
             self.model = AutoModel.from_pretrained(
                 self.model_name,
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                device_map=self.device,
+                torch_dtype="float16",
+                device_map="cuda",
                 trust_remote_code=True,
             )
+            self.model.eval()
             console.print("[green]Model loaded successfully[/green]")
 
         except Exception as e:
@@ -247,39 +251,41 @@ class EmbeddingGenerator:
 
         frame_requests = []
         for i, scene in enumerate(scenes):
-            if i % self.keyframe_interval != 0:
-                continue
-
             start_frame = scene.get("start", {}).get("frame", 0)
             end_frame = scene.get("end", {}).get("frame", start_frame + scene.get("frame_count", 1))
-            mid_frame = start_frame + (scene.get("frame_count", 1) // 2)
+            frame_count = scene.get("frame_count", 1)
 
-            frame_requests.append({
-                "frame_number": start_frame,
-                "timestamp": float(start_frame / fps),
-                "type": "scene_start",
-                "scene_number": i,
-            })
-            frame_requests.append({
-                "frame_number": mid_frame,
-                "timestamp": float(mid_frame / fps),
-                "type": "scene_mid",
-                "scene_number": i,
-            })
-            frame_requests.append({
-                "frame_number": end_frame - 1,
-                "timestamp": float((end_frame - 1) / fps),
-                "type": "scene_end",
-                "scene_number": i,
-            })
+            if frame_count <= 1:
+                frame_requests.append({
+                    "frame_number": start_frame,
+                    "timestamp": float(start_frame / fps),
+                    "type": "scene_single",
+                    "scene_number": i,
+                })
+                continue
+
+            for frame_idx in range(self.frames_per_scene):
+                position = frame_idx / (self.frames_per_scene - 1) if self.frames_per_scene > 1 else 0.0
+                frame_number = int(start_frame + position * (frame_count - 1))
+
+                frame_type = "scene_start" if frame_idx == 0 else (
+                    "scene_end" if frame_idx == self.frames_per_scene - 1 else f"scene_mid_{frame_idx}"
+                )
+
+                frame_requests.append({
+                    "frame_number": frame_number,
+                    "timestamp": float(frame_number / fps),
+                    "type": frame_type,
+                    "scene_number": i,
+                })
 
         if not frame_requests:
             return []
 
-        console.print(f"[cyan]Extracting {len(frame_requests)} frames (3 per scene)[/cyan]")
+        console.print(f"[cyan]Extracting {len(frame_requests)} frames ({self.frames_per_scene} per scene from {len(scenes)} scenes)[/cyan]")
 
         try:
-            vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0) if self.device == "cuda" else decord.cpu(0))
+            vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0))
             frame_indices = [req["frame_number"] for req in frame_requests]
             frames_tensor = vr.get_batch(frame_indices)
 
@@ -314,37 +320,61 @@ class EmbeddingGenerator:
             return []
 
     def __generate_from_keyframes(self, video_path: Path) -> List[Dict[str, Any]]:
-        embeddings = []
-        vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
+        vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0))
         fps = vr.get_avg_fps()
         total_frames = len(vr)
 
-        keyframe_count = 0
         keyframe_interval_frames = int(fps * 5)
 
+        frame_requests = []
+        keyframe_count = 0
         for frame_num in range(0, total_frames, keyframe_interval_frames):
             if keyframe_count % self.keyframe_interval == 0:
-                try:
-                    frame_tensor = vr[frame_num]
-                    frame_np = frame_tensor.numpy()
-                    embedding = self.__encode_frame(frame_np)
-                    embeddings.append(
-                        {
-                            "frame_number": int(frame_num),
-                            "timestamp": float(frame_num / fps),
-                            "type": "keyframe",
-                            "embedding": embedding.tolist(),
-                        },
-                    )
-                except (RuntimeError, ValueError, OSError) as e:
-                    self.logger.error(f"Failed to generate video embedding for frame {frame_num}: {e}")
+                frame_requests.append({
+                    "frame_number": int(frame_num),
+                    "timestamp": float(frame_num / fps),
+                    "type": "keyframe",
+                })
             keyframe_count += 1
 
-        return embeddings
+        if not frame_requests:
+            return []
+
+        console.print(f"[cyan]Extracting {len(frame_requests)} keyframes (every {self.keyframe_interval * 5}s)[/cyan]")
+
+        try:
+            frame_indices = [req["frame_number"] for req in frame_requests]
+            frames_tensor = vr.get_batch(frame_indices)
+
+            embeddings = []
+            for batch_start in range(0, len(frame_requests), self.batch_size):
+                batch_end = min(batch_start + self.batch_size, len(frame_requests))
+                batch_frames = frames_tensor[batch_start:batch_end]
+                batch_requests = frame_requests[batch_start:batch_end]
+
+                try:
+                    batch_embeddings = self.__encode_frames_batch(batch_frames)
+
+                    for req, emb in zip(batch_requests, batch_embeddings):
+                        embeddings.append({
+                            "frame_number": req["frame_number"],
+                            "timestamp": req["timestamp"],
+                            "type": req["type"],
+                            "embedding": emb.tolist(),
+                        })
+
+                except (RuntimeError, ValueError, OSError) as e:
+                    self.logger.error(f"Failed batch {batch_start}-{batch_end}: {e}")
+
+            return embeddings
+
+        except (RuntimeError, ValueError, OSError) as e:
+            self.logger.error(f"Failed to process video {video_path}: {e}")
+            return []
 
     def __generate_from_color_diff(self, video_path: Path) -> List[Dict[str, Any]]:
         embeddings = []
-        vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
+        vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0))
         fps = vr.get_avg_fps()
 
         prev_hist = None
@@ -380,44 +410,19 @@ class EmbeddingGenerator:
         pil_images = []
 
         for i in range(batch_size):
-            frame = frames_tensor[i]
-
-            if self.device == "cuda" and not frame.is_cuda:
-                frame = frame.cuda()
-
-            current_pixels = frame.shape[0] * frame.shape[1]
-            if current_pixels > settings.embedding_max_pixel_budget and self.device == "cuda":
-                frame_float = frame.permute(2, 0, 1).unsqueeze(0).float()
-                frame_resized = TF.resize(frame_float, list(reversed(settings.embedding_optimal_image_size)), antialias=True)
-                frame_final = frame_resized.squeeze(0).permute(1, 2, 0).byte().cpu().numpy()
-                pil_image = Image.fromarray(frame_final)
-            else:
-                frame_np = frame.cpu().numpy()
-                pil_image = Image.fromarray(frame_np)
-                if current_pixels > settings.embedding_max_pixel_budget:
-                    pil_image = pil_image.resize(settings.embedding_optimal_image_size, Image.Resampling.LANCZOS)
-
+            frame_np = frames_tensor[i].cpu().numpy()
+            pil_image = Image.fromarray(frame_np)
             pil_images.append(pil_image)
 
         embeddings_tensor = self.model.get_image_embeddings(images=pil_images)
         return [emb.cpu().numpy() for emb in embeddings_tensor]
 
     def __encode_frame(self, frame: np.ndarray) -> np.ndarray:
-        current_pixels = frame.shape[0] * frame.shape[1]
-        if current_pixels > settings.embedding_max_pixel_budget and self.device == "cuda":
-            frame_tensor = torch.from_numpy(frame).permute(2, 0, 1).unsqueeze(0).float().cuda()
-            frame_tensor = TF.resize(frame_tensor, list(reversed(settings.embedding_optimal_image_size)), antialias=True)
-            frame_tensor = frame_tensor.squeeze(0).permute(1, 2, 0).byte().cpu().numpy()
-            pil_image = Image.fromarray(frame_tensor)
-        else:
-            pil_image = Image.fromarray(frame)
-            if current_pixels > settings.embedding_max_pixel_budget:
-                pil_image = pil_image.resize(settings.embedding_optimal_image_size, Image.Resampling.LANCZOS)
-
+        pil_image = Image.fromarray(frame)
         embeddings = self.model.get_image_embeddings(images=[pil_image])
         return embeddings[0].cpu().numpy()
 
-    def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]: #Parameter 'trans_file' value is not used
+    def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
         if not self.videos:
             return None
 
@@ -446,3 +451,16 @@ class EmbeddingGenerator:
                     return video_file
 
         return None
+
+    def cleanup(self) -> None:
+        console.print("[cyan]Unloading embedding model and clearing GPU memory...[/cyan]")
+        if hasattr(self, 'model') and self.model is not None:
+            del self.model
+            self.model = None
+        if hasattr(self, 'processor') and self.processor is not None:
+            del self.processor
+            self.processor = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        console.print("[green]✓ Embedding model unloaded, GPU memory cleared[/green]")

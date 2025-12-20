@@ -25,6 +25,8 @@ services:
       - TORCH_HOME=/models/torch
       - WHISPER_CACHE=/models/whisper
       - OLLAMA_MODELS=/models/ollama
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_HOST=0.0.0.0
 
     volumes:
       - ./input_data:/input_data:ro
@@ -42,15 +44,6 @@ services:
               count: 1
               capabilities: [gpu, video, compute, utility]
 
-# =============================================================================
-# NAMED VOLUMES - Persist on the host filesystem!
-# =============================================================================
-# Location: /var/lib/docker/volumes/ranczo-ml-models
-#
-# To inspect: docker volume inspect ranczo-ml-models
-# To backup:  docker run --rm -v ml_models:/data -v $(pwd):/backup alpine tar czf /backup/models.tar.gz /data
-# To clear:   docker volume rm ranczo-ml-models
-# =============================================================================
 volumes:
   ml_models:
     name: ranchbot-ai-models

@@ -1,7 +1,6 @@
 elevenlabs
 torchvision
 transnetv2-pytorch
-openai-whisper
 openai
 crawl4ai
 playwright
