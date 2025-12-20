@@ -60,3 +60,7 @@ USAGE_LOG.md
 /data
 /preprocessor/preprocessed
 /preprocessor/output_data
+info o whipser
+info o transnetv2
+info o qwen3 coder
+info o gme-Qwen2-VL-7B-Instruct
