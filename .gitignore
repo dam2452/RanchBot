@@ -67,3 +67,4 @@ info o gme-Qwen2-VL-7B-Instruct
 logi tmp
 info o ffmpeg
 /preprocessor/input_data
+info o decord
