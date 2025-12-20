@@ -6,9 +6,10 @@ FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+ENV NVIDIA_DRIVER_CAPABILITIES=all
 
 # -----------------------------------------------------------------------------
-# Layer 1: System dependencies (Removed standard ffmpeg)
+# Layer 1: System dependencies (changes rarely)
 # -----------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y \
     python3.11 \
@@ -16,9 +17,6 @@ RUN apt-get update && apt-get install -y \
     python3.11-dev \
     git \
     wget \
-    curl \
-    gnupg \
-    lsb-release \
     build-essential \
     pkg-config \
     libnspr4 \
@@ -42,18 +40,26 @@ RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
     ln -sf /usr/bin/python3.11 /usr/bin/python3
 
 # -----------------------------------------------------------------------------
-# Layer 1.5: Jellyfin FFmpeg (NVENC Support)
+# Layer 1.5: Jellyfin FFmpeg (NVENC Support) - auto-detect distro
 # -----------------------------------------------------------------------------
-# Dodajemy repozytorium Jellyfin i instalujemy specjalną wersję ffmpeg
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg \
+    ca-certificates \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/debian jammy main" > /etc/apt/sources.list.d/jellyfin.list && \
+    export VERSION_CODENAME=$(grep VERSION_CODENAME /etc/os-release | cut -d= -f2) && \
+    export ID=$(grep "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"') && \
+    if [ -z "$VERSION_CODENAME" ]; then export VERSION_CODENAME="jammy"; fi && \
+    echo "deb [signed-by=/etc/apt/keyrings/jellyfin.gpg] https://repo.jellyfin.org/${ID} ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/jellyfin.list && \
     apt-get update && \
-    apt-get install -y jellyfin-ffmpeg7 && \
-    # Tworzymy symlinki, aby 'ffmpeg' w terminalu to był ten od Jellyfin
+    apt-get install -y --no-install-recommends jellyfin-ffmpeg7 && \
+    rm -rf /var/lib/apt/lists/* && \
     ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
-    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe && \
-    rm -rf /var/lib/apt/lists/*
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe
 
 # -----------------------------------------------------------------------------
 # Layer 2: Python and Playwright
