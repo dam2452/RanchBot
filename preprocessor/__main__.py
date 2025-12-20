@@ -1,8 +1,10 @@
+import gc
 from pathlib import Path
 import sys
 from typing import List
 
 import click
+import torch
 
 from bot.utils.resolution import Resolution
 from preprocessor.config.config import (
@@ -717,6 +719,11 @@ def generate_embeddings(
     "--scrape-urls", multiple=True,
     help="URLs to scrape episode metadata from (Step 0: optional)",
 )
+@click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
+@click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
+@click.option("--skip-scenes", is_flag=True, help="Skip Step 3: Scene detection (use existing scene timestamps)")
+@click.option("--skip-embeddings", is_flag=True, help="Skip Step 4: Embedding generation (use existing embeddings)")
+@click.option("--skip-index", is_flag=True, help="Skip Step 5: Elasticsearch indexing")
 # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 def run_all(
     videos: Path,
@@ -736,6 +743,11 @@ def run_all(
     max_workers: int,
     ramdisk_path: Path,
     scrape_urls: tuple,
+    skip_transcode: bool,
+    skip_transcribe: bool,
+    skip_scenes: bool,
+    skip_embeddings: bool,
+    skip_index: bool,
 ):
     """
     Run complete pipeline: [scrape] → transcode → transcribe → scenes → embeddings → index.
@@ -812,103 +824,143 @@ def run_all(
 
         console.print(f"[green]Episode metadata saved to: {episodes_info_json}[/green]")
 
-    console.print("\n[bold blue]Step 1/5: Transcoding videos...[/bold blue]")
-    transcode_config = TranscodeConfig(
-        videos=videos,
-        transcoded_videos=transcoded_videos,
-        resolution=Resolution.from_str(resolution),
-        codec=codec,
-        preset=preset,
-        crf=VideoTranscoder.DEFAULT_CRF,
-        gop_size=VideoTranscoder.DEFAULT_GOP_SIZE,
-        episodes_info_json=episodes_info_json,
-    )
-    transcode_dict = transcode_config.to_dict()
-    transcode_dict["state_manager"] = state_manager
-    transcode_dict["series_name"] = name
-    transcode_dict["max_workers"] = max_workers
+    if skip_transcode:
+        console.print("\n[yellow]Step 1/5: Transcoding videos... SKIPPED[/yellow]")
+    else:
+        console.print("\n[bold blue]Step 1/5: Transcoding videos...[/bold blue]")
+        transcode_config = TranscodeConfig(
+            videos=videos,
+            transcoded_videos=transcoded_videos,
+            resolution=Resolution.from_str(resolution),
+            codec=codec,
+            preset=preset,
+            crf=VideoTranscoder.DEFAULT_CRF,
+            gop_size=VideoTranscoder.DEFAULT_GOP_SIZE,
+            episodes_info_json=episodes_info_json,
+        )
+        transcode_dict = transcode_config.to_dict()
+        transcode_dict["state_manager"] = state_manager
+        transcode_dict["series_name"] = name
+        transcode_dict["max_workers"] = max_workers
 
-    transcoder = VideoTranscoder(transcode_dict)
-    exit_codes.append(transcoder.work())
+        transcoder = VideoTranscoder(transcode_dict)
+        exit_codes.append(transcoder.work())
 
-    console.print("\n[bold blue]Step 2/5: Generating transcriptions...[/bold blue]")
-    transcription_config = TranscriptionConfig(
-        videos=videos,
-        episodes_info_json=episodes_info_json,
-        transcription_jsons=transcription_jsons,
-        model=model,
-        language=language,
-        device=device,
-        extra_json_keys_to_remove=[],
-        name=name,
-    )
-    transcription_dict = transcription_config.to_dict()
-    transcription_dict["state_manager"] = state_manager
-    transcription_dict["series_name"] = name
-    transcription_dict["max_workers"] = max_workers
-    transcription_dict["ramdisk_path"] = ramdisk_path
+        console.print("[cyan]Cleaning up transcoding resources...[/cyan]")
+        del transcoder
+        gc.collect()
+        console.print("[green]✓ Transcoding resources cleaned up[/green]")
 
-    from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
+    if skip_transcribe:
+        console.print("\n[yellow]Step 2/5: Generating transcriptions... SKIPPED[/yellow]")
+    else:
+        console.print("\n[bold blue]Step 2/5: Generating transcriptions...[/bold blue]")
+        transcription_config = TranscriptionConfig(
+            videos=videos,
+            episodes_info_json=episodes_info_json,
+            transcription_jsons=transcription_jsons,
+            model=model,
+            language=language,
+            device=device,
+            extra_json_keys_to_remove=[],
+            name=name,
+        )
+        transcription_dict = transcription_config.to_dict()
+        transcription_dict["state_manager"] = state_manager
+        transcription_dict["series_name"] = name
+        transcription_dict["max_workers"] = max_workers
+        transcription_dict["ramdisk_path"] = ramdisk_path
 
-    generator = TranscriptionGenerator(transcription_dict)
-    exit_codes.append(generator.work())
+        from preprocessor.transcriptions.transcription_generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
 
-    console.print("\n[bold blue]Step 3/5: Detecting scenes...[/bold blue]")
-    detector = SceneDetector({
-        "videos": transcoded_videos,
-        "output_dir": scene_timestamps_dir,
-        "threshold": settings.scene_detection_threshold,
-        "min_scene_len": settings.scene_detection_min_scene_len,
-        "device": device,
-    })
-    exit_codes.append(detector.work())
+        generator = TranscriptionGenerator(transcription_dict)
+        exit_codes.append(generator.work())
 
-    console.print("[cyan]Cleaning up scene detection model...[/cyan]")
-    detector.cleanup()
+        console.print("[cyan]Cleaning up transcription resources and GPU memory...[/cyan]")
+        del generator
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+        console.print("[green]✓ Transcription resources cleaned up[/green]")
 
-    console.print("\n[bold blue]Step 4/5: Generating embeddings...[/bold blue]")
-    from preprocessor.processing.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
+    if skip_scenes:
+        console.print("\n[yellow]Step 3/5: Detecting scenes... SKIPPED[/yellow]")
+    else:
+        console.print("\n[bold blue]Step 3/5: Detecting scenes...[/bold blue]")
+        detector = SceneDetector({
+            "videos": transcoded_videos,
+            "output_dir": scene_timestamps_dir,
+            "threshold": settings.scene_detection_threshold,
+            "min_scene_len": settings.scene_detection_min_scene_len,
+            "device": device,
+        })
+        exit_codes.append(detector.work())
 
-    embedding_generator = EmbeddingGenerator({
-        "transcription_jsons": transcription_jsons,
-        "videos": transcoded_videos,
-        "output_dir": settings.embedding_default_output_dir,
-        "model": settings.embedding_model_name,
-        "segments_per_embedding": settings.embedding_segments_per_embedding,
-        "keyframe_strategy": "scene_changes",
-        "keyframe_interval": settings.embedding_keyframe_interval,
-        "frames_per_scene": settings.embedding_frames_per_scene,
-        "generate_text": True,
-        "generate_video": True,
-        "device": device,
-        "max_workers": 1,
-        "batch_size": settings.embedding_batch_size,
-        "scene_timestamps_dir": scene_timestamps_dir,
-    })
-    exit_codes.append(embedding_generator.work())
+        console.print("[cyan]Cleaning up scene detection model...[/cyan]")
+        detector.cleanup()
+        del detector
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+        console.print("[green]✓ Scene detection resources fully cleaned up[/green]")
 
-    console.print("[cyan]Cleaning up embedding model...[/cyan]")
-    embedding_generator.cleanup()
+    if skip_embeddings:
+        console.print("\n[yellow]Step 4/5: Generating embeddings... SKIPPED[/yellow]")
+    else:
+        console.print("\n[bold blue]Step 4/5: Generating embeddings...[/bold blue]")
+        from preprocessor.processing.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
 
-    console.print("\n[bold blue]Step 5/5: Indexing in Elasticsearch...[/bold blue]")
-    index_config = IndexConfig(
-        name=name,
-        transcription_jsons=transcription_jsons,
-        dry_run=dry_run,
-        append=False,
-    )
-    index_dict = index_config.to_dict()
-    index_dict["state_manager"] = state_manager
-    index_dict["series_name"] = name
+        embedding_generator = EmbeddingGenerator({
+            "transcription_jsons": transcription_jsons,
+            "videos": transcoded_videos,
+            "output_dir": settings.embedding_default_output_dir,
+            "model": settings.embedding_model_name,
+            "segments_per_embedding": settings.embedding_segments_per_embedding,
+            "keyframe_strategy": "scene_changes",
+            "keyframe_interval": settings.embedding_keyframe_interval,
+            "frames_per_scene": settings.embedding_frames_per_scene,
+            "generate_text": True,
+            "generate_video": True,
+            "device": device,
+            "max_workers": 1,
+            "batch_size": settings.embedding_batch_size,
+            "scene_timestamps_dir": scene_timestamps_dir,
+        })
+        exit_codes.append(embedding_generator.work())
 
-    indexer = ElasticSearchIndexer(index_dict)
-    exit_codes.append(indexer.work())
+        console.print("[cyan]Cleaning up embedding model...[/cyan]")
+        embedding_generator.cleanup()
+        del embedding_generator
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+        console.print("[green]✓ Embedding resources fully cleaned up[/green]")
 
-    if state_manager and max(exit_codes) == 0:
+    if skip_index:
+        console.print("\n[yellow]Step 5/5: Indexing in Elasticsearch... SKIPPED[/yellow]")
+    else:
+        console.print("\n[bold blue]Step 5/5: Indexing in Elasticsearch...[/bold blue]")
+        index_config = IndexConfig(
+            name=name,
+            transcription_jsons=transcription_jsons,
+            dry_run=dry_run,
+            append=False,
+        )
+        index_dict = index_config.to_dict()
+        index_dict["state_manager"] = state_manager
+        index_dict["series_name"] = name
+
+        indexer = ElasticSearchIndexer(index_dict)
+        exit_codes.append(indexer.work())
+
+    if state_manager and (not exit_codes or max(exit_codes) == 0):
         console.print("\n[green]All steps completed successfully![/green]")
         state_manager.cleanup()
 
-    sys.exit(max(exit_codes))
+    sys.exit(max(exit_codes) if exit_codes else 0)
 
 
 if __name__ == "__main__":

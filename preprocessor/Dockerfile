@@ -66,7 +66,7 @@ RUN mkdir -p /etc/apt/keyrings && \
 # -----------------------------------------------------------------------------
 WORKDIR /app
 
-COPY preprocessor/requirements.txt .
+COPY preprocessor/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir playwright && \
     playwright install chromium && \
@@ -81,7 +81,7 @@ RUN curl -fsSL https://ollama.com/install.sh | sh
 # Layer 4: Python ML requirements (changes occasionally)
 # -----------------------------------------------------------------------------
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121 && \
-    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     pip install --no-cache-dir accelerate && \
     pip install --no-cache-dir nvidia-cublas-cu12 nvidia-cudnn-cu12
 
