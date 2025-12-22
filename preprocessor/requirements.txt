@@ -7,7 +7,6 @@ playwright
 opencv-python
 numpy
 torch
-decord
 transformers==4.51.3
 pillow
 ffmpeg==1.4
