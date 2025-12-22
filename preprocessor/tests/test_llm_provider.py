@@ -1,47 +1,45 @@
 from pathlib import Path
 import sys
-from unittest.mock import (
-    MagicMock,
-    patch,
-)
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from preprocessor.providers.llm_provider import (
-    EpisodeMetadata,
-    LLMProvider,
-)
+from preprocessor.providers.llm_provider import EpisodeMetadata, LLMProvider
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def test_llm_provider_initialization():
-    with patch('preprocessor.providers.llm_provider.OpenAI') as mock_openai:
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
+    with patch('preprocessor.providers.llm_provider.AutoTokenizer') as mock_tokenizer, \
+         patch('preprocessor.providers.llm_provider.AutoModelForCausalLM') as mock_model:
 
-        provider = LLMProvider(model="test-model")
+        mock_tokenizer.from_pretrained.return_value = MagicMock()
+        mock_model_instance = MagicMock()
+        mock_model_instance.device = "cuda:0"
+        mock_model.from_pretrained.return_value = mock_model_instance
 
-        assert provider.model == "test-model"
-        assert provider.base_url == "http://localhost:11434/v1"
-        assert provider.api_key == "ollama"
+        provider = LLMProvider(model_name="test-model")
 
-        mock_openai.assert_called_once()
+        assert provider.model_name == "test-model"
+        mock_tokenizer.from_pretrained.assert_called_once_with("test-model")
+        mock_model.from_pretrained.assert_called_once()
 
 
 def test_llm_provider_default_model():
-    with patch('preprocessor.providers.llm_provider.OpenAI') as mock_openai:
-        mock_client = MagicMock()
-        mock_openai.return_value = mock_client
+    with patch('preprocessor.providers.llm_provider.AutoTokenizer') as mock_tokenizer, \
+         patch('preprocessor.providers.llm_provider.AutoModelForCausalLM') as mock_model:
+
+        mock_tokenizer.from_pretrained.return_value = MagicMock()
+        mock_model_instance = MagicMock()
+        mock_model_instance.device = "cuda:0"
+        mock_model.from_pretrained.return_value = mock_model_instance
 
         provider = LLMProvider()
 
-        assert provider.model == "qwen3-coder-50k"
-        assert provider.base_url == "http://localhost:11434/v1"
-        assert provider.api_key == "ollama"
+        assert provider.model_name == "Qwen/Qwen2.5-Coder-7B-Instruct"
 
 
-@pytest.mark.skip(reason="Requires Ollama running. Run manually.")
+@pytest.mark.skip(reason="Requires GPU and model download. Run manually.")
 def test_llm_provider_extract_episode_metadata():
     provider = LLMProvider()
 
@@ -64,25 +62,20 @@ def test_llm_provider_extract_episode_metadata():
 
 
 def test_llm_provider_merge_episode_data_mock():
-    with patch('preprocessor.providers.llm_provider.OpenAI') as mock_openai:
-        mock_client = MagicMock()
-        mock_completion = MagicMock()
-        mock_choice = MagicMock()
-        mock_message = MagicMock()
+    with patch('preprocessor.providers.llm_provider.AutoTokenizer') as mock_tokenizer, \
+         patch('preprocessor.providers.llm_provider.AutoModelForCausalLM') as mock_model:
 
-        mock_metadata = {
-            "title": "Merged Title",
-            "description": "Merged Description",
-            "summary": "Merged Summary",
-            "season": 1,
-            "episode_number": 13,
-        }
+        mock_tokenizer_instance = MagicMock()
+        mock_tokenizer.from_pretrained.return_value = mock_tokenizer_instance
 
-        mock_message.content = str(mock_metadata)
-        mock_choice.message = mock_message
-        mock_completion.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_completion
-        mock_openai.return_value = mock_client
+        mock_model_instance = MagicMock()
+        mock_model_instance.device = "cuda:0"
+        mock_model.from_pretrained.return_value = mock_model_instance
+
+        mock_tokenizer_instance.apply_chat_template.return_value = "mocked prompt"
+        mock_tokenizer_instance.return_value = {"input_ids": MagicMock()}
+        mock_model_instance.generate.return_value = [[1, 2, 3, 4, 5]]
+        mock_tokenizer_instance.decode.return_value = '{"title": "Merged Title", "description": "Merged Description", "summary": "Merged Summary", "season": 1, "episode_number": 13}'
 
         provider = LLMProvider()
 
@@ -106,7 +99,7 @@ def test_llm_provider_merge_episode_data_mock():
         merged = provider.merge_episode_data(metadata_list)
 
         assert merged is not None
-        mock_client.chat.completions.create.assert_called_once()
+        assert merged.title == "Merged Title"
 
 
 def test_episode_metadata_creation():

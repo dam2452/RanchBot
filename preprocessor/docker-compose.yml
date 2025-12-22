@@ -24,17 +24,11 @@ services:
       - TRANSFORMERS_CACHE=/models/huggingface
       - TORCH_HOME=/models/torch
       - WHISPER_CACHE=/models/whisper
-      - OLLAMA_MODELS=/models/ollama
-      - OLLAMA_MAX_LOADED_MODELS=1
-      - OLLAMA_HOST=0.0.0.0
 
     volumes:
       - ./input_data:/input_data:ro
       - ./output_data:/app/output_data
       - ml_models:/models
-
-    ports:
-      - "11434:11434"
 
     deploy:
       resources:
