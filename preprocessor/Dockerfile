@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
     && ln -sf /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
     && ln -sf /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -27,19 +28,20 @@ WORKDIR /app
 COPY preprocessor/requirements.txt /app/requirements.txt
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir \
+    pip install --upgrade pip \
+    && pip install \
         playwright \
         torchvision \
         accelerate \
         nvidia-cublas-cu12 \
         nvidia-cudnn-cu12 \
-        -r /app/requirements.txt \
-    && playwright install chromium \
+        -r /app/requirements.txt
+
+RUN playwright install chromium \
     && playwright install-deps chromium
 
 RUN mkdir -p /models/huggingface /models/torch /models/whisper \
-    && python3 -c "from transnetv2_pytorch import TransNetV2; model = TransNetV2(); print('TransNetV2 weights downloaded')"
+    /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
 COPY preprocessor/entrypoint.sh preprocessor/run_preprocessor.sh /app/
 COPY preprocessor/scripts/download_models.py /app/download_models.py
@@ -47,8 +49,6 @@ RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
-
-RUN mkdir -p /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/run_preprocessor.sh"]
