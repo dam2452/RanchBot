@@ -48,17 +48,17 @@ class EpisodeScraper:
 
         scraped_pages = []
         with Progress() as progress:
-            task = progress.add_task("[cyan]Fetching pages...", total=len(self.urls))
+            task = progress.add_task("[cyan]Fetching pages", total=len(self.urls))
 
             for url in self.urls:
                 try:
-                    page_text = self.__scrape_url(url)
+                    page_text = self.__scrape_url(url, progress)
                     if page_text:
                         scraped_pages.append({
                             "url": url,
                             "markdown": page_text,
                         })
-                        console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
+                        progress.console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
                     else:
                         self.logger.error(f"Failed to scrape {url}")
                 except Exception as e:  # pylint: disable=broad-exception-caught
@@ -94,8 +94,8 @@ class EpisodeScraper:
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"LLM extraction failed: {e}")
 
-    def __scrape_url(self, url: str) -> Optional[str]:
-        console.print(f"[cyan]Scraping method: {self.scraper_method}[/cyan]")
+    def __scrape_url(self, url: str, progress: Progress) -> Optional[str]:
+        progress.console.print(f"[cyan]Scraping method: {self.scraper_method}[/cyan]")
 
         if self.scraper_method == "clipboard":
             return ScraperClipboard.scrape(url, headless=self.headless)

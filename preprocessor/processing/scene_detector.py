@@ -55,11 +55,11 @@ class SceneDetector:
         console.print(f"[blue]Processing {len(video_files)} videos...[/blue]")
 
         with Progress() as progress:
-            task = progress.add_task("[cyan]Detecting scenes...", total=len(video_files))
+            task = progress.add_task("[cyan]Detecting scenes", total=len(video_files))
 
             for video_file in video_files:
                 try:
-                    self.__process_video(video_file)
+                    self.__process_video(video_file, progress)
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to process {video_file}: {e}")
                 finally:
@@ -86,14 +86,14 @@ class SceneDetector:
 
         return sorted(video_files)
 
-    def __process_video(self, video_file: Path) -> None:
+    def __process_video(self, video_file: Path, progress: Progress) -> None:
         output_file = self.output_dir / f"{video_file.stem}_scenes.json"
 
         if output_file.exists():
-            console.print(f"[yellow]Skipping (already exists): {video_file.name}[/yellow]")
+            progress.console.print(f"[yellow]Skipping (already exists): {video_file.name}[/yellow]")
             return
 
-        console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
+        progress.console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
 
         video_info = self.__get_video_info(video_file)
         if not video_info:
@@ -103,7 +103,7 @@ class SceneDetector:
         scene_list = self.__detect_scenes_transnetv2(video_file, video_info)
 
         if not scene_list:
-            console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
+            progress.console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
             return
 
         result = {
@@ -122,7 +122,7 @@ class SceneDetector:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
 
-        console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
+        progress.console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
 
     def __get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
         try:
