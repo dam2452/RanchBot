@@ -57,7 +57,7 @@ RUN echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/nvidia-libs.conf && \
     echo "/usr/lib/wsl/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
     ldconfig
 
-ENV LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/x86_64-linux-gnu:/usr/local/lib:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/x86_64-linux-gnu:/usr/local/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/run_preprocessor.sh"]
