@@ -7,7 +7,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/models/huggingface \
     TRANSFORMERS_CACHE=/models/huggingface \
     TORCH_HOME=/models/torch \
-    WHISPER_CACHE=/models/whisper
+    WHISPER_CACHE=/models/whisper \
+    CUBLAS_WORKSPACE_CONFIG=:4096:8 \
+    TOKENIZERS_PARALLELISM=false
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git wget curl ca-certificates build-essential xz-utils gnupg2 \
@@ -42,7 +44,10 @@ RUN playwright install chromium \
     && playwright install-deps chromium
 
 RUN mkdir -p /models/huggingface /models/torch /models/whisper \
-    /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
+    /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps} \
+    /usr/local/nvidia/lib
+
+COPY preprocessor/libnvidia-encode.so.1 /usr/local/nvidia/lib/
 
 COPY preprocessor/entrypoint.sh preprocessor/run_preprocessor.sh /app/
 COPY preprocessor/scripts/download_models.py /app/download_models.py
@@ -51,12 +56,11 @@ RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
-RUN echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/nvidia-libs.conf && \
-    echo "/usr/local/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
-    echo "/usr/lib/wsl/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
+RUN echo "/usr/local/nvidia/lib" > /etc/ld.so.conf.d/nvidia.conf && \
+    echo "/usr/local/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
     ldconfig
 
-ENV LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/x86_64-linux-gnu:/usr/local/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/run_preprocessor.sh"]

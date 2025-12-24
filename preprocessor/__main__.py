@@ -576,11 +576,11 @@ def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_le
 )
 @click.option(
     "--max-workers", type=int, default=settings.embedding_max_workers,
-    help=f"Number of parallel workers for processing episodes (default: {settings.embedding_max_workers})",
+    help=f"Number of parallel workers (default: {settings.embedding_max_workers}). WARNING: >1 requires more VRAM",
 )
 @click.option(
     "--batch-size", type=int, default=settings.embedding_batch_size,
-    help=f"Batch size for GPU inference (default: {settings.embedding_batch_size})",
+    help=f"Batch size for GPU inference (default: {settings.embedding_batch_size}). Reduce if OOM errors occur",
 )
 @click.option(
     "--scene-timestamps-dir", type=click.Path(path_type=Path),

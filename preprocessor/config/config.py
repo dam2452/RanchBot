@@ -22,7 +22,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes
 
         self.whisper_model: str = os.getenv("WHISPER_MODEL", "large-v3-turbo")
 
-        self.embedding_model_name: str = "Alibaba-NLP/gme-Qwen2-VL-7B-Instruct"
+        # ZMIANA: Model 2B zamiast 7B
+        self.embedding_model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
 
         self.embedding_default_output_dir: Path = Path("/app/output_data/embeddings")
         self.embedding_segments_per_embedding: int = 5
@@ -30,7 +31,9 @@ class Settings:  # pylint: disable=too-many-instance-attributes
         self.embedding_keyframe_interval: int = 1
         self.embedding_frames_per_scene: int = 3
         self.embedding_max_workers: int = 1
-        self.embedding_batch_size: int = 24
+
+        # ZMIANA: Batch 32 jest bezpieczny i szybki dla modelu 2B na karcie 24GB
+        self.embedding_batch_size: int = 16
 
         self.scene_detection_threshold: float = 0.5
         self.scene_detection_min_scene_len: int = 10

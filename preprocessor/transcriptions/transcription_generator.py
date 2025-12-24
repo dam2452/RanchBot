@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 import tempfile
@@ -41,6 +42,10 @@ class TranscriptionGenerator:
 
     def work(self) -> int:
         try:
+            if self.__check_all_transcriptions_exist():
+                self.__logger.info("All transcriptions already exist, skipping...")
+                return 0
+
             self.__logger.info("Step 1/3: Normalizing audio from videos...")
             self.__audio_normalizer()
 
@@ -60,10 +65,51 @@ class TranscriptionGenerator:
 
         return self.__logger.finalize()
 
+    def __check_all_transcriptions_exist(self) -> bool:
+        if not self.__episodes_info_json.exists():
+            self.__logger.debug(f"Episodes info JSON not found: {self.__episodes_info_json}")
+            return False
+
+        video_files = list(self.__input_videos.rglob("*.mp4")) + list(self.__input_videos.rglob("*.mkv"))
+        if not video_files:
+            self.__logger.debug("No video files found to check")
+            return False
+
+        with open(self.__episodes_info_json, 'r', encoding='utf-8') as f:
+            episodes_data = json.load(f)
+
+        from preprocessor.utils.episode_utils import extract_season_episode_from_filename
+
+        missing_files = []
+        for video_file in video_files:
+            season_num, episode_num = extract_season_episode_from_filename(video_file)
+
+            if season_num == 0:
+                season_dir = "Specjalne"
+            else:
+                season_dir = f"Sezon {season_num}"
+
+            filename = f"{self.__series_name}_S{season_num:02d}E{episode_num:02d}.json"
+            expected_file = self.__final_output_dir / "json" / season_dir / filename
+
+            if not expected_file.exists():
+                missing_files.append(f"{video_file.name} -> {expected_file}")
+
+        if missing_files:
+            self.__logger.debug(f"Missing {len(missing_files)} transcription(s), first: {missing_files[0]}")
+            return False
+
+        self.__logger.info(f"All transcriptions already exist for {len(video_files)} video(s)")
+        return True
+
     def __init_workers(self, args: Dict[str, Any]) -> None:
         temp_dir_path: Path = Path(self.__temp_dir.name) / "transcription_generator"
         normalizer_output: Path = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"
+
+        self.__final_output_dir: Path = Path(args["transcription_jsons"])
+        self.__episodes_info_json: Path = Path(args["episodes_info_json"])
+        self.__series_name: str = args.get("name", "unknown").lower()
 
         self.__audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.__input_videos,
@@ -82,8 +128,8 @@ class TranscriptionGenerator:
 
         self.__multi_format_generator: MultiFormatGenerator = MultiFormatGenerator(
             jsons_dir=processor_output,
-            episodes_info_json=Path(args["episodes_info_json"]),
-            output_base_path=Path(args["transcription_jsons"]),
+            episodes_info_json=self.__episodes_info_json,
+            output_base_path=self.__final_output_dir,
             logger=self.__logger,
             series_name=args["name"],
         )
