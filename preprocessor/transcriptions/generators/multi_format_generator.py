@@ -67,6 +67,13 @@ class MultiFormatGenerator:
             else:
                 season_dir = f"Sezon {season_number}"
 
+            output_filename = f"{self.series_name}_S{season_number:02d}E{relative_episode:02d}.json"
+            main_output_file = self.format_dirs["json"] / season_dir / output_filename
+
+            if main_output_file.exists():
+                self.logger.info(f"Skipping (already exists): {output_filename}")
+                return
+
             transcription_with_info = {
                 "episode_info": episode_info,
                 **transcription,

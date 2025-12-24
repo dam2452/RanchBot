@@ -44,6 +44,12 @@ class NormalizedAudioProcessor:
 
     def __process_normalized_audio(self, normalized_audio: Path) -> None:
         try:  # pylint: disable=too-many-try-statements
+            output_file = self.__output_dir / normalized_audio.with_suffix(".json").name
+
+            if output_file.exists():
+                self.__logger.info(f"Skipping (transcription already exists): {normalized_audio.name}")
+                return
+
             language_map = {
                 "polish": "pl",
                 "english": "en",
@@ -96,7 +102,6 @@ class NormalizedAudioProcessor:
 
             result["language"] = info.language
 
-            output_file = self.__output_dir / normalized_audio.with_suffix(".json").name
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
 

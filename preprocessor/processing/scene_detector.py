@@ -87,6 +87,12 @@ class SceneDetector:
         return sorted(video_files)
 
     def __process_video(self, video_file: Path) -> None:
+        output_file = self.output_dir / f"{video_file.stem}_scenes.json"
+
+        if output_file.exists():
+            console.print(f"[yellow]Skipping (already exists): {video_file.name}[/yellow]")
+            return
+
         console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
 
         video_info = self.__get_video_info(video_file)
@@ -111,7 +117,6 @@ class SceneDetector:
             "scenes": scene_list,
         }
 
-        output_file = self.output_dir / f"{video_file.stem}_scenes.json"
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:

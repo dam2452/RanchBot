@@ -11,7 +11,7 @@ from typing import (
 from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
 from rich.progress import Progress
 
-from preprocessor.providers.llm_provider import LLMProvider
+from preprocessor.providers.llm import LLMProvider
 from preprocessor.scrapers.scraper_clipboard import ScraperClipboard
 from preprocessor.scrapers.scraper_crawl4ai import ScraperCrawl4AI
 from preprocessor.utils.console import console
@@ -100,6 +100,6 @@ class EpisodeScraper:
         if self.scraper_method == "clipboard":
             return ScraperClipboard.scrape(url, headless=self.headless)
         if self.scraper_method == "crawl4ai":
-            return ScraperCrawl4AI.scrape(url, save_markdown=True)
+            return ScraperCrawl4AI.scrape(url, save_markdown=False)
         self.logger.error(f"Unknown scraper method: {self.scraper_method}")
         return None

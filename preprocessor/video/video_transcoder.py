@@ -5,6 +5,7 @@ from concurrent.futures import (
 )
 import json
 import logging
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -92,9 +93,15 @@ class VideoTranscoder:
 
             for video_file in video_files:
                 episode_id = self.__get_episode_id(video_file)
+                output_path = self.__get_output_path_for_video(video_file)
+
+                if output_path and output_path.exists() and output_path.stat().st_size > 0:
+                    console.print(f"[yellow]Skipping (already exists): {episode_id}[/yellow]")
+                    progress.advance(task)
+                    continue
 
                 if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
-                    console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
+                    console.print(f"[yellow]Skipping (marked as done): {episode_id}[/yellow]")
                     progress.advance(task)
                     continue
 
@@ -118,9 +125,15 @@ class VideoTranscoder:
                 futures: Dict[Future, Tuple[Path, str]] = {}
                 for video_file in video_files:
                     episode_id = self.__get_episode_id(video_file)
+                    output_path = self.__get_output_path_for_video(video_file)
+
+                    if output_path and output_path.exists() and output_path.stat().st_size > 0:
+                        console.print(f"[yellow]Skipping (already exists): {episode_id}[/yellow]")
+                        progress.advance(task)
+                        continue
 
                     if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
-                        console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
+                        console.print(f"[yellow]Skipping (marked as done): {episode_id}[/yellow]")
                         progress.advance(task)
                         continue
 
@@ -149,6 +162,19 @@ class VideoTranscoder:
         if match:
             return f"E{match.group(1)}"
         return video_file.stem
+
+    def __get_output_path_for_video(self, video_file: Path) -> Optional[Path]:
+        match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
+        if not match:
+            return None
+
+        absolute_episode = int(match.group(1))
+        season_number, relative_episode = self.__find_episode_info(absolute_episode)
+
+        if season_number is None:
+            return None
+
+        return self.__build_output_path(self.__series_name, season_number, relative_episode)
 
     def __process_single_video(self, video_file: Path) -> None:
         match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
@@ -230,7 +256,17 @@ class VideoTranscoder:
         ]
 
         self.__logger.debug(f"Transcoding: {input_video.name} -> {output_video.name}")
-        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        self.__logger.debug(f"FFmpeg command: {' '.join(command)}")
+
+        env = os.environ.copy()
+        env['LD_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu:/usr/local/lib:' + env.get('LD_LIBRARY_PATH', '')
+        self.__logger.debug(f"LD_LIBRARY_PATH: {env['LD_LIBRARY_PATH']}")
+
+        try:
+            result = subprocess.run(command, check=True, capture_output=False, text=True, env=env)
+        except subprocess.CalledProcessError as e:
+            self.__logger.error(f"FFmpeg failed with exit code: {e.returncode}")
+            raise
 
     @staticmethod
     def __get_framerate(video: Path) -> float:

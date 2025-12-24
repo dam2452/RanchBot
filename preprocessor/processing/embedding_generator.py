@@ -140,15 +140,33 @@ class EmbeddingGenerator:
         with open(trans_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        has_text_embeddings = "text_embeddings" in data and data["text_embeddings"]
+        has_video_embeddings = "video_embeddings" in data and data["video_embeddings"]
+
+        skip_text = self.generate_text and has_text_embeddings
+        skip_video = self.generate_video and has_video_embeddings
+
+        if skip_text and skip_video:
+            console.print(f"[yellow]Skipping (embeddings already exist): {trans_file.name}[/yellow]")
+            return
+
+        if skip_text:
+            console.print(f"[yellow]{trans_file.name}: text embeddings already exist, skipping text generation[/yellow]")
+
+        if skip_video:
+            console.print(f"[yellow]{trans_file.name}: video embeddings already exist, skipping video generation[/yellow]")
+
         console.print(f"[cyan]Processing: {trans_file.name}[/cyan]")
 
         text_embeddings = []
         video_embeddings = []
 
-        if self.generate_text:
+        if self.generate_text and not skip_text:
             text_embeddings = self.__generate_text_embeddings(data)
+        elif has_text_embeddings:
+            text_embeddings = data["text_embeddings"]
 
-        if self.generate_video and self.videos:
+        if self.generate_video and self.videos and not skip_video:
             video_path = self.__get_video_path(data)
             debug_videos = f"Debug: self.videos={self.videos}, self.generate_video={self.generate_video}"
             console.print(f"[yellow]{debug_videos}[/yellow]")
@@ -168,6 +186,8 @@ class EmbeddingGenerator:
                 video_embeddings = self.__generate_video_embeddings(video_path, data)
             else:
                 console.print("[red]Debug: Video not found or video_path is None[/red]")
+        elif has_video_embeddings:
+            video_embeddings = data["video_embeddings"]
 
         data["text_embeddings"] = text_embeddings
         data["video_embeddings"] = video_embeddings

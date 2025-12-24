@@ -26,12 +26,17 @@ class AudioNormalizer:
 
     def __process_video(self, video: Path) -> None:
         try:
+            output_path = self.__output_dir / video.with_suffix(".wav").name
+
+            if output_path.exists():
+                self.__logger.info(f"Skipping (audio already normalized): {video.name}")
+                return
+
             audio_idx = self.__get_best_audio_stream(video)
             if audio_idx is None:
                 self.__logger.error(f"Cannot find audio stream for file: '{video}'")
                 return
 
-            output_path = self.__output_dir / video.with_suffix(".wav").name
             self.__normalize(video=video, audio_idx=audio_idx, output=output_path)
 
         except Exception as e:  # pylint: disable=broad-exception-caught

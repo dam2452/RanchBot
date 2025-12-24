@@ -808,21 +808,24 @@ def run_all(
         console.print(f"[cyan]Using ramdisk: {ramdisk_path}[/cyan]")
 
     if scrape_urls:
-        console.print("\n[bold blue]Step 0/5: Scraping episode metadata...[/bold blue]")
-        scraper = EpisodeScraper({
-            "urls": list(scrape_urls),
-            "output_file": episodes_info_json,
-            "headless": True,
-            "merge_sources": True,
-        })
-        scrape_exit_code = scraper.work()
-        exit_codes.append(scrape_exit_code)
+        if episodes_info_json.exists():
+            console.print(f"\n[yellow]Step 0/5: Scraping episode metadata... SKIPPED (file exists: {episodes_info_json})[/yellow]")
+        else:
+            console.print("\n[bold blue]Step 0/5: Scraping episode metadata...[/bold blue]")
+            scraper = EpisodeScraper({
+                "urls": list(scrape_urls),
+                "output_file": episodes_info_json,
+                "headless": True,
+                "merge_sources": True,
+            })
+            scrape_exit_code = scraper.work()
+            exit_codes.append(scrape_exit_code)
 
-        if scrape_exit_code != 0:
-            console.print("[red]Scraping failed, aborting pipeline[/red]")
-            sys.exit(scrape_exit_code)
+            if scrape_exit_code != 0:
+                console.print("[red]Scraping failed, aborting pipeline[/red]")
+                sys.exit(scrape_exit_code)
 
-        console.print(f"[green]Episode metadata saved to: {episodes_info_json}[/green]")
+            console.print(f"[green]Episode metadata saved to: {episodes_info_json}[/green]")
 
     if skip_transcode:
         console.print("\n[yellow]Step 1/5: Transcoding videos... SKIPPED[/yellow]")

@@ -1,12 +1,20 @@
 import json
+from pathlib import Path
 from typing import List, Optional
 
 import torch
 from pydantic import BaseModel
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
+
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+
+def load_prompt(name: str) -> str:
+    prompt_file = PROMPTS_DIR / f"{name}.txt"
+    return prompt_file.read_text(encoding="utf-8")
 
 
 class EpisodeInfo(BaseModel):
@@ -51,8 +59,6 @@ class LLMProvider:
             console.print(f"[cyan]Loading LLM: {self.model_name} (bitsandbytes 8-bit, 128K context)[/cyan]")
 
             try:
-                from transformers import BitsAndBytesConfig
-
                 self._tokenizer = AutoTokenizer.from_pretrained(
                     self.model_name,
                     trust_remote_code=True
@@ -85,7 +91,7 @@ class LLMProvider:
                 console.print(f"[red]Failed to load model: {e}[/red]")
                 raise e
 
-    def _generate(self, messages: List[dict], max_tokens: int = 4096) -> str:
+    def __generate(self, messages: List[dict], max_tokens: int = 32768) -> str:
         text = self._tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -110,7 +116,7 @@ class LLMProvider:
 
         return content.strip()
 
-    def _extract_json(self, content: str) -> dict:
+    def __extract_json(self, content: str) -> dict:
         try:
             if "```json" in content:
                 start = content.find("```json") + 7
@@ -130,36 +136,8 @@ class LLMProvider:
             raise
 
     def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
-        system_prompt = """You are extracting episode data from a TV series page.
-Extract ALL episodes you can find on the page. Look for tables, lists, or any structured data.
-
-For each episode extract:
-- episode_number: integer
-- title: string (clean title without markdown formatting)
-- premiere_date: string (date format as found on page)
-- viewership: integer (remove spaces from numbers like "4 396 564" -> 4396564, use 0 if not available)
-
-The season number should be determined from the page content or URL.
-
-Return ONLY valid JSON matching this schema:
-{
-  "season_number": int,
-  "episodes": [
-    {
-      "episode_number": int,
-      "title": str,
-      "premiere_date": str,
-      "viewership": int
-    }
-  ]
-}"""
-
-        user_prompt = f"""URL: {url}
-
-Page content (markdown):
-{page_text[:15000]}
-
-Extract ALL episodes from this page and return as JSON."""
+        system_prompt = load_prompt("extract_season_system")
+        user_prompt = load_prompt("extract_season_user").format(url=url, page_text=page_text)
 
         try:
             messages = [
@@ -167,8 +145,8 @@ Extract ALL episodes from this page and return as JSON."""
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._generate(messages, max_tokens=8192)
-            data = self._extract_json(content)
+            content = self._LLMProvider__generate(messages)
+            data = self._LLMProvider__extract_json(content)
             metadata = SeasonMetadata(**data)
             return metadata
 
@@ -177,32 +155,8 @@ Extract ALL episodes from this page and return as JSON."""
             return None
 
     def extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
-        system_prompt = """Extract episode information from the provided web page content.
-Focus on finding:
-- Episode title (exact title, not description)
-- Episode description (1-2 sentences summarizing the plot)
-- Episode summary (detailed summary, 3-5 sentences)
-- Season number (if mentioned)
-- Episode number (if mentioned)
-
-If information is missing, use empty string for text fields and null for numbers.
-Be precise and extract only factual information from the text.
-
-Return ONLY valid JSON matching this schema:
-{
-  "title": str,
-  "description": str,
-  "summary": str,
-  "season": int or null,
-  "episode_number": int or null
-}"""
-
-        user_prompt = f"""URL: {url}
-
-Page content:
-{page_text[:8000]}
-
-Extract the episode metadata from above."""
+        system_prompt = load_prompt("extract_episode_metadata_system")
+        user_prompt = load_prompt("extract_episode_metadata_user").format(url=url, page_text=page_text)
 
         try:
             messages = [
@@ -210,8 +164,8 @@ Extract the episode metadata from above."""
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._generate(messages, max_tokens=2048)
-            data = self._extract_json(content)
+            content = self._LLMProvider__generate(messages)
+            data = self._LLMProvider__extract_json(content)
             metadata = EpisodeMetadata(**data)
             return metadata
 
@@ -231,29 +185,11 @@ Extract the episode metadata from above."""
             for i, m in enumerate(metadata_list)
         ])
 
-        system_prompt = """You are merging episode information from multiple sources.
-Create a single, accurate metadata entry by:
-- Choosing the most complete and accurate title
-- Combining descriptions into a coherent 1-2 sentence description
-- Merging summaries into a comprehensive 3-5 sentence summary
-- Using the most reliable season/episode numbers
-
-Prefer longer, more detailed information when merging.
-
-Return ONLY valid JSON matching this schema:
-{
-  "title": str,
-  "description": str,
-  "summary": str,
-  "season": int or null,
-  "episode_number": int or null
-}"""
-
-        user_prompt = f"""Merge the following episode metadata from {len(metadata_list)} sources:
-
-{combined_text}
-
-Create a single, unified metadata entry."""
+        system_prompt = load_prompt("merge_episode_data_system")
+        user_prompt = load_prompt("merge_episode_data_user").format(
+            num_sources=len(metadata_list),
+            combined_text=combined_text
+        )
 
         try:
             messages = [
@@ -261,8 +197,8 @@ Create a single, unified metadata entry."""
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._generate(messages, max_tokens=2048)
-            data = self._extract_json(content)
+            content = self._LLMProvider__generate(messages)
+            data = self._LLMProvider__extract_json(content)
             merged = EpisodeMetadata(**data)
             return merged
 
@@ -271,46 +207,17 @@ Create a single, unified metadata entry."""
             return metadata_list[0]
 
     def extract_all_seasons(self, scraped_pages: List[dict]) -> Optional[List[SeasonMetadata]]:
-        system_prompt = """You are extracting episode data from multiple TV series pages.
-Extract ALL episodes from ALL pages. Each page may contain one or multiple seasons.
-
-For each episode extract:
-- episode_number: integer
-- title: string (clean title without markdown formatting)
-- premiere_date: string (date format as found on page)
-- viewership: integer (remove spaces from numbers like "4 396 564" -> 4396564, use 0 if not available)
-
-Group episodes by season_number. Return ALL seasons found across ALL pages.
-
-Return ONLY valid JSON matching this schema:
-{
-  "seasons": [
-    {
-      "season_number": int,
-      "episodes": [
-        {
-          "episode_number": int,
-          "title": str,
-          "premiere_date": str,
-          "viewership": int
-        }
-      ]
-    }
-  ]
-}"""
-
         combined_content = ""
         for i, page in enumerate(scraped_pages, 1):
             url = page["url"]
-            markdown = page["markdown"][:15000]
+            markdown = page["markdown"]
             combined_content += f"\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n"
 
-        user_prompt = f"""Extract ALL episodes from ALL {len(scraped_pages)} sources below.
-Return a complete list of ALL seasons found.
-
-{combined_content}
-
-Extract ALL seasons and episodes from above sources."""
+        system_prompt = load_prompt("extract_all_seasons_system")
+        user_prompt = load_prompt("extract_all_seasons_user").format(
+            num_sources=len(scraped_pages),
+            combined_content=combined_content
+        )
 
         try:
             messages = [
@@ -318,9 +225,9 @@ Extract ALL seasons and episodes from above sources."""
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._generate(messages, max_tokens=16384)
+            content = self._LLMProvider__generate(messages)
             console.print(f"[yellow]LLM raw response:\n{content[:500]}...[/yellow]")
-            data = self._extract_json(content)
+            data = self._LLMProvider__extract_json(content)
             all_seasons_meta = AllSeasonsMetadata(**data)
             return all_seasons_meta.seasons
 

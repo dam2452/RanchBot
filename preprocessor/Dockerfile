@@ -2,24 +2,26 @@ FROM pytorch/pytorch:2.9.1-cuda12.6-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    NVIDIA_DRIVER_CAPABILITIES=all \
+
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,video,utility \
     HF_HOME=/models/huggingface \
     TRANSFORMERS_CACHE=/models/huggingface \
     TORCH_HOME=/models/torch \
-    WHISPER_CACHE=/models/whisper \
-    LD_LIBRARY_PATH="/usr/local/lib:/opt/conda/lib/python3.12/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.12/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.12/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}"
+    WHISPER_CACHE=/models/whisper
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git wget curl ca-certificates build-essential \
+    git wget curl ca-certificates build-essential xz-utils gnupg2 \
     libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
     libxdamage1 libxfixes3 libxrandr2 libgbm1 \
     libasound2 libxshmfence1 libglib2.0-0 libgomp1 \
-    && wget -q https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.3-1/jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
-    && apt-get install -y ./jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
-    && rm jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
-    && ln -sf /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
-    && ln -sf /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe \
+    && wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-shared-7.1.tar.xz \
+    && tar -xf ffmpeg-n7.1-latest-linux64-gpl-shared-7.1.tar.xz \
+    && cp -r ffmpeg-n7.1-latest-linux64-gpl-shared-7.1/bin/* /usr/local/bin/ \
+    && cp -r ffmpeg-n7.1-latest-linux64-gpl-shared-7.1/lib/* /usr/local/lib/ \
+    && rm -rf ffmpeg-n7.1-latest-linux64-gpl-shared-7.1* \
+    && ldconfig \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,6 +51,9 @@ RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
+
+# Ponowne uruchomienie ldconfig na końcu, by upewnić się, że wszystko jest widoczne
+RUN ldconfig
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/run_preprocessor.sh"]
