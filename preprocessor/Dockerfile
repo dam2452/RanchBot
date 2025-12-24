@@ -2,7 +2,6 @@ FROM pytorch/pytorch:2.9.1-cuda12.6-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,video,utility \
     HF_HOME=/models/huggingface \
@@ -52,8 +51,13 @@ RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
-# Ponowne uruchomienie ldconfig na końcu, by upewnić się, że wszystko jest widoczne
-RUN ldconfig
+# Konfiguracja LD_LIBRARY_PATH dla NVIDIA libraries
+RUN echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/nvidia-libs.conf && \
+    echo "/usr/local/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
+    echo "/usr/lib/wsl/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
+    ldconfig
+
+ENV LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/lib/x86_64-linux-gnu:/usr/local/lib:${LD_LIBRARY_PATH}
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/run_preprocessor.sh"]

@@ -26,6 +26,7 @@ services:
       - ./input_data:/input_data:ro
       - ./output_data:/app/output_data
       - ml_models:/models
+      - /usr/lib/wsl/lib:/usr/lib/wsl/lib:ro
 
 volumes:
   ml_models:

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export LD_LIBRARY_PATH="/usr/lib/wsl/lib:/usr/lib/x86_64-linux-gnu:/usr/local/lib:${LD_LIBRARY_PATH}"
+
 MARKER_FILE="/models/.models_initialized"
 
 log() {

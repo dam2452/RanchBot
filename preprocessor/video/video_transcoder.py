@@ -257,13 +257,10 @@ class VideoTranscoder:
 
         self.__logger.debug(f"Transcoding: {input_video.name} -> {output_video.name}")
         self.__logger.debug(f"FFmpeg command: {' '.join(command)}")
-
-        env = os.environ.copy()
-        env['LD_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu:/usr/local/lib:' + env.get('LD_LIBRARY_PATH', '')
-        self.__logger.debug(f"LD_LIBRARY_PATH: {env['LD_LIBRARY_PATH']}")
+        self.__logger.debug(f"LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH', 'not set')[:200]}")
 
         try:
-            result = subprocess.run(command, check=True, capture_output=False, text=True, env=env)
+            result = subprocess.run(command, check=True, capture_output=False, text=True)
         except subprocess.CalledProcessError as e:
             self.__logger.error(f"FFmpeg failed with exit code: {e.returncode}")
             raise
