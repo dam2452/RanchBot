@@ -126,7 +126,7 @@ class SceneDetector:
 
     def __get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
         try:
-            vr = decord.VideoReader(str(video_file), ctx=decord.gpu(0))
+            vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
             fps = vr.get_avg_fps()
             total_frames = len(vr)
             duration = total_frames / fps if fps > 0 else 0

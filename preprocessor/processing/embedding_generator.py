@@ -305,7 +305,7 @@ class EmbeddingGenerator:
         console.print(f"[cyan]Extracting {len(frame_requests)} frames ({self.frames_per_scene} per scene from {len(scenes)} scenes)[/cyan]")
 
         try:
-            vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0))
+            vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
             frame_indices = [req["frame_number"] for req in frame_requests]
             frames_tensor = vr.get_batch(frame_indices)
 
@@ -340,7 +340,7 @@ class EmbeddingGenerator:
             return []
 
     def __generate_from_keyframes(self, video_path: Path) -> List[Dict[str, Any]]:
-        vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0))
+        vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
         fps = vr.get_avg_fps()
         total_frames = len(vr)
 
@@ -394,7 +394,7 @@ class EmbeddingGenerator:
 
     def __generate_from_color_diff(self, video_path: Path) -> List[Dict[str, Any]]:
         embeddings = []
-        vr = decord.VideoReader(str(video_path), ctx=decord.gpu(0))
+        vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
         fps = vr.get_avg_fps()
 
         prev_hist = None

@@ -51,7 +51,6 @@ RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
-# Konfiguracja LD_LIBRARY_PATH dla NVIDIA libraries
 RUN echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/nvidia-libs.conf && \
     echo "/usr/local/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
     echo "/usr/lib/wsl/lib" >> /etc/ld.so.conf.d/nvidia-libs.conf && \
