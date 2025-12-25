@@ -1,0 +1,45 @@
+import click
+
+from preprocessor.cli.commands import (
+    convert_elastic,
+    detect_scenes,
+    generate_embeddings,
+    import_transcriptions,
+    index,
+    run_all,
+    scrape_episodes,
+    transcode,
+    transcribe,
+    transcribe_elevenlabs,
+)
+
+
+@click.group()
+@click.help_option("-h", "--help")
+def cli():
+    """Preprocessor CLI for video processing pipeline."""
+
+
+# noinspection PyTypeChecker
+cli.add_command(transcode)
+# noinspection PyTypeChecker
+cli.add_command(transcribe)
+# noinspection PyTypeChecker
+cli.add_command(index)
+# noinspection PyTypeChecker
+cli.add_command(import_transcriptions)
+# noinspection PyTypeChecker
+cli.add_command(transcribe_elevenlabs)
+# noinspection PyTypeChecker
+cli.add_command(scrape_episodes)
+# noinspection PyTypeChecker
+cli.add_command(convert_elastic)
+# noinspection PyTypeChecker
+cli.add_command(detect_scenes)
+# noinspection PyTypeChecker
+cli.add_command(generate_embeddings)
+# noinspection PyTypeChecker
+cli.add_command(run_all)
+
+
+__all__ = ["cli"]

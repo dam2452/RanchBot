@@ -15,34 +15,41 @@ from elasticsearch.helpers import (
 )
 from rich.progress import Progress
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from preprocessor.config.config import settings
+from preprocessor.core.base_processor import BaseProcessor
+from preprocessor.search.elastic_manager import ElasticSearchManager
 from preprocessor.utils.console import console
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
-class LegacyConverter:
+class LegacyConverter(BaseProcessor):
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if "index_name" not in args:
+            raise ValueError("index_name is required")
+
     def __init__(self, args: Dict[str, Any]):
-        self.index_name: str = args["index_name"]
-        self.backup_file: Optional[Path] = args.get("backup_file")
-        self.dry_run: bool = args.get("dry_run", False)
-
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
+        super().__init__(
+            args=args,
             class_name=self.__class__.__name__,
-            loglevel=logging.DEBUG,
             error_exit_code=6,
+            loglevel=logging.DEBUG,
         )
+
+        self.index_name: str = self._args["index_name"]
+        self.backup_file: Optional[Path] = self._args.get("backup_file")
+        self.dry_run: bool = self._args.get("dry_run", False)
 
         self.client = None
 
-    def work(self) -> int:
-        try:
-            asyncio.run(self.__exec())
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            self.logger.error(f"Conversion failed: {e}")
-        return self.logger.finalize()
+    def _execute(self) -> None:
+        asyncio.run(self.__exec())
 
     async def __exec(self) -> None:
-        self.client = await ElasticSearchManager.connect_to_elasticsearch(self.logger)
+        self.client = await ElasticSearchManager.connect_to_elasticsearch(  # pylint: disable=duplicate-code
+            settings.elasticsearch.host,
+            settings.elasticsearch.user,
+            settings.elasticsearch.password,
+            self.logger,
+        )
 
         try:  # pylint: disable=too-many-try-statements
             if not await self.client.indices.exists(index=self.index_name):

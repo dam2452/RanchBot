@@ -18,11 +18,11 @@ from typing import (
 
 from rich.progress import Progress
 
-from bot.utils.resolution import Resolution
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
+from preprocessor.utils.resolution import Resolution
 
 
 class VideoTranscoder(BaseProcessor):

@@ -16,9 +16,10 @@ from elasticsearch.helpers import (
     async_bulk,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.search.elastic_manager import ElasticSearchManager
 
 
 class ElasticSearchIndexer(BaseProcessor):
@@ -52,7 +53,12 @@ class ElasticSearchIndexer(BaseProcessor):
         asyncio.run(self._exec_async())
 
     async def _exec_async(self) -> None:
-        self.client = await ElasticSearchManager.connect_to_elasticsearch(self.logger)
+        self.client = await ElasticSearchManager.connect_to_elasticsearch(  # pylint: disable=duplicate-code
+            settings.elasticsearch.host,
+            settings.elasticsearch.user,
+            settings.elasticsearch.password,
+            self.logger,
+        )
 
         try:
             if not self.append:

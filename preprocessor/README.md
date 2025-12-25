@@ -26,8 +26,25 @@ docker logs ranchbot-preprocessing-app -f
 
 ```
 preprocessor/
+├── cli/                     # Interfejs CLI (modularny)
+│   ├── commands/           # Komendy CLI (11 modułów)
+│   │   ├── transcode.py
+│   │   ├── transcribe.py
+│   │   ├── detect_scenes.py
+│   │   ├── generate_embeddings.py
+│   │   ├── index.py
+│   │   ├── import_transcriptions.py
+│   │   ├── transcribe_elevenlabs.py
+│   │   ├── scrape_episodes.py
+│   │   ├── convert_elastic.py
+│   │   └── run_all.py
+│   ├── options/            # Wspólne opcje CLI
+│   ├── pipeline/           # Orchestrator pipeline
+│   │   ├── orchestrator.py
+│   │   └── steps.py
+│   └── utils.py            # Funkcje pomocnicze (StateManager init)
 ├── config/                  # Konfiguracja aplikacji
-├── core/                    # Podstawowe komponenty (state_manager)
+├── core/                    # Podstawowe komponenty (BaseProcessor, StateManager)
 ├── video/                   # Przetwarzanie wideo
 │   ├── transcoder.py       # Transkodowanie (FFmpeg + NVENC)
 │   └── scene_detector.py   # Detekcja scen (TransNetV2)
@@ -43,12 +60,17 @@ preprocessor/
 │   ├── crawl4ai.py         # Crawler stron WWW
 │   └── clipboard.py        # Scraper ze schowka
 ├── embeddings/              # Generowanie embeddingów
-│   └── generator.py        # Generator embeddingów (Qwen2-VL)
+│   ├── generator.py        # Generator embeddingów (Qwen2-VL)
+│   ├── strategies/         # Strategie frame selection
+│   └── frame_processor.py  # Procesor ramek wideo
 ├── indexing/                # Indeksowanie
 │   └── elasticsearch.py    # Indeksowanie w Elasticsearch
+├── search/                  # Moduły wyszukiwania
+│   └── elastic_manager.py  # Manager Elasticsearch
 ├── providers/               # Providery zewnętrznych serwisów
 │   └── llm.py              # Provider LLM (Ollama)
 ├── utils/                   # Narzędzia pomocnicze
+│   └── resolution.py       # Enum rozdzielczości wideo
 ├── scripts/                 # Skrypty pomocnicze (download_models)
 ├── prompts/                 # Prompty LLM
 ├── legacy/                  # Konwersje legacy
@@ -62,6 +84,7 @@ preprocessor/
 │   └── scraped_pages/       # Zescrapowane strony (markdown)
 ├── docker-compose.yml
 ├── Dockerfile
+├── __main__.py              # Entry point (4 linie)
 └── README.md
 ```
 

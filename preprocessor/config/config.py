@@ -13,7 +13,7 @@ from typing import (
 
 from pydantic import SecretStr
 
-from bot.utils.resolution import Resolution
+from preprocessor.utils.resolution import Resolution
 
 
 @dataclass
@@ -36,7 +36,7 @@ class EmbeddingSettings:
     keyframe_interval: int = 1
     frames_per_scene: int = 1
     batch_size: int = 16
-    resize_height: int = 720
+    resize_height: int = 480
     prefetch_chunks: int = 0
     video_chunk_size: int = 256
     resize_batch_size: int = 32
@@ -81,6 +81,21 @@ class ElevenLabsSettings:
 
 
 @dataclass
+class ElasticsearchSettings:
+    host: str = ""
+    user: str = ""
+    password: str = ""
+
+    @classmethod
+    def from_env(cls) -> "ElasticsearchSettings":
+        return cls(
+            host=os.getenv("ES_HOST", ""),
+            user=os.getenv("ES_USER", ""),
+            password=os.getenv("ES_PASS", ""),
+        )
+
+
+@dataclass
 class TranscodeDefaults:
     output_dir: Path = Path("/app/output_data/transcoded_videos")
     codec: str = "h264_nvenc"
@@ -105,6 +120,7 @@ class Settings:
     scene_detection: SceneDetectionSettings
     scraper: ScraperSettings
     elevenlabs: ElevenLabsSettings
+    elasticsearch: ElasticsearchSettings
     transcode: TranscodeDefaults
     transcription: TranscriptionDefaults
 
@@ -116,6 +132,7 @@ class Settings:
             scene_detection=SceneDetectionSettings(),
             scraper=ScraperSettings(),
             elevenlabs=ElevenLabsSettings.from_env(),
+            elasticsearch=ElasticsearchSettings.from_env(),
             transcode=TranscodeDefaults(),
             transcription=TranscriptionDefaults(),
         )

@@ -12,37 +12,43 @@ from typing import (
 
 from rich.progress import Progress
 
+from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.state_manager import StateManager
 from preprocessor.transcription.engines.elevenlabs_engine import ElevenLabsEngine
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.utils.console import console
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
-class ElevenLabsTranscriber:
+class ElevenLabsTranscriber(BaseProcessor):
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if "videos" not in args:
+            raise ValueError("videos is required")
+        if "output_dir" not in args:
+            raise ValueError("output_dir is required")
+        if "series_name" not in args:
+            raise ValueError("series_name is required")
+
+        videos_path = Path(args["videos"])
+        if not videos_path.is_dir():
+            raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
+
     def __init__(self, args: Dict[str, Any]):
-        self.input_videos: Path = Path(args["videos"])
-        if not self.input_videos.is_dir():
-            raise NotADirectoryError(f"Input videos is not a directory: '{self.input_videos}'")
-
-        self.output_dir: Path = Path(args["output_dir"])
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-
-        self.episodes_info_json: Optional[Path] = args.get("episodes_info_json")
-        self.series_name: str = args["series_name"]
-
-        self.model_id: str = args.get("model_id", "scribe_v1")
-        self.language_code: str = args.get("language_code", "pol")
-        self.diarize: bool = args.get("diarize", True)
-
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
+        super().__init__(
+            args=args,
             class_name=self.__class__.__name__,
-            loglevel=logging.DEBUG,
             error_exit_code=5,
+            loglevel=logging.DEBUG,
         )
 
-        self.state_manager: Optional[StateManager] = args.get("state_manager")
+        self.input_videos: Path = Path(self._args["videos"])
+        self.output_dir: Path = Path(self._args["output_dir"])
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.episodes_info_json: Optional[Path] = self._args.get("episodes_info_json")
+
+        self.model_id: str = self._args.get("model_id", "scribe_v1")
+        self.language_code: str = self._args.get("language_code", "pol")
+        self.diarize: bool = self._args.get("diarize", True)
 
         self.episode_manager = EpisodeManager(self.episodes_info_json, self.series_name)
 
@@ -52,12 +58,12 @@ class ElevenLabsTranscriber:
             diarize=self.diarize,
         )
 
-    def work(self) -> int:
+    def _execute(self) -> None:
         video_files: List[Path] = sorted(self.input_videos.rglob("*.mp4"))
 
         if not video_files:
             self.logger.warning("No video files found")
-            return self.logger.finalize()
+            return
 
         console.print(f"[blue]Found {len(video_files)} videos to transcribe with 11labs[/blue]")
 
@@ -106,8 +112,6 @@ class ElevenLabsTranscriber:
                 series_name=self.series_name,
             )
             multi_format_gen.generate()
-
-        return self.logger.finalize()
 
     @staticmethod
     def __create_segments_from_words(words: List[Dict]) -> List[Dict]:

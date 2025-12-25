@@ -11,41 +11,47 @@ from typing import (
 
 from rich.progress import Progress
 
+from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
-class TranscriptionImporter:
+class TranscriptionImporter(BaseProcessor):
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if "source_dir" not in args:
+            raise ValueError("source_dir is required")
+        if "output_dir" not in args:
+            raise ValueError("output_dir is required")
+        if "series_name" not in args:
+            raise ValueError("series_name is required")
+
+        source_dir = Path(args["source_dir"])
+        if not source_dir.exists():
+            raise FileNotFoundError(f"Source directory not found: {source_dir}")
+
     def __init__(self, args: Dict[str, Any]) -> None:
-        self.source_dir: Path = Path(args["source_dir"])
-        self.output_dir: Path = Path(args["output_dir"])
-        self.episodes_info_json: Optional[Path] = args.get("episodes_info_json")
-        self.series_name: str = args["series_name"]
-        self.format_type: str = args.get("format_type", "11labs_segmented")
+        super().__init__(
+            args=args,
+            class_name=self.__class__.__name__,
+            error_exit_code=4,
+            loglevel=logging.DEBUG,
+        )
 
-        if not self.source_dir.exists():
-            raise FileNotFoundError(f"Source directory not found: {self.source_dir}")
+        self.source_dir: Path = Path(self._args["source_dir"])
+        self.output_dir: Path = Path(self._args["output_dir"])
+        self.episodes_info_json: Optional[Path] = self._args.get("episodes_info_json")
+        self.format_type: str = self._args.get("format_type", "11labs_segmented")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
-            class_name=self.__class__.__name__,
-            loglevel=logging.DEBUG,
-            error_exit_code=4,
-        )
-
-        self.state_manager: Optional[StateManager] = args.get("state_manager")
-
         self.episode_manager = EpisodeManager(self.episodes_info_json, self.series_name)
 
-    def work(self) -> int:
+    def _execute(self) -> None:
         json_files = self.__find_transcription_files()
 
         if not json_files:
             self.logger.warning(f"No transcription files found in {self.source_dir}")
-            return self.logger.finalize()
+            return
 
         console.print(f"[blue]Found {len(json_files)} transcription files to import[/blue]")
 
@@ -71,8 +77,6 @@ class TranscriptionImporter:
                     self.logger.error(f"Failed to import {json_file.name}: {e}")
 
                 progress.advance(task)
-
-        return self.logger.finalize()
 
     def __find_transcription_files(self) -> List[Path]:
         if self.format_type == "11labs_segmented":
