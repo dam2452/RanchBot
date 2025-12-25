@@ -5,7 +5,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,video,utility \
     HF_HOME=/models/huggingface \
-    TRANSFORMERS_CACHE=/models/huggingface \
     TORCH_HOME=/models/torch \
     WHISPER_CACHE=/models/whisper \
     CUBLAS_WORKSPACE_CONFIG=:4096:8 \

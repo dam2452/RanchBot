@@ -24,7 +24,6 @@ services:
       - DOCKER_CONTAINER=true
       - PYTHONUNBUFFERED=1
       - HF_HOME=/models/huggingface
-      - TRANSFORMERS_CACHE=/models/huggingface
       - TORCH_HOME=/models/torch
       - WHISPER_CACHE=/models/whisper
 
