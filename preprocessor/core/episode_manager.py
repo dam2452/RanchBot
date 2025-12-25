@@ -1,5 +1,5 @@
-import json
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 from typing import (

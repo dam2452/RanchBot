@@ -1,26 +1,18 @@
 import gc
 import json
 import logging
-from pathlib import Path
-from queue import Queue
 import threading
 import traceback
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-)
+from pathlib import Path
+from queue import Queue
+from typing import Any, Dict, List, Optional
 
-from PIL import Image
 import decord
 import numpy as np
-from rich.progress import Progress
 import torch
-from transformers import (
-    AutoModel,
-    AutoProcessor,
-)
+from PIL import Image
+from rich.progress import Progress
+from transformers import AutoModel, AutoProcessor
 
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
@@ -31,28 +23,37 @@ from preprocessor.utils.video_utils import iterate_frames_with_histogram
 decord.bridge.set_bridge('torch')
 
 
-# pylint: disable=too-many-instance-attributes
 class EmbeddingGenerator:
+    __DEFAULT_DEVICE = "cuda"
+    __VIDEO_CHUNK_SIZE = 256
+    __RESIZE_BATCH_SIZE = 32
+    __COLOR_DIFF_THRESHOLD = 0.3
+    __SCENE_FPS_DEFAULT = 30
+    __KEYFRAME_INTERVAL_MULTIPLIER = 5
+
     def __init__(self, args: Dict[str, Any]):
         self.transcription_jsons: Path = args["transcription_jsons"]
         self.videos: Optional[Path] = args.get("videos")
         self.output_dir: Path = args.get("output_dir", settings.embedding.default_output_dir)
+        self.scene_timestamps_dir: Optional[Path] = args.get("scene_timestamps_dir")
+
         self.model_name: str = args.get("model", settings.embedding.model_name)
+        self.batch_size: int = args.get("batch_size", settings.embedding.batch_size)
+        self.resize_height: int = args.get("resize_height", settings.embedding.resize_height)
+        self.prefetch_chunks: int = args.get("prefetch_chunks", settings.embedding.prefetch_chunks)
+        self.device: str = self.__DEFAULT_DEVICE
+
         self.segments_per_embedding: int = args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
         self.keyframe_strategy: str = args.get("keyframe_strategy", settings.embedding.keyframe_strategy)
         self.keyframe_interval: int = args.get("keyframe_interval", settings.embedding.keyframe_interval)
         self.frames_per_scene: int = args.get("frames_per_scene", settings.embedding.frames_per_scene)
         self.generate_text: bool = args.get("generate_text", True)
         self.generate_video: bool = args.get("generate_video", True)
-        self.batch_size: int = args.get("batch_size", settings.embedding.batch_size)
-        self.resize_height: int = args.get("resize_height", settings.embedding.resize_height)
-        self.prefetch_chunks: int = args.get("prefetch_chunks", settings.embedding.prefetch_chunks)
-        self.device: str = "cuda"
+
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. This application requires GPU.")
-        self.scene_timestamps_dir: Optional[Path] = args.get("scene_timestamps_dir")
 
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
+        self.logger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
             loglevel=logging.DEBUG,
             error_exit_code=9,
@@ -68,9 +69,16 @@ class EmbeddingGenerator:
     def work(self) -> int:
         try:
             self.__exec()
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Embedding generation failed: {e}")
         return self.logger.finalize()
+
+    def cleanup(self) -> None:
+        console.print("[cyan]Unloading embedding model...[/cyan]")
+        self.model = None
+        self.processor = None
+        self.__cleanup_memory()
+        console.print("[green]✓ Model unloaded[/green]")
 
     def __exec(self) -> None:
         console.print(f"[cyan]Loading model: {self.model_name}[/cyan]")
@@ -82,7 +90,6 @@ class EmbeddingGenerator:
         self.__load_model()
 
         all_transcription_files = list(self.transcription_jsons.glob("**/*.json"))
-
         transcription_files = []
         for f in all_transcription_files:
             if "_simple.json" in f.name:
@@ -98,9 +105,7 @@ class EmbeddingGenerator:
             return
 
         console.print(f"[blue]Processing {len(transcription_files)} transcriptions...[/blue]")
-
         self.__process_sequential(transcription_files)
-
         console.print("[green]Embedding generation completed[/green]")
 
     def __process_sequential(self, transcription_files: List[Path]) -> None:
@@ -110,27 +115,11 @@ class EmbeddingGenerator:
             for trans_file in transcription_files:
                 try:
                     self.__process_transcription(trans_file, progress)
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                except Exception as e:
                     self.logger.error(f"Failed to process {trans_file}: {e}")
                 finally:
                     progress.advance(task)
 
-    def __load_model(self) -> None:
-        try:
-            self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                torch_dtype="float16",
-                device_map="cuda",
-                trust_remote_code=True,
-            )
-            self.model.eval()
-            console.print("[green]Model loaded successfully[/green]")
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            self.logger.error(f"Failed to load model: {e}")
-            raise
-
-    # pylint: disable=too-many-locals,too-many-statements
     def __process_transcription(self, trans_file: Path, progress: Progress) -> None:
         with open(trans_file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -179,31 +168,27 @@ class EmbeddingGenerator:
                 progress.console.print(f"[red]Video not found for: {trans_file.name}[/red]")
 
         episode_info = data.get("episode_info", {})
-        base_name = trans_file.stem.replace("_segmented", "").replace("_simple", "")
-
         minimal_episode_info = {
             "season": episode_info.get("season"),
             "episode_number": episode_info.get("episode_number"),
         }
 
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
         if text_embeddings:
-            text_output = self.output_dir / f"{base_name}_text.json"
             text_data = {
                 "episode_info": minimal_episode_info,
                 "text_embeddings": text_embeddings,
             }
-            self.output_dir.mkdir(parents=True, exist_ok=True)
             with open(text_output, "w", encoding="utf-8") as f:
                 json.dump(text_data, f, indent=2, ensure_ascii=False)
             progress.console.print(f"[green]Saved {len(text_embeddings)} text embeddings → {text_output.name}[/green]")
 
         if video_embeddings:
-            video_output = self.output_dir / f"{base_name}_video.json"
             video_data = {
                 "episode_info": minimal_episode_info,
                 "video_embeddings": video_embeddings,
             }
-            self.output_dir.mkdir(parents=True, exist_ok=True)
             with open(video_output, "w", encoding="utf-8") as f:
                 json.dump(video_data, f, indent=2, ensure_ascii=False)
             progress.console.print(f"[green]Saved {len(video_embeddings)} video embeddings → {video_output.name}[/green]")
@@ -217,7 +202,6 @@ class EmbeddingGenerator:
 
         embeddings = []
         num_chunks = (len(segments) + self.segments_per_embedding - 1) // self.segments_per_embedding
-
         task = progress.add_task("[green]Text embeddings", total=num_chunks)
 
         for i in range(0, len(segments), self.segments_per_embedding):
@@ -264,7 +248,7 @@ class EmbeddingGenerator:
             progress.console.print("[yellow]No scene timestamps found, falling back to keyframes[/yellow]")
             return self.__generate_from_keyframes(video_path, progress)
 
-        fps = scene_timestamps.get("video_info", {}).get("fps", 30)
+        fps = scene_timestamps.get("video_info", {}).get("fps", self.__SCENE_FPS_DEFAULT)
         frame_requests = []
 
         for i, scene in enumerate(scenes):
@@ -293,7 +277,7 @@ class EmbeddingGenerator:
         total_frames = len(vr)
         del vr
 
-        interval_frames = int(fps * 5)
+        interval_frames = int(fps * self.__KEYFRAME_INTERVAL_MULTIPLIER)
         frame_requests = []
 
         keyframe_count = 0
@@ -311,14 +295,12 @@ class EmbeddingGenerator:
         total_frames = len(vr)
 
         prev_hist = None
-        threshold = 0.3
-
         task = progress.add_task("[blue]Color analysis", total=total_frames)
 
         for frame_num, frame, hist in iterate_frames_with_histogram(str(video_path)):
             if prev_hist is not None:
                 diff = np.sum(np.abs(hist - prev_hist))
-                if diff > threshold:
+                if diff > self.__COLOR_DIFF_THRESHOLD:
                     try:
                         embedding = self.__encode_frame_single(frame)
                         embeddings.append(
@@ -339,9 +321,8 @@ class EmbeddingGenerator:
         if not frame_requests:
             return []
 
-        chunk_size = 256
+        chunk_size = self.__VIDEO_CHUNK_SIZE
         total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
-
         task = progress.add_task(f"[magenta]Video chunks ({len(frame_requests)} frames)", total=total_chunks)
 
         try:
@@ -356,7 +337,7 @@ class EmbeddingGenerator:
             self.__cleanup_memory()
             progress.remove_task(task)
             return embeddings
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Failed to process video {video_path}: {e}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             progress.remove_task(task)
@@ -364,17 +345,13 @@ class EmbeddingGenerator:
 
     def __process_sequential_chunks(self, vr, frame_requests, chunk_size, total_chunks, progress, task):
         embeddings = []
-
         for chunk_idx in range(total_chunks):
             chunk_start = chunk_idx * chunk_size
             chunk_end = min(chunk_start + chunk_size, len(frame_requests))
-
             current_requests = frame_requests[chunk_start:chunk_end]
             current_indices = [req["frame_number"] for req in current_requests]
-
             pil_images = self.__load_and_preprocess_frames(vr, current_indices)
             self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings, progress, task)
-
         return embeddings
 
     def __process_with_prefetch(self, vr, frame_requests, chunk_size, total_chunks, progress, task):
@@ -390,7 +367,6 @@ class EmbeddingGenerator:
 
                 prefetch_images = self.__load_and_preprocess_frames(vr, prefetch_indices)
                 prefetch_queue.put((prefetch_chunk_idx, prefetch_requests, prefetch_images))
-
             prefetch_queue.put(None)
 
         prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
@@ -400,7 +376,6 @@ class EmbeddingGenerator:
             item = prefetch_queue.get()
             if item is None:
                 break
-
             chunk_idx, current_requests, pil_images = item
             self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings, progress, task)
 
@@ -409,20 +384,85 @@ class EmbeddingGenerator:
 
     def __process_chunk_embeddings(self, pil_images, current_requests, chunk_idx, embeddings, progress, task):
         chunk_embeddings = self.__run_gpu_inference(pil_images, chunk_idx, progress)
-
         for req, emb in zip(current_requests, chunk_embeddings):
             req_copy = req.copy()
             req_copy["embedding"] = emb
             embeddings.append(req_copy)
-
         del pil_images
         del chunk_embeddings
         self.__cleanup_memory()
         progress.advance(task)
 
+    def __load_model(self) -> None:
+        try:
+            self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
+            self.model = AutoModel.from_pretrained(
+                self.model_name,
+                torch_dtype="float16",
+                device_map="cuda",
+                trust_remote_code=True,
+            )
+            self.model.eval()
+            console.print("[green]Model loaded successfully[/green]")
+        except Exception as e:
+            self.logger.error(f"Failed to load model: {e}")
+            raise
+
+    def __run_gpu_inference(self, pil_images: List[Image.Image], chunk_idx: int, progress: Progress) -> List[List[float]]:
+        results = []
+        current_idx = 0
+        total_images = len(pil_images)
+        current_batch_size = self.batch_size
+        batch_task = progress.add_task(f"[yellow]GPU batch (chunk {chunk_idx + 1})", total=total_images)
+
+        while current_idx < total_images:
+            if current_batch_size < 1:
+                progress.remove_task(batch_task)
+                raise RuntimeError("Batch size reduced to 0. Cannot process image.")
+
+            batch_end = min(current_idx + current_batch_size, total_images)
+            batch_pil = pil_images[current_idx:batch_end]
+
+            try:
+                with torch.inference_mode():
+                    embeddings_tensor = self.model.get_image_embeddings(images=batch_pil)
+                    batch_np = embeddings_tensor.cpu().numpy()
+                    del embeddings_tensor
+                    results.extend([emb.tolist() for emb in batch_np])
+                    del batch_np
+                progress.update(batch_task, completed=batch_end)
+                current_idx = batch_end
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    torch.cuda.empty_cache()
+                    new_batch_size = current_batch_size // 2
+                    progress.console.print(
+                        f"[yellow]OOM in chunk {chunk_idx}: batch {current_batch_size} -> {new_batch_size}[/yellow]",
+                    )
+                    current_batch_size = new_batch_size
+                    continue
+                self.logger.error(f"Failed batch in chunk {chunk_idx} at index {current_idx}: {e}")
+                progress.remove_task(batch_task)
+                raise e
+            except Exception as e:
+                self.logger.error(f"Unexpected error in chunk {chunk_idx}: {e}")
+                progress.remove_task(batch_task)
+                raise e
+
+        progress.remove_task(batch_task)
+        return results
+
+    def __encode_text(self, text: str) -> np.ndarray:
+        embeddings = self.model.get_text_embeddings(texts=[text])
+        return embeddings[0].cpu().numpy()
+
+    def __encode_frame_single(self, frame: np.ndarray) -> np.ndarray:
+        pil_image = Image.fromarray(frame)
+        embeddings = self.model.get_image_embeddings(images=[pil_image])
+        return embeddings[0].cpu().numpy()
+
     def __load_and_preprocess_frames(self, vr: decord.VideoReader, indices: List[int]) -> List[Image.Image]:
         frames_data = vr.get_batch(indices)
-
         if isinstance(frames_data, torch.Tensor):
             frames_tensor = frames_data
         else:
@@ -441,33 +481,25 @@ class EmbeddingGenerator:
             frames_np = frames_tensor
 
         del frames_tensor
-
         pil_images = [Image.fromarray(frame) for frame in frames_np]
-
         del frames_np
         gc.collect()
         return pil_images
 
     def __resize_frames_batched(self, frames_tensor: torch.Tensor) -> torch.Tensor:
-        resize_batch_size = 32
         num_frames = frames_tensor.shape[0]
         resized_frames = []
-
-        for i in range(0, num_frames, resize_batch_size):
-            batch_end = min(i + resize_batch_size, num_frames)
+        for i in range(0, num_frames, self.__RESIZE_BATCH_SIZE):
+            batch_end = min(i + self.__RESIZE_BATCH_SIZE, num_frames)
             batch = frames_tensor[i:batch_end]
             resized_batch = self.__resize_frames_gpu(batch)
             resized_frames.append(resized_batch)
-
             del batch
             torch.cuda.empty_cache()
-
         result = torch.cat(resized_frames, dim=0)
-
         resized_frames.clear()
         del resized_frames
         torch.cuda.empty_cache()
-
         return result
 
     def __resize_frames_gpu(self, frames_tensor: torch.Tensor) -> torch.Tensor:
@@ -475,13 +507,11 @@ class EmbeddingGenerator:
             raise TypeError(f"Expected torch.Tensor, got {type(frames_tensor)}")
 
         device = torch.device(self.device)
-
         if not frames_tensor.is_cuda:
             frames_tensor = frames_tensor.to(device)
 
         frames_float = frames_tensor.float() / 255.0
         frames_chw = frames_float.permute(0, 3, 1, 2)
-
         _, _, orig_h, orig_w = frames_chw.shape
         aspect_ratio = orig_w / orig_h
         new_h = self.resize_height
@@ -493,63 +523,39 @@ class EmbeddingGenerator:
             mode='bilinear',
             align_corners=False,
         )
-
         resized_hwc = (resized.permute(0, 2, 3, 1) * 255.0).byte().cpu()
-
         del frames_float, frames_chw, resized
         torch.cuda.empty_cache()
-
         return resized_hwc
 
-    def __run_gpu_inference(self, pil_images: List[Image.Image], chunk_idx: int, progress: Progress) -> List[List[float]]:
-        results = []
-        current_idx = 0
-        total_images = len(pil_images)
+    def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
+        if not self.videos:
+            return None
+        episode_info_dict = data.get("episode_info", {})
+        season = episode_info_dict.get("season")
+        episode = episode_info_dict.get("episode_number")
+        if season is None or episode is None:
+            return None
+        episode_info = self.episode_manager.get_episode_by_season_and_relative(season, episode)
+        if not episode_info:
+            return None
+        return EpisodeManager.find_video_file(episode_info, self.videos)
 
-        current_batch_size = self.batch_size
-
-        batch_task = progress.add_task(f"[yellow]GPU batch (chunk {chunk_idx + 1})", total=total_images)
-
-        while current_idx < total_images:
-            if current_batch_size < 1:
-                progress.remove_task(batch_task)
-                raise RuntimeError("Batch size reduced to 0. Cannot process image.")
-
-            batch_end = min(current_idx + current_batch_size, total_images)
-            batch_pil = pil_images[current_idx:batch_end]
-
-            try:
-                with torch.inference_mode():
-                    embeddings_tensor = self.model.get_image_embeddings(images=batch_pil)
-                    batch_np = embeddings_tensor.cpu().numpy()
-
-                    del embeddings_tensor
-
-                    results.extend([emb.tolist() for emb in batch_np])
-                    del batch_np
-
-                progress.update(batch_task, completed=batch_end)
-                current_idx = batch_end
-
-            except RuntimeError as e:
-                if "out of memory" in str(e).lower():
-                    torch.cuda.empty_cache()
-                    new_batch_size = current_batch_size // 2
-                    progress.console.print(
-                        f"[yellow]OOM in chunk {chunk_idx}: batch {current_batch_size} -> {new_batch_size}[/yellow]",
-                    )
-                    current_batch_size = new_batch_size
-                    continue
-                self.logger.error(f"Failed batch in chunk {chunk_idx} at index {current_idx}: {e}")
-                progress.remove_task(batch_task)
-                raise e
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                self.logger.error(f"Unexpected error in chunk {chunk_idx}: {e}")
-                progress.remove_task(batch_task)
-                raise e
-
-        progress.remove_task(batch_task)
-        return results
+    def __load_scene_timestamps(self, video_path: Path) -> Optional[Dict[str, Any]]:
+        if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
+            return None
+        episode_info = self.episode_manager.parse_filename(video_path)
+        if not episode_info:
+            return None
+        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, self.scene_timestamps_dir)
+        if not scene_file:
+            return None
+        try:
+            with open(scene_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            self.logger.error(f"Failed to load scene timestamps: {e}")
+            return None
 
     @staticmethod
     def __create_request(frame: int, fps: float, type_name: str, scene_num: int = None) -> Dict[str, Any]:
@@ -571,61 +577,8 @@ class EmbeddingGenerator:
             "embedding": embedding,
         }
 
-    def __encode_text(self, text: str) -> np.ndarray:
-        embeddings = self.model.get_text_embeddings(texts=[text])
-        return embeddings[0].cpu().numpy()
-
-    def __encode_frame_single(self, frame: np.ndarray) -> np.ndarray:
-        pil_image = Image.fromarray(frame)
-        embeddings = self.model.get_image_embeddings(images=[pil_image])
-        return embeddings[0].cpu().numpy()
-
-    def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
-        if not self.videos:
-            return None
-
-        episode_info_dict = data.get("episode_info", {})
-        season = episode_info_dict.get("season")
-        episode = episode_info_dict.get("episode_number")
-
-        if season is None or episode is None:
-            return None
-
-        episode_info = self.episode_manager.get_episode_by_season_and_relative(season, episode)
-        if not episode_info:
-            return None
-
-        return EpisodeManager.find_video_file(episode_info, self.videos)
-
-    def __load_scene_timestamps(self, video_path: Path) -> Optional[Dict[str, Any]]:
-        if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
-            return None
-
-        episode_info = self.episode_manager.parse_filename(video_path)
-        if not episode_info:
-            return None
-
-        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, self.scene_timestamps_dir)
-        if not scene_file:
-            return None
-
-        try:
-            with open(scene_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            self.logger.error(f"Failed to load scene timestamps: {e}")
-            return None
-
     @staticmethod
     def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-
-    def cleanup(self) -> None:
-        console.print("[cyan]Unloading embedding model...[/cyan]")
-        self.model = None
-        self.processor = None
-        self.__cleanup_memory()
-
-        console.print("[green]✓ Model unloaded[/green]")

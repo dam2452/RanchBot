@@ -3,13 +3,13 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import ua_generator
 from crawl4ai import AsyncWebCrawler
 from crawl4ai.async_configs import (
     BrowserConfig,
     CrawlerRunConfig,
 )
 from pathvalidate import sanitize_filename
+import ua_generator
 
 logger = logging.getLogger(__name__)
 
