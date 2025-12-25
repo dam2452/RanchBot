@@ -35,7 +35,7 @@ class EmbeddingSettings:
     keyframe_strategy: str = "scene_changes"
     keyframe_interval: int = 1
     frames_per_scene: int = 1
-    batch_size: int = 16
+    batch_size: int = 32
     resize_height: int = 480
     prefetch_chunks: int = 0
     video_chunk_size: int = 256
