@@ -46,6 +46,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         self.scene_timestamps_dir: Optional[Path] = self._args.get("scene_timestamps_dir")
 
         self.model_name: str = self._args.get("model", settings.embedding.model_name)
+        self.model_revision: str = self._args.get("model_revision", settings.embedding.model_revision)
         self.batch_size: int = self._args.get("batch_size", settings.embedding.batch_size)
         self.resize_height: int = self._args.get("resize_height", settings.embedding.resize_height)
         self.prefetch_chunks: int = self._args.get("prefetch_chunks", settings.embedding.prefetch_chunks)
@@ -318,15 +319,21 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
     def _load_model(self) -> None:
         try:
-            self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
+            self.processor = AutoProcessor.from_pretrained(
+                self.model_name,
+                revision=self.model_revision,
+                trust_remote_code=True,
+                use_fast=True
+            )
             self.model = AutoModel.from_pretrained(
                 self.model_name,
+                revision=self.model_revision,
                 torch_dtype="float16",
                 device_map="cuda",
                 trust_remote_code=True,
             )
             self.model.eval()
-            console.print("[green]Model loaded successfully[/green]")
+            console.print(f"[green]Model loaded successfully (revision: {self.model_revision})[/green]")
         except Exception as e:
             self.logger.error(f"Failed to load model: {e}")
             raise

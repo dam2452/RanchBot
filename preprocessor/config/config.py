@@ -30,6 +30,7 @@ class WhisperSettings:
 @dataclass
 class EmbeddingSettings:
     model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
+    model_revision: str = "8a9317b07ab75fe4679770aec54efcd4317be636"
     default_output_dir: Path = Path("/app/output_data/embeddings")
     segments_per_embedding: int = 5
     keyframe_strategy: str = "scene_changes"

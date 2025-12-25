@@ -12,7 +12,6 @@ docker run --rm \
     -e DOCKER_CONTAINER=true \
     -e PYTHONUNBUFFERED=1 \
     -e HF_HOME=/models/huggingface \
-    -e TRANSFORMERS_CACHE=/models/huggingface \
     -e TORCH_HOME=/models/torch \
     -e WHISPER_CACHE=/models/whisper \
     -e OLLAMA_MODELS=/models/ollama \

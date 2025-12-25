@@ -27,12 +27,14 @@ def download_embedding_model():
             AutoProcessor,
         )
         model_name = settings.embedding.model_name
-        log(f"Checking embedding model: {model_name}")
+        model_revision = settings.embedding.model_revision
+        log(f"Checking embedding model: {model_name} (revision: {model_revision})")
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available, GPU is required for embedding model")
-        AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+        AutoProcessor.from_pretrained(model_name, revision=model_revision, trust_remote_code=True, use_fast=True)
         AutoModel.from_pretrained(
             model_name,
+            revision=model_revision,
             torch_dtype="float16",
             device_map="cuda",
             trust_remote_code=True,
