@@ -101,6 +101,6 @@ class EpisodeScraper:
         if self.scraper_method == "clipboard":
             return ScraperClipboard.scrape(url, headless=self.headless)
         if self.scraper_method == "crawl4ai":
-            return ScraperCrawl4AI.scrape(url, save_markdown=True, output_dir=settings.scraper_output_dir)
+            return ScraperCrawl4AI.scrape(url, save_markdown=True, output_dir=settings.scraper.output_dir)
         self.logger.error(f"Unknown scraper method: {self.scraper_method}")
         return None

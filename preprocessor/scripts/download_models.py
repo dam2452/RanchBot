@@ -8,7 +8,7 @@ def log(msg):
 def download_whisper_model():
     try:
         from faster_whisper import WhisperModel  # pylint: disable=import-outside-toplevel
-        model_name = settings.whisper_model
+        model_name = settings.whisper.model
         log(f"Checking Whisper model: {model_name}")
         WhisperModel(model_name, device="cuda", compute_type="float16")
         log(f"✓ Whisper model '{model_name}' ready")
@@ -22,7 +22,7 @@ def download_embedding_model():
             AutoModel,
             AutoProcessor,
         )
-        model_name = settings.embedding_model_name
+        model_name = settings.embedding.model_name
         log(f"Checking embedding model: {model_name}")
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available, GPU is required for embedding model")

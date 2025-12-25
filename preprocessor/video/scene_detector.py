@@ -23,9 +23,9 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 class SceneDetector:
     def __init__(self, args: Dict[str, Any]):
         self.videos: Path = args["videos"]
-        self.output_dir: Path = args.get("output_dir", settings.scene_detection_output_dir)
-        self.threshold: float = args.get("threshold", settings.scene_detection_threshold)
-        self.min_scene_len: int = args.get("min_scene_len", settings.scene_detection_min_scene_len)
+        self.output_dir: Path = args.get("output_dir", settings.scene_detection.output_dir)
+        self.threshold: float = args.get("threshold", settings.scene_detection.threshold)
+        self.min_scene_len: int = args.get("min_scene_len", settings.scene_detection.min_scene_len)
 
         self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
             class_name=self.__class__.__name__,
@@ -156,41 +156,13 @@ class SceneDetector:
                 if frame_num - prev_frame < self.min_scene_len:
                     continue
 
-                scene = {
-                    "scene_number": len(scenes) + 1,
-                    "start": {
-                        "frame": int(prev_frame),
-                        "seconds": float(prev_frame / fps),
-                        "timecode": self.__frame_to_timecode(prev_frame, fps),
-                    },
-                    "end": {
-                        "frame": int(frame_num),
-                        "seconds": float(frame_num / fps),
-                        "timecode": self.__frame_to_timecode(frame_num, fps),
-                    },
-                    "duration": float((frame_num - prev_frame) / fps),
-                    "frame_count": int(frame_num - prev_frame),
-                }
+                scene = self.__create_scene_dict(len(scenes) + 1, prev_frame, frame_num, fps)
                 scenes.append(scene)
                 prev_frame = frame_num
 
             total_frames = video_info["total_frames"]
             if total_frames - prev_frame > self.min_scene_len:
-                scene = {
-                    "scene_number": len(scenes) + 1,
-                    "start": {
-                        "frame": int(prev_frame),
-                        "seconds": float(prev_frame / fps),
-                        "timecode": self.__frame_to_timecode(prev_frame, fps),
-                    },
-                    "end": {
-                        "frame": int(total_frames),
-                        "seconds": float(total_frames / fps),
-                        "timecode": self.__frame_to_timecode(total_frames, fps),
-                    },
-                    "duration": float((total_frames - prev_frame) / fps),
-                    "frame_count": int(total_frames - prev_frame),
-                }
+                scene = self.__create_scene_dict(len(scenes) + 1, prev_frame, total_frames, fps)
                 scenes.append(scene)
 
             return scenes
@@ -198,6 +170,23 @@ class SceneDetector:
         except (RuntimeError, ValueError, OSError) as e:
             self.logger.error(f"TransNetV2 detection failed: {e}")
             return []
+
+    def __create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> Dict[str, Any]:
+        return {
+            "scene_number": scene_number,
+            "start": {
+                "frame": int(start_frame),
+                "seconds": float(start_frame / fps),
+                "timecode": self.__frame_to_timecode(start_frame, fps),
+            },
+            "end": {
+                "frame": int(end_frame),
+                "seconds": float(end_frame / fps),
+                "timecode": self.__frame_to_timecode(end_frame, fps),
+            },
+            "duration": float((end_frame - start_frame) / fps),
+            "frame_count": int(end_frame - start_frame),
+        }
 
     @staticmethod
     def __frame_to_timecode(frame: int, fps: float) -> str:

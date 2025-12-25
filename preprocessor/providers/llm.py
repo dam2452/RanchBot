@@ -4,6 +4,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Type,
 )
 
 from pydantic import BaseModel
@@ -53,66 +54,145 @@ class EpisodeMetadata(BaseModel):
 
 
 class LLMProvider:
-    MODEL_NAME = "Qwen/Qwen2.5-Coder-7B-Instruct"
+    __DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-Coder-7B-Instruct"
 
-    _instance = None
-    _model = None
-    _tokenizer = None
+    __instance = None
+    __model = None
+    __tokenizer = None
 
     def __new__(cls, model_name: Optional[str] = None):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+        return cls.__instance
 
     def __init__(self, model_name: Optional[str] = None):
-        if self._model is None:
-            self.model_name = model_name or self.MODEL_NAME
-            console.print(f"[cyan]Loading LLM: {self.model_name} (bitsandbytes 8-bit, 128K context)[/cyan]")
+        if self.__model is None:
+            self.model_name = model_name or self.__DEFAULT_MODEL_NAME
+            self.__load_model()
 
-            try:
-                self._tokenizer = AutoTokenizer.from_pretrained(
-                    self.model_name,
-                    trust_remote_code=True,
-                )
+    def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
+        return self.__process_llm_request(
+            system_prompt=extract_season_system.get(),
+            user_prompt=extract_season_user.get().format(url=url, page_text=page_text),
+            response_model=SeasonMetadata,
+            error_context=f"extraction failed for {url}",
+        )
 
-                config = AutoConfig.from_pretrained(
-                    self.model_name,
-                    trust_remote_code=True,
-                )
-                config.rope_scaling = {
-                    "type": "yarn",
-                    "factor": 4.0,
-                    "original_max_position_embeddings": 32768,
-                }
+    def extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
+        return self.__process_llm_request(
+            system_prompt=extract_episode_metadata_system.get(),
+            user_prompt=extract_episode_metadata_user.get().format(url=url, page_text=page_text),
+            response_model=EpisodeMetadata,
+            error_context=f"extraction failed for {url}",
+        )
 
-                quantization_config = BitsAndBytesConfig(
-                    load_in_8bit=True,
-                )
+    def merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
+        if not metadata_list:
+            raise ValueError("No metadata to merge")
 
-                self._model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    config=config,
-                    quantization_config=quantization_config,
-                    device_map="auto",
-                    trust_remote_code=True,
-                )
+        if len(metadata_list) == 1:
+            return metadata_list[0]
 
-                console.print(f"[green]✓ LLM loaded on {self._model.device}[/green]")
-            except Exception as e:
-                console.print(f"[red]Failed to load model: {e}[/red]")
-                raise e
+        combined_text = "\n\n---\n\n".join([
+            f"Source {i + 1}:\nTitle: {m.title}\nDescription: {m.description}\nSummary: {m.summary}\nSeason: {m.season}\nEpisode: {m.episode_number}"
+            for i, m in enumerate(metadata_list)
+        ])
+
+        result = self.__process_llm_request(
+            system_prompt=merge_episode_data_system.get(),
+            user_prompt=merge_episode_data_user.get().format(
+                num_sources=len(metadata_list),
+                combined_text=combined_text,
+            ),
+            response_model=EpisodeMetadata,
+            error_context="merge failed",
+        )
+
+        return result if result else metadata_list[0]
+
+    def extract_all_seasons(self, scraped_pages: List[Dict[str, Any]]) -> Optional[List[SeasonMetadata]]:
+        combined_content = ""
+        for i, page in enumerate(scraped_pages, 1):
+            url = page["url"]
+            markdown = page["markdown"]
+            combined_content += f"\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n"
+
+        result = self.__process_llm_request(
+            system_prompt=extract_all_seasons_system.get(),
+            user_prompt=extract_all_seasons_user.get().format(
+                num_sources=len(scraped_pages),
+                combined_content=combined_content,
+            ),
+            response_model=AllSeasonsMetadata,
+            error_context="extraction failed",
+        )
+
+        return result.seasons if result else None
+
+    def __process_llm_request(
+            self,
+            system_prompt: str,
+            user_prompt: str,
+            response_model: Type[BaseModel],
+            error_context: str,
+    ) -> Optional[BaseModel]:
+        try:
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+
+            content = self._generate(messages)
+            data = self.__extract_json(content)
+            return response_model(**data)
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            console.print(f"[red]LLM {error_context}: {e}[/red]")
+            return None
+
+    def __load_model(self) -> None:
+        console.print(f"[cyan]Loading LLM: {self.model_name} (bitsandbytes 8-bit, 128K context)[/cyan]")
+        try:
+            self.__tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name,
+                trust_remote_code=True,
+            )
+
+            config = AutoConfig.from_pretrained(
+                self.model_name,
+                trust_remote_code=True,
+            )
+            config.rope_scaling = {
+                "type": "yarn",
+                "factor": 4.0,
+                "original_max_position_embeddings": 32768,
+            }
+
+            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+
+            self.__model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                config=config,
+                quantization_config=quantization_config,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+            console.print(f"[green]✓ LLM loaded on {self.__model.device}[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed to load model: {e}[/red]")
+            raise e
 
     def _generate(self, messages: List[Dict], max_tokens: int = 32768) -> str:
-        text = self._tokenizer.apply_chat_template(
+        text = self.__tokenizer.apply_chat_template(
             messages,
             tokenize=False,
             add_generation_prompt=True,
         )
 
-        model_inputs = self._tokenizer([text], return_tensors="pt").to(self._model.device)
+        model_inputs = self.__tokenizer([text], return_tensors="pt").to(self.__model.device)
 
         with torch.inference_mode():
-            generated_ids = self._model.generate(
+            generated_ids = self.__model.generate(
                 **model_inputs,
                 max_new_tokens=max_tokens,
                 temperature=0.7,
@@ -123,12 +203,10 @@ class LLMProvider:
             )
 
         output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
-        content = self._tokenizer.decode(output_ids, skip_special_tokens=True)
-
-        return content.strip()
+        return self.__tokenizer.decode(output_ids, skip_special_tokens=True).strip()
 
     @staticmethod
-    def _extract_json(content: str) -> Dict:
+    def __extract_json(content: str) -> Dict:
         try:
             if "```json" in content:
                 start = content.find("```json") + 7
@@ -146,108 +224,3 @@ class LLMProvider:
             console.print(f"[red]JSON parse error: {e}[/red]")
             console.print(f"[yellow]Raw content:\n{content}[/yellow]")
             raise
-
-    # pylint: disable=broad-exception-caught
-    def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
-        system_prompt = extract_season_system.get()
-        user_prompt = extract_season_user.get().format(url=url, page_text=page_text)
-
-        try:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-
-            content = self._generate(messages)
-            data = self._extract_json(content)
-            metadata = SeasonMetadata(**data)
-            return metadata
-
-        except Exception as e:
-            console.print(f"[red]LLM extraction failed for {url}: {e}[/red]")
-            return None
-
-    # pylint: disable=broad-exception-caught
-    def extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
-        system_prompt = extract_episode_metadata_system.get()
-        user_prompt = extract_episode_metadata_user.get().format(url=url, page_text=page_text)
-
-        try:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-
-            content = self._generate(messages)
-            data = self._extract_json(content)
-            metadata = EpisodeMetadata(**data)
-            return metadata
-
-        except Exception as e:
-            console.print(f"[red]LLM extraction failed for {url}: {e}[/red]")
-            return None
-
-    # pylint: disable=broad-exception-caught
-    def merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
-        if not metadata_list:
-            raise ValueError("No metadata to merge")
-
-        if len(metadata_list) == 1:
-            return metadata_list[0]
-
-        combined_text = "\n\n---\n\n".join([
-            f"Source {i + 1}:\nTitle: {m.title}\nDescription: {m.description}\nSummary: {m.summary}\nSeason: {m.season}\nEpisode: {m.episode_number}"
-            for i, m in enumerate(metadata_list)
-        ])
-
-        system_prompt = merge_episode_data_system.get()
-        user_prompt = merge_episode_data_user.get().format(
-            num_sources=len(metadata_list),
-            combined_text=combined_text,
-        )
-
-        try:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-
-            content = self._generate(messages)
-            data = self._extract_json(content)
-            merged = EpisodeMetadata(**data)
-            return merged
-
-        except Exception as e:
-            console.print(f"[red]LLM merge failed: {e}[/red]")
-            return metadata_list[0]
-
-    def extract_all_seasons(self, scraped_pages: List[Dict[str, Any]]) -> Optional[List[SeasonMetadata]]:
-        combined_content = ""
-        for i, page in enumerate(scraped_pages, 1):
-            url = page["url"]
-            markdown = page["markdown"]
-            combined_content += f"\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n"
-
-        system_prompt = extract_all_seasons_system.get()
-        user_prompt = extract_all_seasons_user.get().format(
-            num_sources=len(scraped_pages),
-            combined_content=combined_content,
-        )
-
-        content = None
-        try:
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-
-            content = self._generate(messages)
-            console.print(f"[yellow]LLM raw response:\n{content[:500]}...[/yellow]")
-            data = self._extract_json(content)
-            all_seasons_meta = AllSeasonsMetadata(**data)
-            return all_seasons_meta.seasons
-
-        except Exception as e:
-            console.print(f"[red]LLM extraction failed: {e}[/red]")
-            console.print(f"[red]Full content:\n{content if content else 'No content generated'}[/red]")
-            return None

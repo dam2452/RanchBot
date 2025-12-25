@@ -24,8 +24,6 @@ from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
-# pylint: disable=duplicate-code
-
 
 class VideoTranscoder:
     DEFAULT_OUTPUT_DIR: Path = Path("/app/output_data/transcoded_videos")
@@ -94,21 +92,9 @@ class VideoTranscoder:
             task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
 
             for video_file in video_files:
-                episode_id = self.__get_episode_id(video_file)
-                output_path = self.__get_output_path_for_video(video_file)
-
-                if output_path and output_path.exists() and output_path.stat().st_size > 0:
-                    console.print(f"[yellow]Skipping (already exists): {episode_id}[/yellow]")
-                    progress.advance(task)
+                episode_id = self.__prepare_video_for_processing(video_file, progress, task)
+                if episode_id is None:
                     continue
-
-                if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
-                    console.print(f"[yellow]Skipping (marked as done): {episode_id}[/yellow]")
-                    progress.advance(task)
-                    continue
-
-                if self.__state_manager:
-                    self.__state_manager.mark_step_started("transcode", episode_id)
 
                 self.__process_single_video(video_file)
 
@@ -126,21 +112,9 @@ class VideoTranscoder:
             with ThreadPoolExecutor(max_workers=self.__max_workers) as executor:
                 futures: Dict[Future, Tuple[Path, str]] = {}
                 for video_file in video_files:
-                    episode_id = self.__get_episode_id(video_file)
-                    output_path = self.__get_output_path_for_video(video_file)
-
-                    if output_path and output_path.exists() and output_path.stat().st_size > 0:
-                        console.print(f"[yellow]Skipping (already exists): {episode_id}[/yellow]")
-                        progress.advance(task)
+                    episode_id = self.__prepare_video_for_processing(video_file, progress, task)
+                    if episode_id is None:
                         continue
-
-                    if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
-                        console.print(f"[yellow]Skipping (marked as done): {episode_id}[/yellow]")
-                        progress.advance(task)
-                        continue
-
-                    if self.__state_manager:
-                        self.__state_manager.mark_step_started("transcode", episode_id)
 
                     future = executor.submit(self.__process_single_video, video_file)
                     futures[future] = (video_file, episode_id)
@@ -157,6 +131,30 @@ class VideoTranscoder:
                         progress.advance(task)
 
         return self.__logger.finalize()
+
+    def __prepare_video_for_processing(self, video_file: Path, progress, task) -> Optional[str]:
+        episode_id = self.__get_episode_id(video_file)
+        output_path = self.__get_output_path_for_video(video_file)
+
+        should_skip, skip_message = self.__should_skip_video(video_file, episode_id, output_path)
+        if should_skip:
+            console.print(skip_message)
+            progress.advance(task)
+            return None
+
+        if self.__state_manager:
+            self.__state_manager.mark_step_started("transcode", episode_id)
+
+        return episode_id
+
+    def __should_skip_video(self, video_file: Path, episode_id: str, output_path: Optional[Path]) -> Tuple[bool, str]:
+        if output_path and output_path.exists() and output_path.stat().st_size > 0:
+            return True, f"[yellow]Skipping (already exists): {episode_id}[/yellow]"
+
+        if self.__state_manager and self.__state_manager.is_step_completed("transcode", episode_id):
+            return True, f"[yellow]Skipping (marked as done): {episode_id}[/yellow]"
+
+        return False, ""
 
     @staticmethod
     def __get_episode_id(video_file: Path) -> str:

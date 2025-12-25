@@ -44,7 +44,7 @@ class TranscriptionGenerator:
         try:
             if self.__check_all_transcriptions_exist():
                 self.__logger.info("All transcriptions already exist, skipping...")
-                return 0
+                return self.__logger.finalize()
 
             self.__logger.info("Step 1/3: Normalizing audio from videos...")
             self.__audio_normalizer()

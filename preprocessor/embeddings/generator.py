@@ -1,7 +1,3 @@
-from concurrent.futures import (
-    ThreadPoolExecutor,
-    as_completed,
-)
 import gc
 import json
 import logging
@@ -40,18 +36,17 @@ class EmbeddingGenerator:
     def __init__(self, args: Dict[str, Any]):
         self.transcription_jsons: Path = args["transcription_jsons"]
         self.videos: Optional[Path] = args.get("videos")
-        self.output_dir: Path = args.get("output_dir", settings.embedding_default_output_dir)
-        self.model_name: str = args.get("model", settings.embedding_model_name)
-        self.segments_per_embedding: int = args.get("segments_per_embedding", settings.embedding_segments_per_embedding)
-        self.keyframe_strategy: str = args.get("keyframe_strategy", settings.embedding_keyframe_strategy)
-        self.keyframe_interval: int = args.get("keyframe_interval", settings.embedding_keyframe_interval)
-        self.frames_per_scene: int = args.get("frames_per_scene", settings.embedding_frames_per_scene)
+        self.output_dir: Path = args.get("output_dir", settings.embedding.default_output_dir)
+        self.model_name: str = args.get("model", settings.embedding.model_name)
+        self.segments_per_embedding: int = args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
+        self.keyframe_strategy: str = args.get("keyframe_strategy", settings.embedding.keyframe_strategy)
+        self.keyframe_interval: int = args.get("keyframe_interval", settings.embedding.keyframe_interval)
+        self.frames_per_scene: int = args.get("frames_per_scene", settings.embedding.frames_per_scene)
         self.generate_text: bool = args.get("generate_text", True)
         self.generate_video: bool = args.get("generate_video", True)
-        self.max_workers: int = args.get("max_workers", settings.embedding_max_workers)
-        self.batch_size: int = args.get("batch_size", settings.embedding_batch_size)
-        self.resize_height: int = args.get("resize_height", settings.embedding_resize_height)
-        self.prefetch_chunks: int = args.get("prefetch_chunks", settings.embedding_prefetch_chunks)
+        self.batch_size: int = args.get("batch_size", settings.embedding.batch_size)
+        self.resize_height: int = args.get("resize_height", settings.embedding.resize_height)
+        self.prefetch_chunks: int = args.get("prefetch_chunks", settings.embedding.prefetch_chunks)
         self.device: str = "cuda"
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. This application requires GPU.")
@@ -76,8 +71,7 @@ class EmbeddingGenerator:
     def __exec(self) -> None:
         console.print(f"[cyan]Loading model: {self.model_name}[/cyan]")
         console.print(f"[cyan]Device: {self.device}[/cyan]")
-        console.print(f"[cyan]Parallel workers: {self.max_workers}[/cyan]")
-        console.print(f"[cyan]Initial Batch size: {self.batch_size}[/cyan]")
+        console.print(f"[cyan]Batch size: {self.batch_size}[/cyan]")
         console.print(f"[cyan]Frame resize height: {self.resize_height}p[/cyan]")
         console.print(f"[cyan]Prefetch chunks: {self.prefetch_chunks}[/cyan]")
 
@@ -101,10 +95,7 @@ class EmbeddingGenerator:
 
         console.print(f"[blue]Processing {len(transcription_files)} transcriptions...[/blue]")
 
-        if self.max_workers == 1:
-            self.__process_sequential(transcription_files)
-        else:
-            self.__process_parallel(transcription_files)
+        self.__process_sequential(transcription_files)
 
         console.print("[green]Embedding generation completed[/green]")
 
@@ -120,22 +111,6 @@ class EmbeddingGenerator:
                 finally:
                     progress.advance(task)
 
-    def __process_parallel(self, transcription_files: List[Path]) -> None:
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Processing files", total=len(transcription_files))
-
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {executor.submit(self.__process_transcription, f, progress): f for f in transcription_files}
-
-                for future in as_completed(futures):
-                    trans_file = futures[future]
-                    try:
-                        future.result()
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        self.logger.error(f"Failed to process {trans_file}: {e}")
-                    finally:
-                        progress.advance(task)
-
     def __load_model(self) -> None:
         try:
             self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
@@ -147,7 +122,7 @@ class EmbeddingGenerator:
             )
             self.model.eval()
             console.print("[green]Model loaded successfully[/green]")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to load model: {e}")
             raise
 
@@ -181,12 +156,10 @@ class EmbeddingGenerator:
 
         progress.console.print(f"[cyan]Processing: {trans_file.name}[/cyan]")
 
-        # 1. Generate Text Embeddings
         text_embeddings = []
         if self.generate_text and not skip_text:
             text_embeddings = self.__generate_text_embeddings(data, progress)
 
-        # 2. Generate Video Embeddings
         video_embeddings = []
         if self.generate_video and self.videos and not skip_video:
             video_path = self.__get_video_path(data)
@@ -201,7 +174,6 @@ class EmbeddingGenerator:
             else:
                 progress.console.print(f"[red]Video not found for: {trans_file.name}[/red]")
 
-        # 3. Save to separate files
         episode_info = data.get("episode_info", {})
         base_name = trans_file.stem.replace("_segmented", "").replace("_simple", "")
 
@@ -347,7 +319,7 @@ class EmbeddingGenerator:
                         embedding = self.__encode_frame_single(frame)
                         embeddings.append(
                             self.__create_result(
-                                frame_num, float(frame_num / fps), "color_change", embedding,
+                                frame_num, float(frame_num / fps), "color_change", embedding.tolist(),
                             ),
                         )
                     except (RuntimeError, ValueError, OSError) as e:
@@ -360,11 +332,6 @@ class EmbeddingGenerator:
         return embeddings
 
     def __process_video_frames(self, video_path: Path, frame_requests: List[Dict[str, Any]], progress: Progress) -> List[Dict[str, Any]]:
-        """
-        Main engine for processing video frames.
-        Handles chunking (RAM safety) and batching (GPU safety).
-        Uses pipelined prefetching to keep GPU busy.
-        """
         if not frame_requests:
             return []
 
@@ -385,8 +352,7 @@ class EmbeddingGenerator:
             self.__cleanup_memory()
             progress.remove_task(task)
             return embeddings
-        # pylint: disable=broad-exception-caught
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to process video {video_path}: {e}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             progress.remove_task(task)
@@ -403,17 +369,7 @@ class EmbeddingGenerator:
             current_indices = [req["frame_number"] for req in current_requests]
 
             pil_images = self.__load_and_preprocess_frames(vr, current_indices)
-            chunk_embeddings = self.__run_gpu_inference(pil_images, chunk_idx, progress)
-
-            for req, emb in zip(current_requests, chunk_embeddings):
-                req_copy = req.copy()
-                req_copy["embedding"] = emb
-                embeddings.append(req_copy)
-
-            del pil_images
-            del chunk_embeddings
-            self.__cleanup_memory()
-            progress.advance(task)
+            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings, progress, task)
 
         return embeddings
 
@@ -442,26 +398,25 @@ class EmbeddingGenerator:
                 break
 
             chunk_idx, current_requests, pil_images = item
-            chunk_embeddings = self.__run_gpu_inference(pil_images, chunk_idx, progress)
-
-            for req, emb in zip(current_requests, chunk_embeddings):
-                req_copy = req.copy()
-                req_copy["embedding"] = emb
-                embeddings.append(req_copy)
-
-            del pil_images
-            del chunk_embeddings
-            self.__cleanup_memory()
-            progress.advance(task)
+            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings, progress, task)
 
         prefetch_thread.join()
         return embeddings
 
+    def __process_chunk_embeddings(self, pil_images, current_requests, chunk_idx, embeddings, progress, task):
+        chunk_embeddings = self.__run_gpu_inference(pil_images, chunk_idx, progress)
+
+        for req, emb in zip(current_requests, chunk_embeddings):
+            req_copy = req.copy()
+            req_copy["embedding"] = emb
+            embeddings.append(req_copy)
+
+        del pil_images
+        del chunk_embeddings
+        self.__cleanup_memory()
+        progress.advance(task)
+
     def __load_and_preprocess_frames(self, vr: decord.VideoReader, indices: List[int]) -> List[Image.Image]:
-        """
-        Load frames with GPU-accelerated downscaling.
-        Converts: decord -> torch -> resize -> PIL (for model input)
-        """
         frames_data = vr.get_batch(indices)
 
         if isinstance(frames_data, torch.Tensor):
@@ -490,10 +445,6 @@ class EmbeddingGenerator:
         return pil_images
 
     def __resize_frames_batched(self, frames_tensor: torch.Tensor) -> torch.Tensor:
-        """
-        Resize frames in smaller batches to avoid OOM.
-        Processes 32 frames at a time on GPU.
-        """
         resize_batch_size = 32
         num_frames = frames_tensor.shape[0]
         resized_frames = []
@@ -516,10 +467,6 @@ class EmbeddingGenerator:
         return result
 
     def __resize_frames_gpu(self, frames_tensor: torch.Tensor) -> torch.Tensor:
-        """
-        Resize frames on GPU to reduce memory and speed up inference.
-        frames_tensor: [N, H, W, C] in uint8 (CPU or GPU)
-        """
         if not isinstance(frames_tensor, torch.Tensor):
             raise TypeError(f"Expected torch.Tensor, got {type(frames_tensor)}")
 
@@ -551,10 +498,6 @@ class EmbeddingGenerator:
         return resized_hwc
 
     def __run_gpu_inference(self, pil_images: List[Image.Image], chunk_idx: int, progress: Progress) -> List[List[float]]:
-        """
-        Runs model inference with ADAPTIVE batch sizing.
-        If OOM occurs, it halves the batch size and retries.
-        """
         results = []
         current_idx = 0
         total_images = len(pil_images)
@@ -596,7 +539,7 @@ class EmbeddingGenerator:
                 self.logger.error(f"Failed batch in chunk {chunk_idx} at index {current_idx}: {e}")
                 progress.remove_task(batch_task)
                 raise e
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 self.logger.error(f"Unexpected error in chunk {chunk_idx}: {e}")
                 progress.remove_task(batch_task)
                 raise e

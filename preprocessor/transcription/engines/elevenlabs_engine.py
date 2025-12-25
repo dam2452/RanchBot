@@ -25,18 +25,18 @@ class ElevenLabsEngine:
         temperature: Optional[float] = None,
         polling_interval: Optional[int] = None,
     ):
-        if not settings.eleven_api_key:
+        if not settings.elevenlabs.api_key:
             raise ValueError(
                 "ElevenLabs API key not provided. Set ELEVEN_API_KEY environment variable.",
             )
 
-        self.client = ElevenLabs(api_key=settings.eleven_api_key)
-        self.model_id = model_id or settings.elevenlabs_model_id
-        self.language_code = language_code or settings.elevenlabs_language_code
-        self.diarize = diarize if diarize is not None else settings.elevenlabs_diarize
-        self.diarization_threshold = diarization_threshold or settings.elevenlabs_diarization_threshold
-        self.temperature = temperature if temperature is not None else settings.elevenlabs_temperature
-        self.polling_interval = polling_interval or settings.elevenlabs_polling_interval
+        self.client = ElevenLabs(api_key=settings.elevenlabs.api_key)
+        self.model_id = model_id or settings.elevenlabs.model_id
+        self.language_code = language_code or settings.elevenlabs.language_code
+        self.diarize = diarize if diarize is not None else settings.elevenlabs.diarize
+        self.diarization_threshold = diarization_threshold or settings.elevenlabs.diarization_threshold
+        self.temperature = temperature if temperature is not None else settings.elevenlabs.temperature
+        self.polling_interval = polling_interval or settings.elevenlabs.polling_interval
 
         self.additional_formats = [
             {"format": "srt"},
@@ -94,7 +94,7 @@ class ElevenLabsEngine:
     def __poll_for_results(self, transcription_id: str):
         self.logger.info(f"Polling for results (ID: {transcription_id})...")
 
-        max_attempts = settings.elevenlabs_max_attempts
+        max_attempts = settings.elevenlabs.max_attempts
         attempt = 0
 
         while attempt < max_attempts:

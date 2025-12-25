@@ -16,44 +16,85 @@ from pydantic import SecretStr
 from bot.utils.resolution import Resolution
 
 
-class Settings:  # pylint: disable=too-many-instance-attributes
-    def __init__(self):
-        self._eleven_api_key = SecretStr(os.getenv("ELEVEN_API_KEY", "")) if os.getenv("ELEVEN_API_KEY") else None
+@dataclass
+class WhisperSettings:
+    model: str = "large-v3-turbo"
 
-        self.whisper_model: str = os.getenv("WHISPER_MODEL", "large-v3-turbo")
+    @classmethod
+    def from_env(cls) -> "WhisperSettings":
+        return cls(
+            model=os.getenv("WHISPER_MODEL", "large-v3-turbo"),
+        )
 
-        self.embedding_model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
 
-        self.embedding_default_output_dir: Path = Path("/app/output_data/embeddings")
-        self.embedding_segments_per_embedding: int = 5
-        self.embedding_keyframe_strategy: str = "scene_changes"
-        self.embedding_keyframe_interval: int = 1
-        self.embedding_frames_per_scene: int = 1
-        self.embedding_max_workers: int = 1
-        self.embedding_batch_size: int = 16
-        self.embedding_resize_height: int = 720
-        self.embedding_prefetch_chunks: int = 0
+@dataclass
+class EmbeddingSettings:
+    model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
+    default_output_dir: Path = Path("/app/output_data/embeddings")
+    segments_per_embedding: int = 5
+    keyframe_strategy: str = "scene_changes"
+    keyframe_interval: int = 1
+    frames_per_scene: int = 1
+    batch_size: int = 16
+    resize_height: int = 720
+    prefetch_chunks: int = 0
 
-        self.scene_detection_threshold: float = 0.5
-        self.scene_detection_min_scene_len: int = 10
-        self.scene_detection_output_dir: Path = Path("/app/output_data/scene_timestamps")
 
-        self.scraper_output_dir: Path = Path("/app/output_data/scraped_pages")
+@dataclass
+class SceneDetectionSettings:
+    threshold: float = 0.5
+    min_scene_len: int = 10
+    output_dir: Path = Path("/app/output_data/scene_timestamps")
 
-        self.elevenlabs_model_id: str = "scribe_v1"
-        self.elevenlabs_language_code: str = "pol"
-        self.elevenlabs_diarize: bool = True
-        self.elevenlabs_diarization_threshold: float = 0.4
-        self.elevenlabs_temperature: float = 0.0
-        self.elevenlabs_polling_interval: int = 20
-        self.elevenlabs_max_attempts: int = 60
+
+@dataclass
+class ScraperSettings:
+    output_dir: Path = Path("/app/output_data/scraped_pages")
+
+
+@dataclass
+class ElevenLabsSettings:
+    model_id: str = "scribe_v1"
+    language_code: str = "pol"
+    diarize: bool = True
+    diarization_threshold: float = 0.4
+    temperature: float = 0.0
+    polling_interval: int = 20
+    max_attempts: int = 60
+    _api_key: Optional[SecretStr] = None
+
+    @classmethod
+    def from_env(cls) -> "ElevenLabsSettings":
+        api_key = None
+        if os.getenv("ELEVEN_API_KEY"):
+            api_key = SecretStr(os.getenv("ELEVEN_API_KEY", ""))
+        return cls(_api_key=api_key)
 
     @property
-    def eleven_api_key(self) -> Optional[str]:
-        return self._eleven_api_key.get_secret_value() if self._eleven_api_key else None
+    def api_key(self) -> Optional[str]:
+        return self._api_key.get_secret_value() if self._api_key else None
 
 
-settings = Settings()
+@dataclass
+class Settings:
+    whisper: WhisperSettings
+    embedding: EmbeddingSettings
+    scene_detection: SceneDetectionSettings
+    scraper: ScraperSettings
+    elevenlabs: ElevenLabsSettings
+
+    @classmethod
+    def from_env(cls) -> "Settings":
+        return cls(
+            whisper=WhisperSettings.from_env(),
+            embedding=EmbeddingSettings(),
+            scene_detection=SceneDetectionSettings(),
+            scraper=ScraperSettings(),
+            elevenlabs=ElevenLabsSettings.from_env(),
+        )
+
+
+settings = Settings.from_env()
 
 
 @dataclass
