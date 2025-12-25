@@ -4,10 +4,12 @@ from typing import (
     TypeVar,
 )
 
+# pylint: disable=duplicate-code
+
 T = TypeVar("T", bound="Resolution")
 
 
-class Resolution(Enum):  # pylint: disable=duplicate-code
+class Resolution(Enum):
     R1080P = (1920, 1080)
     R720P  = (1280, 720)
     R480P  = (854,  480)

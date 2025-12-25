@@ -3,6 +3,8 @@ import sys
 
 import click
 
+# pylint: disable=duplicate-code
+
 from preprocessor.cli_utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     TranscriptionConfig,
@@ -68,7 +70,7 @@ def transcribe(
     max_workers: int,
 ):
     """Generate transcriptions using Whisper."""
-    config = TranscriptionConfig(  # pylint: disable=duplicate-code
+    config = TranscriptionConfig(
         videos=videos,
         episodes_info_json=episodes_info_json,
         transcription_jsons=transcription_jsons,

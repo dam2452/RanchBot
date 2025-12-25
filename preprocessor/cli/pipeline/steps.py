@@ -1,6 +1,8 @@
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
 
+# pylint: disable=duplicate-code
+
 
 def run_scrape_step(scrape_urls, episodes_info_json, **_kwargs):
     from preprocessor.scraping.episode_scraper import EpisodeScraper  # pylint: disable=import-outside-toplevel
@@ -64,7 +66,7 @@ def run_transcribe_step(videos, episodes_info_json, name, model, language, devic
 
     transcription_jsons = kwargs.get("transcription_jsons")
 
-    transcription_config = TranscriptionConfig(  # pylint: disable=duplicate-code
+    transcription_config = TranscriptionConfig(
         videos=videos,
         episodes_info_json=episodes_info_json,
         transcription_jsons=transcription_jsons,
