@@ -20,8 +20,6 @@ from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
-decord.bridge.set_bridge('torch')
-
 
 class EmbeddingGenerator:
     __DEFAULT_DEVICE = "cuda"
@@ -32,6 +30,8 @@ class EmbeddingGenerator:
     __KEYFRAME_INTERVAL_MULTIPLIER = 5
 
     def __init__(self, args: Dict[str, Any]):
+        decord.bridge.set_bridge('torch')
+
         self.transcription_jsons: Path = args["transcription_jsons"]
         self.videos: Optional[Path] = args.get("videos")
         self.output_dir: Path = args.get("output_dir", settings.embedding.default_output_dir)
@@ -483,7 +483,6 @@ class EmbeddingGenerator:
         del frames_tensor
         pil_images = [Image.fromarray(frame) for frame in frames_np]
         del frames_np
-        gc.collect()
         return pil_images
 
     def __resize_frames_batched(self, frames_tensor: torch.Tensor) -> torch.Tensor:
