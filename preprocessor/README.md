@@ -26,13 +26,40 @@ docker logs ranchbot-preprocessing-app -f
 
 ```
 preprocessor/
+├── config/                  # Konfiguracja aplikacji
+├── core/                    # Podstawowe komponenty (state_manager)
+├── video/                   # Przetwarzanie wideo
+│   ├── transcoder.py       # Transkodowanie (FFmpeg + NVENC)
+│   └── scene_detector.py   # Detekcja scen (TransNetV2)
+├── transcription/           # Transkrypcja audio
+│   ├── engines/            # Silniki transkrypcji (Whisper, ElevenLabs)
+│   ├── generators/         # Generatory formatów wyjściowych (JSON, SRT, TXT)
+│   ├── processors/         # Procesory audio (normalizacja)
+│   ├── generator.py        # Generator transkrypcji (Whisper)
+│   ├── elevenlabs.py       # Transkrypcja przez ElevenLabs API
+│   └── importer.py         # Import istniejących transkrypcji
+├── scraping/                # Scrapowanie metadanych
+│   ├── episode_scraper.py  # Scraper odcinków (crawl4ai + Ollama)
+│   ├── crawl4ai.py         # Crawler stron WWW
+│   └── clipboard.py        # Scraper ze schowka
+├── embeddings/              # Generowanie embeddingów
+│   └── generator.py        # Generator embeddingów (Qwen2-VL)
+├── indexing/                # Indeksowanie
+│   └── elasticsearch.py    # Indeksowanie w Elasticsearch
+├── providers/               # Providery zewnętrznych serwisów
+│   └── llm.py              # Provider LLM (Ollama)
+├── utils/                   # Narzędzia pomocnicze
+├── scripts/                 # Skrypty pomocnicze (download_models)
+├── prompts/                 # Prompty LLM
+├── legacy/                  # Konwersje legacy
 ├── input_data/              # Dane wejściowe (tylko odczyt)
 │   └── videos/              # Pliki wideo (*.mp4)
 ├── output_data/             # Dane wygenerowane
 │   ├── transcoded_videos/   # Wideo H.264 z keyframe'ami
-│   ├── transcriptions/      # Transkrypcje audio (JSON)
+│   ├── transcriptions/      # Transkrypcje audio (JSON, SRT, TXT)
 │   ├── embeddings/          # Embeddingi tekst+wideo (NPZ)
-│   └── scene_timestamps/    # Timestampy scen (JSON)
+│   ├── scene_timestamps/    # Timestampy scen (JSON)
+│   └── scraped_pages/       # Zescrapowane strony (markdown)
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md

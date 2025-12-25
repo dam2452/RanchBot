@@ -1,20 +1,31 @@
 import json
-from pathlib import Path
-from typing import List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
-import torch
 from pydantic import BaseModel
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+import torch
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+)
 
-from preprocessor.config.config import settings
+from preprocessor.prompts import (
+    extract_all_seasons_system,
+    extract_all_seasons_user,
+    extract_episode_metadata_system,
+    extract_episode_metadata_user,
+    extract_season_system,
+    extract_season_user,
+    merge_episode_data_system,
+    merge_episode_data_user,
+)
 from preprocessor.utils.console import console
-
-PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
-
-
-def load_prompt(name: str) -> str:
-    prompt_file = PROMPTS_DIR / f"{name}.txt"
-    return prompt_file.read_text(encoding="utf-8")
 
 
 class EpisodeInfo(BaseModel):
@@ -61,12 +72,12 @@ class LLMProvider:
             try:
                 self._tokenizer = AutoTokenizer.from_pretrained(
                     self.model_name,
-                    trust_remote_code=True
+                    trust_remote_code=True,
                 )
 
                 config = AutoConfig.from_pretrained(
                     self.model_name,
-                    trust_remote_code=True
+                    trust_remote_code=True,
                 )
                 config.rope_scaling = {
                     "type": "yarn",
@@ -91,7 +102,7 @@ class LLMProvider:
                 console.print(f"[red]Failed to load model: {e}[/red]")
                 raise e
 
-    def __generate(self, messages: List[dict], max_tokens: int = 32768) -> str:
+    def _generate(self, messages: List[Dict], max_tokens: int = 32768) -> str:
         text = self._tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -116,7 +127,8 @@ class LLMProvider:
 
         return content.strip()
 
-    def __extract_json(self, content: str) -> dict:
+    @staticmethod
+    def _extract_json(content: str) -> Dict:
         try:
             if "```json" in content:
                 start = content.find("```json") + 7
@@ -135,9 +147,10 @@ class LLMProvider:
             console.print(f"[yellow]Raw content:\n{content}[/yellow]")
             raise
 
+    # pylint: disable=broad-exception-caught
     def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
-        system_prompt = load_prompt("extract_season_system")
-        user_prompt = load_prompt("extract_season_user").format(url=url, page_text=page_text)
+        system_prompt = extract_season_system.get()
+        user_prompt = extract_season_user.get().format(url=url, page_text=page_text)
 
         try:
             messages = [
@@ -145,8 +158,8 @@ class LLMProvider:
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._LLMProvider__generate(messages)
-            data = self._LLMProvider__extract_json(content)
+            content = self._generate(messages)
+            data = self._extract_json(content)
             metadata = SeasonMetadata(**data)
             return metadata
 
@@ -154,9 +167,10 @@ class LLMProvider:
             console.print(f"[red]LLM extraction failed for {url}: {e}[/red]")
             return None
 
+    # pylint: disable=broad-exception-caught
     def extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
-        system_prompt = load_prompt("extract_episode_metadata_system")
-        user_prompt = load_prompt("extract_episode_metadata_user").format(url=url, page_text=page_text)
+        system_prompt = extract_episode_metadata_system.get()
+        user_prompt = extract_episode_metadata_user.get().format(url=url, page_text=page_text)
 
         try:
             messages = [
@@ -164,8 +178,8 @@ class LLMProvider:
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._LLMProvider__generate(messages)
-            data = self._LLMProvider__extract_json(content)
+            content = self._generate(messages)
+            data = self._extract_json(content)
             metadata = EpisodeMetadata(**data)
             return metadata
 
@@ -173,6 +187,7 @@ class LLMProvider:
             console.print(f"[red]LLM extraction failed for {url}: {e}[/red]")
             return None
 
+    # pylint: disable=broad-exception-caught
     def merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
         if not metadata_list:
             raise ValueError("No metadata to merge")
@@ -185,10 +200,10 @@ class LLMProvider:
             for i, m in enumerate(metadata_list)
         ])
 
-        system_prompt = load_prompt("merge_episode_data_system")
-        user_prompt = load_prompt("merge_episode_data_user").format(
+        system_prompt = merge_episode_data_system.get()
+        user_prompt = merge_episode_data_user.get().format(
             num_sources=len(metadata_list),
-            combined_text=combined_text
+            combined_text=combined_text,
         )
 
         try:
@@ -197,8 +212,8 @@ class LLMProvider:
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._LLMProvider__generate(messages)
-            data = self._LLMProvider__extract_json(content)
+            content = self._generate(messages)
+            data = self._extract_json(content)
             merged = EpisodeMetadata(**data)
             return merged
 
@@ -206,32 +221,33 @@ class LLMProvider:
             console.print(f"[red]LLM merge failed: {e}[/red]")
             return metadata_list[0]
 
-    def extract_all_seasons(self, scraped_pages: List[dict]) -> Optional[List[SeasonMetadata]]:
+    def extract_all_seasons(self, scraped_pages: List[Dict[str, Any]]) -> Optional[List[SeasonMetadata]]:
         combined_content = ""
         for i, page in enumerate(scraped_pages, 1):
             url = page["url"]
             markdown = page["markdown"]
             combined_content += f"\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n"
 
-        system_prompt = load_prompt("extract_all_seasons_system")
-        user_prompt = load_prompt("extract_all_seasons_user").format(
+        system_prompt = extract_all_seasons_system.get()
+        user_prompt = extract_all_seasons_user.get().format(
             num_sources=len(scraped_pages),
-            combined_content=combined_content
+            combined_content=combined_content,
         )
 
+        content = None
         try:
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._LLMProvider__generate(messages)
+            content = self._generate(messages)
             console.print(f"[yellow]LLM raw response:\n{content[:500]}...[/yellow]")
-            data = self._LLMProvider__extract_json(content)
+            data = self._extract_json(content)
             all_seasons_meta = AllSeasonsMetadata(**data)
             return all_seasons_meta.seasons
 
         except Exception as e:
             console.print(f"[red]LLM extraction failed: {e}[/red]")
-            console.print(f"[red]Full content:\n{content if 'content' in locals() else 'No content generated'}[/red]")
+            console.print(f"[red]Full content:\n{content if content else 'No content generated'}[/red]")
             return None

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.so.*
+.env
+*.egg-info/
+dist/
+build/
+
+input_data/
+output_data/
+episodes.json

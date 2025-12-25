@@ -1,0 +1,7 @@
+def get() -> str:
+    return """Extract ALL episodes from ALL {num_sources} sources below.
+Return a complete list of ALL seasons found.
+
+{combined_content}
+
+Extract ALL seasons and episodes from above sources."""

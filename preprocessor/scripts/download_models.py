@@ -31,7 +31,7 @@ def download_embedding_model():
             model_name,
             torch_dtype="float16",
             device_map="cuda",
-            trust_remote_code=True
+            trust_remote_code=True,
         )
         log(f"✓ Embedding model '{model_name}' ready on cuda")
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -39,14 +39,14 @@ def download_embedding_model():
 
 def download_transnet_model():
     try:
-        from transnetv2_pytorch import TransNetV2  # pylint: disable=import-outside-toplevel
         import torch  # pylint: disable=import-outside-toplevel
+        from transnetv2_pytorch import TransNetV2  # pylint: disable=import-outside-toplevel
 
         log("Checking TransNetV2 model")
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available, GPU is required")
         model = TransNetV2()
-        model = model.cuda()
+        _ = model.cuda()
         log("✓ TransNetV2 model ready on cuda")
     except Exception as e:  # pylint: disable=broad-exception-caught
         log(f"⚠ TransNetV2 model check failed: {e}")
