@@ -1,4 +1,4 @@
-from concurrent.futures import (  # pylint: disable=no-name-in-module
+from concurrent.futures import (
     Future,
     ThreadPoolExecutor,
     as_completed,

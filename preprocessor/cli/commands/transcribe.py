@@ -39,11 +39,6 @@ from preprocessor.transcription.generator import TranscriptionGenerator
     help=f"Language for transcription (default: {settings.transcription.language})",
 )
 @click.option(
-    "--device",
-    default=settings.transcription.device,
-    help=f"Device: cuda (GPU) or cpu (default: {settings.transcription.device})",
-)
-@click.option(
     "--extra-json-keys",
     multiple=True,
     help="Additional JSON keys to remove from output (can specify multiple times)",
@@ -65,7 +60,6 @@ def transcribe(
     transcription_jsons: Path,
     model: str,
     language: str,
-    device: str,
     extra_json_keys: tuple,
     name: str,
     max_workers: int,
@@ -77,7 +71,7 @@ def transcribe(
         transcription_jsons=transcription_jsons,
         model=model,
         language=language,
-        device=device,
+        device="cuda",
         extra_json_keys_to_remove=list(extra_json_keys),
         name=name,
     )

@@ -13,10 +13,12 @@ class GPUBatchProcessor:
         model,
         batch_size: int,
         logger: ErrorHandlingLogger,
+        device: str,
     ):
         self.model = model
         self.batch_size = batch_size
         self.logger = logger
+        self.device = device
 
     def process_images_batch(
         self,
@@ -39,12 +41,11 @@ class GPUBatchProcessor:
             batch_pil = pil_images[current_idx:batch_end]
 
             try:
-                with torch.inference_mode():
-                    embeddings_tensor = self.model.get_image_embeddings(images=batch_pil)
-                    batch_np = embeddings_tensor.cpu().numpy()
-                    del embeddings_tensor
-                    results.extend([emb.tolist() for emb in batch_np])
-                    del batch_np
+                embeddings_tensor = self.model.get_image_embeddings(images=batch_pil, is_query=False)
+                batch_np = embeddings_tensor.cpu().numpy()
+                del embeddings_tensor
+                results.extend([emb.tolist() for emb in batch_np])
+                del batch_np
                 progress.update(batch_task, completed=batch_end)
                 current_idx = batch_end
             except RuntimeError as e:

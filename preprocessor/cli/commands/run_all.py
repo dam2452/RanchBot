@@ -66,11 +66,6 @@ from preprocessor.utils.console import console
     default=settings.transcription.language,
     help=f"Language for transcription (default: {settings.transcription.language})",
 )
-@click.option(
-    "--device",
-    default=settings.transcription.device,
-    help=f"Device: cuda or cpu (default: {settings.transcription.device})",
-)
 @click.option("--dry-run", is_flag=True, help="Dry run for Elasticsearch indexing")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 @click.option(
@@ -106,7 +101,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     preset: str,
     model: str,
     language: str,
-    device: str,
     dry_run: bool,
     no_state: bool,
     max_workers: int,
@@ -150,7 +144,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "preset": preset,
         "model": model,
         "language": language,
-        "device": device,
+        "device": "cuda",
         "dry_run": dry_run,
         "max_workers": max_workers,
         "ramdisk_path": ramdisk_path,

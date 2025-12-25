@@ -15,10 +15,7 @@ import decord
 import numpy as np
 from rich.progress import Progress
 import torch
-from transformers import (
-    AutoModel,
-    AutoProcessor,
-)
+from transformers import AutoModel
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
@@ -84,7 +81,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
         self._load_model()
         self.frame_processor = FrameProcessor(self.resize_height, self.device)
-        self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger)
+        self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
         self.strategy = KeyframeStrategyFactory.create(
             self.keyframe_strategy,
             self.keyframe_interval,
@@ -319,28 +316,23 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
     def _load_model(self) -> None:
         try:
-            self.processor = AutoProcessor.from_pretrained(
-                self.model_name,
-                revision=self.model_revision,
-                trust_remote_code=True,
-                use_fast=True
-            )
             self.model = AutoModel.from_pretrained(
                 self.model_name,
-                revision=self.model_revision,
                 torch_dtype="float16",
                 device_map="cuda",
                 trust_remote_code=True,
             )
             self.model.eval()
-            console.print(f"[green]Model loaded successfully (revision: {self.model_revision})[/green]")
+            console.print("[green]GME model loaded successfully[/green]")
         except Exception as e:
             self.logger.error(f"Failed to load model: {e}")
             raise
 
     def _encode_text(self, text: str) -> np.ndarray:
-        embeddings = self.model.get_text_embeddings(texts=[text])
-        return embeddings[0].cpu().numpy()
+        embeddings_tensor = self.model.get_text_embeddings(texts=[text])
+        embedding = embeddings_tensor[0].cpu().numpy()
+        del embeddings_tensor
+        return embedding
 
     def _get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
         if not self.videos:
