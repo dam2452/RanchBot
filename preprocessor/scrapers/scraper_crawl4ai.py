@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from typing import Optional
 
 from crawl4ai import AsyncWebCrawler
@@ -10,7 +11,7 @@ from crawl4ai.async_configs import (
 
 class ScraperCrawl4AI:
     @staticmethod
-    async def _scrape_async(url: str, save_markdown: bool = False) -> Optional[str]:
+    async def _scrape_async(url: str, save_markdown: bool = False, output_dir: Optional[Path] = None) -> Optional[str]:
         try:
             browser_config = BrowserConfig(
                 headless=True,
@@ -29,9 +30,10 @@ class ScraperCrawl4AI:
                 result = await crawler.arun(url=url, config=run_config)
 
                 if result.success:
-                    if save_markdown:
-                        safe_name = url.split("/")[-1].replace(":", "_")
-                        md_file = f"crawl4ai_output_{safe_name}.md"
+                    if save_markdown and output_dir:
+                        output_dir.mkdir(parents=True, exist_ok=True)
+                        safe_name = url.replace("://", "_").replace("/", "_").replace(":", "_")
+                        md_file = output_dir / f"{safe_name}.md"
                         with open(md_file, "w", encoding="utf-8") as f:
                             f.write(result.markdown)
                         print(f"Saved markdown to: {md_file}")
@@ -44,5 +46,5 @@ class ScraperCrawl4AI:
             return None
 
     @staticmethod
-    def scrape(url: str, save_markdown: bool = False) -> Optional[str]:
-        return asyncio.run(ScraperCrawl4AI._scrape_async(url, save_markdown))
+    def scrape(url: str, save_markdown: bool = False, output_dir: Optional[Path] = None) -> Optional[str]:
+        return asyncio.run(ScraperCrawl4AI._scrape_async(url, save_markdown, output_dir))

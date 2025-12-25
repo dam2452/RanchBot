@@ -38,6 +38,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes
         self.scene_detection_min_scene_len: int = 10
         self.scene_detection_output_dir: Path = Path("/app/output_data/scene_timestamps")
 
+        self.scraper_output_dir: Path = Path("/app/output_data/scraped_pages")
+
         self.elevenlabs_model_id: str = "scribe_v1"
         self.elevenlabs_language_code: str = "pol"
         self.elevenlabs_diarize: bool = True

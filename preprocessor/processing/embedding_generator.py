@@ -205,11 +205,15 @@ class EmbeddingGenerator:
         episode_info = data.get("episode_info", {})
         base_name = trans_file.stem.replace("_segmented", "").replace("_simple", "")
 
+        minimal_episode_info = {
+            "season": episode_info.get("season"),
+            "episode_number": episode_info.get("episode_number"),
+        }
+
         if text_embeddings:
             text_output = self.output_dir / f"{base_name}_text.json"
             text_data = {
-                "episode_info": episode_info,
-                "segments": data.get("segments", []),
+                "episode_info": minimal_episode_info,
                 "text_embeddings": text_embeddings,
             }
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -220,8 +224,7 @@ class EmbeddingGenerator:
         if video_embeddings:
             video_output = self.output_dir / f"{base_name}_video.json"
             video_data = {
-                "episode_info": episode_info,
-                "scene_timestamps": data.get("scene_timestamps", {}),
+                "episode_info": minimal_episode_info,
                 "video_embeddings": video_embeddings,
             }
             self.output_dir.mkdir(parents=True, exist_ok=True)

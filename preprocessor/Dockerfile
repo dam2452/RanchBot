@@ -12,17 +12,21 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TOKENIZERS_PARALLELISM=false
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git wget curl ca-certificates build-essential xz-utils gnupg2 \
+    git wget curl ca-certificates build-essential gnupg2 \
     libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
     libxdamage1 libxfixes3 libxrandr2 libgbm1 \
     libasound2 libxshmfence1 libglib2.0-0 libgomp1 \
-    && wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-shared-7.1.tar.xz \
-    && tar -xf ffmpeg-n7.1-latest-linux64-gpl-shared-7.1.tar.xz \
-    && cp -r ffmpeg-n7.1-latest-linux64-gpl-shared-7.1/bin/* /usr/local/bin/ \
-    && cp -r ffmpeg-n7.1-latest-linux64-gpl-shared-7.1/lib/* /usr/local/lib/ \
-    && rm -rf ffmpeg-n7.1-latest-linux64-gpl-shared-7.1* \
-    && ldconfig \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.3-1/jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ./jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
+    && rm jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
+    && ln -sf /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
+    && ln -sf /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,10 +48,7 @@ RUN playwright install chromium \
     && playwright install-deps chromium
 
 RUN mkdir -p /models/huggingface /models/torch /models/whisper \
-    /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps} \
-    /usr/local/nvidia/lib
-
-COPY preprocessor/libnvidia-encode.so.1 /usr/local/nvidia/lib/
+    /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
 COPY preprocessor/entrypoint.sh preprocessor/run_preprocessor.sh /app/
 COPY preprocessor/scripts/download_models.py /app/download_models.py
@@ -56,11 +57,7 @@ RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
-RUN echo "/usr/local/nvidia/lib" > /etc/ld.so.conf.d/nvidia.conf && \
-    echo "/usr/local/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
-    ldconfig
-
-ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["/app/run_preprocessor.sh"]
