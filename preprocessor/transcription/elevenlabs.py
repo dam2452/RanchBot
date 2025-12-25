@@ -12,15 +12,11 @@ from typing import (
 
 from rich.progress import Progress
 
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.transcription.engines.elevenlabs_engine import ElevenLabsEngine
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.utils.console import console
-from preprocessor.utils.episode_utils import (
-    build_output_path,
-    extract_season_episode_from_filename,
-    get_episode_metadata,
-)
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -48,10 +44,7 @@ class ElevenLabsTranscriber:
 
         self.state_manager: Optional[StateManager] = args.get("state_manager")
 
-        self.episodes_info: Optional[Dict] = None
-        if self.episodes_info_json and self.episodes_info_json.exists():
-            with open(self.episodes_info_json, "r", encoding="utf-8") as f:
-                self.episodes_info = json.load(f)
+        self.episode_manager = EpisodeManager(self.episodes_info_json, self.series_name)
 
         self.engine = ElevenLabsEngine(
             model_id=self.model_id,
@@ -174,8 +167,10 @@ class ElevenLabsTranscriber:
         return audio_path
 
     def __save_transcription(self, data: Dict[str, Any], video_file: Path) -> None:
-        season, episode = extract_season_episode_from_filename(video_file)
-        episode_info = get_episode_metadata(self.episodes_info, season, episode)
+        episode_info = self.episode_manager.parse_filename(video_file)
+        if not episode_info:
+            self.logger.error(f"Cannot parse episode info from {video_file.name}")
+            return
 
         api_segments = data.get("segments", [])
         api_words = data.get("words", [])
@@ -198,14 +193,11 @@ class ElevenLabsTranscriber:
             "language_code": data.get("language_code", "pol"),
             "segments": segments,
             "words": words,
+            "episode_info": EpisodeManager.get_metadata(episode_info),
         }
 
-        if episode_info:
-            # noinspection PyTypeChecker
-            output_data["episode_info"] = episode_info
-
         json_dir = self.output_dir / "json"
-        output_file = build_output_path(json_dir, self.series_name, season, episode)
+        output_file = self.episode_manager.build_output_path(episode_info, json_dir)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:

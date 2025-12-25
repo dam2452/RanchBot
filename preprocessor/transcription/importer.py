@@ -11,12 +11,9 @@ from typing import (
 
 from rich.progress import Progress
 
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
-from preprocessor.utils.episode_utils import (
-    build_output_path,
-    get_episode_metadata,
-)
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -41,10 +38,7 @@ class TranscriptionImporter:
 
         self.state_manager: Optional[StateManager] = args.get("state_manager")
 
-        self.episodes_info: Optional[Dict] = None
-        if self.episodes_info_json and self.episodes_info_json.exists():
-            with open(self.episodes_info_json, "r", encoding="utf-8") as f:
-                self.episodes_info = json.load(f)
+        self.episode_manager = EpisodeManager(self.episodes_info_json, self.series_name)
 
     def work(self) -> int:
         json_files = self.__find_transcription_files()
@@ -117,13 +111,15 @@ class TranscriptionImporter:
             self.logger.error(f"Unknown format type: {self.format_type}")
             return
 
-        season_num, episode_num = self.__extract_season_episode(json_file)
-        episode_info = get_episode_metadata(self.episodes_info, season_num, episode_num)
+        episode_info = self.episode_manager.parse_filename(json_file)
+        if not episode_info:
+            season_num, episode_num = self.__extract_season_episode_fallback(json_file)
+            episode_info = self.episode_manager.get_episode_by_season_and_relative(season_num, episode_num)
 
         if episode_info:
-            converted_data["episode_info"] = episode_info
+            converted_data["episode_info"] = EpisodeManager.get_metadata(episode_info)
 
-        output_file = build_output_path(self.output_dir, self.series_name, season_num, episode_num)
+        output_file = self.episode_manager.build_output_path(episode_info, self.output_dir)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
@@ -204,7 +200,7 @@ class TranscriptionImporter:
         }
 
     @staticmethod
-    def __extract_season_episode(file_path: Path) -> tuple[int, int]:
+    def __extract_season_episode_fallback(file_path: Path) -> tuple[int, int]:
         match = re.search(r'S(\d+)E(\d+)', file_path.name, re.IGNORECASE)
         if match:
             return int(match.group(1)), int(match.group(2))

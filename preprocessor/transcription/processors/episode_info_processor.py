@@ -6,10 +6,7 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.utils.episode_utils import (
-    extract_episode_number,
-    find_episode_info_by_absolute,
-)
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -23,8 +20,6 @@ class EpisodeInfoProcessor:
         series_name: str = "",
     ):
         self.__jsons_dir: Path = jsons_dir
-        with open(episodes_info_json, "r", encoding="utf-8") as f:
-            self.__episodes_info: Dict[str, Any] = json.load(f)
         self.__output_path: Path = output_path
         self.__logger: ErrorHandlingLogger = logger
 
@@ -37,6 +32,8 @@ class EpisodeInfoProcessor:
         self.__series_name: str = series_name.lower()
         self.__output_path.mkdir(parents=True, exist_ok=True)
 
+        self.__episode_manager = EpisodeManager(episodes_info_json, self.__series_name)
+
     def __call__(self) -> None:
         for transcription_file in self.__jsons_dir.rglob("*.json"):
             self.__process_file(transcription_file)
@@ -44,14 +41,9 @@ class EpisodeInfoProcessor:
     def __process_file(self, transcription_file: Path) -> None:
         try:
             transcription = self.__load_transcription(transcription_file)
-            absolute_episode = extract_episode_number(transcription_file)
-            if absolute_episode is None:
-                self.__logger.error(f"Cannot extract episode number from {transcription_file.name}")
-                return
-
-            episode_info = find_episode_info_by_absolute(self.__episodes_info, absolute_episode)
+            episode_info = self.__episode_manager.parse_filename(transcription_file)
             if not episode_info:
-                self.__logger.error(f"No episode info found for episode {absolute_episode} in {transcription_file}")
+                self.__logger.error(f"Cannot extract episode info from {transcription_file.name}")
                 return
 
             _, new_json_name = self.__write_episode_json(transcription, episode_info)
@@ -65,20 +57,13 @@ class EpisodeInfoProcessor:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
-    def __write_episode_json(self, transcription: Dict[str, Any], episode_info: Dict[str, Any]) -> Tuple[Path, str]:
-        season_number = episode_info["season"]
-        relative_episode = episode_info["episode_number"]
-        new_json_name = f"{self.__series_name}_S{season_number:02d}E{relative_episode:02d}.json"
+    def __write_episode_json(self, transcription: Dict[str, Any], episode_info) -> Tuple[Path, str]:
+        new_json_name = f"{self.__series_name}_{episode_info.episode_code()}.json"
+        output_path = self.__episode_manager.build_output_path(episode_info, self.__output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if season_number == 0:
-            output_dir = self.__output_path / "Specjalne"
-        else:
-            output_dir = self.__output_path / f"Sezon {season_number}"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        output_path = output_dir / new_json_name
         result = {
-            "episode_info": episode_info,
+            "episode_info": EpisodeManager.get_metadata(episode_info),
             "segments": transcription.get("segments", []),
         }
 

@@ -1,18 +1,26 @@
 import gc
 import json
 import logging
-import threading
-import traceback
 from pathlib import Path
 from queue import Queue
-from typing import Any, Dict, List, Optional
+import threading
+import traceback
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
+from PIL import Image
 import decord
 import numpy as np
-import torch
-from PIL import Image
 from rich.progress import Progress
-from transformers import AutoModel, AutoProcessor
+import torch
+from transformers import (
+    AutoModel,
+    AutoProcessor,
+)
 
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
@@ -21,7 +29,7 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
 
-class EmbeddingGenerator:
+class EmbeddingGenerator:  # pylint: disable=too-many-instance-attributes
     __DEFAULT_DEVICE = "cuda"
     __VIDEO_CHUNK_SIZE = 256
     __RESIZE_BATCH_SIZE = 32
@@ -69,7 +77,7 @@ class EmbeddingGenerator:
     def work(self) -> int:
         try:
             self.__exec()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Embedding generation failed: {e}")
         return self.logger.finalize()
 
@@ -115,12 +123,12 @@ class EmbeddingGenerator:
             for trans_file in transcription_files:
                 try:
                     self.__process_transcription(trans_file, progress)
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to process {trans_file}: {e}")
                 finally:
                     progress.advance(task)
 
-    def __process_transcription(self, trans_file: Path, progress: Progress) -> None:
+    def __process_transcription(self, trans_file: Path, progress: Progress) -> None:  # pylint: disable=too-many-locals
         with open(trans_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
@@ -337,7 +345,7 @@ class EmbeddingGenerator:
             self.__cleanup_memory()
             progress.remove_task(task)
             return embeddings
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to process video {video_path}: {e}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             progress.remove_task(task)
