@@ -18,6 +18,7 @@ from elasticsearch.helpers import (
 )
 
 from bot.search.elastic_search_manager import ElasticSearchManager
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -37,6 +38,9 @@ class ElasticSearchIndexer:
 
         self.state_manager: Optional[StateManager] = args.get("state_manager")
         self.series_name: str = args.get("series_name", "unknown")
+
+        episodes_info_json = args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
     def __call__(self) -> None:
         asyncio.run(self.__exec())
@@ -170,12 +174,12 @@ class ElasticSearchIndexer:
         if season == 0 and "special_feature_type" not in episode_info:
             episode_info["special_feature_type"] = "special"
 
-        series_name = self.__name.lower()
-        new_name = f"{series_name}_S{season:02d}E{episode:02d}.mp4"
-        if season == 0:
-            video_path = Path("bot") / f"{series_name.upper()}-WIDEO" / "Specjalne" / new_name
-        else:
-            video_path = Path("bot") / f"{series_name.upper()}-WIDEO" / f"Sezon {season}" / new_name
+        episode_obj = self.episode_manager.get_episode_by_season_and_relative(season, episode)
+        if not episode_obj:
+            self.__logger.error(f"Cannot find episode info for S{season:02d}E{episode:02d}")
+            return []
+
+        video_path = self.episode_manager.build_video_path_for_elastic(episode_obj)
 
         transcription = data.get("transcription", {})
         scene_timestamps = data.get("scene_timestamps", {})
@@ -200,7 +204,7 @@ class ElasticSearchIndexer:
                 "tags": segment.get("tags", []),
                 "location": segment.get("location", ""),
                 "actors": segment.get("actors", []),
-                "video_path": video_path.as_posix(),
+                "video_path": video_path,
             }
 
             if transcription:

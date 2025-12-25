@@ -6,10 +6,10 @@ from typing import (
     Dict,
 )
 
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcription.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcription.processors.normalized_audio_processor import NormalizedAudioProcessor
-from preprocessor.utils.episode_utils import extract_season_episode_from_filename
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -37,6 +37,10 @@ class TranscriptionGenerator:
             loglevel=logging.DEBUG,
             error_exit_code=2,
         )
+
+        self.__series_name: str = args.get("name", "unknown").lower()
+        self.__episodes_info_json: Path = Path(args["episodes_info_json"])
+        self.__episode_manager = EpisodeManager(self.__episodes_info_json, self.__series_name)
 
         self.__init_workers(args)
 
@@ -77,15 +81,15 @@ class TranscriptionGenerator:
 
         missing_files = []
         for video_file in video_files:
-            season_num, episode_num = extract_season_episode_from_filename(video_file)
+            episode_info = self.__episode_manager.parse_filename(video_file)
+            if not episode_info:
+                continue
 
-            if season_num == 0:
-                season_dir = "Specjalne"
-            else:
-                season_dir = f"Sezon {season_num}"
-
-            filename = f"{self.__series_name}_S{season_num:02d}E{episode_num:02d}.json"
-            expected_file = self.__final_output_dir / "json" / season_dir / filename
+            expected_file = self.__episode_manager.build_output_path(
+                episode_info,
+                self.__final_output_dir / "json",
+                ".json",
+            )
 
             if not expected_file.exists():
                 missing_files.append(f"{video_file.name} -> {expected_file}")
@@ -103,8 +107,6 @@ class TranscriptionGenerator:
         processor_output: Path = temp_dir_path / "processor"
 
         self.__final_output_dir: Path = Path(args["transcription_jsons"])
-        self.__episodes_info_json: Path = Path(args["episodes_info_json"])
-        self.__series_name: str = args.get("name", "unknown").lower()
 
         self.__audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.__input_videos,

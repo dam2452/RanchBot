@@ -1,6 +1,9 @@
+import logging
 from typing import Optional
 
 from playwright.sync_api import sync_playwright
+
+logger = logging.getLogger(__name__)
 
 
 class ScraperClipboard:
@@ -23,5 +26,5 @@ class ScraperClipboard:
                 return clipboard_text
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            print(f"Clipboard scraping failed: {e}")
+            logger.error(f"Clipboard scraping failed: {e}")
             return None

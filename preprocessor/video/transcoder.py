@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import subprocess
 from typing import (
     Any,
@@ -20,6 +19,7 @@ from typing import (
 from rich.progress import Progress
 
 from bot.utils.resolution import Resolution
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -56,14 +56,11 @@ class VideoTranscoder:
             error_exit_code=3,
         )
 
-        self.__episodes_info: Optional[Dict[str, Any]] = None
-        episodes_json_path = args.get("episodes_info_json")
-        if episodes_json_path:
-            with open(episodes_json_path, "r", encoding="utf-8") as f:
-                self.__episodes_info = json.load(f)
-
         self.__state_manager: Optional[StateManager] = args.get("state_manager")
         self.__series_name: str = args.get("series_name", "unknown")
+
+        episodes_json_path = args.get("episodes_info_json")
+        self.__episode_manager = EpisodeManager(episodes_json_path, self.__series_name)
 
     def work(self) -> int:
         video_files: List[Path] = sorted(self.__input_videos.rglob("*.mp4"))
@@ -133,10 +130,16 @@ class VideoTranscoder:
         return self.__logger.finalize()
 
     def __prepare_video_for_processing(self, video_file: Path, progress, task) -> Optional[str]:
-        episode_id = self.__get_episode_id(video_file)
-        output_path = self.__get_output_path_for_video(video_file)
+        episode_info = self.__episode_manager.parse_filename(video_file)
+        if not episode_info:
+            self.__logger.error(f"Cannot parse episode info from {video_file.name}")
+            progress.advance(task)
+            return None
 
-        should_skip, skip_message = self.__should_skip_video(video_file, episode_id, output_path)
+        episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
+        output_path = self.__episode_manager.build_output_path(episode_info, self.__output_videos, ".mp4")
+
+        should_skip, skip_message = self.__should_skip_video(episode_id, output_path)
         if should_skip:
             console.print(skip_message)
             progress.advance(task)
@@ -147,7 +150,7 @@ class VideoTranscoder:
 
         return episode_id
 
-    def __should_skip_video(self, video_file: Path, episode_id: str, output_path: Optional[Path]) -> Tuple[bool, str]:
+    def __should_skip_video(self, episode_id: str, output_path: Optional[Path]) -> Tuple[bool, str]: #Parameter 'video_file' value is not used
         if output_path and output_path.exists() and output_path.stat().st_size > 0:
             return True, f"[yellow]Skipping (already exists): {episode_id}[/yellow]"
 
@@ -156,76 +159,19 @@ class VideoTranscoder:
 
         return False, ""
 
-    @staticmethod
-    def __get_episode_id(video_file: Path) -> str:
-        match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
-        if match:
-            return f"E{match.group(1)}"
-        return video_file.stem
-
-    def __get_output_path_for_video(self, video_file: Path) -> Optional[Path]:
-        match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
-        if not match:
-            return None
-
-        absolute_episode = int(match.group(1))
-        season_number, relative_episode = self.__find_episode_info(absolute_episode)
-
-        if season_number is None:
-            return None
-
-        return self.__build_output_path(self.__series_name, season_number, relative_episode)
-
     def __process_single_video(self, video_file: Path) -> None:
-        match = re.search(r"E(\d+)", video_file.stem, re.IGNORECASE)
-        if not match:
-            self.__logger.error(f"Cannot extract episode number from {video_file.name}")
+        episode_info = self.__episode_manager.parse_filename(video_file)
+        if not episode_info:
+            self.__logger.error(f"Cannot extract episode info from {video_file.name}")
             return
 
-        absolute_episode = int(match.group(1))
-        season_number, relative_episode = self.__find_episode_info(absolute_episode)
-
-        if season_number is None:
-            self.__logger.error(f"Episode {absolute_episode} not found in episodes_info.json")
-            return
-
-        output_path = self.__build_output_path(self.__series_name, season_number, relative_episode)
+        output_path = self.__episode_manager.build_output_path(episode_info, self.__output_videos, ".mp4")
 
         try:
             self.__transcode_video(video_file, output_path)
             self.__logger.info(f"Processed: {video_file} -> {output_path}")
         except subprocess.CalledProcessError as e:
             self.__logger.error(f"FFmpeg failed for {video_file}: {e}")
-
-    # noinspection PyShadowingNames
-    def __find_episode_info(self, absolute_episode: int) -> Tuple[Optional[int], Optional[int]]:
-        season_number: int = 1
-        relative_episode: int = absolute_episode
-
-        if not self.__episodes_info:
-            return season_number, relative_episode
-
-        for season in self.__episodes_info.get("seasons", []):
-            season_num: int = season.get("season_number", 1)
-            episodes: List[Dict[str, Any]] = sorted(
-                season.get("episodes", []),
-                key=lambda ep: ep["episode_number"],
-            )
-
-            for idx, ep in enumerate(episodes):
-                if ep["episode_number"] == absolute_episode:
-                    return season_num, idx + 1
-
-        return None, None
-
-    def __build_output_path(self, series_name: str, season_number: int, relative_episode: int) -> Path:
-        transcoded_name = f"{series_name}_S{season_number:02d}E{relative_episode:02d}.mp4"
-        if season_number == 0:
-            output_dir = self.__output_videos / "Specjalne"
-        else:
-            output_dir = self.__output_videos / f"Sezon {season_number}"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        return output_dir / transcoded_name
 
     def __transcode_video(self, input_video: Path, output_video: Path) -> None:
         fps = self.__get_framerate(input_video)

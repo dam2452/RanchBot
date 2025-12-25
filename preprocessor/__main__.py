@@ -709,6 +709,8 @@ def _run_scene_step(device, **kwargs):
 
     transcoded_videos = kwargs.get("transcoded_videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
 
     detector = SceneDetector(
         {
@@ -717,6 +719,8 @@ def _run_scene_step(device, **kwargs):
             "threshold": settings.scene_detection.threshold,
             "min_scene_len": settings.scene_detection.min_scene_len,
             "device": device,
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
         },
     )
     exit_code = detector.work()
@@ -731,6 +735,8 @@ def _run_embedding_step(device, **kwargs):
     transcription_jsons = kwargs.get("transcription_jsons")
     transcoded_videos = kwargs.get("transcoded_videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
 
     embedding_generator = EmbeddingGenerator(
         {
@@ -747,6 +753,8 @@ def _run_embedding_step(device, **kwargs):
             "device": device,
             "batch_size": settings.embedding.batch_size,
             "scene_timestamps_dir": scene_timestamps_dir,
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
         },
     )
     exit_code = embedding_generator.work()
@@ -760,6 +768,7 @@ def _run_index_step(name, dry_run, state_manager, **kwargs):
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer
 
     transcription_jsons = kwargs.get("transcription_jsons")
+    episodes_info_json = kwargs.get("episodes_info_json")
 
     index_config = IndexConfig(
         name=name,
@@ -770,6 +779,7 @@ def _run_index_step(name, dry_run, state_manager, **kwargs):
     index_dict = index_config.to_dict()
     index_dict["state_manager"] = state_manager
     index_dict["series_name"] = name
+    index_dict["episodes_info_json"] = episodes_info_json
 
     indexer = ElasticSearchIndexer(index_dict)
     return indexer.work()

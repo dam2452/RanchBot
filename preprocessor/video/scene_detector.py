@@ -16,6 +16,7 @@ import torch
 from transnetv2_pytorch import TransNetV2
 
 from preprocessor.config.config import settings
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -32,6 +33,10 @@ class SceneDetector:
             loglevel=logging.DEBUG,
             error_exit_code=8,
         )
+
+        series_name = args.get("series_name", "unknown")
+        episodes_info_json = args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_info_json, series_name)
 
         self.model = None
 
@@ -87,7 +92,13 @@ class SceneDetector:
         return sorted(video_files)
 
     def __process_video(self, video_file: Path, progress: Progress) -> None:
-        output_file = self.output_dir / f"{video_file.stem}_scenes.json"
+        episode_info = self.episode_manager.parse_filename(video_file)
+        if episode_info:
+            output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
+        else:
+            output_filename = f"{video_file.stem}_scenes.json"
+
+        output_file = self.output_dir / output_filename
 
         if output_file.exists():
             progress.console.print(f"[yellow]Skipping (already exists): {video_file.name}[/yellow]")

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
+import logging
+
 from preprocessor.config.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def log(msg):
-    print(f"[download_models] {msg}", flush=True)
+    logger.info(f"[download_models] {msg}")
 
 def download_whisper_model():
     try:

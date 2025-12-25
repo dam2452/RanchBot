@@ -3,7 +3,6 @@ import json
 import logging
 from pathlib import Path
 from queue import Queue
-import re
 import threading
 import traceback
 from typing import (
@@ -24,6 +23,7 @@ from transformers import (
 )
 
 from preprocessor.config.config import settings
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
@@ -57,6 +57,10 @@ class EmbeddingGenerator:
             loglevel=logging.DEBUG,
             error_exit_code=9,
         )
+
+        series_name = args.get("series_name", "unknown")
+        episodes_info_json = args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_info_json, series_name)
 
         self.model = None
         self.processor = None
@@ -580,43 +584,33 @@ class EmbeddingGenerator:
         if not self.videos:
             return None
 
-        episode_info = data.get("episode_info", {})
-        season = episode_info.get("season")
-        episode = episode_info.get("episode_number")
+        episode_info_dict = data.get("episode_info", {})
+        season = episode_info_dict.get("season")
+        episode = episode_info_dict.get("episode_number")
 
         if season is None or episode is None:
             return None
 
-        if self.videos.is_file():
-            return self.videos
+        episode_info = self.episode_manager.get_episode_by_season_and_relative(season, episode)
+        if not episode_info:
+            return None
 
-        episode_code = f"S{season:02d}E{episode:02d}"
-        search_dirs = [self.videos / f"Sezon {season}", self.videos]
-
-        for search_dir in search_dirs:
-            if not search_dir.exists():
-                continue
-            for video_file in search_dir.glob("*.mp4"):
-                if re.search(episode_code, video_file.name, re.IGNORECASE):
-                    return video_file
-        return None
+        return EpisodeManager.find_video_file(episode_info, self.videos)
 
     def __load_scene_timestamps(self, video_path: Path) -> Optional[Dict[str, Any]]:
         if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
             return None
 
-        episode_match = re.search(r'S\d{2}E\d{2}', video_path.stem, re.IGNORECASE)
-        if not episode_match:
+        episode_info = self.episode_manager.parse_filename(video_path)
+        if not episode_info:
             return None
 
-        episode_code = episode_match.group(0).upper()
-        scene_files = list(self.scene_timestamps_dir.glob(f"*{episode_code}*_scenes.json"))
-
-        if not scene_files:
+        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, self.scene_timestamps_dir)
+        if not scene_file:
             return None
 
         try:
-            with open(scene_files[0], "r", encoding="utf-8") as f:
+            with open(scene_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError) as e:
             self.logger.error(f"Failed to load scene timestamps: {e}")

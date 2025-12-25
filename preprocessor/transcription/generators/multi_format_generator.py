@@ -5,15 +5,12 @@ from typing import (
     Dict,
 )
 
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.transcription.generators.full_json_generator import FullJsonGenerator
 from preprocessor.transcription.generators.segmented_json_generator import SegmentedJsonGenerator
 from preprocessor.transcription.generators.simple_json_generator import SimpleJsonGenerator
 from preprocessor.transcription.generators.srt_generator import SrtGenerator
 from preprocessor.transcription.generators.txt_generator import TxtGenerator
-from preprocessor.utils.episode_utils import (
-    extract_episode_number,
-    find_episode_info_by_absolute,
-)
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -27,11 +24,11 @@ class MultiFormatGenerator:
         series_name: str = "",
     ):
         self.jsons_dir = jsons_dir
-        with open(episodes_info_json, "r", encoding="utf-8") as f:
-            self.episodes_info = json.load(f)
         self.output_base_path = output_base_path
         self.logger = logger
         self.series_name = series_name.lower() if series_name else "unknown"
+
+        self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
         self.format_dirs = {
             "json": self.output_base_path / "json",
@@ -53,41 +50,30 @@ class MultiFormatGenerator:
             with open(transcription_file, "r", encoding="utf-8") as f:
                 transcription = json.load(f)
 
-            absolute_episode = extract_episode_number(transcription_file)
-            if absolute_episode is None:
-                self.logger.error(f"Cannot extract episode number from {transcription_file.name}")
-                return
-
-            episode_info = find_episode_info_by_absolute(self.episodes_info, absolute_episode)
+            episode_info = self.episode_manager.parse_filename(transcription_file)
             if not episode_info:
-                self.logger.error(f"No episode info found for episode {absolute_episode}")
+                self.logger.error(f"Cannot extract episode info from {transcription_file.name}")
                 return
 
-            season_number = episode_info["season"]
-            relative_episode = episode_info["episode_number"]
-
-            if season_number == 0:
-                season_dir = "Specjalne"
-            else:
-                season_dir = f"Sezon {season_number}"
-
-            output_filename = f"{self.series_name}_S{season_number:02d}E{relative_episode:02d}.json"
+            season_dir = episode_info.season_dir_name()
+            output_filename = f"{self.series_name}_{episode_info.episode_code()}.json"
             main_output_file = self.format_dirs["json"] / season_dir / output_filename
 
             if main_output_file.exists():
                 self.logger.info(f"Skipping (already exists): {output_filename}")
                 return
 
+            episode_metadata = EpisodeManager.get_metadata(episode_info)
             transcription_with_info = {
-                "episode_info": episode_info,
+                "episode_info": episode_metadata,
                 **transcription,
             }
 
-            self.__generate_full_json(transcription_with_info, season_dir, season_number, relative_episode)
-            self.__generate_segmented_json(transcription, season_dir, season_number, relative_episode)
-            self.__generate_simple_json(transcription, season_dir, season_number, relative_episode)
-            self.__generate_srt(transcription, season_dir, season_number, relative_episode)
-            self.__generate_txt(transcription, season_dir, season_number, relative_episode)
+            self.__generate_full_json(transcription_with_info, season_dir, episode_info.season, episode_info.relative_episode)
+            self.__generate_segmented_json(transcription, season_dir, episode_info.season, episode_info.relative_episode)
+            self.__generate_simple_json(transcription, season_dir, episode_info.season, episode_info.relative_episode)
+            self.__generate_srt(transcription, season_dir, episode_info.season, episode_info.relative_episode)
+            self.__generate_txt(transcription, season_dir, episode_info.season, episode_info.relative_episode)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Error processing file {transcription_file}: {e}")

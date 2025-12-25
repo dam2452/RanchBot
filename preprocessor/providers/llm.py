@@ -142,7 +142,7 @@ class LLMProvider:
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self._generate(messages)
+            content = self.__generate(messages)
             data = self.__extract_json(content)
             return response_model(**data)
 
@@ -182,7 +182,7 @@ class LLMProvider:
             console.print(f"[red]Failed to load model: {e}[/red]")
             raise e
 
-    def _generate(self, messages: List[Dict], max_tokens: int = 32768) -> str:
+    def __generate(self, messages: List[Dict], max_tokens: int = 32768) -> str:
         text = self.__tokenizer.apply_chat_template(
             messages,
             tokenize=False,
