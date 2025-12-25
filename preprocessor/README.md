@@ -2,7 +2,41 @@
 
 Aplikacja Docker do przetwarzania wideo z akceleracją GPU (NVIDIA): transkodowanie, transkrypcja (Whisper/ElevenLabs), detekcja scen, generowanie embeddingów i indeksowanie w Elasticsearch.
 
-## Szybki start
+---
+
+## ⚠️ Wymagania sprzętowe
+
+> **Ta aplikacja jest zoptymalizowana pod NVIDIA RTX 3090 (24GB VRAM) i 64GB RAM.**
+>
+> Minimalne wymagania to 12GB VRAM i 32GB RAM, ale pełna wydajność i możliwość równoległego przetwarzania wielu odcinków wymaga konfiguracji referencyjnej.
+
+| Komponent | Minimum | Referencyjne (zalecane) |
+|-----------|---------|-------------------------|
+| **GPU** | RTX 3060 12GB | **RTX 3090 24GB** |
+| **VRAM** | 12GB | **24GB** |
+| **RAM** | 32GB | **64GB** |
+| **Dysk** | 75GB wolnego | 150GB+ SSD NVMe |
+
+**Aplikacja działa TYLKO na GPU NVIDIA. Brak fallbacku na CPU.**
+
+### Zużycie VRAM (szczytowe)
+
+| Operacja | VRAM |
+|----------|------|
+| Transcode (NVENC) | ~2GB |
+| Whisper large-v3-turbo | ~3GB |
+| TransNetV2 | ~2GB |
+| Embeddings (batch_size=32) | ~10GB |
+| LLM scraping (Qwen 8-bit) | ~8GB |
+| **Łącznie (peak)** | **~12GB** |
+
+Z 24GB VRAM możesz uruchomić większe batch size dla embeddingów, co znacząco przyspiesza przetwarzanie.
+
+---
+
+## Quick Start
+
+### Pełny pipeline (od zera)
 
 ```bash
 cd preprocessor
@@ -18,9 +52,48 @@ docker-compose build
 docker logs ranchbot-preprocessing-app -f
 ```
 
-**Wymagania:** NVIDIA GPU RTX 3090 (24GB VRAM), 64GB RAM, Docker + NVIDIA Container Toolkit
+### Z gotową transkrypcją i transkodowaniem
 
-**UWAGA:** Aplikacja działa TYLKO na Docker + GPU NVIDIA. Nie ma fallbacku na CPU.
+```bash
+../run-preprocessor.sh detect-scenes /input_data/videos
+../run-preprocessor.sh generate-embeddings \
+  --transcription-jsons /app/output_data/transcriptions \
+  --videos /input_data/videos \
+  --scene-timestamps-dir /app/output_data/scene_timestamps
+../run-preprocessor.sh index --name ranczo \
+  --transcription-jsons /app/output_data/transcriptions
+```
+
+---
+
+## Architektura pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              run-all Pipeline                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   [scrape]  →  transcode  →  transcribe  →  scenes  →  embeddings  →  index │
+│   (opcja)       NVENC        Whisper      TransNet    Qwen2-VL      Elastic │
+│                                                                              │
+│   Każda faza przetwarza WIELE odcinków równolegle                           │
+│   Fazy wykonują się SEKWENCYJNIE                                            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Czas przetwarzania (RTX 3090)
+
+| Faza | Czas (45 min odcinek) |
+|------|----------------------|
+| Transcode (NVENC) | ~2 min |
+| Transcribe (Whisper) | ~5 min |
+| Scene detection | ~3 min |
+| Embeddings | ~5-7 min |
+| Index | ~2 min |
+| **Łącznie** | **~15-20 min** |
+
+---
 
 ## Struktura projektu
 
@@ -28,80 +101,51 @@ docker logs ranchbot-preprocessing-app -f
 preprocessor/
 ├── cli/                     # Interfejs CLI (modularny)
 │   ├── commands/           # Komendy CLI (11 modułów)
-│   │   ├── transcode.py
-│   │   ├── transcribe.py
-│   │   ├── detect_scenes.py
-│   │   ├── generate_embeddings.py
-│   │   ├── index.py
-│   │   ├── import_transcriptions.py
-│   │   ├── transcribe_elevenlabs.py
-│   │   ├── scrape_episodes.py
-│   │   ├── convert_elastic.py
-│   │   └── run_all.py
 │   ├── options/            # Wspólne opcje CLI
 │   ├── pipeline/           # Orchestrator pipeline
-│   │   ├── orchestrator.py
-│   │   └── steps.py
-│   └── utils.py            # Funkcje pomocnicze (StateManager init)
+│   └── utils.py
 ├── config/                  # Konfiguracja aplikacji
-├── core/                    # Podstawowe komponenty (BaseProcessor, StateManager)
+├── core/                    # BaseProcessor, StateManager
 ├── video/                   # Przetwarzanie wideo
-│   ├── transcoder.py       # Transkodowanie (FFmpeg + NVENC)
-│   └── scene_detector.py   # Detekcja scen (TransNetV2)
+│   ├── transcoder.py       # FFmpeg + NVENC
+│   └── scene_detector.py   # TransNetV2
 ├── transcription/           # Transkrypcja audio
-│   ├── engines/            # Silniki transkrypcji (Whisper, ElevenLabs)
-│   ├── generators/         # Generatory formatów wyjściowych (JSON, SRT, TXT)
-│   ├── processors/         # Procesory audio (normalizacja)
-│   ├── generator.py        # Generator transkrypcji (Whisper)
-│   ├── elevenlabs.py       # Transkrypcja przez ElevenLabs API
-│   └── importer.py         # Import istniejących transkrypcji
+│   ├── engines/            # Whisper, ElevenLabs
+│   ├── generators/         # JSON, SRT, TXT
+│   └── processors/         # Normalizacja audio
 ├── scraping/                # Scrapowanie metadanych
-│   ├── episode_scraper.py  # Scraper odcinków (crawl4ai + Ollama)
-│   ├── crawl4ai.py         # Crawler stron WWW
-│   └── clipboard.py        # Scraper ze schowka
+│   ├── episode_scraper.py  # crawl4ai + Ollama
+│   └── crawl4ai.py
 ├── embeddings/              # Generowanie embeddingów
-│   ├── generator.py        # Generator embeddingów (Qwen2-VL)
-│   ├── strategies/         # Strategie frame selection
-│   └── frame_processor.py  # Procesor ramek wideo
-├── indexing/                # Indeksowanie
-│   └── elasticsearch.py    # Indeksowanie w Elasticsearch
-├── search/                  # Moduły wyszukiwania
-│   └── elastic_manager.py  # Manager Elasticsearch
-├── providers/               # Providery zewnętrznych serwisów
-│   └── llm.py              # Provider LLM (Ollama)
-├── utils/                   # Narzędzia pomocnicze
-│   └── resolution.py       # Enum rozdzielczości wideo
-├── scripts/                 # Skrypty pomocnicze (download_models)
-├── prompts/                 # Prompty LLM
-├── legacy/                  # Konwersje legacy
-├── input_data/              # Dane wejściowe (tylko odczyt)
-│   └── videos/              # Pliki wideo (*.mp4)
-├── output_data/             # Dane wygenerowane
-│   ├── transcoded_videos/   # Wideo H.264 z keyframe'ami
-│   ├── transcriptions/      # Transkrypcje audio (JSON, SRT, TXT)
-│   ├── embeddings/          # Embeddingi tekst+wideo (NPZ)
-│   ├── scene_timestamps/    # Timestampy scen (JSON)
-│   └── scraped_pages/       # Zescrapowane strony (markdown)
-├── docker-compose.yml
-├── Dockerfile
-├── __main__.py              # Entry point (4 linie)
-└── README.md
+│   ├── generator.py        # Qwen2-VL
+│   └── strategies/         # Frame selection
+├── indexing/                # Elasticsearch
+├── search/                  # elastic_manager
+├── providers/               # LLM (Ollama)
+├── input_data/              # [volume] Dane wejściowe (read-only)
+├── output_data/             # [volume] Dane wygenerowane
+└── docker-compose.yml
 ```
 
-**Wolumeny Docker:**
-* `input_data/` → `/input_data` (read-only)
-* `output_data/` → `/app/output_data` (read-write)
-* `ml_models` → `/models` (~50GB, persistent)
+### Wolumeny Docker
 
-## Dostępne komendy
+| Host | Container | Tryb |
+|------|-----------|------|
+| `input_data/` | `/input_data` | read-only |
+| `output_data/` | `/app/output_data` | read-write |
+| `ml_models` (named) | `/models` | persistent (~25GB) |
 
-Wszystkie komendy wywołuj przez: `../run-preprocessor.sh <komenda> [args]`
+---
 
-Pomoc: `../run-preprocessor.sh --help` lub `../run-preprocessor.sh <komenda> --help`
+## Komendy CLI
+
+Wszystkie komendy: `../run-preprocessor.sh <komenda> [args]`
+
+Pomoc: `../run-preprocessor.sh --help`
 
 ### run-all
 
-Pełny pipeline: [scrape] → transcode → transcribe → scenes → embeddings → index
+Pełny pipeline ze wszystkimi krokami.
 
 ```bash
 # Z automatycznym scrapingiem metadanych
@@ -115,39 +159,22 @@ Pełny pipeline: [scrape] → transcode → transcribe → scenes → embeddings
   --name ranczo
 ```
 
-**Czas przetwarzania:** ~20min na 45-minutowy odcinek (RTX 3090)
-
-**Równoległość:** Pipeline przetwarza wiele odcinków równolegle w ramach każdej fazy. Fazy wykonują się sekwencyjnie:
-1. Transcode (wiele odcinków równolegle) → czeka aż wszystkie skończą
-2. Transcribe (wiele odcinków równolegle) → czeka aż wszystkie skończą
-3. Scenes (wiele odcinków równolegle) → czeka aż wszystkie skończą
-4. Embeddings → Index
-
 ### scrape-episodes
 
-Scraping metadanych odcinków z wielu stron WWW naraz (batch processing)
+Batch scraping metadanych odcinków.
 
-**Flow:** Wszystkie URLe → crawl4ai (markdown) → Ollama qwen3-coder:30b (50k context) → JSON
+**Flow:** URLe → crawl4ai (markdown) → Qwen2.5-Coder-7B (128K context) → JSON
 
 ```bash
-# Jeden URL (może zawierać wiele sezonów)
-../run-preprocessor.sh scrape-episodes \
-  --urls https://filmweb.pl/serial/Ranczo-2006 \
-  --output-file /input_data/episodes.json
-
-# Wiele URLi naraz (każdy może mieć jeden lub więcej sezonów)
 ../run-preprocessor.sh scrape-episodes \
   --urls https://ranczo.fandom.com/wiki/Seria_I \
   --urls https://ranczo.fandom.com/wiki/Seria_II \
-  --urls https://filmweb.pl/serial/Ranczo-2006 \
   --output-file /input_data/episodes.json
 ```
 
-**Batch processing:** Wszystkie strony są pobierane (crawl4ai), potem cały markdown trafia jednym requestem do Ollama (qwen3-coder:30b, 50k context), który zwraca kompletny JSON ze wszystkimi sezonami.
-
 ### transcode
 
-Transkodowanie wideo (Jellyfin FFmpeg 7 + NVENC GPU, h264_nvenc)
+Transkodowanie wideo (Jellyfin FFmpeg 7 + NVENC).
 
 ```bash
 ../run-preprocessor.sh transcode /input_data/videos \
@@ -157,7 +184,7 @@ Transkodowanie wideo (Jellyfin FFmpeg 7 + NVENC GPU, h264_nvenc)
 
 ### transcribe
 
-Transkrypcja audio (Whisper large-v3-turbo, GPU)
+Transkrypcja audio (Whisper large-v3-turbo).
 
 ```bash
 ../run-preprocessor.sh transcribe /input_data/videos \
@@ -168,7 +195,7 @@ Transkrypcja audio (Whisper large-v3-turbo, GPU)
 
 ### transcribe-elevenlabs
 
-Transkrypcja przez ElevenLabs API (płatne, speaker diarization)
+Transkrypcja przez ElevenLabs API (płatne, speaker diarization).
 
 ```bash
 export ELEVEN_API_KEY=your_key
@@ -179,19 +206,18 @@ export ELEVEN_API_KEY=your_key
 
 ### import-transcriptions
 
-Import istniejących transkrypcji (format 11labs)
+Import istniejących transkrypcji.
 
 ```bash
 ../run-preprocessor.sh import-transcriptions \
   --source-dir /input_data/11labs_output \
   --name ranczo \
-  --episodes-info-json /input_data/episodes.json \
   --format-type 11labs_segmented
 ```
 
 ### detect-scenes
 
-Detekcja scen (TransNetV2, GPU)
+Detekcja scen (TransNetV2).
 
 ```bash
 ../run-preprocessor.sh detect-scenes /input_data/videos \
@@ -200,17 +226,17 @@ Detekcja scen (TransNetV2, GPU)
 
 ### generate-embeddings
 
-Generowanie embeddingów tekst+wideo (Qwen2-VL-7B, GPU batch inference)
+Generowanie embeddingów tekst+wideo (gme-Qwen2-VL-2B).
 
 ```bash
-# Scene-based (domyślnie): 3 klatki na scenę
+# Scene-based (domyślnie)
 ../run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
   --videos /input_data/videos \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --batch-size 24
+  --batch-size 32
 
-# Keyframe-based: co 5s
+# Keyframe-based
 ../run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
   --videos /input_data/videos \
@@ -220,14 +246,15 @@ Generowanie embeddingów tekst+wideo (Qwen2-VL-7B, GPU batch inference)
 
 ### index
 
-Indeksowanie w Elasticsearch
+Indeksowanie w Elasticsearch.
 
 ```bash
+# Nowy indeks
 ../run-preprocessor.sh index \
   --name ranczo \
   --transcription-jsons /app/output_data/transcriptions
 
-# Z append (bez usuwania istniejącego indeksu)
+# Append do istniejącego
 ../run-preprocessor.sh index \
   --name ranczo \
   --transcription-jsons /app/output_data/transcriptions \
@@ -236,7 +263,7 @@ Indeksowanie w Elasticsearch
 
 ### convert-elastic
 
-Konwersja legacy Elasticsearch index (one-time migration)
+Migracja legacy indeksu (jednorazowa).
 
 ```bash
 ../run-preprocessor.sh convert-elastic \
@@ -244,91 +271,104 @@ Konwersja legacy Elasticsearch index (one-time migration)
   --dry-run
 ```
 
+---
+
+## Scenariusze użycia
+
+### 1. Pełny pipeline od zera
+
+```bash
+cd preprocessor
+mkdir -p input_data/videos output_data
+cp /ścieżka/do/*.mp4 input_data/videos/
+
+docker-compose build
+
+../run-preprocessor.sh run-all /input_data/videos \
+  --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
+  --name ranczo
+```
+
+### 2. Z gotową transkrypcją i transkodowaniem
+
+```bash
+../run-preprocessor.sh detect-scenes /input_data/videos
+
+../run-preprocessor.sh generate-embeddings \
+  --transcription-jsons /app/output_data/transcriptions \
+  --videos /input_data/videos \
+  --scene-timestamps-dir /app/output_data/scene_timestamps
+
+../run-preprocessor.sh index --name ranczo \
+  --transcription-jsons /app/output_data/transcriptions
+```
+
+### 3. Z gotowym episodes.json
+
+```bash
+../run-preprocessor.sh run-all /input_data/videos \
+  --episodes-info-json /input_data/episodes.json \
+  --name ranczo
+```
+
+### 4. Tylko transkrypcja (bez embeddings)
+
+```bash
+../run-preprocessor.sh transcode /input_data/videos \
+  --episodes-info-json /input_data/episodes.json
+
+../run-preprocessor.sh transcribe /input_data/videos \
+  --episodes-info-json /input_data/episodes.json \
+  --name ranczo
+```
+
+---
+
 ## Technologie
 
-* **Jellyfin FFmpeg 7** - Transkodowanie z NVENC GPU support
-* **Whisper large-v3-turbo** - Transkrypcja audio (CTranslate2 GPU, ~3GB)
-* **TransNetV2** - Detekcja scen (PyTorch GPU, ~1GB)
-* **Qwen2-VL-7B** (gme-Qwen2-VL-7B-Instruct) - Multimodal embeddings (~15GB)
-* **Ollama qwen3-coder:30b-a3b-q4_K_M** - LLM do scrapingu (50k context, ~20GB)
-* **Decord** - GPU video decoding (5-10x szybsze niż OpenCV)
-* **Elasticsearch** - Full-text search indexing
-* **crawl4ai** - Web scraping (markdown extraction)
+| Komponent | Technologia | Opis |
+|-----------|-------------|------|
+| Transkodowanie | Jellyfin FFmpeg 7 + NVENC | GPU encoding h264_nvenc |
+| Transkrypcja | Whisper large-v3-turbo | CTranslate2 GPU (~3GB) |
+| Detekcja scen | TransNetV2 | PyTorch GPU (~1GB) |
+| Embeddingi | gme-Qwen2-VL-2B-Instruct | float16 (~5GB) |
+| LLM scraping | Qwen2.5-Coder-7B-Instruct | 8-bit, 128K context (~8GB) |
+| Video decoding | Decord | GPU (5-10x szybsze niż OpenCV) |
+| Search | Elasticsearch | Full-text indexing |
+| Web scraping | crawl4ai | Markdown extraction |
 
-**Modele cache:** ~50GB w wolumenie `ranchbot-ai-models` (persistent)
+**Cache modeli:** ~25GB w wolumenie `ranchbot-ai-models` (persistent)
 
-## Monitoring
-
-```bash
-# Logi w czasie rzeczywistym
-docker logs ranchbot-preprocessing-app -f
-
-# Wejście do kontenera
-docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor bash
-
-# Sprawdzenie GPU
-nvidia-smi
-
-# Sprawdzenie NVENC
-ffmpeg -encoders | grep nvenc
-```
-
-## Wymagania systemowe
-
-### Hardware (WYMAGANE, bez fallbacku na CPU)
-* **GPU:** NVIDIA RTX 3090 (24GB VRAM) - domyślna konfiguracja
-* **RAM:** 64GB (zalecane dla pełnego pipeline)
-* **Dysk:** ~100GB wolnego miejsca (50GB modele + 50GB output)
-
-### Software
-* Docker 20.10+
-* Docker Compose 1.29+
-* NVIDIA Container Toolkit (WYMAGANE)
-* NVIDIA Driver 525+ (CUDA 12.1 support)
-* Linux (Ubuntu 22.04) lub WSL2
-
-**UWAGA:** Cała aplikacja wymaga GPU NVIDIA. Nie ma trybu CPU - wszystkie operacje (transcode NVENC, Whisper, TransNetV2, embeddings) używają GPU.
-
-### Instalacja NVIDIA Container Toolkit
-
-```bash
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-  sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
-sudo systemctl restart docker
-
-# Weryfikacja
-docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
-```
+---
 
 ## Format plików wideo
 
-Pipeline ekstraktuje kod odcinka z nazwy pliku, ignorując strukturę folderów i resztę nazwy:
+Pipeline ekstraktuje kod odcinka z nazwy pliku:
 
-**Wspierane formaty:**
-* `S01E01` - Sezon 1, Odcinek 1 (zalecane)
-* `s01e12` - Case-insensitive
-* `E012` - Absolutny numer odcinka (wymaga episodes.json)
+| Format | Przykład | Uwagi |
+|--------|----------|-------|
+| `S01E01` | Ranczo S01E12.mp4 | Zalecane |
+| `s01e12` | s01e12.mp4 | Case-insensitive |
+| `E012` | E012.mp4 | Wymaga episodes.json |
 
-**Przykład:**
-* Input: `Sezon 1/Ranczo S01E12.F012.Netflix.mp4`
-* Output: `ranczo_S01E12.mp4`
+**Przykład transformacji:**
+- Input: `Sezon 1/Ranczo S01E12.F012.Netflix.mp4`
+- Output: `ranczo_S01E12.mp4`
 
 Pliki bez rozpoznawalnego kodu będą pominięte.
 
+---
+
 ## episodes.json
 
-**Automatycznie generowany OUTPUT** z wielu stron WWW naraz przez Ollama.
+Automatycznie generowany przez LLM z wielu URLi naraz.
 
-**Proces generowania:**
-1. Podajesz 1-10 URLi (każdy może mieć jeden lub więcej sezonów)
+**Proces:**
+1. Podajesz 1-10 URLi
 2. crawl4ai pobiera wszystkie strony → markdown
-3. Wszystkie markdown naraz trafiają do Ollama (qwen3-coder:30b-a3b-q4_K_M, 50k context)
-4. Ollama zwraca kompletny JSON ze wszystkimi sezonami
+3. Qwen2.5-Coder-7B (128K context) → JSON
 
-**Format OUTPUT:**
+**Format:**
 
 ```json
 {
@@ -352,68 +392,98 @@ Pliki bez rozpoznawalnego kodu będą pominięte.
 }
 ```
 
-**Przykład użycia:**
+---
+
+## Instalacja
+
+### Wymagania software
+
+- Docker 20.10+
+- Docker Compose 1.29+
+- NVIDIA Container Toolkit (WYMAGANE)
+- NVIDIA Driver 525+ (CUDA 12.1)
+- Linux (Ubuntu 22.04) lub WSL2
+
+### Instalacja NVIDIA Container Toolkit
 
 ```bash
-# 10 URLi naraz → crawl4ai → markdown → Ollama (1 request) → JSON
-../run-preprocessor.sh scrape-episodes \
-  --urls https://ranczo.fandom.com/wiki/Seria_I \
-  --urls https://ranczo.fandom.com/wiki/Seria_II \
-  --urls https://ranczo.fandom.com/wiki/Seria_III \
-  --output-file /input_data/episodes.json
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+  sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+
+# Weryfikacja
+docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
 ```
 
-Lub użyj `run-all` z `--scrape-urls` - episodes.json zostanie utworzony automatycznie w pierwszym kroku pipeline (używa Ollama).
+---
+
+## Monitoring
+
+```bash
+# Logi w czasie rzeczywistym
+docker logs ranchbot-preprocessing-app -f
+
+# Wejście do kontenera
+docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor bash
+
+# Sprawdzenie GPU
+nvidia-smi
+
+# Sprawdzenie NVENC
+ffmpeg -encoders | grep nvenc
+```
+
+---
 
 ## Troubleshooting
 
 ### Sprawdzenie GPU i NVENC
 
 ```bash
-# Sprawdź NVIDIA runtime
 docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
-
-# Sprawdź FFmpeg NVENC (powinno być widoczne)
 docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor ffmpeg -encoders | grep nvenc
 ```
 
 ### Brak miejsca na dysku
 
 ```bash
-# Czyszczenie Docker
 docker system prune -a
 docker volume prune
 
-# Usunięcie cache modeli (uwaga: re-download przy następnym uruchomieniu)
+# Uwaga: re-download przy następnym uruchomieniu
 docker volume rm ranchbot-ai-models
 ```
 
 ### Out of memory (CUDA OOM)
 
 ```bash
-# Zmniejsz batch_size dla embeddings (domyślnie 24 dla RTX 3090)
+# Dla GPU z mniejszym VRAM (12GB):
 ../run-preprocessor.sh generate-embeddings --batch-size 16
+
+# Dla 8-10GB:
+../run-preprocessor.sh generate-embeddings --batch-size 8
 ```
 
 ### Kontener się crashuje
 
 ```bash
-# Sprawdź logi
 docker logs ranchbot-preprocessing-app --tail 200
-
-# Uruchom interaktywny bash
 docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor bash
 ```
 
-## Wydajność (RTX 3090, 64GB RAM)
+---
 
-**Pipeline `run-all`:** ~20 minut na 45-minutowy odcinek
+## Wydajność (RTX 3090 / 64GB RAM)
 
-**Rozkład czasu (pojedynczy odcinek):**
-* Transcode (NVENC GPU): ~2 min
-* Transcribe (Whisper GPU): ~5 min
-* Scene detection (TransNetV2 GPU): ~3 min
-* Embeddings (Qwen2-VL GPU batch): ~8 min
-* Index (Elasticsearch): ~2 min
+| Metryka | Wartość |
+|---------|---------|
+| Czas na odcinek (45 min) | ~15-20 min |
+| Równoległość | Wiele odcinków na fazę |
+| Batch size embeddings | 32 (możliwe 64) |
+| Peak VRAM | ~12GB |
+| Peak RAM | ~32GB |
 
-**Równoległość:** Przy przetwarzaniu wielu odcinków, każda faza przetwarza wiele odcinków równolegle (ograniczone GPU VRAM). Fazy wykonują się sekwencyjnie - jedna faza musi zakończyć wszystkie odcinki przed rozpoczęciem następnej.
+Z konfiguracją referencyjną (RTX 3090 24GB + 64GB RAM) możesz przetwarzać wiele odcinków równolegle bez ryzyka OOM.
