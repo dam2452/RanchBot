@@ -3,14 +3,15 @@ import sys
 
 import click
 
-# pylint: disable=duplicate-code
-
 from preprocessor.cli_utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     TranscriptionConfig,
     settings,
 )
 from preprocessor.transcription.generator import TranscriptionGenerator
+
+# pylint: disable=duplicate-code
+
 
 
 @click.command()
