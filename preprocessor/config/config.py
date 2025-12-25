@@ -38,6 +38,11 @@ class EmbeddingSettings:
     batch_size: int = 16
     resize_height: int = 720
     prefetch_chunks: int = 0
+    video_chunk_size: int = 256
+    resize_batch_size: int = 32
+    color_diff_threshold: float = 0.3
+    scene_fps_default: float = 30.0
+    keyframe_interval_multiplier: int = 5
 
 
 @dataclass
@@ -76,12 +81,32 @@ class ElevenLabsSettings:
 
 
 @dataclass
+class TranscodeDefaults:
+    output_dir: Path = Path("/app/output_data/transcoded_videos")
+    codec: str = "h264_nvenc"
+    preset: str = "slow"
+    crf: int = 31
+    gop_size: float = 0.5
+    max_workers: int = 1
+
+
+@dataclass
+class TranscriptionDefaults:
+    output_dir: Path = Path("/app/output_data/transcriptions")
+    model: str = "large-v3-turbo"
+    language: str = "Polish"
+    device: str = "cuda"
+
+
+@dataclass
 class Settings:
     whisper: WhisperSettings
     embedding: EmbeddingSettings
     scene_detection: SceneDetectionSettings
     scraper: ScraperSettings
     elevenlabs: ElevenLabsSettings
+    transcode: TranscodeDefaults
+    transcription: TranscriptionDefaults
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -91,6 +116,8 @@ class Settings:
             scene_detection=SceneDetectionSettings(),
             scraper=ScraperSettings(),
             elevenlabs=ElevenLabsSettings.from_env(),
+            transcode=TranscodeDefaults(),
+            transcription=TranscriptionDefaults(),
         )
 
 

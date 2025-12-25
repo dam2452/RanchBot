@@ -16,43 +16,42 @@ import torch
 from transnetv2_pytorch import TransNetV2
 
 from preprocessor.config.config import settings
+from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
-class SceneDetector:
+class SceneDetector(BaseProcessor):
     def __init__(self, args: Dict[str, Any]):
-        self.videos: Path = args["videos"]
-        self.output_dir: Path = args.get("output_dir", settings.scene_detection.output_dir)
-        self.threshold: float = args.get("threshold", settings.scene_detection.threshold)
-        self.min_scene_len: int = args.get("min_scene_len", settings.scene_detection.min_scene_len)
-
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
+        super().__init__(
+            args=args,
             class_name=self.__class__.__name__,
-            loglevel=logging.DEBUG,
             error_exit_code=8,
+            loglevel=logging.DEBUG,
         )
 
-        series_name = args.get("series_name", "unknown")
-        episodes_info_json = args.get("episodes_info_json")
-        self.episode_manager = EpisodeManager(episodes_info_json, series_name)
+        self.videos: Path = self._args["videos"]
+        self.output_dir: Path = self._args.get("output_dir", settings.scene_detection.output_dir)
+        self.threshold: float = self._args.get("threshold", settings.scene_detection.threshold)
+        self.min_scene_len: int = self._args.get("min_scene_len", settings.scene_detection.min_scene_len)
+
+        episodes_info_json = self._args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
         self.model = None
 
-    def work(self) -> int:
-        try:
-            self.__exec()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            self.logger.error(f"Scene detection failed: {e}")
-        return self.logger.finalize()
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if "videos" not in args:
+            raise ValueError("videos path is required")
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is not available. TransNetV2 requires GPU.")
 
-    def __exec(self) -> None:
+    def _execute(self) -> None:
         console.print("[cyan]Scene detection using TransNetV2 on CUDA[/cyan]")
 
-        self.__load_model()
+        self._load_model()
 
-        video_files = self.__get_video_files()
+        video_files = self._get_video_files()
         if not video_files:
             console.print("[yellow]No video files found[/yellow]")
             return
@@ -64,7 +63,7 @@ class SceneDetector:
 
             for video_file in video_files:
                 try:
-                    self.__process_video(video_file, progress)
+                    self._process_video(video_file, progress)
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Failed to process {video_file}: {e}")
                 finally:
@@ -72,7 +71,7 @@ class SceneDetector:
 
         console.print("[green]Scene detection completed[/green]")
 
-    def __load_model(self) -> None:
+    def _load_model(self) -> None:
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. TransNetV2 requires GPU.")
 
@@ -80,7 +79,7 @@ class SceneDetector:
         self.model = TransNetV2().cuda()
         console.print("[green]✓ TransNetV2 ready on CUDA[/green]")
 
-    def __get_video_files(self) -> List[Path]:
+    def _get_video_files(self) -> List[Path]:
         video_files = []
 
         if self.videos.is_file():
@@ -91,7 +90,7 @@ class SceneDetector:
 
         return sorted(video_files)
 
-    def __process_video(self, video_file: Path, progress: Progress) -> None:
+    def _process_video(self, video_file: Path, progress: Progress) -> None:
         episode_info = self.episode_manager.parse_filename(video_file)
         if episode_info:
             output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
@@ -106,12 +105,12 @@ class SceneDetector:
 
         progress.console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
 
-        video_info = self.__get_video_info(video_file)
+        video_info = self._get_video_info(video_file)
         if not video_info:
             self.logger.error(f"Failed to get video info for {video_file}")
             return
 
-        scene_list = self.__detect_scenes_transnetv2(video_file, video_info)
+        scene_list = self._detect_scenes_transnetv2(video_file, video_info)
 
         if not scene_list:
             progress.console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
@@ -135,7 +134,7 @@ class SceneDetector:
 
         progress.console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
 
-    def __get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
+    def _get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
         try:
             vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
             fps = vr.get_avg_fps()
@@ -151,10 +150,10 @@ class SceneDetector:
             self.logger.error(f"Error reading video info: {e}")
             return None
 
-    def __detect_scenes_transnetv2(  # pylint: disable=too-many-try-statements
+    def _detect_scenes_transnetv2(
         self, video_file: Path, video_info: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
-        try:
+        try:  # pylint: disable=too-many-try-statements
             _, single_frame_predictions, _ = self.model.predict_video(str(video_file))
 
             scene_changes = np.where(single_frame_predictions > self.threshold)[0]
@@ -167,13 +166,13 @@ class SceneDetector:
                 if frame_num - prev_frame < self.min_scene_len:
                     continue
 
-                scene = self.__create_scene_dict(len(scenes) + 1, prev_frame, frame_num, fps)
+                scene = self._create_scene_dict(len(scenes) + 1, prev_frame, frame_num, fps)
                 scenes.append(scene)
                 prev_frame = frame_num
 
             total_frames = video_info["total_frames"]
             if total_frames - prev_frame > self.min_scene_len:
-                scene = self.__create_scene_dict(len(scenes) + 1, prev_frame, total_frames, fps)
+                scene = self._create_scene_dict(len(scenes) + 1, prev_frame, total_frames, fps)
                 scenes.append(scene)
 
             return scenes
@@ -182,25 +181,25 @@ class SceneDetector:
             self.logger.error(f"TransNetV2 detection failed: {e}")
             return []
 
-    def __create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> Dict[str, Any]:
+    def _create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> Dict[str, Any]:
         return {
             "scene_number": scene_number,
             "start": {
                 "frame": int(start_frame),
                 "seconds": float(start_frame / fps),
-                "timecode": self.__frame_to_timecode(start_frame, fps),
+                "timecode": self._frame_to_timecode(start_frame, fps),
             },
             "end": {
                 "frame": int(end_frame),
                 "seconds": float(end_frame / fps),
-                "timecode": self.__frame_to_timecode(end_frame, fps),
+                "timecode": self._frame_to_timecode(end_frame, fps),
             },
             "duration": float((end_frame - start_frame) / fps),
             "frame_count": int(end_frame - start_frame),
         }
 
     @staticmethod
-    def __frame_to_timecode(frame: int, fps: float) -> str:
+    def _frame_to_timecode(frame: int, fps: float) -> str:
         seconds = frame / fps
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)

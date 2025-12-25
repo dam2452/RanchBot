@@ -24,3 +24,5 @@ click~=8.1
 rich~=13.7
 faster-whisper~=1.2
 bitsandbytes
+pathvalidate
+ua-generator

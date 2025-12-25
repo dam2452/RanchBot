@@ -12,37 +12,40 @@ from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable
 from rich.progress import Progress
 
 from preprocessor.config.config import settings
+from preprocessor.core.base_processor import BaseProcessor
+from preprocessor.core.enums import ScraperMethod
 from preprocessor.providers.llm import LLMProvider
 from preprocessor.scraping.clipboard import ScraperClipboard
 from preprocessor.scraping.crawl4ai import ScraperCrawl4AI
 from preprocessor.utils.console import console
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
-class EpisodeScraper:
+class EpisodeScraper(BaseProcessor):
     def __init__(self, args: Dict[str, Any]):
-        self.urls: List[str] = args["urls"]
-        self.output_file: Path = args["output_file"]
-        self.headless: bool = args.get("headless", True)
-        self.merge_sources: bool = args.get("merge_sources", True)
-        self.scraper_method: str = args.get("scraper_method", "crawl4ai")
-
-        self.logger: ErrorHandlingLogger = ErrorHandlingLogger(
+        super().__init__(
+            args=args,
             class_name=self.__class__.__name__,
-            loglevel=logging.DEBUG,
             error_exit_code=7,
+            loglevel=logging.DEBUG,
         )
+
+        self.urls: List[str] = self._args["urls"]
+        self.output_file: Path = self._args["output_file"]
+        self.headless: bool = self._args.get("headless", True)
+        self.merge_sources: bool = self._args.get("merge_sources", True)
+
+        scraper_method_str = self._args.get("scraper_method", "crawl4ai")
+        self.scraper_method = ScraperMethod(scraper_method_str)
 
         self.llm: Optional[LLMProvider] = None
 
-    def work(self) -> int:
-        try:
-            self.__exec()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            self.logger.error(f"Episode scraping failed: {e}")
-        return self.logger.finalize()
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if "urls" not in args or not args["urls"]:
+            raise ValueError("At least one URL is required")
+        if "output_file" not in args:
+            raise ValueError("output_file is required")
 
-    def __exec(self) -> None:
+    def _execute(self) -> None:
         self.llm = LLMProvider()
 
         console.print(f"[blue]Scraping {len(self.urls)} URLs...[/blue]")
@@ -53,7 +56,7 @@ class EpisodeScraper:
 
             for url in self.urls:
                 try:
-                    page_text = self.__scrape_url(url, progress)
+                    page_text = self._scrape_url(url, progress)
                     if page_text:
                         scraped_pages.append({
                             "url": url,
@@ -95,12 +98,12 @@ class EpisodeScraper:
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"LLM extraction failed: {e}")
 
-    def __scrape_url(self, url: str, progress: Progress) -> Optional[str]:
-        progress.console.print(f"[cyan]Scraping method: {self.scraper_method}[/cyan]")
+    def _scrape_url(self, url: str, progress: Progress) -> Optional[str]:
+        progress.console.print(f"[cyan]Scraping method: {self.scraper_method.value}[/cyan]")
 
-        if self.scraper_method == "clipboard":
+        if self.scraper_method == ScraperMethod.CLIPBOARD:
             return ScraperClipboard.scrape(url, headless=self.headless)
-        if self.scraper_method == "crawl4ai":
+        if self.scraper_method == ScraperMethod.CRAWL4AI:
             return ScraperCrawl4AI.scrape(url, save_markdown=True, output_dir=settings.scraper.output_dir)
         self.logger.error(f"Unknown scraper method: {self.scraper_method}")
         return None

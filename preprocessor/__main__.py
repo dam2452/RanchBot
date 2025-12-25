@@ -9,11 +9,6 @@ from preprocessor.config.config import settings
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
 
-TRANSCRIPTION_DEFAULT_OUTPUT_DIR = Path("/app/output_data/transcriptions")
-TRANSCRIPTION_DEFAULT_MODEL = "large-v3-turbo"
-TRANSCRIPTION_DEFAULT_LANGUAGE = "Polish"
-TRANSCRIPTION_DEFAULT_DEVICE = "cuda"
-
 
 @click.group()
 @click.help_option("-h", "--help")
@@ -26,7 +21,8 @@ def cli():
 @click.option(
     "--transcoded-videos",
     type=click.Path(path_type=Path),
-    help="Output directory for transcoded videos",
+    default=str(settings.transcode.output_dir),
+    help=f"Output directory for transcoded videos (default: {settings.transcode.output_dir})",
 )
 @click.option(
     "--resolution",
@@ -83,17 +79,17 @@ def transcode(
     from preprocessor.video.transcoder import VideoTranscoder
 
     if transcoded_videos is None:
-        transcoded_videos = VideoTranscoder.DEFAULT_OUTPUT_DIR
+        transcoded_videos = settings.transcode.output_dir
     if codec is None:
-        codec = VideoTranscoder.DEFAULT_CODEC
+        codec = settings.transcode.codec
     if preset is None:
-        preset = VideoTranscoder.DEFAULT_PRESET
+        preset = settings.transcode.preset
     if crf is None:
-        crf = VideoTranscoder.DEFAULT_CRF
+        crf = settings.transcode.crf
     if gop_size is None:
-        gop_size = VideoTranscoder.DEFAULT_GOP_SIZE
+        gop_size = settings.transcode.gop_size
     if max_workers is None:
-        max_workers = VideoTranscoder.DEFAULT_MAX_WORKERS
+        max_workers = settings.transcode.max_workers
 
     state_manager = None
     if not no_state and name:
@@ -141,23 +137,23 @@ def transcode(
 @click.option(
     "--transcription-jsons",
     type=click.Path(path_type=Path),
-    default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for transcription JSONs (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
+    default=str(settings.transcription.output_dir),
+    help=f"Output directory for transcription JSONs (default: {settings.transcription.output_dir})",
 )
 @click.option(
     "--model",
-    default=TRANSCRIPTION_DEFAULT_MODEL,
-    help=f"Whisper model: tiny, base, small, medium, large, large-v3-turbo (default: {TRANSCRIPTION_DEFAULT_MODEL})",
+    default=settings.transcription.model,
+    help=f"Whisper model: tiny, base, small, medium, large, large-v3-turbo (default: {settings.transcription.model})",
 )
 @click.option(
     "--language",
-    default=TRANSCRIPTION_DEFAULT_LANGUAGE,
-    help=f"Language for transcription (default: {TRANSCRIPTION_DEFAULT_LANGUAGE})",
+    default=settings.transcription.language,
+    help=f"Language for transcription (default: {settings.transcription.language})",
 )
 @click.option(
     "--device",
-    default=TRANSCRIPTION_DEFAULT_DEVICE,
-    help=f"Device: cuda (GPU) or cpu (default: {TRANSCRIPTION_DEFAULT_DEVICE})",
+    default=settings.transcription.device,
+    help=f"Device: cuda (GPU) or cpu (default: {settings.transcription.device})",
 )
 @click.option(
     "--extra-json-keys",
@@ -247,8 +243,8 @@ def index(name: str, transcription_jsons: Path, dry_run: bool, append: bool):
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for converted transcriptions (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
+    default=str(settings.transcription.output_dir),
+    help=f"Output directory for converted transcriptions (default: {settings.transcription.output_dir})",
 )
 @click.option(
     "--episodes-info-json",
@@ -309,8 +305,8 @@ def import_transcriptions(
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for transcriptions (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
+    default=str(settings.transcription.output_dir),
+    help=f"Output directory for transcriptions (default: {settings.transcription.output_dir})",
 )
 @click.option(
     "--episodes-info-json",
@@ -663,8 +659,8 @@ def _run_transcode_step(videos, episodes_info_json, name, resolution, codec, pre
         resolution=Resolution.from_str(resolution),
         codec=codec,
         preset=preset,
-        crf=VideoTranscoder.DEFAULT_CRF,
-        gop_size=VideoTranscoder.DEFAULT_GOP_SIZE,
+        crf=settings.transcode.crf,
+        gop_size=settings.transcode.gop_size,
         episodes_info_json=episodes_info_json,
     )
     transcode_dict = transcode_config.to_dict()
@@ -800,8 +796,8 @@ def _run_index_step(name, dry_run, state_manager, **kwargs):
 @click.option(
     "--transcription-jsons",
     type=click.Path(path_type=Path),
-    default=TRANSCRIPTION_DEFAULT_OUTPUT_DIR,
-    help=f"Output directory for transcription JSONs (default: {TRANSCRIPTION_DEFAULT_OUTPUT_DIR})",
+    default=str(settings.transcription.output_dir),
+    help=f"Output directory for transcription JSONs (default: {settings.transcription.output_dir})",
 )
 @click.option(
     "--scene-timestamps-dir",
@@ -826,18 +822,18 @@ def _run_index_step(name, dry_run, state_manager, **kwargs):
 )
 @click.option(
     "--model",
-    default=TRANSCRIPTION_DEFAULT_MODEL,
-    help=f"Whisper model (default: {TRANSCRIPTION_DEFAULT_MODEL})",
+    default=settings.transcription.model,
+    help=f"Whisper model (default: {settings.transcription.model})",
 )
 @click.option(
     "--language",
-    default=TRANSCRIPTION_DEFAULT_LANGUAGE,
-    help=f"Language for transcription (default: {TRANSCRIPTION_DEFAULT_LANGUAGE})",
+    default=settings.transcription.language,
+    help=f"Language for transcription (default: {settings.transcription.language})",
 )
 @click.option(
     "--device",
-    default=TRANSCRIPTION_DEFAULT_DEVICE,
-    help=f"Device: cuda or cpu (default: {TRANSCRIPTION_DEFAULT_DEVICE})",
+    default=settings.transcription.device,
+    help=f"Device: cuda or cpu (default: {settings.transcription.device})",
 )
 @click.option("--dry-run", is_flag=True, help="Dry run for Elasticsearch indexing")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
@@ -887,14 +883,12 @@ def run_all(
     skip_embeddings: bool,
     skip_index: bool,
 ):
-    from preprocessor.video.transcoder import VideoTranscoder
-
     if transcoded_videos is None:
-        transcoded_videos = VideoTranscoder.DEFAULT_OUTPUT_DIR
+        transcoded_videos = settings.transcode.output_dir
     if codec is None:
-        codec = VideoTranscoder.DEFAULT_CODEC
+        codec = settings.transcode.codec
     if preset is None:
-        preset = VideoTranscoder.DEFAULT_PRESET
+        preset = settings.transcode.preset
 
     exit_codes: List[int] = []
 
