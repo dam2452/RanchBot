@@ -7,7 +7,6 @@ from preprocessor.cli.options.common import (
     episodes_info_option,
     name_option,
 )
-from preprocessor.config.config import settings
 from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator
 
 
@@ -53,9 +52,7 @@ def generate_elastic_documents(
         "episodes_info_json": episodes_info_json,
     }
 
-    try:
-        generator = ElasticDocumentGenerator(args)
-        generator()
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+    generator = ElasticDocumentGenerator(args)
+    exit_code = generator.work()
+    if exit_code != 0:
+        sys.exit(exit_code)

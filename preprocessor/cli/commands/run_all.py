@@ -147,7 +147,13 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "state_manager": state_manager,
     }
 
-    orchestrator = PipelineOrchestrator(state_manager)
+    metadata_output_dir = Path("/app/output_data/processing_metadata")
+
+    orchestrator = PipelineOrchestrator(
+        state_manager=state_manager,
+        series_name=name,
+        metadata_output_dir=metadata_output_dir,
+    )
     orchestrator.add_step("Scraping episode metadata", "0/6", run_scrape_step, skip=False)
     orchestrator.add_step("Transcoding videos", "1/6", run_transcode_step, skip=skip_transcode)
     orchestrator.add_step("Generating transcriptions", "2/6", run_transcribe_step, skip=skip_transcribe)

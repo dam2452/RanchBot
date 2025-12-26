@@ -8,7 +8,6 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
@@ -44,17 +43,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         items = []
 
         for trans_file in all_transcription_files:
-            base_name = trans_file.stem.replace("_segmented", "")
-
-            items.append(
-                ProcessingItem(
-                    episode_id=base_name,
-                    input_path=trans_file,
-                    metadata={
-                        "base_name": base_name,
-                    },
-                ),
-            )
+            items.append(self._create_transcription_processing_item(trans_file))
 
         return items
 
@@ -169,21 +158,10 @@ class ElasticDocumentGenerator(BaseProcessor):
         }
 
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
-        if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
-            return None
+        return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, self.scene_timestamps_dir)
-        if not scene_file:
-            return None
-
-        try:
-            with open(scene_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            self.logger.error(f"Failed to load scene timestamps: {e}")
-            return None
-
-    def __find_scene_for_timestamp(self, timestamp: float, scene_timestamps: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    @staticmethod
+    def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if not scene_timestamps or "scenes" not in scene_timestamps:
             return None
 
@@ -326,6 +304,8 @@ class ElasticDocumentGenerator(BaseProcessor):
 
                 scene_info = self.__find_scene_for_timestamp(timestamp, scene_timestamps)
 
+                perceptual_hash = emb.get("perceptual_hash")
+
                 doc = {
                     "episode_id": episode_id,
                     "episode_metadata": episode_metadata,
@@ -335,6 +315,13 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "video_path": video_path,
                     "video_embedding": embedding,
                 }
+
+                if perceptual_hash:
+                    doc["perceptual_hash"] = perceptual_hash
+                    try:
+                        doc["perceptual_hash_int"] = int(perceptual_hash, 16)
+                    except (ValueError, TypeError):
+                        pass
 
                 if "scene_number" in emb:
                     doc["scene_number"] = emb["scene_number"]

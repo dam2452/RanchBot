@@ -259,3 +259,14 @@ class BaseProcessor(ABC):
             )
 
         return items
+
+    @staticmethod
+    def _create_transcription_processing_item(transcription_file: Path) -> ProcessingItem:
+        base_name = transcription_file.stem.replace("_segmented", "").replace("_simple", "")
+        return ProcessingItem(
+            episode_id=base_name,
+            input_path=transcription_file,
+            metadata={
+                "base_name": base_name,
+            },
+        )

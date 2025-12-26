@@ -175,6 +175,21 @@ class EpisodeManager:
         return None
 
     @staticmethod
+    def load_scene_timestamps(episode_info: EpisodeInfo, search_dir: Optional[Path], logger=None) -> Optional[List[Dict[str, Any]]]:
+        if not search_dir:
+            return None
+        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, search_dir)
+        if not scene_file:
+            return None
+        try:
+            with open(scene_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            if logger:
+                logger.error(f"Failed to load scene timestamps: {e}")
+            return None
+
+    @staticmethod
     def get_metadata(episode_info: EpisodeInfo) -> Dict[str, Any]:
         return {
             "season": episode_info.season,

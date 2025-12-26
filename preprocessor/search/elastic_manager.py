@@ -10,6 +10,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class ElasticSearchManager:  # pylint: disable=duplicate-code
+    # noinspection PyTypeHints
     INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -104,6 +105,7 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         },
     }
 
+    # noinspection PyTypeHints
     SEGMENTS_INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -143,6 +145,7 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         },
     }
 
+    # noinspection PyTypeHints
     TEXT_EMBEDDINGS_INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -170,6 +173,7 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         },
     }
 
+    # noinspection PyTypeHints
     VIDEO_EMBEDDINGS_INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -193,6 +197,8 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
                     "index": True,
                     "similarity": "cosine",
                 },
+                "perceptual_hash": {"type": "keyword"},
+                "perceptual_hash_int": {"type": "long"},
                 "video_path": {"type": "keyword"},
                 "scene_info": {
                     "properties": {
@@ -219,7 +225,8 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         }
 
         if es_user and es_pass:
-            es_config["basic_auth"] = (es_user, es_pass) #Expected type 'list[str] | bool' (matched generic type '_VT'), got 'tuple[str, str]' instead
+            # noinspection PyTypeChecker
+            es_config["basic_auth"] = (es_user, es_pass)
 
         es = AsyncElasticsearch(**es_config)
         try:

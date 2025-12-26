@@ -27,6 +27,7 @@ from preprocessor.core.enums import KeyframeStrategy
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.frame_processor import FrameProcessor
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
+from preprocessor.embeddings.image_hasher import PerceptualHasher
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
 
@@ -68,6 +69,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         self.processor = None
         self.frame_processor: Optional[FrameProcessor] = None
         self.gpu_processor: Optional[GPUBatchProcessor] = None
+        self.hasher: Optional[PerceptualHasher] = None
         self.strategy = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
@@ -95,17 +97,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
                 if segmented_version.exists():
                     continue
 
-            base_name = trans_file.stem.replace("_segmented", "").replace("_simple", "")
-
-            items.append(
-                ProcessingItem(
-                    episode_id=base_name,
-                    input_path=trans_file,
-                    metadata={
-                        "base_name": base_name,
-                    },
-                ),
-            )
+            items.append(self._create_transcription_processing_item(trans_file))
 
         return items
 
@@ -133,6 +125,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         self._load_model()
         self.frame_processor = FrameProcessor(self.resize_height, self.device)
         self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
+        self.hasher = PerceptualHasher(device=self.device, hash_size=8)
         self.strategy = KeyframeStrategyFactory.create(
             self.keyframe_strategy,
             self.keyframe_interval,
@@ -302,12 +295,17 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
     def __process_chunk_embeddings(self, pil_images, current_requests, chunk_idx, embeddings, progress, task):
         chunk_embeddings = self.gpu_processor.process_images_batch(pil_images, chunk_idx, progress)
-        for req, emb in zip(current_requests, chunk_embeddings):
+        chunk_phashes = self.hasher.compute_phash_batch(pil_images)
+
+        for req, emb, phash in zip(current_requests, chunk_embeddings, chunk_phashes):
             req_copy = req.copy()
             req_copy["embedding"] = emb
+            req_copy["perceptual_hash"] = phash
             embeddings.append(req_copy)
+
         del pil_images
         del chunk_embeddings
+        del chunk_phashes
         self._cleanup_memory()
         progress.advance(task)
 
@@ -330,15 +328,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         episode_info = self.episode_manager.parse_filename(video_path)
         if not episode_info:
             return None
-        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, self.scene_timestamps_dir)
-        if not scene_file:
-            return None
-        try:
-            with open(scene_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            self.logger.error(f"Failed to load scene timestamps: {e}")
-            return None
+        return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
     def __save_embeddings(self, data, text_embeddings, video_embeddings, text_output, video_output):
         episode_info = data.get("episode_info", {})

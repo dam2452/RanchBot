@@ -143,6 +143,7 @@ def run_embedding_step(device, **kwargs):
 
 def run_elastic_documents_step(**kwargs):
     from pathlib import Path  # pylint: disable=import-outside-toplevel
+
     from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
 
     transcription_jsons = kwargs.get("transcription_jsons")
