@@ -66,7 +66,7 @@ class ScraperSettings:
 @dataclass
 class CharacterSettings:
     output_dir: Path = Path("/app/output_data/characters")
-    reference_images_per_character: int = 5
+    reference_images_per_character: int = 2
     characters_list_file: Path = Path("/app/output_data/characters.json")
 
 

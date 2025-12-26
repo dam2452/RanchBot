@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -9,10 +12,13 @@ from typing import (
 )
 
 import cv2
-from insightface.app import FaceAnalysis
 import numpy as np
 from numpy.linalg import norm
 
+from preprocessor.characters.utils import init_face_detection
+
+if TYPE_CHECKING:
+    from insightface.app import FaceAnalysis
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.console import (
@@ -54,7 +60,7 @@ class CharacterDetector(BaseProcessor):
             console.print(f"[red]Characters directory not found: {self.characters_dir}[/red]")
             return
 
-        self._init_face_detection()
+        self.face_app = init_face_detection(self.use_gpu)
         self._load_character_references()
 
         if not self.character_vectors:
@@ -73,13 +79,6 @@ class CharacterDetector(BaseProcessor):
         console.print(f"[green]✓ Processed {total_frames} frames[/green]")
         console.print(f"[green]✓ Found characters in {frames_with_chars} frames[/green]")
         console.print(f"[green]✓ Results saved to: {self.output_json}[/green]")
-
-    def _init_face_detection(self):
-        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if self.use_gpu else ['CPUExecutionProvider']
-        self.face_app = FaceAnalysis(name=settings.face_recognition.model_name, providers=providers)
-        ctx_id = 0 if self.use_gpu else -1
-        self.face_app.prepare(ctx_id=ctx_id, det_size=settings.face_recognition.detection_size)
-        console.print(f"[green]✓ Face detection initialized ({settings.face_recognition.model_name})[/green]")
 
     def _load_character_references(self):
         console.print("[blue]Loading character references...[/blue]")

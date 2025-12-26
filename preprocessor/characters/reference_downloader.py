@@ -1,19 +1,26 @@
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
 import random
 import time
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
 )
 
 import cv2
 from ddgs import DDGS
-from insightface.app import FaceAnalysis
 import numpy as np
 import requests
+import ua_generator
 
+from preprocessor.characters.utils import init_face_detection
+
+if TYPE_CHECKING:
+    from insightface.app import FaceAnalysis
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.console import (
@@ -64,7 +71,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             console.print("[yellow]No characters found in JSON[/yellow]")
             return
 
-        self._init_face_detection()
+        self.face_app = init_face_detection(self.use_gpu)
 
         console.print(f"[blue]Downloading reference images for {len(characters)} characters...[/blue]")
 
@@ -89,25 +96,19 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         console.print("[green]✓ Reference download completed[/green]")
 
-    def _init_face_detection(self):
-        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if self.use_gpu else ['CPUExecutionProvider']
-        self.face_app = FaceAnalysis(name=settings.face_recognition.model_name, providers=providers)
-        ctx_id = 0 if self.use_gpu else -1
-        self.face_app.prepare(ctx_id=ctx_id, det_size=settings.face_recognition.detection_size)
-        console.print(f"[green]✓ Face detection initialized ({settings.face_recognition.model_name})[/green]")
-
     def _count_faces(self, img) -> int:
         faces = self.face_app.get(img)
         return len(faces)
 
     def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals,too-many-statements
-        search_query = f"{self.series_name} serial {char_name}"
+        search_query = f"Serial {self.series_name} {char_name} postać"
         output_folder = self.output_dir / char_name.replace(" ", "_").lower()
         output_folder.mkdir(parents=True, exist_ok=True)
 
         progress.console.print(f"[cyan]Searching: {search_query}[/cyan]")
 
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        ua = ua_generator.generate()
+        headers = {'User-Agent': str(ua)}
         saved_count = 0
         processed = 0
 
