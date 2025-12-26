@@ -2,6 +2,13 @@ import os
 import sys
 
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 
 _console_instance = None
 
@@ -18,6 +25,16 @@ def get_console() -> Console:
             color_system="standard" if in_docker else "auto",
         )
     return _console_instance
+
+
+def create_progress() -> Progress:
+    return Progress(
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    )
 
 
 console = get_console()

@@ -17,7 +17,10 @@ from preprocessor.core.enums import ScraperMethod
 from preprocessor.providers.llm import LLMProvider
 from preprocessor.scraping.clipboard import ScraperClipboard
 from preprocessor.scraping.crawl4ai import ScraperCrawl4AI
-from preprocessor.utils.console import console
+from preprocessor.utils.console import (
+    console,
+    create_progress,
+)
 
 
 class EpisodeScraper(BaseProcessor):
@@ -51,8 +54,8 @@ class EpisodeScraper(BaseProcessor):
         console.print(f"[blue]Scraping {len(self.urls)} URLs...[/blue]")
 
         scraped_pages = []
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Fetching pages", total=len(self.urls))
+        with create_progress() as progress:
+            task = progress.add_task("Fetching pages", total=len(self.urls))
 
             for url in self.urls:
                 try:

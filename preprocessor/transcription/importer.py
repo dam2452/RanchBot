@@ -9,11 +9,12 @@ from typing import (
     Optional,
 )
 
-from rich.progress import Progress
-
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.utils.console import console
+from preprocessor.utils.console import (
+    console,
+    create_progress,
+)
 
 
 class TranscriptionImporter(BaseProcessor):
@@ -55,8 +56,8 @@ class TranscriptionImporter(BaseProcessor):
 
         console.print(f"[blue]Found {len(json_files)} transcription files to import[/blue]")
 
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Importing transcriptions...", total=len(json_files))
+        with create_progress() as progress:
+            task = progress.add_task("Importing transcriptions...", total=len(json_files))
 
             for json_file in json_files:
                 episode_id = self.__extract_episode_id(json_file)

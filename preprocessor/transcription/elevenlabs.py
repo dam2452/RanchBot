@@ -10,13 +10,14 @@ from typing import (
     Optional,
 )
 
-from rich.progress import Progress
-
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.transcription.engines.elevenlabs_engine import ElevenLabsEngine
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
-from preprocessor.utils.console import console
+from preprocessor.utils.console import (
+    console,
+    create_progress,
+)
 
 
 class ElevenLabsTranscriber(BaseProcessor):
@@ -70,8 +71,8 @@ class ElevenLabsTranscriber(BaseProcessor):
 
         console.print(f"[blue]Found {len(video_files)} videos to transcribe with 11labs[/blue]")
 
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Transcribing with 11labs...", total=len(video_files))
+        with create_progress() as progress:
+            task = progress.add_task("Transcribing with 11labs...", total=len(video_files))
 
             for video_file in video_files:
                 episode_id = video_file.stem

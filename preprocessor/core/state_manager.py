@@ -15,15 +15,6 @@ from typing import (
     Optional,
 )
 
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
-
 from preprocessor.utils.console import console
 
 
@@ -201,15 +192,3 @@ class StateManager:
 
         last_step = self.__state.completed_steps[-1]
         return f"Resuming from: {last_step.step} ({last_step.episode}) at {last_step.completed_at}"
-
-    @staticmethod
-    def create_progress_bar(_total_episodes: int, _description: str = "Processing") -> Progress:
-        progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[bold blue]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeRemainingColumn(),
-            console=console,
-        )
-        return progress

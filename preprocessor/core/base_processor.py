@@ -15,10 +15,11 @@ from typing import (
     Tuple,
 )
 
-from rich.progress import Progress
-
 from preprocessor.core.state_manager import StateManager
-from preprocessor.utils.console import console
+from preprocessor.utils.console import (
+    console,
+    create_progress,
+)
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 if TYPE_CHECKING:
@@ -185,9 +186,9 @@ class BaseProcessor(ABC):
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
         step_name = self._get_step_name()
 
-        with Progress() as progress:
+        with create_progress() as progress:
             task = progress.add_task(
-                f"[cyan]{self._get_progress_description()}",
+                self._get_progress_description(),
                 total=len(items),
             )
 

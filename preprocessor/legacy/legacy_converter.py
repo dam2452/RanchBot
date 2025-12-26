@@ -13,12 +13,14 @@ from elasticsearch.helpers import (
     async_bulk,
     async_scan,
 )
-from rich.progress import Progress
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.search.elastic_manager import ElasticSearchManager
-from preprocessor.utils.console import console
+from preprocessor.utils.console import (
+    console,
+    create_progress,
+)
 
 
 class LegacyConverter(BaseProcessor):
@@ -102,8 +104,8 @@ class LegacyConverter(BaseProcessor):
     async def __fetch_all_documents(self) -> List[Dict]:
         documents = []
 
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Fetching documents...", total=None)
+        with create_progress() as progress:
+            task = progress.add_task("Fetching documents...", total=None)
 
             async for doc in async_scan(
                 self.client,
@@ -118,8 +120,8 @@ class LegacyConverter(BaseProcessor):
     def __convert_documents(self, documents: List[Dict]) -> List[Dict]:
         converted = []
 
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Converting documents...", total=len(documents))
+        with create_progress() as progress:
+            task = progress.add_task("Converting documents...", total=len(documents))
 
             for doc in documents:
                 converted_doc = self.__convert_single_document(doc)
@@ -178,8 +180,8 @@ class LegacyConverter(BaseProcessor):
                 "doc": doc["_source"],
             })
 
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Updating documents...", total=len(actions))
+        with create_progress() as progress:
+            task = progress.add_task("Updating documents...", total=len(actions))
 
             try:
                 _, failed = await async_bulk(
