@@ -212,8 +212,6 @@ class BaseProcessor(ABC):
                         if self.state_manager:
                             self.state_manager.mark_step_completed(step_name, item.episode_id)
 
-                    except KeyboardInterrupt:
-                        raise  # pylint: disable=try-except-raise
                     except Exception as e:  # pylint: disable=broad-exception-caught
                         self.logger.error(f"Failed to process {item.episode_id}: {e}")
                     finally:
@@ -271,7 +269,7 @@ class BaseProcessor(ABC):
         return items
 
     def _create_transcription_processing_item(self, transcription_file: Path) -> ProcessingItem:
-        from preprocessor.core.episode_manager import EpisodeManager
+        from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
 
         base_name = transcription_file.stem.replace("_segmented", "").replace("_simple", "")
 

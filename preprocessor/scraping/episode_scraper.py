@@ -72,8 +72,6 @@ class EpisodeScraper(BaseProcessor):
                             progress.console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
                         else:
                             self.logger.error(f"Failed to scrape {url}")
-                    except KeyboardInterrupt:
-                        raise  # pylint: disable=try-except-raise
                     except Exception as e:  # pylint: disable=broad-exception-caught
                         self.logger.error(f"Error scraping {url}: {e}")
                     finally:

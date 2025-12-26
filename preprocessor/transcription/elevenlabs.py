@@ -97,8 +97,6 @@ class ElevenLabsTranscriber(BaseProcessor):
                         if self.state_manager:
                             self.state_manager.mark_step_completed("transcribe_11labs", episode_id)
 
-                    except KeyboardInterrupt:
-                        raise  # pylint: disable=try-except-raise
                     except Exception as e:  # pylint: disable=broad-exception-caught
                         self.logger.error(f"Failed to transcribe {video_file.name}: {e}")
 
