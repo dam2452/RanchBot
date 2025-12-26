@@ -5,6 +5,7 @@ import click
 
 from preprocessor.cli.pipeline.orchestrator import PipelineOrchestrator
 from preprocessor.cli.pipeline.steps import (
+    run_elastic_documents_step,
     run_embedding_step,
     run_index_step,
     run_scene_step,
@@ -82,7 +83,8 @@ from preprocessor.utils.console import console
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
 @click.option("--skip-scenes", is_flag=True, help="Skip Step 3: Scene detection (use existing scene timestamps)")
 @click.option("--skip-embeddings", is_flag=True, help="Skip Step 4: Embedding generation (use existing embeddings)")
-@click.option("--skip-index", is_flag=True, help="Skip Step 5: Elasticsearch indexing")
+@click.option("--skip-elastic-documents", is_flag=True, help="Skip Step 5: Generate Elasticsearch documents (use existing documents)")
+@click.option("--skip-index", is_flag=True, help="Skip Step 6: Elasticsearch indexing")
 def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     videos: Path,
     episodes_info_json: Path,
@@ -103,9 +105,10 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_transcribe: bool,
     skip_scenes: bool,
     skip_embeddings: bool,
+    skip_elastic_documents: bool,
     skip_index: bool,
 ):
-    """Run complete video processing pipeline: transcode → transcribe → scenes → embeddings → index."""
+    """Run complete video processing pipeline: transcode → transcribe → scenes → embeddings → elastic docs → index."""
     if transcoded_videos is None:  # pylint: disable=duplicate-code
         transcoded_videos = settings.transcode.output_dir
     if codec is None:
@@ -145,12 +148,13 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     }
 
     orchestrator = PipelineOrchestrator(state_manager)
-    orchestrator.add_step("Scraping episode metadata", "0/5", run_scrape_step, skip=False)
-    orchestrator.add_step("Transcoding videos", "1/5", run_transcode_step, skip=skip_transcode)
-    orchestrator.add_step("Generating transcriptions", "2/5", run_transcribe_step, skip=skip_transcribe)
-    orchestrator.add_step("Detecting scenes", "3/5", run_scene_step, skip=skip_scenes)
-    orchestrator.add_step("Generating embeddings", "4/5", run_embedding_step, skip=skip_embeddings)
-    orchestrator.add_step("Indexing in Elasticsearch", "5/5", run_index_step, skip=skip_index)
+    orchestrator.add_step("Scraping episode metadata", "0/6", run_scrape_step, skip=False)
+    orchestrator.add_step("Transcoding videos", "1/6", run_transcode_step, skip=skip_transcode)
+    orchestrator.add_step("Generating transcriptions", "2/6", run_transcribe_step, skip=skip_transcribe)
+    orchestrator.add_step("Detecting scenes", "3/6", run_scene_step, skip=skip_scenes)
+    orchestrator.add_step("Generating embeddings", "4/6", run_embedding_step, skip=skip_embeddings)
+    orchestrator.add_step("Generating Elasticsearch documents", "5/6", run_elastic_documents_step, skip=skip_elastic_documents)
+    orchestrator.add_step("Indexing in Elasticsearch", "6/6", run_index_step, skip=skip_index)
 
     exit_code = orchestrator.execute(**params)
 

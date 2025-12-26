@@ -3,15 +3,13 @@ import json
 from pathlib import Path
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
     Optional,
 )
 
-if TYPE_CHECKING:
-    from preprocessor.core.base_processor import BaseProcessor
+from preprocessor.core.base_processor import BaseProcessor
 
 
 @dataclass

@@ -10,7 +10,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class ElasticSearchManager:  # pylint: disable=duplicate-code
-    # noinspection PyTypeHints
     INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -101,6 +100,108 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
                 "tags": {"type": "keyword"},
                 "location": {"type": "keyword"},
                 "actors": {"type": "keyword"},
+            },
+        },
+    }
+
+    SEGMENTS_INDEX_MAPPING: json = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+                        "premiere_date": {"type": "date", "format": "yyyy-MM-dd"},
+                        "series_name": {"type": "keyword"},
+                        "viewership": {"type": "integer"},
+                    },
+                },
+                "segment_id": {"type": "integer"},
+                "text": {
+                    "type": "text",
+                    "analyzer": "standard",
+                    "fields": {
+                        "keyword": {"type": "keyword"},
+                    },
+                },
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "speaker": {"type": "keyword"},
+                "video_path": {"type": "keyword"},
+                "scene_info": {
+                    "properties": {
+                        "scene_number": {"type": "integer"},
+                        "scene_start_time": {"type": "float"},
+                        "scene_end_time": {"type": "float"},
+                        "scene_start_frame": {"type": "integer"},
+                        "scene_end_frame": {"type": "integer"},
+                    },
+                },
+            },
+        },
+    }
+
+    TEXT_EMBEDDINGS_INDEX_MAPPING: json = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                        "premiere_date": {"type": "date", "format": "yyyy-MM-dd"},
+                        "series_name": {"type": "keyword"},
+                    },
+                },
+                "embedding_id": {"type": "integer"},
+                "segment_range": {"type": "integer"},
+                "text": {"type": "text"},
+                "text_embedding": {
+                    "type": "dense_vector",
+                    "dims": 1024,
+                    "index": True,
+                    "similarity": "cosine",
+                },
+                "video_path": {"type": "keyword"},
+            },
+        },
+    }
+
+    VIDEO_EMBEDDINGS_INDEX_MAPPING: json = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                        "premiere_date": {"type": "date", "format": "yyyy-MM-dd"},
+                        "series_name": {"type": "keyword"},
+                    },
+                },
+                "frame_number": {"type": "integer"},
+                "timestamp": {"type": "float"},
+                "frame_type": {"type": "keyword"},
+                "scene_number": {"type": "integer"},
+                "video_embedding": {
+                    "type": "dense_vector",
+                    "dims": 1024,
+                    "index": True,
+                    "similarity": "cosine",
+                },
+                "video_path": {"type": "keyword"},
+                "scene_info": {
+                    "properties": {
+                        "scene_start_time": {"type": "float"},
+                        "scene_end_time": {"type": "float"},
+                        "scene_start_frame": {"type": "integer"},
+                        "scene_end_frame": {"type": "integer"},
+                    },
+                },
             },
         },
     }

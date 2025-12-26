@@ -141,6 +141,29 @@ def run_embedding_step(device, **kwargs):
     return exit_code
 
 
+def run_elastic_documents_step(**kwargs):
+    from pathlib import Path  # pylint: disable=import-outside-toplevel
+    from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
+
+    transcription_jsons = kwargs.get("transcription_jsons")
+    embeddings_dir = settings.embedding.default_output_dir
+    scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
+
+    generator = ElasticDocumentGenerator(
+        {
+            "transcription_jsons": transcription_jsons,
+            "embeddings_dir": embeddings_dir,
+            "scene_timestamps_dir": scene_timestamps_dir,
+            "output_dir": Path("/app/output_data/elastic_documents"),
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
+        },
+    )
+    return generator.work()
+
+
 def run_index_step(name, dry_run, state_manager, **kwargs):
     from preprocessor.config.config import IndexConfig  # pylint: disable=import-outside-toplevel
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
