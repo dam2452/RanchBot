@@ -7,11 +7,11 @@ from typing import (
 
 import decord
 import numpy as np
-from rich.progress import Progress
 
 from preprocessor.config.config import settings
 from preprocessor.core.enums import FrameType
 from preprocessor.embeddings.strategies.base_strategy import BaseKeyframeStrategy
+from preprocessor.utils.console import console
 from preprocessor.utils.video_utils import iterate_frames_with_histogram
 
 
@@ -20,16 +20,15 @@ class ColorDiffStrategy(BaseKeyframeStrategy):
         self,
         video_path: Path,
         data: Dict[str, Any],
-        progress: Progress,
     ) -> List[Dict[str, Any]]:
         vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
         fps = vr.get_avg_fps()
         total_frames = len(vr)
         del vr
 
+        console.print(f"[blue]Analyzing {total_frames} frames for color changes...[/blue]")
         frame_requests = []
         prev_hist = None
-        task = progress.add_task("[blue]Color analysis", total=total_frames)
 
         for frame_num, _, hist in iterate_frames_with_histogram(str(video_path)):
             if prev_hist is not None:
@@ -39,10 +38,9 @@ class ColorDiffStrategy(BaseKeyframeStrategy):
                         self._create_request(frame_num, fps, FrameType.COLOR_CHANGE),
                     )
 
-            progress.update(task, completed=frame_num + 1)
             prev_hist = hist
 
-        progress.remove_task(task)
+        console.print(f"[green]✓ Found {len(frame_requests)} color change frames[/green]")
         return frame_requests
 
     @staticmethod

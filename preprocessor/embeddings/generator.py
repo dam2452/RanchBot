@@ -13,7 +13,6 @@ from typing import (
 
 import decord
 import numpy as np
-from rich.progress import Progress
 import torch
 from transformers import AutoModel
 
@@ -225,36 +224,33 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         return embedding
 
     def __generate_video_embeddings(self, video_path: Path, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        with Progress() as temp_progress:
-            frame_requests = self.strategy.extract_frame_requests(video_path, data, temp_progress)
-            return self.__process_video_frames(video_path, frame_requests, temp_progress)
+        frame_requests = self.strategy.extract_frame_requests(video_path, data)
+        return self.__process_video_frames(video_path, frame_requests)
 
-    def __process_video_frames(self, video_path: Path, frame_requests: List[Dict[str, Any]], progress: Progress) -> List[Dict[str, Any]]:
+    def __process_video_frames(self, video_path: Path, frame_requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if not frame_requests:
             return []
 
         chunk_size = settings.embedding.video_chunk_size
         total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
-        task = progress.add_task(f"[magenta]Video chunks ({len(frame_requests)} frames)", total=total_chunks)
+        console.print(f"[magenta]Processing {len(frame_requests)} frames in {total_chunks} chunks[/magenta]")
 
         try:
             vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
 
             if self.prefetch_chunks > 0:
-                embeddings = self.__process_with_prefetch(vr, frame_requests, chunk_size, total_chunks, progress, task)
+                embeddings = self.__process_with_prefetch(vr, frame_requests, chunk_size, total_chunks)
             else:
-                embeddings = self.__process_sequential_chunks(vr, frame_requests, chunk_size, total_chunks, progress, task)
+                embeddings = self.__process_sequential_chunks(vr, frame_requests, chunk_size, total_chunks)
 
             del vr
             self._cleanup_memory()
-            progress.remove_task(task)
             return embeddings
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to process video {video_path}: {e}")
-            progress.remove_task(task)
             return []
 
-    def __process_with_prefetch(self, vr, frame_requests, chunk_size, total_chunks, progress, task):
+    def __process_with_prefetch(self, vr, frame_requests, chunk_size, total_chunks):
         embeddings = []
         prefetch_queue = Queue(maxsize=self.prefetch_chunks)
 
@@ -277,12 +273,12 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             if item is None:
                 break
             chunk_idx, current_requests, pil_images = item
-            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings, progress, task)
+            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings)
 
         prefetch_thread.join()
         return embeddings
 
-    def __process_sequential_chunks(self, vr, frame_requests, chunk_size, total_chunks, progress, task):
+    def __process_sequential_chunks(self, vr, frame_requests, chunk_size, total_chunks):
         embeddings = []
         for chunk_idx in range(total_chunks):
             chunk_start = chunk_idx * chunk_size
@@ -290,11 +286,11 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             current_requests = frame_requests[chunk_start:chunk_end]
             current_indices = [req["frame_number"] for req in current_requests]
             pil_images = self.frame_processor.load_and_preprocess_frames(vr, current_indices)
-            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings, progress, task)
+            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings)
         return embeddings
 
-    def __process_chunk_embeddings(self, pil_images, current_requests, chunk_idx, embeddings, progress, task):
-        chunk_embeddings = self.gpu_processor.process_images_batch(pil_images, chunk_idx, progress)
+    def __process_chunk_embeddings(self, pil_images, current_requests, chunk_idx, embeddings):
+        chunk_embeddings = self.gpu_processor.process_images_batch(pil_images, chunk_idx)
         chunk_phashes = self.hasher.compute_phash_batch(pil_images)
 
         for req, emb, phash in zip(current_requests, chunk_embeddings, chunk_phashes):
@@ -307,7 +303,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         del chunk_embeddings
         del chunk_phashes
         self._cleanup_memory()
-        progress.advance(task)
+        console.print(f"[green]✓ Chunk {chunk_idx + 1} processed[/green]")
 
     def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
         if not self.videos:

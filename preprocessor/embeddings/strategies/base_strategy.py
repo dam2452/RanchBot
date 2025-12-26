@@ -9,8 +9,6 @@ from typing import (
     List,
 )
 
-from rich.progress import Progress
-
 
 class BaseKeyframeStrategy(ABC):
     @abstractmethod
@@ -18,6 +16,5 @@ class BaseKeyframeStrategy(ABC):
         self,
         video_path: Path,
         data: Dict[str, Any],
-        progress: Progress,
     ) -> List[Dict[str, Any]]:
         pass

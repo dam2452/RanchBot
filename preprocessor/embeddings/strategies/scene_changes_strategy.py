@@ -5,11 +5,10 @@ from typing import (
     List,
 )
 
-from rich.progress import Progress
-
 from preprocessor.config.config import settings
 from preprocessor.core.enums import FrameType
 from preprocessor.embeddings.strategies.base_strategy import BaseKeyframeStrategy
+from preprocessor.utils.console import console
 
 
 class SceneChangesStrategy(BaseKeyframeStrategy):
@@ -20,13 +19,12 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
         self,
         video_path: Path,
         data: Dict[str, Any],
-        progress: Progress,
     ) -> List[Dict[str, Any]]:
         scene_timestamps = data.get("scene_timestamps", {})
         scenes = scene_timestamps.get("scenes", [])
 
         if not scenes:
-            progress.console.print("[yellow]No scene timestamps found[/yellow]")
+            console.print("[yellow]No scene timestamps found[/yellow]")
             return []
 
         fps = scene_timestamps.get("video_info", {}).get("fps", settings.embedding.scene_fps_default)

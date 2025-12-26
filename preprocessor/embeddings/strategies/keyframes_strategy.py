@@ -6,7 +6,6 @@ from typing import (
 )
 
 import decord
-from rich.progress import Progress
 
 from preprocessor.config.config import settings
 from preprocessor.core.enums import FrameType
@@ -21,7 +20,6 @@ class KeyframesStrategy(BaseKeyframeStrategy):
         self,
         video_path: Path,
         data: Dict[str, Any],
-        progress: Progress,
     ) -> List[Dict[str, Any]]:
         vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
         fps = vr.get_avg_fps()
