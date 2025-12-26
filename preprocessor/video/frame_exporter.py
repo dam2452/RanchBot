@@ -16,6 +16,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.enums import KeyframeStrategy
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
 from preprocessor.video.base_video_processor import BaseVideoProcessor
@@ -75,7 +76,7 @@ class FrameExporter(BaseVideoProcessor):
         episode_dir = self.__get_episode_dir(episode_info)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
-        data = self.__prepare_data(item.input_path, episode_info)
+        data = self.__prepare_data(episode_info)
         frame_requests = self.strategy.extract_frame_requests(item.input_path, data)
 
         if not frame_requests:
@@ -98,7 +99,7 @@ class FrameExporter(BaseVideoProcessor):
         episode = episode_info.relative_episode
         return self.output_frames / f"S{season:02d}" / f"E{episode:02d}"
 
-    def __prepare_data(self, video_file: Path, episode_info) -> Dict[str, Any]:  # pylint: disable=unused-argument
+    def __prepare_data(self, episode_info) -> Dict[str, Any]:
         data = {}
         scene_timestamps = self.__load_scene_timestamps(episode_info)
         if scene_timestamps:

@@ -77,7 +77,7 @@ class OperationTracker:
         elapsed = time.time() - self.start_time
         percent = (self.completed / self.total * 100) if self.total > 0 else 0
 
-        if self.completed > 0 and self.completed < self.total:
+        if 0 < self.completed < self.total:
             rate = self.completed / elapsed if elapsed > 0 else 0
             remaining = self.total - self.completed
             eta_seconds = remaining / rate if rate > 0 else 0

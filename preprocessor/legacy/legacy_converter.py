@@ -102,19 +102,17 @@ class LegacyConverter(BaseProcessor):
         console.print(f"[green]Backup created: {len(documents)} documents[/green]")
 
     async def __fetch_all_documents(self) -> List[Dict]:
+        console.print("[cyan]Fetching documents...[/cyan]")
         documents = []
 
-        with create_progress() as progress:
-            task = progress.add_task("Fetching documents...", total=None)
+        async for doc in async_scan(
+            self.client,
+            index=self.index_name,
+            query={"query": {"match_all": {}}},
+        ):
+            documents.append(doc)
 
-            async for doc in async_scan(
-                self.client,
-                index=self.index_name,
-                query={"query": {"match_all": {}}},
-            ):
-                documents.append(doc)
-                progress.update(task, advance=1)  # pylint: disable=no-member
-
+        console.print(f"[green]Fetched {len(documents)} documents[/green]")
         return documents
 
     def __convert_documents(self, documents: List[Dict]) -> List[Dict]:

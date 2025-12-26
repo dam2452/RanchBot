@@ -1,3 +1,4 @@
+from abc import ABC
 import logging
 from pathlib import Path
 from typing import (
@@ -13,7 +14,7 @@ from preprocessor.core.base_processor import (
 from preprocessor.core.episode_manager import EpisodeManager
 
 
-class BaseVideoProcessor(BaseProcessor):
+class BaseVideoProcessor(BaseProcessor, ABC): #Class BaseVideoProcessor must implement all abstract methods
     def __init__(
         self,
         args: Dict[str, Any],

@@ -6,6 +6,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 from PIL import Image
@@ -39,7 +40,7 @@ class ImageHashProcessor(BaseProcessor):
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
-        self.hasher: PerceptualHasher = None
+        self.hasher: Optional[PerceptualHasher] = None #Expected type 'PerceptualHasher', got 'None' instead
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if not torch.cuda.is_available():
