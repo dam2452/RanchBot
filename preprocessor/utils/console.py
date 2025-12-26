@@ -20,7 +20,7 @@ def get_console() -> Console:
 
         _console_instance = Console(
             force_terminal=True if in_docker else None,
-            force_interactive=False,
+            force_interactive=True,
             file=sys.stderr,
             color_system="standard" if in_docker else "auto",
         )
@@ -34,6 +34,8 @@ def create_progress() -> Progress:
         TaskProgressColumn(),
         TimeRemainingColumn(),
         console=console,
+        auto_refresh=True,
+        refresh_per_second=4,
     )
 
 
