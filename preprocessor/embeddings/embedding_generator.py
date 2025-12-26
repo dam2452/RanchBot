@@ -25,7 +25,7 @@ from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.utils.console import console
 
 
-class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-attributes
+class EmbeddingGenerator(BaseProcessor):
     def __init__(self, args: Dict[str, Any]):
         super().__init__(
             args=args,
@@ -211,7 +211,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         with open(metadata_file, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    def __generate_video_embeddings(self, episode_info_dict: Dict[str, Any], frame_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def __generate_video_embeddings(self, episode_info_dict: Dict[str, Any], frame_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
         frame_requests = frame_metadata.get("frames", [])
         if not frame_requests:
             return []

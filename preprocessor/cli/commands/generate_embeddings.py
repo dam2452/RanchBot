@@ -60,7 +60,7 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     default=settings.embedding.batch_size,
     help=f"Batch size for GPU inference (default: {settings.embedding.batch_size}). Reduce if OOM errors occur",
 )
-def generate_embeddings(  # pylint: disable=too-many-arguments
+def generate_embeddings(
     transcription_jsons: Path,
     frames_dir: Path,
     output_dir: Path,

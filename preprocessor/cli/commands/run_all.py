@@ -5,6 +5,9 @@ import click
 
 from preprocessor.cli.pipeline.orchestrator import PipelineOrchestrator
 from preprocessor.cli.pipeline.steps import (
+    run_character_detection_step,
+    run_character_reference_download_step,
+    run_character_scrape_step,
     run_elastic_documents_step,
     run_embedding_step,
     run_frame_export_step,
@@ -44,7 +47,7 @@ from preprocessor.utils.console import console
     default=str(settings.scene_detection.output_dir),
     help=f"Output directory for scene timestamps (default: {settings.scene_detection.output_dir})",
 )
-@click.option("--name", required=True, help="Series name (required)")
+@click.option("--series-name", required=True, help="Series name (required)")
 @click.option(
     "--resolution",
     type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),
@@ -79,7 +82,12 @@ from preprocessor.utils.console import console
 @click.option(
     "--scrape-urls",
     multiple=True,
-    help="URLs to scrape episode metadata from (Step 0: optional)",
+    help="URLs to scrape episode metadata from (Step 0a: optional)",
+)
+@click.option(
+    "--character-urls",
+    multiple=True,
+    help="URLs to scrape character metadata from (Step 0b: optional)",
 )
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
@@ -95,7 +103,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     transcoded_videos: Path,
     transcription_jsons: Path,
     scene_timestamps_dir: Path,
-    name: str,
+    series_name: str,
     resolution: str,
     codec: str,
     preset: str,
@@ -105,6 +113,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     no_state: bool,
     ramdisk_path: Path,
     scrape_urls: tuple,
+    character_urls: tuple,
     skip_transcode: bool,
     skip_transcribe: bool,
     skip_scenes: bool,
@@ -123,13 +132,17 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         preset = settings.transcode.preset
 
     if scrape_urls and not episodes_info_json:
-        episodes_info_json = Path("/app/output_data") / f"{name}_episodes.json"
+        episodes_info_json = Path("/app/output_data") / f"{series_name}_episodes.json"
 
     if not episodes_info_json:
         console.print("[red]Error: Either --episodes-info-json or --scrape-urls must be provided[/red]")
         sys.exit(1)
 
-    state_manager = create_state_manager(name, no_state)
+    characters_json = settings.character.characters_list_file
+    if character_urls:
+        characters_json = Path("/app/output_data") / f"{series_name}_characters.json"
+
+    state_manager = create_state_manager(series_name, no_state)
 
     if ramdisk_path:
         console.print(f"[cyan]Using ramdisk: {ramdisk_path}[/cyan]")
@@ -140,7 +153,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "transcoded_videos": transcoded_videos,
         "transcription_jsons": transcription_jsons,
         "scene_timestamps_dir": scene_timestamps_dir,
-        "name": name,
+        "name": series_name,
         "resolution": resolution,
         "codec": codec,
         "preset": preset,
@@ -150,6 +163,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "dry_run": dry_run,
         "ramdisk_path": ramdisk_path,
         "scrape_urls": scrape_urls,
+        "character_urls": character_urls,
+        "characters_json": characters_json,
         "state_manager": state_manager,
     }
 
@@ -157,18 +172,21 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
 
     orchestrator = PipelineOrchestrator(
         state_manager=state_manager,
-        series_name=name,
+        series_name=series_name,
         metadata_output_dir=metadata_output_dir,
     )
-    orchestrator.add_step("Scraping episode metadata", "0/8", run_scrape_step, skip=False)
-    orchestrator.add_step("Transcoding videos", "1/8", run_transcode_step, skip=skip_transcode)
-    orchestrator.add_step("Generating transcriptions", "2/8", run_transcribe_step, skip=skip_transcribe)
-    orchestrator.add_step("Detecting scenes", "3/8", run_scene_step, skip=skip_scenes)
-    orchestrator.add_step("Exporting frames (480p)", "4/8", run_frame_export_step, skip=skip_frame_export)
-    orchestrator.add_step("Generating image hashes", "5/8", run_image_hashing_step, skip=skip_image_hashing)
-    orchestrator.add_step("Generating embeddings", "6/8", run_embedding_step, skip=skip_embeddings)
-    orchestrator.add_step("Generating Elasticsearch documents", "7/8", run_elastic_documents_step, skip=skip_elastic_documents)
-    orchestrator.add_step("Indexing in Elasticsearch", "8/8", run_index_step, skip=skip_index)
+    orchestrator.add_step("Scraping episode metadata", "0a/11", run_scrape_step, skip=False)
+    orchestrator.add_step("Scraping character metadata", "0b/11", run_character_scrape_step, skip=False)
+    orchestrator.add_step("Downloading character references", "0c/11", run_character_reference_download_step, skip=False)
+    orchestrator.add_step("Transcoding videos", "1/11", run_transcode_step, skip=skip_transcode)
+    orchestrator.add_step("Generating transcriptions", "2/11", run_transcribe_step, skip=skip_transcribe)
+    orchestrator.add_step("Detecting scenes", "3/11", run_scene_step, skip=skip_scenes)
+    orchestrator.add_step("Exporting frames (480p)", "4/11", run_frame_export_step, skip=skip_frame_export)
+    orchestrator.add_step("Generating image hashes", "5/11", run_image_hashing_step, skip=skip_image_hashing)
+    orchestrator.add_step("Generating embeddings", "6/11", run_embedding_step, skip=skip_embeddings)
+    orchestrator.add_step("Detecting characters in frames", "7/11", run_character_detection_step, skip=False)
+    orchestrator.add_step("Generating Elasticsearch documents", "8/11", run_elastic_documents_step, skip=skip_elastic_documents)
+    orchestrator.add_step("Indexing in Elasticsearch", "9/11", run_index_step, skip=skip_index)
 
     exit_code = orchestrator.execute(**params)
 

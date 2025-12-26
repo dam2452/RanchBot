@@ -24,6 +24,7 @@ class SimpleProgress:
     def __init__(self):
         self.tasks = {}
         self.task_counter = 0
+        self.console = console
 
     def add_task(self, description: str, total: int):
         task_id = self.task_counter
@@ -57,7 +58,7 @@ class SimpleProgress:
         percent = (completed / total * 100) if total > 0 else 0
 
         elapsed = time.time() - task['start_time']
-        if completed > 0 and completed < total:
+        if 0 < completed < total:
             eta_seconds = (elapsed / completed) * (total - completed)
             eta = self._format_time(eta_seconds)
         elif completed >= total:
@@ -67,11 +68,11 @@ class SimpleProgress:
 
         bar_width = 30
         filled = int(bar_width * completed / total) if total > 0 else 0
-        bar = "━" * filled + "╸" + "─" * (bar_width - filled - 1) if filled < bar_width else "━" * bar_width
+        progress_bar = "━" * filled + "╸" + "─" * (bar_width - filled - 1) if filled < bar_width else "━" * bar_width
 
         console.print(
             f"[bold blue]{task['description']}[/bold blue] "
-            f"[cyan]{bar}[/cyan] "
+            f"[cyan]{progress_bar}[/cyan] "
             f"[green]{percent:3.0f}%[/green] "
             f"[yellow]{completed}/{total}[/yellow] "
             f"[dim]ETA: {eta}[/dim]",

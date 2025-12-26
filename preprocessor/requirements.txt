@@ -3,7 +3,7 @@ transnetv2-pytorch
 crawl4ai
 playwright
 playwright-stealth
-opencv-python
+opencv-python-headless
 decord
 transformers==4.51.3
 elasticsearch~=8.14
@@ -26,3 +26,6 @@ faster-whisper~=1.2
 bitsandbytes
 pathvalidate
 ua-generator
+insightface
+ddgs
+onnxruntime-gpu

@@ -60,11 +60,14 @@ class ImageHashProcessor(BaseProcessor):
             if not episode_info:
                 continue
 
+            episode_id = self.episode_manager.get_episode_id_for_state(episode_info)
+
             items.append(
                 ProcessingItem(
+                    episode_id=episode_id,
                     input_path=metadata_file,
                     metadata={"episode_info": episode_info},
-                )
+                ),
             )
 
         return items

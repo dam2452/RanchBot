@@ -5,32 +5,29 @@ from typing import (
     List,
 )
 
-from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
-
 from preprocessor.scraping.base_scraper import BaseScraper
 from preprocessor.utils.console import console
 
 
-class EpisodeScraper(BaseScraper):
+class CharacterScraper(BaseScraper):
     def __init__(self, args: Dict[str, Any]):
         super().__init__(args)
-        self.merge_sources: bool = self._args.get("merge_sources", True)
+        self.series_name: str = self._args.get("series_name", "")
 
     def _process_scraped_pages(self, scraped_pages: List[Dict[str, Any]]) -> None:
-        all_seasons = self.llm.extract_all_seasons(scraped_pages)
-        if not all_seasons:
-            self.logger.error("LLM failed to extract any season data")
+        characters = self.llm.extract_characters(scraped_pages, self.series_name)
+        if not characters:
+            self.logger.error("LLM failed to extract any character data")
             return
 
         result = {
             "sources": [item["url"] for item in scraped_pages],
-            "seasons": [season.model_dump() for season in all_seasons],
+            "characters": [char.model_dump() for char in characters],
         }
 
         self.output_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
 
-        total_episodes = sum(len(season.episodes) for season in all_seasons)
-        console.print(f"[green]✓ Extracted {len(all_seasons)} seasons, {total_episodes} episodes[/green]")
+        console.print(f"[green]✓ Extracted {len(characters)} characters[/green]")
         console.print(f"[green]✓ Saved to: {self.output_file}[/green]")

@@ -34,6 +34,71 @@ def run_scrape_step(scrape_urls, episodes_info_json, **_kwargs):
     return 0
 
 
+def run_character_scrape_step(character_urls, characters_json, name, **_kwargs):
+    from preprocessor.scraping.character_scraper import CharacterScraper  # pylint: disable=import-outside-toplevel
+
+    if not character_urls:
+        return 0
+
+    if characters_json.exists():
+        console.print(
+            f"\n[yellow]Scraping character metadata... SKIPPED (file exists: {characters_json})[/yellow]",
+        )
+        return 0
+
+    scraper = CharacterScraper(
+        {
+            "urls": list(character_urls),
+            "output_file": characters_json,
+            "series_name": name,
+            "headless": True,
+        },
+    )
+    scrape_exit_code = scraper.work()
+
+    if scrape_exit_code != 0:
+        console.print("[red]Character scraping failed[/red]")
+        return scrape_exit_code
+
+    console.print(f"[green]Character metadata saved to: {characters_json}[/green]")
+    return 0
+
+
+def run_character_reference_download_step(name, characters_json, **_kwargs):
+    from preprocessor.characters.reference_downloader import CharacterReferenceDownloader  # pylint: disable=import-outside-toplevel
+
+    if not characters_json.exists():
+        console.print("[yellow]No characters.json found, skipping reference download[/yellow]")
+        return 0
+
+    downloader = CharacterReferenceDownloader(
+        {
+            "characters_json": characters_json,
+            "series_name": name,
+            "output_dir": settings.character.output_dir,
+            "images_per_character": settings.character.reference_images_per_character,
+        },
+    )
+    return downloader.work()
+
+
+def run_character_detection_step(**kwargs):
+    from preprocessor.characters.detector import CharacterDetector  # pylint: disable=import-outside-toplevel
+
+    frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
+    characters_dir = settings.character.output_dir
+    output_dir = settings.embedding.default_output_dir
+
+    detector = CharacterDetector(
+        {
+            "frames_dir": frames_dir,
+            "characters_dir": characters_dir,
+            "output_json": output_dir / "character_detections.json",
+        },
+    )
+    return detector.work()
+
+
 def run_transcode_step(videos, episodes_info_json, name, resolution, codec, preset, state_manager, **kwargs):
     from preprocessor.config.config import TranscodeConfig  # pylint: disable=import-outside-toplevel
     from preprocessor.utils.resolution import Resolution  # pylint: disable=import-outside-toplevel

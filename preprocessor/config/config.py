@@ -64,6 +64,28 @@ class ScraperSettings:
 
 
 @dataclass
+class CharacterSettings:
+    output_dir: Path = Path("/app/output_data/characters")
+    reference_images_per_character: int = 5
+    characters_list_file: Path = Path("/app/output_data/characters.json")
+
+
+@dataclass
+class FaceRecognitionSettings:
+    model_name: str = "buffalo_l"
+    detection_size: tuple = (640, 640)
+    threshold: float = 0.55
+    use_gpu: bool = True
+    max_results_to_scrape: int = 50
+    min_image_width: int = 800
+    min_image_height: int = 600
+    retry_attempts: int = 3
+    retry_delay: float = 2.0
+    request_delay_min: float = 2.0
+    request_delay_max: float = 4.0
+
+
+@dataclass
 class ElevenLabsSettings:
     model_id: str = "scribe_v1"
     language_code: str = "pol"
@@ -125,6 +147,8 @@ class Settings:
     scene_detection: SceneDetectionSettings
     frame_export: FrameExportSettings
     scraper: ScraperSettings
+    character: CharacterSettings
+    face_recognition: FaceRecognitionSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
     transcode: TranscodeDefaults
@@ -138,6 +162,8 @@ class Settings:
             scene_detection=SceneDetectionSettings(),
             frame_export=FrameExportSettings(),
             scraper=ScraperSettings(),
+            character=CharacterSettings(),
+            face_recognition=FaceRecognitionSettings(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),
             transcode=TranscodeDefaults(),

@@ -5,7 +5,6 @@ openai-whisper
 openai
 crawl4ai
 playwright
-opencv-python
 numpy
 torch
 transformers==4.51.3

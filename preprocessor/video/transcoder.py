@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from pathlib import Path
 import subprocess
@@ -11,25 +10,23 @@ from typing import (
 )
 
 from preprocessor.core.base_processor import (
-    BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.resolution import Resolution
+from preprocessor.video.base_video_processor import BaseVideoProcessor
 
 
-class VideoTranscoder(BaseProcessor):
+class VideoTranscoder(BaseVideoProcessor):
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
             class_name=self.__class__.__name__,
             error_exit_code=3,
-            loglevel=logging.DEBUG,
+            input_videos_key="videos",
         )
 
         self.resolution: Resolution = self._args["resolution"]
-        self.input_videos: Path = Path(self._args["videos"])
         self.output_videos: Path = Path(self._args["transcoded_videos"])
         self.output_videos.mkdir(parents=True, exist_ok=True)
 
@@ -37,9 +34,6 @@ class VideoTranscoder(BaseProcessor):
         self.preset: str = str(self._args["preset"])
         self.crf: int = int(self._args["crf"])
         self.gop_size: float = float(self._args["gop_size"])
-
-        episodes_json_path = self._args.get("episodes_info_json")
-        self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "videos" not in args:
@@ -60,14 +54,6 @@ class VideoTranscoder(BaseProcessor):
         videos_path = Path(args["videos"])
         if not videos_path.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
-
-    def _get_processing_items(self) -> List[ProcessingItem]:
-        return self._create_video_processing_items(
-            source_path=self.input_videos,
-            extensions=self.get_video_glob_patterns(),
-            episode_manager=self.episode_manager,
-            skip_unparseable=True,
-        )
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]

@@ -19,6 +19,8 @@ from transformers import (
 from preprocessor.prompts import (
     extract_all_seasons_system,
     extract_all_seasons_user,
+    extract_characters_system,
+    extract_characters_user,
     extract_episode_metadata_system,
     extract_episode_metadata_user,
     extract_season_system,
@@ -51,6 +53,14 @@ class EpisodeMetadata(BaseModel):
     summary: str
     season: Optional[int] = None
     episode_number: Optional[int] = None
+
+
+class CharacterInfo(BaseModel):
+    name: str
+
+
+class CharactersList(BaseModel):
+    characters: List[CharacterInfo]
 
 
 class LLMProvider:
@@ -129,6 +139,26 @@ class LLMProvider:
 
         return result.seasons if result else None
 
+    def extract_characters(self, scraped_pages: List[Dict[str, Any]], series_name: str) -> Optional[List[CharacterInfo]]:
+        combined_content = ""
+        for i, page in enumerate(scraped_pages, 1):
+            url = page["url"]
+            markdown = page["markdown"]
+            combined_content += f"\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n"
+
+        result = self.__process_llm_request(
+            system_prompt=extract_characters_system.get(),
+            user_prompt=extract_characters_user.get().format(
+                num_sources=len(scraped_pages),
+                series_name=series_name,
+                combined_content=combined_content,
+            ),
+            response_model=CharactersList,
+            error_context="character extraction failed",
+        )
+
+        return result.characters if result else None
+
     def __process_llm_request(
             self,
             system_prompt: str,
@@ -156,6 +186,7 @@ class LLMProvider:
             self.__tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
+                model_max_length=131072,
             )
 
             config = AutoConfig.from_pretrained(
@@ -189,7 +220,7 @@ class LLMProvider:
             add_generation_prompt=True,
         )
 
-        model_inputs = self.__tokenizer([text], return_tensors="pt").to(self.__model.device)
+        model_inputs = self.__tokenizer([text], return_tensors="pt", truncation=False).to(self.__model.device)
 
         with torch.inference_mode():
             generated_ids = self.__model.generate(

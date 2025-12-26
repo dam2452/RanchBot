@@ -1,5 +1,4 @@
 import json
-import logging
 from pathlib import Path
 from typing import (
     Any,
@@ -13,27 +12,25 @@ import decord
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
-    BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.enums import KeyframeStrategy
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
+from preprocessor.video.base_video_processor import BaseVideoProcessor
 
 
-class FrameExporter(BaseProcessor):
+class FrameExporter(BaseVideoProcessor):
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
             class_name=self.__class__.__name__,
             error_exit_code=10,
-            loglevel=logging.DEBUG,
+            input_videos_key="transcoded_videos",
         )
         decord.bridge.set_bridge('native')
 
-        self.input_videos: Path = Path(self._args["transcoded_videos"])
         self.output_frames: Path = Path(self._args.get("output_frames", settings.frame_export.output_dir))
         self.output_frames.mkdir(parents=True, exist_ok=True)
 
@@ -51,9 +48,6 @@ class FrameExporter(BaseProcessor):
             self.frames_per_scene,
         )
 
-        episodes_json_path = self._args.get("episodes_info_json")
-        self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
-
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "transcoded_videos" not in args:
             raise ValueError("transcoded_videos path is required")
@@ -67,15 +61,7 @@ class FrameExporter(BaseProcessor):
             if not scene_path.exists():
                 console.print(f"[yellow]Warning: Scene timestamps directory does not exist: {scene_path}[/yellow]")
 
-    def _get_processing_items(self) -> List[ProcessingItem]:  # pylint: disable=duplicate-code
-        return self._create_video_processing_items(
-            source_path=self.input_videos,
-            extensions=self.get_video_glob_patterns(),
-            episode_manager=self.episode_manager,
-            skip_unparseable=True,
-        )
-
-    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:  # pylint: disable=duplicate-code
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         season = episode_info.season
         episode = episode_info.relative_episode
@@ -84,7 +70,7 @@ class FrameExporter(BaseProcessor):
         metadata_file = episode_dir / "frame_metadata.json"
         return [OutputSpec(path=metadata_file, required=True)]
 
-    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:  # pylint: disable=too-many-locals
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         episode_info = item.metadata["episode_info"]
         episode_dir = self.__get_episode_dir(episode_info)
         episode_dir.mkdir(parents=True, exist_ok=True)
@@ -112,7 +98,7 @@ class FrameExporter(BaseProcessor):
         episode = episode_info.relative_episode
         return self.output_frames / f"S{season:02d}" / f"E{episode:02d}"
 
-    def __prepare_data(self, video_file: Path, episode_info) -> Dict[str, Any]:
+    def __prepare_data(self, video_file: Path, episode_info) -> Dict[str, Any]:  # pylint: disable=unused-argument
         data = {}
         scene_timestamps = self.__load_scene_timestamps(episode_info)
         if scene_timestamps:
@@ -124,7 +110,7 @@ class FrameExporter(BaseProcessor):
         frame_numbers = [req["frame_number"] for req in frame_requests]
 
         with self.progress.track_operation(f"Keyframes ({len(frame_numbers)} frames)", len(frame_numbers)) as tracker:
-            for idx, (frame_num, request) in enumerate(zip(frame_numbers, frame_requests), 1):
+            for idx, frame_num in enumerate(frame_numbers, 1):
                 self.__extract_and_save_frame(vr, frame_num, episode_dir)
                 tracker.update(idx, interval=50)
 

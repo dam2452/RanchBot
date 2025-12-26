@@ -113,7 +113,7 @@ class LegacyConverter(BaseProcessor):
                 query={"query": {"match_all": {}}},
             ):
                 documents.append(doc)
-                progress.update(task, advance=1)
+                progress.update(task, advance=1)  # pylint: disable=no-member
 
         return documents
 
@@ -189,7 +189,7 @@ class LegacyConverter(BaseProcessor):
                     actions,
                     raise_on_error=False,
                 )
-                progress.update(task, completed=len(actions))
+                progress.update(task, completed=len(actions))  # pylint: disable=no-member
 
                 if failed:
                     self.logger.error(f"Failed to update {len(failed)} documents")

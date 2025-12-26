@@ -1,5 +1,5 @@
-import time
 from contextlib import contextmanager
+import time
 from typing import Optional
 
 from preprocessor.utils.console import console
@@ -32,7 +32,7 @@ class ProgressTracker:
                 elapsed = time.time() - self.start_time
                 console.print(
                     f"  [green]✓ {operation_name} completed: "
-                    f"{tracker.completed}/{total} in {self._format_time(elapsed)}[/green]"
+                    f"{tracker.completed}/{total} in {self._format_time(elapsed)}[/green]",
                 )
 
     @staticmethod
@@ -89,7 +89,7 @@ class OperationTracker:
 
         console.print(
             f"    [dim]{self.operation_name}: {self.completed}/{self.total} "
-            f"({percent:.0f}%) ETA: {eta}[/dim]"
+            f"({percent:.0f}%) ETA: {eta}[/dim]",
         )
 
     @staticmethod

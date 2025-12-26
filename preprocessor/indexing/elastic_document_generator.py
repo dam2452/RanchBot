@@ -34,6 +34,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
+        self.character_detections: Dict[str, List[Dict[str, Any]]] = {}
+        self.__load_character_detections()
+
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "transcription_jsons" not in args:
             raise ValueError("transcription_jsons is required")
@@ -173,6 +176,31 @@ class ElasticDocumentGenerator(BaseProcessor):
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
+    def __load_character_detections(self) -> None:
+        if not self.embeddings_dir:
+            return
+
+        detection_file = self.embeddings_dir / "character_detections.json"
+        if not detection_file.exists():
+            console.print("[yellow]No character_detections.json found, skipping character data[/yellow]")
+            return
+
+        try:
+            with open(detection_file, "r", encoding="utf-8") as f:
+                detections = json.load(f)
+
+            for detection in detections:
+                frame_path = detection["frame"]
+                self.character_detections[frame_path] = detection["characters"]
+
+            console.print(f"[green]Loaded character detections for {len(self.character_detections)} frames[/green]")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error(f"Error loading character detections: {e}")
+
+    def __get_characters_for_frame(self, frame_path: str) -> List[str]:
+        characters = self.character_detections.get(frame_path, [])
+        return [char["name"] for char in characters]
+
     @staticmethod
     def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if not scene_timestamps or "scenes" not in scene_timestamps:
@@ -286,7 +314,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated {len(text_embeddings)} text embedding documents → {output_file.name}[/green]")
 
-    def __generate_video_embeddings(
+    def __generate_video_embeddings(  # pylint: disable=too-many-locals
         self,
         video_emb_file: Path,
         episode_id: str,
@@ -318,6 +346,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 scene_info = self.__find_scene_for_timestamp(timestamp, scene_timestamps)
 
                 perceptual_hash = emb.get("perceptual_hash")
+                frame_path = emb.get("frame_path", "")
 
                 doc = {
                     "episode_id": episode_id,
@@ -328,6 +357,11 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "video_path": video_path,
                     "video_embedding": embedding,
                 }
+
+                if frame_path:
+                    characters = self.__get_characters_for_frame(frame_path)
+                    if characters:
+                        doc["character_appearances"] = characters
 
                 if perceptual_hash:
                     doc["perceptual_hash"] = perceptual_hash
