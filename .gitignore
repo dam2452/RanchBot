@@ -69,3 +69,5 @@ info o ffmpeg
 /preprocessor/input_data
 info o decord
 /testy_wykrywania_twarzy
+test_prefetch_benchmark.py
+/preprocessor/scraping/scraped_pages
