@@ -18,15 +18,15 @@ import requests
 import ua_generator
 
 from preprocessor.characters.utils import init_face_detection
-
-if TYPE_CHECKING:
-    from insightface.app import FaceAnalysis
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.console import (
     console,
     create_progress,
 )
+
+if TYPE_CHECKING:
+    from insightface.app import FaceAnalysis
 
 
 class CharacterReferenceDownloader(BaseProcessor):
