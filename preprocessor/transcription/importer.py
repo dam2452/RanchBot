@@ -56,28 +56,34 @@ class TranscriptionImporter(BaseProcessor):
 
         console.print(f"[blue]Found {len(json_files)} transcription files to import[/blue]")
 
-        with create_progress() as progress:
-            task = progress.add_task("Importing transcriptions...", total=len(json_files))
+        try:
+            with create_progress() as progress:
+                task = progress.add_task("Importing transcriptions...", total=len(json_files))
 
-            for json_file in json_files:
-                episode_id = self.__extract_episode_id(json_file)
+                for json_file in json_files:
+                    episode_id = self.__extract_episode_id(json_file)
 
-                if self.state_manager and self.state_manager.is_step_completed("import", episode_id):
-                    console.print(f"[yellow]Skipping (already imported): {episode_id}[/yellow]")
-                    progress.advance(task)
-                    continue
+                    if self.state_manager and self.state_manager.is_step_completed("import", episode_id):
+                        console.print(f"[yellow]Skipping (already imported): {episode_id}[/yellow]")
+                        progress.advance(task)
+                        continue
 
-                if self.state_manager:
-                    self.state_manager.mark_step_started("import", episode_id)
-
-                try:
-                    self.__import_single_file(json_file)
                     if self.state_manager:
-                        self.state_manager.mark_step_completed("import", episode_id)
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Failed to import {json_file.name}: {e}")
+                        self.state_manager.mark_step_started("import", episode_id)
 
-                progress.advance(task)
+                    try:
+                        self.__import_single_file(json_file)
+                        if self.state_manager:
+                            self.state_manager.mark_step_completed("import", episode_id)
+                    except KeyboardInterrupt:
+                        raise  # pylint: disable=try-except-raise
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to import {json_file.name}: {e}")
+
+                    progress.advance(task)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Import interrupted[/yellow]")
+            raise
 
     def __find_transcription_files(self) -> List[Path]:
         if self.format_type == "11labs_segmented":

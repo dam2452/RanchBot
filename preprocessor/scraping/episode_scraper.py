@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -9,7 +10,6 @@ from typing import (
 )
 
 from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
-from rich.progress import Progress
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
@@ -21,6 +21,9 @@ from preprocessor.utils.console import (
     console,
     create_progress,
 )
+
+if TYPE_CHECKING:
+    from rich.progress import Progress
 
 
 class EpisodeScraper(BaseProcessor):
@@ -54,24 +57,30 @@ class EpisodeScraper(BaseProcessor):
         console.print(f"[blue]Scraping {len(self.urls)} URLs...[/blue]")
 
         scraped_pages = []
-        with create_progress() as progress:
-            task = progress.add_task("Fetching pages", total=len(self.urls))
+        try:
+            with create_progress() as progress:
+                task = progress.add_task("Fetching pages", total=len(self.urls))
 
-            for url in self.urls:
-                try:
-                    page_text = self._scrape_url(url, progress)
-                    if page_text:
-                        scraped_pages.append({
-                            "url": url,
-                            "markdown": page_text,
-                        })
-                        progress.console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
-                    else:
-                        self.logger.error(f"Failed to scrape {url}")
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Error scraping {url}: {e}")
-                finally:
-                    progress.advance(task)
+                for url in self.urls:
+                    try:
+                        page_text = self._scrape_url(url, progress)
+                        if page_text:
+                            scraped_pages.append({
+                                "url": url,
+                                "markdown": page_text,
+                            })
+                            progress.console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
+                        else:
+                            self.logger.error(f"Failed to scrape {url}")
+                    except KeyboardInterrupt:
+                        raise  # pylint: disable=try-except-raise
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Error scraping {url}: {e}")
+                    finally:
+                        progress.advance(task)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Scraping interrupted[/yellow]")
+            raise
 
         if not scraped_pages:
             console.print("[yellow]No pages scraped[/yellow]")
@@ -101,7 +110,7 @@ class EpisodeScraper(BaseProcessor):
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"LLM extraction failed: {e}")
 
-    def _scrape_url(self, url: str, progress: Progress) -> Optional[str]:
+    def _scrape_url(self, url: str, progress: "Progress") -> Optional[str]:
         progress.console.print(f"[cyan]Scraping method: {self.scraper_method.value}[/cyan]")
 
         if self.scraper_method == ScraperMethod.CLIPBOARD:

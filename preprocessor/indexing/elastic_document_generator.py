@@ -59,8 +59,14 @@ class ElasticDocumentGenerator(BaseProcessor):
         ]
 
         if self.embeddings_dir:
-            text_emb_file = self.embeddings_dir / f"{base_name}_text.json"
-            video_emb_file = self.embeddings_dir / f"{base_name}_video.json"
+            episode_info = self.episode_manager.parse_filename(item.input_path)
+            if episode_info:
+                episode_emb_dir = self.embeddings_dir / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
+                text_emb_file = episode_emb_dir / "embeddings_text.json"
+                video_emb_file = episode_emb_dir / "embeddings_video.json"
+            else:
+                text_emb_file = self.embeddings_dir / f"{base_name}_text.json"
+                video_emb_file = self.embeddings_dir / f"{base_name}_video.json"
 
             if text_emb_file.exists():
                 outputs.append(
@@ -121,7 +127,11 @@ class ElasticDocumentGenerator(BaseProcessor):
             )
 
         if self.embeddings_dir:
-            text_emb_file = self.embeddings_dir / f"{base_name}_text.json"
+            episode_emb_dir = self.embeddings_dir / f"S{season:02d}" / f"E{episode_number:02d}"
+            text_emb_file = episode_emb_dir / "embeddings_text.json"
+            if not text_emb_file.exists():
+                text_emb_file = self.embeddings_dir / f"{base_name}_text.json"
+
             if text_emb_file.exists() and any("_text_embeddings.jsonl" in str(o.path) for o in missing_outputs):
                 self.__generate_text_embeddings(
                     text_emb_file,
@@ -132,7 +142,10 @@ class ElasticDocumentGenerator(BaseProcessor):
                     base_name,
                 )
 
-            video_emb_file = self.embeddings_dir / f"{base_name}_video.json"
+            video_emb_file = episode_emb_dir / "embeddings_video.json"
+            if not video_emb_file.exists():
+                video_emb_file = self.embeddings_dir / f"{base_name}_video.json"
+
             if video_emb_file.exists() and any("_video_embeddings.jsonl" in str(o.path) for o in missing_outputs):
                 self.__generate_video_embeddings(
                     video_emb_file,

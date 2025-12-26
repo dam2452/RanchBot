@@ -101,15 +101,15 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         return items
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
-        base_name = item.metadata["base_name"]
         outputs = []
+        episode_dir = self._get_episode_output_dir(item.input_path)
 
         if self.generate_text:
-            text_output = self.output_dir / f"{base_name}_text.json"
+            text_output = episode_dir / "embeddings_text.json"
             outputs.append(OutputSpec(path=text_output, required=True))
 
         if self.generate_video:
-            video_output = self.output_dir / f"{base_name}_video.json"
+            video_output = episode_dir / "embeddings_video.json"
             outputs.append(OutputSpec(path=video_output, required=True))
 
         return outputs
@@ -150,7 +150,6 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         trans_file = item.input_path
-        base_name = item.metadata["base_name"]
 
         with open(trans_file, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -164,8 +163,8 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
         console.print(f"[cyan]Processing: {trans_file.name}[/cyan]")
 
-        need_text = any("_text.json" in str(o.path) for o in missing_outputs)
-        need_video = any("_video.json" in str(o.path) for o in missing_outputs)
+        need_text = any("embeddings_text.json" in str(o.path) for o in missing_outputs)
+        need_video = any("embeddings_video.json" in str(o.path) for o in missing_outputs)
 
         text_embeddings = []
         if need_text:
@@ -185,8 +184,9 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             else:
                 console.print(f"[red]Video not found: {trans_file.name}[/red]")
 
-        text_output = self.output_dir / f"{base_name}_text.json"
-        video_output = self.output_dir / f"{base_name}_video.json"
+        episode_dir = self._get_episode_output_dir(trans_file)
+        text_output = episode_dir / "embeddings_text.json"
+        video_output = episode_dir / "embeddings_video.json"
         self.__save_embeddings(data, text_embeddings, video_embeddings, text_output, video_output)
         self._cleanup_memory()
 
@@ -194,6 +194,9 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         segments = data.get("segments", [])
         if not segments:
             return []
+
+        total_chunks = (len(segments) + self.segments_per_embedding - 1) // self.segments_per_embedding
+        console.print(f"[cyan]Generating text embeddings from {len(segments)} segments in {total_chunks} chunks[/cyan]")
 
         embeddings = []
         for i in range(0, len(segments), self.segments_per_embedding):
@@ -233,7 +236,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
         chunk_size = settings.embedding.video_chunk_size
         total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
-        console.print(f"[magenta]Processing {len(frame_requests)} frames in {total_chunks} chunks[/magenta]")
+        console.print(f"[cyan]Generating video embeddings from {len(frame_requests)} frames in {total_chunks} chunks[/cyan]")
 
         try:
             vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
@@ -246,6 +249,8 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             del vr
             self._cleanup_memory()
             return embeddings
+        except KeyboardInterrupt:
+            raise  # pylint: disable=try-except-raise
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to process video {video_path}: {e}")
             return []
@@ -303,7 +308,6 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         del chunk_embeddings
         del chunk_phashes
         self._cleanup_memory()
-        console.print(f"[green]✓ Chunk {chunk_idx + 1} processed[/green]")
 
     def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
         if not self.videos:
@@ -326,14 +330,29 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             return None
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-    def __save_embeddings(self, data, text_embeddings, video_embeddings, text_output, video_output):
+    def _get_episode_output_dir(self, transcription_file: Path) -> Path:
+        episode_info_from_file = self.episode_manager.parse_filename(transcription_file)
+        if episode_info_from_file:
+            season = episode_info_from_file.season
+            episode = episode_info_from_file.relative_episode
+            return self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        return self.output_dir / "unknown"
+
+    @staticmethod
+    def __save_embeddings(
+            data,
+        text_embeddings,
+        video_embeddings,
+        text_output,
+        video_output,
+    ):
         episode_info = data.get("episode_info", {})
         minimal_episode_info = {
             "season": episode_info.get("season"),
             "episode_number": episode_info.get("episode_number"),
         }
 
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        text_output.parent.mkdir(parents=True, exist_ok=True)
 
         if text_embeddings:
             text_data = {
@@ -342,7 +361,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             }
             with open(text_output, "w", encoding="utf-8") as f:
                 json.dump(text_data, f, indent=2, ensure_ascii=False)
-            console.print(f"[green]Saved {len(text_embeddings)} text embeddings → {text_output.name}[/green]")
+            console.print(f"[green]Saved {len(text_embeddings)} text embeddings → {text_output}[/green]")
 
         if video_embeddings:
             video_data = {
@@ -351,7 +370,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             }
             with open(video_output, "w", encoding="utf-8") as f:
                 json.dump(video_data, f, indent=2, ensure_ascii=False)
-            console.print(f"[green]Saved {len(video_embeddings)} video embeddings → {video_output.name}[/green]")
+            console.print(f"[green]Saved {len(video_embeddings)} video embeddings → {video_output}[/green]")
 
     @staticmethod
     def _cleanup_memory() -> None:

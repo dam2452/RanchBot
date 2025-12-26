@@ -80,6 +80,9 @@ class BaseProcessor(ABC):
     def work(self) -> int:
         try:
             self._execute()
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Process interrupted by user[/yellow]")
+            return 130
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"{self.__class__.__name__} failed: {e}")
         return self.logger.finalize()
@@ -186,32 +189,38 @@ class BaseProcessor(ABC):
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
         step_name = self._get_step_name()
 
-        with create_progress() as progress:
-            task = progress.add_task(
-                self._get_progress_description(),
-                total=len(items),
-            )
+        try:
+            with create_progress() as progress:
+                task = progress.add_task(
+                    self._get_progress_description(),
+                    total=len(items),
+                )
 
-            for item in items:
-                try:
-                    if self.state_manager:
-                        temp_files = self._get_temp_files(item)
-                        self.state_manager.mark_step_started(
-                            step_name,
-                            item.episode_id,
-                            temp_files,
-                        )
+                for item in items:
+                    try:
+                        if self.state_manager:
+                            temp_files = self._get_temp_files(item)
+                            self.state_manager.mark_step_started(
+                                step_name,
+                                item.episode_id,
+                                temp_files,
+                            )
 
-                    missing_outputs = item.metadata.get('missing_outputs', [])
-                    self._process_item(item, missing_outputs)
+                        missing_outputs = item.metadata.get('missing_outputs', [])
+                        self._process_item(item, missing_outputs)
 
-                    if self.state_manager:
-                        self.state_manager.mark_step_completed(step_name, item.episode_id)
+                        if self.state_manager:
+                            self.state_manager.mark_step_completed(step_name, item.episode_id)
 
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Failed to process {item.episode_id}: {e}")
-                finally:
-                    progress.advance(task)
+                    except KeyboardInterrupt:
+                        raise  # pylint: disable=try-except-raise
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to process {item.episode_id}: {e}")
+                    finally:
+                        progress.advance(task)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Processing interrupted[/yellow]")
+            raise
 
     @staticmethod
     def _get_temp_files(_item: ProcessingItem) -> List[str]:
@@ -261,11 +270,19 @@ class BaseProcessor(ABC):
 
         return items
 
-    @staticmethod
-    def _create_transcription_processing_item(transcription_file: Path) -> ProcessingItem:
+    def _create_transcription_processing_item(self, transcription_file: Path) -> ProcessingItem:
+        from preprocessor.core.episode_manager import EpisodeManager
+
         base_name = transcription_file.stem.replace("_segmented", "").replace("_simple", "")
+
+        episode_info = self.episode_manager.parse_filename(transcription_file) if hasattr(self, 'episode_manager') else None
+        if episode_info:
+            episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
+        else:
+            episode_id = base_name
+
         return ProcessingItem(
-            episode_id=base_name,
+            episode_id=episode_id,
             input_path=transcription_file,
             metadata={
                 "base_name": base_name,

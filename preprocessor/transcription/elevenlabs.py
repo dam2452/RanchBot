@@ -71,39 +71,45 @@ class ElevenLabsTranscriber(BaseProcessor):
 
         console.print(f"[blue]Found {len(video_files)} videos to transcribe with 11labs[/blue]")
 
-        with create_progress() as progress:
-            task = progress.add_task("Transcribing with 11labs...", total=len(video_files))
+        try:
+            with create_progress() as progress:
+                task = progress.add_task("Transcribing with 11labs...", total=len(video_files))
 
-            for video_file in video_files:
-                episode_id = video_file.stem
+                for video_file in video_files:
+                    episode_id = video_file.stem
 
-                if self.state_manager and self.state_manager.is_step_completed("transcribe_11labs", episode_id):
-                    console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
+                    if self.state_manager and self.state_manager.is_step_completed("transcribe_11labs", episode_id):
+                        console.print(f"[yellow]Skipping (already done): {episode_id}[/yellow]")
+                        progress.advance(task)
+                        continue
+
+                    audio_path = None
+                    try:
+                        if self.state_manager:
+                            audio_path = self.__extract_audio(video_file)
+                            self.state_manager.mark_step_started("transcribe_11labs", episode_id, [str(audio_path)])
+
+                        audio_path = audio_path or self.__extract_audio(video_file)
+                        transcription_data = self.engine.transcribe(audio_path)
+
+                        self.__save_transcription(transcription_data, video_file)
+
+                        if self.state_manager:
+                            self.state_manager.mark_step_completed("transcribe_11labs", episode_id)
+
+                    except KeyboardInterrupt:
+                        raise  # pylint: disable=try-except-raise
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to transcribe {video_file.name}: {e}")
+
+                    finally:
+                        if audio_path and audio_path.exists():
+                            audio_path.unlink()
+
                     progress.advance(task)
-                    continue
-
-                audio_path = None
-                try:
-                    if self.state_manager:
-                        audio_path = self.__extract_audio(video_file)
-                        self.state_manager.mark_step_started("transcribe_11labs", episode_id, [str(audio_path)])
-
-                    audio_path = audio_path or self.__extract_audio(video_file)
-                    transcription_data = self.engine.transcribe(audio_path)
-
-                    self.__save_transcription(transcription_data, video_file)
-
-                    if self.state_manager:
-                        self.state_manager.mark_step_completed("transcribe_11labs", episode_id)
-
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Failed to transcribe {video_file.name}: {e}")
-
-                finally:
-                    if audio_path and audio_path.exists():
-                        audio_path.unlink()
-
-                progress.advance(task)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Transcription interrupted[/yellow]")
+            raise
 
         console.print("[blue]Generating multi-format outputs (SRT, TXT, etc.)...[/blue]")
         if self.episodes_info_json:

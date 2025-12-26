@@ -38,6 +38,18 @@ class PipelineOrchestrator:
         if self.series_name:
             self.metadata = ProcessingMetadata(series_name=self.series_name, params=params)
 
+        try:
+            exit_code = self._run_all_steps(params)
+            if self.state_manager:
+                self.state_manager.cleanup()
+            self._finalize_metadata(exit_code)
+            return exit_code
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Pipeline interrupted by user[/yellow]")
+            self._finalize_metadata(130)
+            return 130
+
+    def _run_all_steps(self, params: Dict[str, Any]) -> int:
         for step in self.steps:
             step_metadata = None
             if self.metadata:
@@ -54,21 +66,22 @@ class PipelineOrchestrator:
             if step_metadata:
                 step_metadata.start()
 
-            with ResourceScope():
-                exit_code = step.execute_func(**params)
+            try:
+                with ResourceScope():
+                    exit_code = step.execute_func(**params)
+            except KeyboardInterrupt:
+                console.print(f"\n[yellow]Step {step.step_num} interrupted[/yellow]")
+                if step_metadata:
+                    step_metadata.finish(130)
+                return 130
 
             if step_metadata:
                 step_metadata.finish(exit_code)
 
             if exit_code != 0:
                 console.print(f"[red]Step {step.step_num} failed with exit code {exit_code}[/red]")
-                self._finalize_metadata(exit_code)
                 return exit_code
 
-        if self.state_manager:
-            self.state_manager.cleanup()
-
-        self._finalize_metadata(0)
         return 0
 
     def _finalize_metadata(self, exit_code: int):
