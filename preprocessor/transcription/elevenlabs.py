@@ -59,7 +59,10 @@ class ElevenLabsTranscriber(BaseProcessor):
         )
 
     def _execute(self) -> None:
-        video_files: List[Path] = sorted(self.input_videos.rglob("*.mp4"))
+        video_files: List[Path] = []
+        for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
+            video_files.extend(self.input_videos.rglob(f"*{ext}"))
+        video_files = sorted(video_files)
 
         if not video_files:
             self.logger.warning("No video files found")

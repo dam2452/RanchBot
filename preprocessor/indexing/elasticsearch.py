@@ -52,7 +52,27 @@ class ElasticSearchIndexer(BaseProcessor):
     def _execute(self) -> None:
         asyncio.run(self._exec_async())
 
+    def _check_files_exist(self) -> bool:
+        if not Path(self.transcription_jsons).exists():
+            return False
+
+        has_files = False
+        for entry in Path(self.transcription_jsons).iterdir():
+            if entry.is_dir():
+                if any(f.suffix == ".json" for f in entry.iterdir()):
+                    has_files = True
+                    break
+            elif entry.is_file() and entry.suffix == ".json":
+                has_files = True
+                break
+
+        return has_files
+
     async def _exec_async(self) -> None:
+        if not self._check_files_exist():
+            self.logger.info("No transcription files found to index.")
+            return
+
         self.client = await ElasticSearchManager.connect_to_elasticsearch(  # pylint: disable=duplicate-code
             settings.elasticsearch.host,
             settings.elasticsearch.user,

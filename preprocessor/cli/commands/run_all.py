@@ -69,12 +69,6 @@ from preprocessor.utils.console import console
 @click.option("--dry-run", is_flag=True, help="Dry run for Elasticsearch indexing")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 @click.option(
-    "--max-workers",
-    type=int,
-    default=1,
-    help="Number of parallel workers per step for processing multiple episodes (default: 1)",
-)
-@click.option(
     "--ramdisk-path",
     type=click.Path(path_type=Path),
     help="Path to ramdisk for temporary files (e.g., /mnt/ramdisk)",
@@ -103,7 +97,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     language: str,
     dry_run: bool,
     no_state: bool,
-    max_workers: int,
     ramdisk_path: Path,
     scrape_urls: tuple,
     skip_transcode: bool,
@@ -146,7 +139,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "language": language,
         "device": "cuda",
         "dry_run": dry_run,
-        "max_workers": max_workers,
         "ramdisk_path": ramdisk_path,
         "scrape_urls": scrape_urls,
         "state_manager": state_manager,

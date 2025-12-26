@@ -2,18 +2,53 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from dataclasses import dataclass
 import logging
+from pathlib import Path
+import re
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
+    List,
     Optional,
+    Tuple,
 )
 
+from rich.progress import Progress
+
 from preprocessor.core.state_manager import StateManager
+from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+
+if TYPE_CHECKING:
+    from preprocessor.core.episode_manager import EpisodeManager
+
+
+@dataclass
+class ProcessingItem:
+    episode_id: str
+    input_path: Path
+    metadata: Dict[str, Any]
+
+
+@dataclass
+class OutputSpec:
+    path: Path
+    required: bool = True
 
 
 class BaseProcessor(ABC):
+    SUPPORTED_VIDEO_EXTENSIONS: Tuple[str, ...] = (
+        ".mp4",
+        ".avi",
+        ".mkv",
+        ".mov",
+        ".flv",
+        ".wmv",
+        ".webm",
+    )
+
     def __init__(
         self,
         args: Dict[str, Any],
@@ -33,12 +68,12 @@ class BaseProcessor(ABC):
         self.state_manager: Optional[StateManager] = args.get("state_manager")
         self.series_name: str = args.get("series_name", "unknown")
 
-    @abstractmethod
-    def _validate_args(self, args: Dict[str, Any]) -> None:
-        pass
+    @classmethod
+    def get_video_glob_patterns(cls) -> List[str]:
+        return [f"*{ext}" for ext in cls.SUPPORTED_VIDEO_EXTENSIONS]
 
     @abstractmethod
-    def _execute(self) -> None:
+    def _validate_args(self, args: Dict[str, Any]) -> None:
         pass
 
     def work(self) -> int:
@@ -50,3 +85,177 @@ class BaseProcessor(ABC):
 
     def cleanup(self) -> None:
         pass
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement _get_processing_items() "
+            "or override _execute() directly (legacy mode)",
+        )
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement _get_expected_outputs() "
+            "or override _execute() directly (legacy mode)",
+        )
+
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement _process_item() "
+            "or override _execute() directly (legacy mode)",
+        )
+
+    def _get_step_name(self) -> str:
+        class_name = self.__class__.__name__
+        name = class_name.replace("Processor", "").replace("Generator", "").replace("Detector", "")
+        name = name.replace("Transcoder", "").replace("Importer", "").replace("Indexer", "")
+        return self._to_snake_case(name)
+
+    @staticmethod
+    def _to_snake_case(name: str) -> str:
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+
+    def _should_skip_item(self, item: ProcessingItem) -> Tuple[bool, List[OutputSpec], str]:
+        expected_outputs = self._get_expected_outputs(item)
+
+        if not expected_outputs:
+            return False, [], ""
+
+        missing_outputs = [
+            output for output in expected_outputs
+            if not output.path.exists() or output.path.stat().st_size == 0
+        ]
+
+        step_name = self._get_step_name()
+        state_completed = (
+            self.state_manager and
+            self.state_manager.is_step_completed(step_name, item.episode_id)
+        )
+
+        if not missing_outputs and state_completed:
+            return True, [], f"[yellow]Skipping (completed): {item.episode_id}[/yellow]"
+
+        if not missing_outputs and not state_completed:
+            if self.state_manager:
+                self.state_manager.mark_step_completed(step_name, item.episode_id)
+            return True, [], f"[yellow]Skipping (files exist, state synced): {item.episode_id}[/yellow]"
+
+        if missing_outputs and state_completed:
+            console.print(
+                f"[yellow]Warning: State marked complete but outputs missing for {item.episode_id}[/yellow]",
+            )
+            return False, missing_outputs, ""
+
+        return False, missing_outputs, ""
+
+    def _execute(self) -> None:
+        all_items = self._get_processing_items()
+
+        if not all_items:
+            console.print("[yellow]No items to process[/yellow]")
+            return
+
+        items_to_process = []
+        skipped_count = 0
+
+        for item in all_items:
+            should_skip, missing_outputs, skip_message = self._should_skip_item(item)
+
+            if should_skip:
+                if skip_message:
+                    console.print(skip_message)
+                skipped_count += 1
+            else:
+                item.metadata['missing_outputs'] = missing_outputs
+                items_to_process.append(item)
+
+        if not items_to_process:
+            console.print(
+                f"[yellow]All items already processed ({len(all_items)} total, {skipped_count} skipped)[/yellow]",
+            )
+            return
+
+        console.print(
+            f"[blue]Processing {len(items_to_process)} items "
+            f"(of {len(all_items)} total, {skipped_count} skipped)[/blue]",
+        )
+
+        self._execute_processing(items_to_process)
+
+    def _execute_processing(self, items: List[ProcessingItem]) -> None:
+        step_name = self._get_step_name()
+
+        with Progress() as progress:
+            task = progress.add_task(
+                f"[cyan]{self._get_progress_description()}",
+                total=len(items),
+            )
+
+            for item in items:
+                try:
+                    if self.state_manager:
+                        temp_files = self._get_temp_files(item)
+                        self.state_manager.mark_step_started(
+                            step_name,
+                            item.episode_id,
+                            temp_files,
+                        )
+
+                    missing_outputs = item.metadata.get('missing_outputs', [])
+                    self._process_item(item, missing_outputs)
+
+                    if self.state_manager:
+                        self.state_manager.mark_step_completed(step_name, item.episode_id)
+
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    self.logger.error(f"Failed to process {item.episode_id}: {e}")
+                finally:
+                    progress.advance(task)
+
+    @staticmethod
+    def _get_temp_files(_item: ProcessingItem) -> List[str]:
+        return []
+
+    def _get_progress_description(self) -> str:
+        return f"Processing {self.__class__.__name__}"
+
+    def _create_video_processing_items(
+        self,
+        source_path: Path,
+        extensions: List[str],
+        episode_manager: "EpisodeManager",
+        skip_unparseable: bool = True,
+    ) -> List[ProcessingItem]:
+        from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
+
+        video_files = []
+
+        if source_path.is_file():
+            video_files = [source_path]
+        else:
+            for ext in extensions:
+                video_files.extend(source_path.glob(f"**/{ext}"))
+
+        items = []
+        for video_file in sorted(video_files):
+            episode_info = episode_manager.parse_filename(video_file)
+
+            if not episode_info:
+                if skip_unparseable:
+                    self.logger.error(f"Cannot parse episode info from {video_file.name}")
+                    continue
+                episode_id = video_file.stem
+            else:
+                episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
+
+            items.append(
+                ProcessingItem(
+                    episode_id=episode_id,
+                    input_path=video_file,
+                    metadata={
+                        "episode_info": episode_info,
+                    },
+                ),
+            )
+
+        return items

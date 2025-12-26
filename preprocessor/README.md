@@ -6,31 +6,37 @@ Aplikacja Docker do przetwarzania wideo z akceleracją GPU (NVIDIA): transkodowa
 
 ## ⚠️ Wymagania sprzętowe
 
-> **Ta aplikacja jest zoptymalizowana pod NVIDIA RTX 3090 (24GB VRAM) i 64GB RAM.**
+> **UWAGA: Ta aplikacja została zaprojektowana, zoptymalizowana i przetestowana WYŁĄCZNIE na RTX 3090 (24GB VRAM) + 64GB RAM.**
 >
-> Minimalne wymagania to 12GB VRAM i 32GB RAM, ale pełna wydajność i możliwość równoległego przetwarzania wielu odcinków wymaga konfiguracji referencyjnej.
+> Wszystkie domyślne ustawienia (batch size=28, VRAM usage, cache) są skalibrowane pod tę konkretną konfigurację.
+> Uruchomienie na innym sprzęcie wymaga manualnego dostosowania parametrów i może nie działać poprawnie.
 
-| Komponent | Minimum | Referencyjne (zalecane) |
-|-----------|---------|-------------------------|
-| **GPU** | RTX 3060 12GB | **RTX 3090 24GB** |
-| **VRAM** | 12GB | **24GB** |
-| **RAM** | 32GB | **64GB** |
-| **Dysk** | 75GB wolnego | 150GB+ SSD NVMe |
+| Komponent | **Konfiguracja testowa (jedyna wspierana)** |
+|-----------|-------------------------------------------|
+| **GPU** | **RTX 3090 24GB** |
+| **VRAM** | **24GB** |
+| **RAM** | **64GB** |
+| **Dysk** | **150GB+ SSD NVMe** |
 
 **Aplikacja działa TYLKO na GPU NVIDIA. Brak fallbacku na CPU.**
 
-### Zużycie VRAM (szczytowe)
+### Specyfikacja RTX 3090 + 64GB RAM
 
-| Operacja | VRAM |
-|----------|------|
-| Transcode (NVENC) | ~2GB |
-| Whisper large-v3-turbo | ~3GB |
-| TransNetV2 | ~2GB |
-| Embeddings (batch_size=32) | ~10GB |
-| LLM scraping (Qwen 8-bit) | ~8GB |
-| **Łącznie (peak)** | **~12GB** |
+- **Batch size 28** dla embeddingów wykorzystuje ~10GB z 24GB VRAM
+- **Pełne cache modeli** (~25GB) trzymane w RAMie bez swapowania
+- **Bez OOM** przy równoczesnym działaniu Ollamy i preprocessora
+- **NVENC hardware encoding** dla 1080p h264
 
-Z 24GB VRAM możesz uruchomić większe batch size dla embeddingów, co znacząco przyspiesza przetwarzanie.
+### Zużycie VRAM (RTX 3090 - 24GB)
+
+| Operacja                       | VRAM | Konfiguracja |
+|--------------------------------|------|--------------|
+| Transcode (NVENC)              | ~2GB | h264_nvenc preset slow |
+| Whisper large-v3-turbo         | ~3GB | CTranslate2 float16 |
+| TransNetV2                     | ~2GB | PyTorch CUDA |
+| **Embeddings (batch_size=28)** | **~10GB** | **Domyślne dla RTX 3090** |
+| LLM scraping (Qwen 8-bit)      | ~8GB | Ollama 8-bit quantization |
+| **Peak łącznie**               | **~12GB** | **Połowa VRAM 3090 = margines bezpieczeństwa** |
 
 ---
 
@@ -76,22 +82,24 @@ docker logs ranchbot-preprocessing-app -f
 │   [scrape]  →  transcode  →  transcribe  →  scenes  →  embeddings  →  index │
 │   (opcja)       NVENC        Whisper      TransNet    Qwen2-VL      Elastic │
 │                                                                              │
-│   Każda faza przetwarza WIELE odcinków równolegle                           │
-│   Fazy wykonują się SEKWENCYJNIE                                            │
+│   Całkowicie SEKWENCYJNE przetwarzanie (pipeline + pliki w każdej fazie)   │
+│   Optymalizacja dla jednego GPU bez strat wydajności                        │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Czas przetwarzania (RTX 3090)
+### Czas przetwarzania (RTX 3090 + 64GB RAM)
 
-| Faza | Czas (45 min odcinek) |
-|------|----------------------|
-| Transcode (NVENC) | ~2 min |
-| Transcribe (Whisper) | ~5 min |
-| Scene detection | ~3 min |
-| Embeddings | ~5-7 min |
-| Index | ~2 min |
-| **Łącznie** | **~15-20 min** |
+| Faza                           | Czas (45 min odcinek) |
+|--------------------------------|----------------------|
+| Transcode (NVENC)              | ~2 min |
+| Transcribe (Whisper)           | ~5 min |
+| Scene detection                | ~3 min |
+| **Embeddings (batch_size=28)** | **~5-7 min** |
+| Index                          | ~2 min |
+| **Łącznie**                    | **~15-20 min** |
+
+**Throughput:** ~3-4 odcinki (45 min każdy) na godzinę przetwarzania.
 
 ---
 
@@ -234,7 +242,7 @@ Generowanie embeddingów tekst+wideo (gme-Qwen2-VL-2B).
   --transcription-jsons /app/output_data/transcriptions \
   --videos /input_data/videos \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --batch-size 32
+  --batch-size 28
 
 # Keyframe-based
 ../run-preprocessor.sh generate-embeddings \
@@ -343,6 +351,15 @@ docker-compose build
 
 ## Format plików wideo
 
+### Wspierane formaty
+
+Pipeline wspiera wszystkie popularne formaty wideo (transkoder konwertuje wszystko do MP4):
+
+**Wejście:** `.mp4`, `.avi`, `.mkv`, `.mov`, `.flv`, `.wmv`, `.webm`
+**Wyjście:** `.mp4` (h264_nvenc, AAC audio)
+
+### Nazewnictwo plików
+
 Pipeline ekstraktuje kod odcinka z nazwy pliku:
 
 | Format | Przykład | Uwagi |
@@ -352,7 +369,7 @@ Pipeline ekstraktuje kod odcinka z nazwy pliku:
 | `E012` | E012.mp4 | Wymaga episodes.json |
 
 **Przykład transformacji:**
-- Input: `Sezon 1/Ranczo S01E12.F012.Netflix.mp4`
+- Input: `Sezon 1/Ranczo S01E12.F012.Netflix.mkv`
 - Output: `ranczo_S01E12.mp4`
 
 Pliki bez rozpoznawalnego kodu będą pominięte.
@@ -460,11 +477,10 @@ docker volume rm ranchbot-ai-models
 ### Out of memory (CUDA OOM)
 
 ```bash
-# Dla GPU z mniejszym VRAM (12GB):
-../run-preprocessor.sh generate-embeddings --batch-size 16
-
-# Dla 8-10GB:
-../run-preprocessor.sh generate-embeddings --batch-size 8
+# Aplikacja domyślnie używa batch_size=28 (RTX 3090)
+# Jeśli masz inną kartę, musisz dostosować ręcznie:
+../run-preprocessor.sh generate-embeddings --batch-size 14  # dla ~16GB VRAM
+../run-preprocessor.sh generate-embeddings --batch-size 7   # dla ~12GB VRAM
 ```
 
 ### Kontener się crashuje
@@ -476,14 +492,18 @@ docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor bash
 
 ---
 
-## Wydajność (RTX 3090 / 64GB RAM)
+## Wydajność (RTX 3090 + 64GB RAM)
 
-| Metryka | Wartość |
-|---------|---------|
-| Czas na odcinek (45 min) | ~15-20 min |
-| Równoległość | Wiele odcinków na fazę |
-| Batch size embeddings | 32 (możliwe 64) |
-| Peak VRAM | ~12GB |
-| Peak RAM | ~32GB |
+**Konfiguracja testowa (jedyna wspierana):**
 
-Z konfiguracją referencyjną (RTX 3090 24GB + 64GB RAM) możesz przetwarzać wiele odcinków równolegle bez ryzyka OOM.
+| Metryka | Wartość                         |
+|---------|---------------------------------|
+| **GPU** | **RTX 3090 24GB**               |
+| **RAM** | **64GB**                        |
+| **Throughput** | **~3-4 odcinki/godzinę**        |
+| **Batch size** | **28 (default)**                |
+| **Peak VRAM** | **~12GB (~50% wykorzystania)**  |
+| **Peak RAM** | **~32GB (~50% wykorzystania)**  |
+| **Przetwarzanie** | **Sekwencyjne (1 plik na raz)** |
+
+Pipeline sekwencyjny (jeden plik na raz w każdej fazie) maksymalnie wykorzystuje GPU bez marnotrawstwa zasobów na równoległość.

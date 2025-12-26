@@ -2,8 +2,6 @@ from pathlib import Path
 
 import click
 
-from preprocessor.config.config import settings
-
 
 def episodes_info_option(required=True):
     return click.option(
@@ -27,16 +25,6 @@ def state_option():
         "--no-state",
         is_flag=True,
         help="Disable state management (no resume on interrupt)",
-    )
-
-
-def max_workers_option(default=None):
-    default_val = default or settings.transcode.max_workers
-    return click.option(
-        "--max-workers",
-        type=int,
-        default=default_val,
-        help=f"Number of parallel workers (default: {default_val})",
     )
 
 

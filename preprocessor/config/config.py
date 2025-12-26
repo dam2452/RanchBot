@@ -103,7 +103,6 @@ class TranscodeDefaults:
     preset: str = "slow"
     crf: int = 31
     gop_size: float = 0.5
-    max_workers: int = 1
 
 
 @dataclass

@@ -52,12 +52,7 @@ from preprocessor.video.transcoder import VideoTranscoder
 )
 @click.option("--name", help="Series name for state management and resume support")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
-@click.option(
-    "--max-workers",
-    type=int,
-    help="Number of parallel workers",
-)
-def transcode(  # pylint: disable=too-many-arguments
+def transcode(
     videos: Path,
     transcoded_videos: Path,
     resolution: str,
@@ -68,7 +63,6 @@ def transcode(  # pylint: disable=too-many-arguments
     episodes_info_json: Path,
     name: str,
     no_state: bool,
-    max_workers: int,
 ):
     """Transcode videos to target resolution with FFmpeg."""
     if transcoded_videos is None:  # pylint: disable=duplicate-code
@@ -81,8 +75,6 @@ def transcode(  # pylint: disable=too-many-arguments
         crf = settings.transcode.crf
     if gop_size is None:
         gop_size = settings.transcode.gop_size
-    if max_workers is None:
-        max_workers = settings.transcode.max_workers
 
     state_manager = create_state_manager(name, no_state)
 
@@ -99,7 +91,6 @@ def transcode(  # pylint: disable=too-many-arguments
     config_dict = config.to_dict()
     config_dict["state_manager"] = state_manager
     config_dict["series_name"] = name or "unknown"
-    config_dict["max_workers"] = max_workers
 
     with ResourceScope():
         transcoder = VideoTranscoder(config_dict)

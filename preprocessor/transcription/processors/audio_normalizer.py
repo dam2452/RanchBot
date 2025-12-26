@@ -1,16 +1,14 @@
 import json
 from pathlib import Path
 import subprocess
-from typing import (
-    Optional,
-    Tuple,
-)
+from typing import Optional
 
+from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
 class AudioNormalizer:
-    SUPPORTED_VIDEO_EXTENSIONS: Tuple[str, str, str] = (".mp4", ".mkv", ".avi")
+    SUPPORTED_VIDEO_EXTENSIONS = BaseProcessor.SUPPORTED_VIDEO_EXTENSIONS
 
     def __init__(self, input_videos: Path, output_dir: Path, logger: ErrorHandlingLogger):
         self.__input_videos: Path = input_videos

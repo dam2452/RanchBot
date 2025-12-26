@@ -34,7 +34,7 @@ def run_scrape_step(scrape_urls, episodes_info_json, **_kwargs):
     return 0
 
 
-def run_transcode_step(videos, episodes_info_json, name, resolution, codec, preset, max_workers, state_manager, **kwargs):
+def run_transcode_step(videos, episodes_info_json, name, resolution, codec, preset, state_manager, **kwargs):
     from preprocessor.config.config import TranscodeConfig  # pylint: disable=import-outside-toplevel
     from preprocessor.utils.resolution import Resolution  # pylint: disable=import-outside-toplevel
     from preprocessor.video.transcoder import VideoTranscoder  # pylint: disable=import-outside-toplevel
@@ -54,13 +54,12 @@ def run_transcode_step(videos, episodes_info_json, name, resolution, codec, pres
     transcode_dict = transcode_config.to_dict()
     transcode_dict["state_manager"] = state_manager
     transcode_dict["series_name"] = name
-    transcode_dict["max_workers"] = max_workers
 
     transcoder = VideoTranscoder(transcode_dict)
     return transcoder.work()
 
 
-def run_transcribe_step(videos, episodes_info_json, name, model, language, device, max_workers, ramdisk_path, state_manager, **kwargs):
+def run_transcribe_step(videos, episodes_info_json, name, model, language, device, ramdisk_path, state_manager, **kwargs):
     from preprocessor.config.config import TranscriptionConfig  # pylint: disable=import-outside-toplevel
     from preprocessor.transcription.generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
 
@@ -79,7 +78,6 @@ def run_transcribe_step(videos, episodes_info_json, name, model, language, devic
     transcription_dict = transcription_config.to_dict()
     transcription_dict["state_manager"] = state_manager
     transcription_dict["series_name"] = name
-    transcription_dict["max_workers"] = max_workers
     transcription_dict["ramdisk_path"] = ramdisk_path
 
     generator = TranscriptionGenerator(transcription_dict)

@@ -11,12 +11,15 @@ from typing import (
 
 import decord
 import numpy as np
-from rich.progress import Progress
 import torch
 from transnetv2_pytorch import TransNetV2
 
 from preprocessor.config.config import settings
-from preprocessor.core.base_processor import BaseProcessor
+from preprocessor.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
 
@@ -46,29 +49,40 @@ class SceneDetector(BaseProcessor):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. TransNetV2 requires GPU.")
 
-    def _execute(self) -> None:
+    def cleanup(self) -> None:
+        console.print("[cyan]Unloading TransNetV2 model and clearing GPU memory...[/cyan]")
+        if hasattr(self, 'model') and self.model is not None:
+            del self.model
+            self.model = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        console.print("[green]✓ TransNetV2 model unloaded, GPU memory cleared[/green]")
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        return self._create_video_processing_items(
+            source_path=self.videos,
+            extensions=self.get_video_glob_patterns(),
+            episode_manager=self.episode_manager,
+            skip_unparseable=False,
+        )
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        episode_info = item.metadata.get("episode_info")
+
+        if episode_info:
+            output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
+        else:
+            output_filename = f"{item.input_path.stem}_scenes.json"
+
+        output_path = self.output_dir / output_filename
+
+        return [OutputSpec(path=output_path, required=True)]
+
+    def _execute_processing(self, items: List[ProcessingItem]) -> None:
         console.print("[cyan]Scene detection using TransNetV2 on CUDA[/cyan]")
-
         self._load_model()
-
-        video_files = self._get_video_files()
-        if not video_files:
-            console.print("[yellow]No video files found[/yellow]")
-            return
-
-        console.print(f"[blue]Processing {len(video_files)} videos...[/blue]")
-
-        with Progress() as progress:
-            task = progress.add_task("[cyan]Detecting scenes", total=len(video_files))
-
-            for video_file in video_files:
-                try:
-                    self._process_video(video_file, progress)
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Failed to process {video_file}: {e}")
-                finally:
-                    progress.advance(task)
-
+        super()._execute_processing(items)
         console.print("[green]Scene detection completed[/green]")
 
     def _load_model(self) -> None:
@@ -79,41 +93,21 @@ class SceneDetector(BaseProcessor):
         self.model = TransNetV2().cuda()
         console.print("[green]✓ TransNetV2 ready on CUDA[/green]")
 
-    def _get_video_files(self) -> List[Path]:
-        video_files = []
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+        video_file = item.input_path
+        output_file = missing_outputs[0].path
 
-        if self.videos.is_file():
-            return [self.videos]
+        console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
 
-        for ext in ("*.mp4", "*.avi", "*.mkv", "*.mov"):
-            video_files.extend(self.videos.glob(f"**/{ext}"))
-
-        return sorted(video_files)
-
-    def _process_video(self, video_file: Path, progress: Progress) -> None:
-        episode_info = self.episode_manager.parse_filename(video_file)
-        if episode_info:
-            output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
-        else:
-            output_filename = f"{video_file.stem}_scenes.json"
-
-        output_file = self.output_dir / output_filename
-
-        if output_file.exists():
-            progress.console.print(f"[yellow]Skipping (already exists): {video_file.name}[/yellow]")
-            return
-
-        progress.console.print(f"[cyan]Processing: {video_file.name}[/cyan]")
-
-        video_info = self._get_video_info(video_file)
+        video_info = self.__get_video_info(video_file)
         if not video_info:
             self.logger.error(f"Failed to get video info for {video_file}")
             return
 
-        scene_list = self._detect_scenes_transnetv2(video_file, video_info)
+        scene_list = self.__detect_scenes_transnetv2(video_file, video_info)
 
         if not scene_list:
-            progress.console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
+            console.print(f"[yellow]No scenes detected in {video_file.name}[/yellow]")
             return
 
         result = {
@@ -132,25 +126,9 @@ class SceneDetector(BaseProcessor):
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
 
-        progress.console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
+        console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
 
-    def _get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
-        try:
-            vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
-            fps = vr.get_avg_fps()
-            total_frames = len(vr)
-            duration = total_frames / fps if fps > 0 else 0
-
-            return {
-                "fps": fps,
-                "duration": duration,
-                "total_frames": total_frames,
-            }
-        except (RuntimeError, ValueError, OSError) as e:
-            self.logger.error(f"Error reading video info: {e}")
-            return None
-
-    def _detect_scenes_transnetv2(
+    def __detect_scenes_transnetv2(
         self, video_file: Path, video_info: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         try:  # pylint: disable=too-many-try-statements
@@ -166,13 +144,13 @@ class SceneDetector(BaseProcessor):
                 if frame_num - prev_frame < self.min_scene_len:
                     continue
 
-                scene = self._create_scene_dict(len(scenes) + 1, prev_frame, frame_num, fps)
+                scene = self.__create_scene_dict(len(scenes) + 1, prev_frame, frame_num, fps)
                 scenes.append(scene)
                 prev_frame = frame_num
 
             total_frames = video_info["total_frames"]
             if total_frames - prev_frame > self.min_scene_len:
-                scene = self._create_scene_dict(len(scenes) + 1, prev_frame, total_frames, fps)
+                scene = self.__create_scene_dict(len(scenes) + 1, prev_frame, total_frames, fps)
                 scenes.append(scene)
 
             return scenes
@@ -181,38 +159,44 @@ class SceneDetector(BaseProcessor):
             self.logger.error(f"TransNetV2 detection failed: {e}")
             return []
 
-    def _create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> Dict[str, Any]:
+    def __get_video_info(self, video_file: Path) -> Optional[Dict[str, Any]]:
+        try:
+            vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+            fps = vr.get_avg_fps()
+            total_frames = len(vr)
+            duration = total_frames / fps if fps > 0 else 0
+
+            return {
+                "fps": fps,
+                "duration": duration,
+                "total_frames": total_frames,
+            }
+        except (RuntimeError, ValueError, OSError) as e:
+            self.logger.error(f"Error reading video info: {e}")
+            return None
+
+    def __create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> Dict[str, Any]:
         return {
             "scene_number": scene_number,
             "start": {
                 "frame": int(start_frame),
                 "seconds": float(start_frame / fps),
-                "timecode": self._frame_to_timecode(start_frame, fps),
+                "timecode": self.__frame_to_timecode(start_frame, fps),
             },
             "end": {
                 "frame": int(end_frame),
                 "seconds": float(end_frame / fps),
-                "timecode": self._frame_to_timecode(end_frame, fps),
+                "timecode": self.__frame_to_timecode(end_frame, fps),
             },
             "duration": float((end_frame - start_frame) / fps),
             "frame_count": int(end_frame - start_frame),
         }
 
     @staticmethod
-    def _frame_to_timecode(frame: int, fps: float) -> str:
+    def __frame_to_timecode(frame: int, fps: float) -> str:
         seconds = frame / fps
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
         frames = int((seconds % 1) * fps)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}:{frames:02d}"
-
-    def cleanup(self) -> None:
-        console.print("[cyan]Unloading TransNetV2 model and clearing GPU memory...[/cyan]")
-        if hasattr(self, 'model') and self.model is not None:
-            del self.model
-            self.model = None
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        console.print("[green]✓ TransNetV2 model unloaded, GPU memory cleared[/green]")

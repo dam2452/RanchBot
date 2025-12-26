@@ -112,11 +112,15 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         es_pass: str,
         logger,
     ) -> AsyncElasticsearch:
-        es = AsyncElasticsearch(
-            hosts=[es_host],
-            basic_auth=(es_user, es_pass),
-            verify_certs=False,
-        )
+        es_config = {
+            "hosts": [es_host],
+            "verify_certs": False,
+        }
+
+        if es_user and es_pass:
+            es_config["basic_auth"] = (es_user, es_pass) #Expected type 'list[str] | bool' (matched generic type '_VT'), got 'tuple[str, str]' instead
+
+        es = AsyncElasticsearch(**es_config)
         try:
             if not await es.ping():
                 raise es_exceptions.ConnectionError("Failed to connect to Elasticsearch.")

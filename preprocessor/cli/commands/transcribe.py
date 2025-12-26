@@ -48,12 +48,6 @@ from preprocessor.transcription.generator import TranscriptionGenerator
     required=True,
     help="Series name for output files (required)",
 )
-@click.option(
-    "--max-workers",
-    type=int,
-    default=1,
-    help="Number of parallel workers for audio normalization (default: 1)",
-)
 def transcribe(
     videos: Path,
     episodes_info_json: Path,
@@ -62,7 +56,6 @@ def transcribe(
     language: str,
     extra_json_keys: tuple,
     name: str,
-    max_workers: int,
 ):
     """Generate transcriptions using Whisper."""
     config = TranscriptionConfig(
@@ -77,7 +70,6 @@ def transcribe(
     )
 
     config_dict = config.to_dict()
-    config_dict["max_workers"] = max_workers
 
     with ResourceScope():
         generator = TranscriptionGenerator(config_dict)

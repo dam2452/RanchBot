@@ -1,8 +1,3 @@
-from concurrent.futures import (
-    Future,
-    ThreadPoolExecutor,
-    as_completed,
-)
 import json
 import logging
 import os
@@ -13,15 +8,14 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
 )
 
-from rich.progress import Progress
-
-from preprocessor.config.config import settings
-from preprocessor.core.base_processor import BaseProcessor
+from preprocessor.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.utils.console import console
 from preprocessor.utils.resolution import Resolution
 
 
@@ -43,7 +37,6 @@ class VideoTranscoder(BaseProcessor):
         self.preset: str = str(self._args["preset"])
         self.crf: int = int(self._args["crf"])
         self.gop_size: float = float(self._args["gop_size"])
-        self.max_workers: int = int(self._args.get("max_workers", settings.transcode.max_workers))
 
         episodes_json_path = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
@@ -68,107 +61,23 @@ class VideoTranscoder(BaseProcessor):
         if not videos_path.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
 
-    def _execute(self) -> None:
-        video_files: List[Path] = sorted(self.input_videos.rglob("*.mp4"))
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        return self._create_video_processing_items(
+            source_path=self.input_videos,
+            extensions=self.get_video_glob_patterns(),
+            episode_manager=self.episode_manager,
+            skip_unparseable=True,
+        )
 
-        if not video_files:
-            self.logger.warning("No video files found")
-            return
-
-        console.print(f"[blue]Found {len(video_files)} video files to transcode[/blue]")
-        console.print(f"[cyan]Using {self.max_workers} worker(s)[/cyan]")
-
-        if self.state_manager:
-            progress = self.state_manager.create_progress_bar(
-                len(video_files),
-                "Transcoding videos",
-            )
-        else:
-            progress = Progress()
-
-        if self.max_workers == 1:
-            self._work_sequential(video_files, progress)
-        else:
-            self._work_parallel(video_files, progress)
-
-    def _work_sequential(self, video_files: List[Path], progress: Progress) -> None:
-        with progress:
-            task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
-
-            for video_file in video_files:
-                episode_id = self._prepare_video_for_processing(video_file, progress, task)
-                if episode_id is None:
-                    continue
-
-                self._process_single_video(video_file)
-
-                if self.state_manager:
-                    self.state_manager.mark_step_completed("transcode", episode_id)
-
-                progress.advance(task)
-
-    def _work_parallel(self, video_files: List[Path], progress: Progress) -> None:
-        with progress:
-            task = progress.add_task("[cyan]Transcoding...", total=len(video_files))
-
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures: Dict[Future, Tuple[Path, str]] = {}
-                for video_file in video_files:
-                    episode_id = self._prepare_video_for_processing(video_file, progress, task)
-                    if episode_id is None:
-                        continue
-
-                    future = executor.submit(self._process_single_video, video_file)
-                    futures[future] = (video_file, episode_id)
-
-                for future in as_completed(futures):
-                    video_file, episode_id = futures[future]
-                    try:
-                        future.result()
-                        if self.state_manager:
-                            self.state_manager.mark_step_completed("transcode", episode_id)
-                    except (subprocess.CalledProcessError, OSError, ValueError) as e:
-                        self.logger.error(f"Failed to process {video_file}: {e}")
-                    finally:
-                        progress.advance(task)
-
-    def _prepare_video_for_processing(self, video_file: Path, progress, task) -> Optional[str]:
-        episode_info = self.episode_manager.parse_filename(video_file)
-        if not episode_info:
-            self.logger.error(f"Cannot parse episode info from {video_file.name}")
-            progress.advance(task)
-            return None
-
-        episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        episode_info = item.metadata["episode_info"]
         output_path = self.episode_manager.build_output_path(episode_info, self.output_videos, ".mp4")
 
-        should_skip, skip_message = self._should_skip_video(episode_id, output_path)
-        if should_skip:
-            console.print(skip_message)
-            progress.advance(task)
-            return None
+        return [OutputSpec(path=output_path, required=True)]
 
-        if self.state_manager:
-            self.state_manager.mark_step_started("transcode", episode_id)
-
-        return episode_id
-
-    def _should_skip_video(self, episode_id: str, output_path: Optional[Path]) -> Tuple[bool, str]:
-        if output_path and output_path.exists() and output_path.stat().st_size > 0:
-            return True, f"[yellow]Skipping (already exists): {episode_id}[/yellow]"
-
-        if self.state_manager and self.state_manager.is_step_completed("transcode", episode_id):
-            return True, f"[yellow]Skipping (marked as done): {episode_id}[/yellow]"
-
-        return False, ""
-
-    def _process_single_video(self, video_file: Path) -> None:
-        episode_info = self.episode_manager.parse_filename(video_file)
-        if not episode_info:
-            self.logger.error(f"Cannot extract episode info from {video_file.name}")
-            return
-
-        output_path = self.episode_manager.build_output_path(episode_info, self.output_videos, ".mp4")
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+        video_file = item.input_path
+        output_path = missing_outputs[0].path
 
         try:
             self._transcode_video(video_file, output_path)

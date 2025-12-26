@@ -3,11 +3,15 @@ import json
 from pathlib import Path
 import re
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
     Optional,
 )
+
+if TYPE_CHECKING:
+    from preprocessor.core.base_processor import BaseProcessor
 
 
 @dataclass
@@ -123,6 +127,7 @@ class EpisodeManager:
         if search_dir.is_file():
             return search_dir
 
+
         episode_code = episode_info.episode_code()
         search_dirs = [search_dir / episode_info.season_dir_name(), search_dir]
 
@@ -130,13 +135,10 @@ class EpisodeManager:
             if not dir_path.exists():
                 continue
 
-            for video_file in dir_path.glob("*.mp4"):
-                if re.search(episode_code, video_file.name, re.IGNORECASE):
-                    return video_file
-
-            for video_file in dir_path.glob("*.mkv"):
-                if re.search(episode_code, video_file.name, re.IGNORECASE):
-                    return video_file
+            for ext in BaseProcessor.SUPPORTED_VIDEO_EXTENSIONS:
+                for video_file in dir_path.glob(f"*{ext}"):
+                    if re.search(episode_code, video_file.name, re.IGNORECASE):
+                        return video_file
 
         return None
 
