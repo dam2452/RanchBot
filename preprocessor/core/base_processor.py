@@ -69,6 +69,9 @@ class BaseProcessor(ABC):
         self.state_manager: Optional[StateManager] = args.get("state_manager")
         self.series_name: str = args.get("series_name", "unknown")
 
+        from preprocessor.utils.progress_tracker import ProgressTracker  # pylint: disable=import-outside-toplevel
+        self.progress = args.get("progress_tracker", ProgressTracker(enabled=True))
+
     @classmethod
     def get_video_glob_patterns(cls) -> List[str]:
         return [f"*{ext}" for ext in cls.SUPPORTED_VIDEO_EXTENSIONS]

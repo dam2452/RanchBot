@@ -1,3 +1,5 @@
+WYMAGA AKTUALIZACJI !!!
+
 # Video Preprocessing Pipeline
 
 Aplikacja Docker do przetwarzania wideo z akceleracją GPU (NVIDIA): transkodowanie, transkrypcja (Whisper/ElevenLabs), detekcja scen, generowanie embeddingów i indeksowanie w Elasticsearch.

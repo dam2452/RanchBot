@@ -108,32 +108,74 @@ def run_scene_step(device, **kwargs):
     return exit_code
 
 
-def run_embedding_step(device, **kwargs):
-    from preprocessor.embeddings.generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
+def run_frame_export_step(state_manager, **kwargs):
+    from preprocessor.video.frame_exporter import FrameExporter  # pylint: disable=import-outside-toplevel
 
-    transcription_jsons = kwargs.get("transcription_jsons")
     transcoded_videos = kwargs.get("transcoded_videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
+    output_frames = kwargs.get("output_frames", settings.frame_export.output_dir)
+
+    exporter = FrameExporter(
+        {
+            "transcoded_videos": transcoded_videos,
+            "scene_timestamps_dir": scene_timestamps_dir,
+            "output_frames": output_frames,
+            "frame_height": 480,
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
+            "state_manager": state_manager,
+        },
+    )
+    return exporter.work()
+
+
+def run_image_hashing_step(device, state_manager, **kwargs):
+    from preprocessor.hashing.image_hash_processor import ImageHashProcessor  # pylint: disable=import-outside-toplevel
+
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
+    frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
+
+    hasher = ImageHashProcessor(
+        {
+            "frames_dir": frames_dir,
+            "output_dir": settings.embedding.default_output_dir,
+            "batch_size": settings.embedding.batch_size,
+            "device": device,
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
+            "state_manager": state_manager,
+        },
+    )
+    exit_code = hasher.work()
+    hasher.cleanup()
+    return exit_code
+
+
+def run_embedding_step(device, state_manager, **kwargs):
+    from preprocessor.embeddings.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
+
+    transcription_jsons = kwargs.get("transcription_jsons")
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
+    frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
 
     embedding_generator = EmbeddingGenerator(
         {
             "transcription_jsons": transcription_jsons,
-            "videos": transcoded_videos,
+            "frames_dir": frames_dir,
             "output_dir": settings.embedding.default_output_dir,
             "model": settings.embedding.model_name,
             "segments_per_embedding": settings.embedding.segments_per_embedding,
-            "keyframe_strategy": "scene_changes",
-            "keyframe_interval": settings.embedding.keyframe_interval,
-            "frames_per_scene": settings.embedding.frames_per_scene,
             "generate_text": True,
             "generate_video": True,
             "device": device,
             "batch_size": settings.embedding.batch_size,
-            "scene_timestamps_dir": scene_timestamps_dir,
             "series_name": name,
             "episodes_info_json": episodes_info_json,
+            "state_manager": state_manager,
         },
     )
     exit_code = embedding_generator.work()

@@ -1,0 +1,159 @@
+import json
+import logging
+from pathlib import Path
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
+
+from PIL import Image
+import decord
+
+from preprocessor.config.config import settings
+from preprocessor.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
+from preprocessor.core.enums import KeyframeStrategy
+from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
+from preprocessor.utils.console import console
+
+
+class FrameExporter(BaseProcessor):
+    def __init__(self, args: Dict[str, Any]) -> None:
+        super().__init__(
+            args=args,
+            class_name=self.__class__.__name__,
+            error_exit_code=10,
+            loglevel=logging.DEBUG,
+        )
+        decord.bridge.set_bridge('native')
+
+        self.input_videos: Path = Path(self._args["transcoded_videos"])
+        self.output_frames: Path = Path(self._args.get("output_frames", settings.frame_export.output_dir))
+        self.output_frames.mkdir(parents=True, exist_ok=True)
+
+        self.scene_timestamps_dir: Path = Path(self._args.get("scene_timestamps_dir", settings.scene_detection.output_dir))
+        self.resize_height: int = self._args.get("frame_height", 480)
+
+        keyframe_strategy_str = self._args.get("keyframe_strategy", settings.embedding.keyframe_strategy)
+        self.keyframe_strategy = KeyframeStrategy(keyframe_strategy_str)
+        self.keyframe_interval: int = self._args.get("keyframe_interval", settings.embedding.keyframe_interval)
+        self.frames_per_scene: int = self._args.get("frames_per_scene", settings.embedding.frames_per_scene)
+
+        self.strategy = KeyframeStrategyFactory.create(
+            self.keyframe_strategy,
+            self.keyframe_interval,
+            self.frames_per_scene,
+        )
+
+        episodes_json_path = self._args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
+
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if "transcoded_videos" not in args:
+            raise ValueError("transcoded_videos path is required")
+
+        videos_path = Path(args["transcoded_videos"])
+        if not videos_path.is_dir():
+            raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
+
+        if "scene_timestamps_dir" in args:
+            scene_path = Path(args["scene_timestamps_dir"])
+            if not scene_path.exists():
+                console.print(f"[yellow]Warning: Scene timestamps directory does not exist: {scene_path}[/yellow]")
+
+    def _get_processing_items(self) -> List[ProcessingItem]:  # pylint: disable=duplicate-code
+        return self._create_video_processing_items(
+            source_path=self.input_videos,
+            extensions=self.get_video_glob_patterns(),
+            episode_manager=self.episode_manager,
+            skip_unparseable=True,
+        )
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:  # pylint: disable=duplicate-code
+        episode_info = item.metadata["episode_info"]
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_dir = self.output_frames / f"S{season:02d}" / f"E{episode:02d}"
+
+        metadata_file = episode_dir / "frame_metadata.json"
+        return [OutputSpec(path=metadata_file, required=True)]
+
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:  # pylint: disable=too-many-locals
+        episode_info = item.metadata["episode_info"]
+        episode_dir = self.__get_episode_dir(episode_info)
+        episode_dir.mkdir(parents=True, exist_ok=True)
+
+        data = self.__prepare_data(item.input_path, episode_info)
+        frame_requests = self.strategy.extract_frame_requests(item.input_path, data)
+
+        if not frame_requests:
+            console.print(f"[yellow]No frames to extract for {item.input_path.name}[/yellow]")
+            return
+
+        console.print(f"[cyan]Extracting {len(frame_requests)} keyframes from {item.input_path.name}[/cyan]")
+
+        try:
+            self.__extract_frames(item.input_path, frame_requests, episode_dir)
+        except Exception as e:
+            self.logger.error(f"Failed to extract frames from {item.input_path}: {e}")
+            raise
+
+        self.__write_metadata(episode_dir, frame_requests)
+        console.print(f"[green]✓ Exported {len(frame_requests)} frames to {episode_dir}[/green]")
+
+    def __get_episode_dir(self, episode_info) -> Path:
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        return self.output_frames / f"S{season:02d}" / f"E{episode:02d}"
+
+    def __prepare_data(self, video_file: Path, episode_info) -> Dict[str, Any]:
+        data = {}
+        scene_timestamps = self.__load_scene_timestamps(episode_info)
+        if scene_timestamps:
+            data["scene_timestamps"] = scene_timestamps
+        return data
+
+    def __extract_frames(self, video_file: Path, frame_requests: List[Dict[str, Any]], episode_dir: Path) -> None:
+        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+        frame_numbers = [req["frame_number"] for req in frame_requests]
+
+        with self.progress.track_operation(f"Keyframes ({len(frame_numbers)} frames)", len(frame_numbers)) as tracker:
+            for idx, (frame_num, request) in enumerate(zip(frame_numbers, frame_requests), 1):
+                self.__extract_and_save_frame(vr, frame_num, episode_dir)
+                tracker.update(idx, interval=50)
+
+        del vr
+
+    def __extract_and_save_frame(self, vr, frame_num: int, episode_dir: Path) -> None:
+        frame_np = vr[frame_num].asnumpy()
+        frame_pil = Image.fromarray(frame_np)
+
+        resized = self.__resize_frame(frame_pil)
+        filename = f"frame_{frame_num:06d}.jpg"
+        resized.save(episode_dir / filename, quality=90)
+
+    def __resize_frame(self, frame: Image.Image) -> Image.Image:
+        aspect_ratio = frame.width / frame.height
+        new_width = int(self.resize_height * aspect_ratio)
+        return frame.resize((new_width, self.resize_height), Image.Resampling.LANCZOS)
+
+    @staticmethod
+    def __write_metadata(episode_dir: Path, frame_requests: List[Dict[str, Any]]) -> None:
+        metadata = {
+            "frame_count": len(frame_requests),
+            "frames": frame_requests,
+        }
+        metadata_file = episode_dir / "frame_metadata.json"
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+    def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
+        if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
+            return None
+        return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)

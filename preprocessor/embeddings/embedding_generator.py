@@ -2,8 +2,6 @@ import gc
 import json
 import logging
 from pathlib import Path
-from queue import Queue
-import threading
 from typing import (
     Any,
     Dict,
@@ -11,7 +9,7 @@ from typing import (
     Optional,
 )
 
-import decord
+from PIL import Image
 import numpy as np
 import torch
 from transformers import AutoModel
@@ -22,12 +20,8 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.enums import KeyframeStrategy
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.embeddings.frame_processor import FrameProcessor
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
-from preprocessor.embeddings.image_hasher import PerceptualHasher
-from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
 
 
@@ -39,25 +33,18 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             error_exit_code=9,
             loglevel=logging.DEBUG,
         )
-        decord.bridge.set_bridge('torch')
 
         self.transcription_jsons: Path = self._args["transcription_jsons"]
-        self.videos: Optional[Path] = self._args.get("videos")
+        self.frames_dir: Path = self._args.get("frames_dir", settings.frame_export.output_dir)
         self.output_dir: Path = self._args.get("output_dir", settings.embedding.default_output_dir)
-        self.scene_timestamps_dir: Optional[Path] = self._args.get("scene_timestamps_dir")
 
         self.model_name: str = self._args.get("model", settings.embedding.model_name)
         self.model_revision: str = self._args.get("model_revision", settings.embedding.model_revision)
         self.batch_size: int = self._args.get("batch_size", settings.embedding.batch_size)
         self.resize_height: int = self._args.get("resize_height", settings.embedding.resize_height)
-        self.prefetch_chunks: int = self._args.get("prefetch_chunks", settings.embedding.prefetch_chunks)
         self.device: str = "cuda"
 
         self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
-        keyframe_strategy_str = self._args.get("keyframe_strategy", settings.embedding.keyframe_strategy)
-        self.keyframe_strategy = KeyframeStrategy(keyframe_strategy_str)
-        self.keyframe_interval: int = self._args.get("keyframe_interval", settings.embedding.keyframe_interval)
-        self.frames_per_scene: int = self._args.get("frames_per_scene", settings.embedding.frames_per_scene)
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
 
@@ -66,10 +53,7 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
 
         self.model = None
         self.processor = None
-        self.frame_processor: Optional[FrameProcessor] = None
         self.gpu_processor: Optional[GPUBatchProcessor] = None
-        self.hasher: Optional[PerceptualHasher] = None
-        self.strategy = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "transcription_jsons" not in args:
@@ -118,18 +102,9 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         console.print(f"[cyan]Loading model: {self.model_name}[/cyan]")
         console.print(f"[cyan]Device: {self.device}[/cyan]")
         console.print(f"[cyan]Batch size: {self.batch_size}[/cyan]")
-        console.print(f"[cyan]Frame resize height: {self.resize_height}p[/cyan]")
-        console.print(f"[cyan]Prefetch chunks: {self.prefetch_chunks}[/cyan]")
 
         self._load_model()
-        self.frame_processor = FrameProcessor(self.resize_height, self.device)
         self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
-        self.hasher = PerceptualHasher(device=self.device, hash_size=8)
-        self.strategy = KeyframeStrategyFactory.create(
-            self.keyframe_strategy,
-            self.keyframe_interval,
-            self.frames_per_scene,
-        )
 
         super()._execute_processing(items)
         console.print("[green]Embedding generation completed[/green]")
@@ -168,14 +143,11 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
             text_embeddings = self.__generate_text_embeddings(data)
 
         video_embeddings = []
-        if need_video and self.videos:
-            video_path = self.__get_video_path(data)
-            if video_path and video_path.exists():
-                if self.scene_timestamps_dir and "scene_timestamps" not in data:
-                    scene_data = self.__load_scene_timestamps(video_path)
-                    if scene_data:
-                        data["scene_timestamps"] = scene_data
-                video_embeddings = self.__generate_video_embeddings(video_path, data)
+        if need_video:
+            episode_info = data.get("episode_info", {})
+            frame_metadata = self.__load_frame_metadata(episode_info)
+            if frame_metadata:
+                video_embeddings = self.__generate_video_embeddings(episode_info, frame_metadata)
 
         episode_dir = self._get_episode_output_dir(trans_file)
         text_output = episode_dir / "embeddings_text.json"
@@ -188,25 +160,32 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         if not segments:
             return []
 
+        total_chunks = (len(segments) + self.segments_per_embedding - 1) // self.segments_per_embedding
         embeddings = []
-        for i in range(0, len(segments), self.segments_per_embedding):
-            chunk = segments[i: i + self.segments_per_embedding]
-            combined_text = " ".join([seg.get("text", "") for seg in chunk])
 
-            if not combined_text.strip():
-                continue
+        with self.progress.track_operation(f"Text embeddings ({len(segments)} segments)", total_chunks) as tracker:
+            chunk_idx = 0
+            for i in range(0, len(segments), self.segments_per_embedding):
+                chunk = segments[i: i + self.segments_per_embedding]
+                combined_text = " ".join([seg.get("text", "") for seg in chunk])
 
-            try:
-                embedding = self.__encode_text(combined_text)
-                embeddings.append(
-                    {
-                        "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
-                        "text": combined_text,
-                        "embedding": embedding.tolist(),
-                    },
-                )
-            except (RuntimeError, ValueError, OSError) as e:
-                self.logger.error(f"Failed text embedding for segments {i}-{i + len(chunk)}: {e}")
+                if not combined_text.strip():
+                    continue
+
+                try:
+                    embedding = self.__encode_text(combined_text)
+                    embeddings.append(
+                        {
+                            "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
+                            "text": combined_text,
+                            "embedding": embedding.tolist(),
+                        },
+                    )
+                except (RuntimeError, ValueError, OSError) as e:
+                    self.logger.error(f"Failed text embedding for segments {i}-{i + len(chunk)}: {e}")
+
+                chunk_idx += 1
+                tracker.update(chunk_idx, interval=10)
 
         return embeddings
 
@@ -216,106 +195,71 @@ class EmbeddingGenerator(BaseProcessor):  # pylint: disable=too-many-instance-at
         del embeddings_tensor
         return embedding
 
-    def __generate_video_embeddings(self, video_path: Path, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        frame_requests = self.strategy.extract_frame_requests(video_path, data)
-        return self.__process_video_frames(video_path, frame_requests)
-
-    def __process_video_frames(self, video_path: Path, frame_requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not frame_requests:
-            return []
-
-        chunk_size = settings.embedding.video_chunk_size
-        total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
-
-        try:
-            vr = decord.VideoReader(str(video_path), ctx=decord.cpu(0))
-
-            if self.prefetch_chunks > 0:
-                embeddings = self.__process_with_prefetch(vr, frame_requests, chunk_size, total_chunks)
-            else:
-                embeddings = self.__process_sequential_chunks(vr, frame_requests, chunk_size, total_chunks)
-
-            del vr
-            self._cleanup_memory()
-            return embeddings
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            self.logger.error(f"Failed to process video {video_path}: {e}")
-            return []
-
-    def __process_with_prefetch(self, vr, frame_requests, chunk_size, total_chunks):
-        embeddings = []
-        prefetch_queue = Queue(maxsize=self.prefetch_chunks)
-
-        def prefetch_worker():
-            for prefetch_chunk_idx in range(total_chunks):
-                prefetch_chunk_start = prefetch_chunk_idx * chunk_size
-                prefetch_chunk_end = min(prefetch_chunk_start + chunk_size, len(frame_requests))
-                prefetch_requests = frame_requests[prefetch_chunk_start:prefetch_chunk_end]
-                prefetch_indices = [r["frame_number"] for r in prefetch_requests]
-
-                prefetch_images = self.frame_processor.load_and_preprocess_frames(vr, prefetch_indices)
-                prefetch_queue.put((prefetch_chunk_idx, prefetch_requests, prefetch_images))
-            prefetch_queue.put(None)
-
-        prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
-        prefetch_thread.start()
-
-        while True:
-            item = prefetch_queue.get()
-            if item is None:
-                break
-            chunk_idx, current_requests, pil_images = item
-            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings)
-
-        prefetch_thread.join()
-        return embeddings
-
-    def __process_sequential_chunks(self, vr, frame_requests, chunk_size, total_chunks):
-        embeddings = []
-        for chunk_idx in range(total_chunks):
-            chunk_start = chunk_idx * chunk_size
-            chunk_end = min(chunk_start + chunk_size, len(frame_requests))
-            current_requests = frame_requests[chunk_start:chunk_end]
-            current_indices = [req["frame_number"] for req in current_requests]
-            pil_images = self.frame_processor.load_and_preprocess_frames(vr, current_indices)
-            self.__process_chunk_embeddings(pil_images, current_requests, chunk_idx, embeddings)
-        return embeddings
-
-    def __process_chunk_embeddings(self, pil_images, current_requests, chunk_idx, embeddings):
-        chunk_embeddings = self.gpu_processor.process_images_batch(pil_images, chunk_idx)
-        chunk_phashes = self.hasher.compute_phash_batch(pil_images)
-
-        for req, emb, phash in zip(current_requests, chunk_embeddings, chunk_phashes):
-            req_copy = req.copy()
-            req_copy["embedding"] = emb
-            req_copy["perceptual_hash"] = phash
-            embeddings.append(req_copy)
-
-        del pil_images
-        del chunk_embeddings
-        del chunk_phashes
-        self._cleanup_memory()
-
-    def __get_video_path(self, data: Dict[str, Any]) -> Optional[Path]:
-        if not self.videos:
-            return None
-        episode_info_dict = data.get("episode_info", {})
+    def __load_frame_metadata(self, episode_info_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         season = episode_info_dict.get("season")
         episode = episode_info_dict.get("episode_number")
         if season is None or episode is None:
             return None
-        episode_info = self.episode_manager.get_episode_by_season_and_relative(season, episode)
-        if not episode_info:
-            return None
-        return EpisodeManager.find_video_file(episode_info, self.videos)
 
-    def __load_scene_timestamps(self, video_path: Path) -> Optional[Dict[str, Any]]:
-        if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():
+        frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
+        metadata_file = frames_episode_dir / "frame_metadata.json"
+
+        if not metadata_file.exists():
+            self.logger.warning(f"Frame metadata not found: {metadata_file}")
             return None
-        episode_info = self.episode_manager.parse_filename(video_path)
-        if not episode_info:
-            return None
-        return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
+
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def __generate_video_embeddings(self, episode_info_dict: Dict[str, Any], frame_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+        frame_requests = frame_metadata.get("frames", [])
+        if not frame_requests:
+            return []
+
+        season = episode_info_dict.get("season")
+        episode = episode_info_dict.get("episode_number")
+        frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
+
+        chunk_size = self.batch_size
+        total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
+        embeddings = []
+
+        with self.progress.track_operation(f"Video embeddings ({len(frame_requests)} frames)", total_chunks) as tracker:
+            for chunk_idx in range(total_chunks):
+                chunk_start = chunk_idx * chunk_size
+                chunk_end = min(chunk_start + chunk_size, len(frame_requests))
+                chunk_requests = frame_requests[chunk_start:chunk_end]
+
+                pil_images = self.__load_frames(frames_episode_dir, chunk_requests)
+                chunk_embeddings = self.gpu_processor.process_images_batch(pil_images, chunk_idx)
+
+                for request, embedding in zip(chunk_requests, chunk_embeddings):
+                    result = request.copy()
+                    result["embedding"] = embedding
+                    embeddings.append(result)
+
+                del pil_images
+                del chunk_embeddings
+                self._cleanup_memory()
+
+                tracker.update(chunk_idx + 1, interval=10)
+
+        return embeddings
+
+    @staticmethod
+    def __load_frames(frames_dir: Path, frame_requests: List[Dict[str, Any]]) -> List[Image.Image]:
+        images = []
+        for request in frame_requests:
+            frame_num = request["frame_number"]
+            frame_path = frames_dir / f"frame_{frame_num:06d}.jpg"
+            if frame_path.exists():
+                img = Image.open(frame_path)
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                images.append(img)
+            else:
+                images.append(Image.new('RGB', (1, 1)))
+        return images
 
     def _get_episode_output_dir(self, transcription_file: Path) -> Path:
         episode_info_from_file = self.episode_manager.parse_filename(transcription_file)

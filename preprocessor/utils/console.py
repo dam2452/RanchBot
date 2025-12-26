@@ -1,14 +1,8 @@
 import os
 import sys
+import time
 
 from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeRemainingColumn,
-)
 
 _console_instance = None
 
@@ -19,24 +13,87 @@ def get_console() -> Console:
         in_docker = os.path.exists('/.dockerenv') or os.getenv('DOCKER_CONTAINER', 'false') == 'true'
 
         _console_instance = Console(
-            force_terminal=True if in_docker else None,
-            force_interactive=True,
+            force_terminal=True,
             file=sys.stderr,
             color_system="standard" if in_docker else "auto",
         )
     return _console_instance
 
 
-def create_progress() -> Progress:
-    return Progress(
-        TextColumn("[bold blue]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        TimeRemainingColumn(),
-        console=console,
-        auto_refresh=True,
-        refresh_per_second=4,
-    )
+class SimpleProgress:
+    def __init__(self):
+        self.tasks = {}
+        self.task_counter = 0
+
+    def add_task(self, description: str, total: int):
+        task_id = self.task_counter
+        self.task_counter += 1
+        self.tasks[task_id] = {
+            'description': description,
+            'total': total,
+            'completed': 0,
+            'start_time': time.time(),
+            'last_print': 0,
+        }
+        self._print_progress(task_id)
+        return task_id
+
+    def advance(self, task_id: int, advance: int = 1):
+        if task_id not in self.tasks:
+            return
+
+        task = self.tasks[task_id]
+        task['completed'] += advance
+
+        current_time = time.time()
+        if current_time - task['last_print'] >= 1.0 or task['completed'] >= task['total']:
+            self._print_progress(task_id)
+            task['last_print'] = current_time
+
+    def _print_progress(self, task_id: int):
+        task = self.tasks[task_id]
+        completed = task['completed']
+        total = task['total']
+        percent = (completed / total * 100) if total > 0 else 0
+
+        elapsed = time.time() - task['start_time']
+        if completed > 0 and completed < total:
+            eta_seconds = (elapsed / completed) * (total - completed)
+            eta = self._format_time(eta_seconds)
+        elif completed >= total:
+            eta = "0:00:00"
+        else:
+            eta = "-:--:--"
+
+        bar_width = 30
+        filled = int(bar_width * completed / total) if total > 0 else 0
+        bar = "━" * filled + "╸" + "─" * (bar_width - filled - 1) if filled < bar_width else "━" * bar_width
+
+        console.print(
+            f"[bold blue]{task['description']}[/bold blue] "
+            f"[cyan]{bar}[/cyan] "
+            f"[green]{percent:3.0f}%[/green] "
+            f"[yellow]{completed}/{total}[/yellow] "
+            f"[dim]ETA: {eta}[/dim]",
+            highlight=False,
+        )
+
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
+def create_progress() -> SimpleProgress:
+    return SimpleProgress()
 
 
 console = get_console()

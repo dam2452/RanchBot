@@ -54,6 +54,11 @@ class SceneDetectionSettings:
 
 
 @dataclass
+class FrameExportSettings:
+    output_dir: Path = Path("/app/output_data/frames_480p")
+
+
+@dataclass
 class ScraperSettings:
     output_dir: Path = Path("/app/output_data/scraped_pages")
 
@@ -118,6 +123,7 @@ class Settings:
     whisper: WhisperSettings
     embedding: EmbeddingSettings
     scene_detection: SceneDetectionSettings
+    frame_export: FrameExportSettings
     scraper: ScraperSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
@@ -130,6 +136,7 @@ class Settings:
             whisper=WhisperSettings.from_env(),
             embedding=EmbeddingSettings(),
             scene_detection=SceneDetectionSettings(),
+            frame_export=FrameExportSettings(),
             scraper=ScraperSettings(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),

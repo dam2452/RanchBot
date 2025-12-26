@@ -3,8 +3,10 @@ import click
 from preprocessor.cli.commands import (
     convert_elastic,
     detect_scenes,
+    export_frames,
     generate_elastic_documents,
     generate_embeddings,
+    image_hashing,
     import_transcriptions,
     index,
     run_all,
@@ -37,6 +39,10 @@ cli.add_command(scrape_episodes)
 cli.add_command(convert_elastic)
 # noinspection PyTypeChecker
 cli.add_command(detect_scenes)
+# noinspection PyTypeChecker
+cli.add_command(export_frames)
+# noinspection PyTypeChecker
+cli.add_command(image_hashing)
 # noinspection PyTypeChecker
 cli.add_command(generate_embeddings)
 # noinspection PyTypeChecker
