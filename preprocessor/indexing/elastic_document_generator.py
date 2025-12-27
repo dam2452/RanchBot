@@ -87,7 +87,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         return outputs
 
-    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None: # pylint: disable=too-many-locals
         trans_file = item.input_path
         base_name = item.metadata["base_name"]
         season_dir = trans_file.parent.name
@@ -319,7 +319,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated {len(text_embeddings)} text embedding documents → {output_file.name}[/green]")
 
-    def __generate_video_embeddings(
+    def __generate_video_embeddings( # pylint: disable=too-many-locals
         self,
         video_emb_file: Path,
         episode_id: str,

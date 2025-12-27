@@ -54,6 +54,7 @@ class CharacterDetector(BaseProcessor):
         if "frames_dir" not in args:
             raise ValueError("frames_dir is required")
 
+    # pylint: disable=duplicate-code
     def _get_processing_items(self) -> List[ProcessingItem]:
         return self._get_episode_processing_items_from_metadata(
             "**/frame_metadata.json",
@@ -66,6 +67,7 @@ class CharacterDetector(BaseProcessor):
         episode_dir = self._build_episode_output_dir(episode_info, self.output_dir)
         detections_output = episode_dir / "detections.json"
         return [OutputSpec(path=detections_output, required=True)]
+    # pylint: enable=duplicate-code
 
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
         if not self.characters_dir.exists():

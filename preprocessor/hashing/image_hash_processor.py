@@ -52,6 +52,7 @@ class ImageHashProcessor(BaseProcessor):
         self._cleanup_memory()
         console.print("[green]✓ Hasher unloaded[/green]")
 
+    # pylint: disable=duplicate-code
     def _get_processing_items(self) -> List[ProcessingItem]:
         return self._get_episode_processing_items_from_metadata(
             "**/frame_metadata.json",
@@ -64,6 +65,7 @@ class ImageHashProcessor(BaseProcessor):
         episode_dir = self._build_episode_output_dir(episode_info, self.output_dir)
         hash_output = episode_dir / "image_hashes.json"
         return [OutputSpec(path=hash_output, required=True)]
+    # pylint: enable=duplicate-code
 
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
         console.print(f"[cyan]Device: {self.device}[/cyan]")
