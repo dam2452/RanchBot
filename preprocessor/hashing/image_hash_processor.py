@@ -40,7 +40,7 @@ class ImageHashProcessor(BaseProcessor):
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
-        self.hasher: Optional[PerceptualHasher] = None #Expected type 'PerceptualHasher', got 'None' instead
+        self.hasher: Optional[PerceptualHasher] = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if not torch.cuda.is_available():
@@ -53,32 +53,15 @@ class ImageHashProcessor(BaseProcessor):
         console.print("[green]✓ Hasher unloaded[/green]")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        all_metadata_files = list(self.frames_dir.glob("**/frame_metadata.json"))
-        items = []
-
-        for metadata_file in all_metadata_files:
-            episode_info = self.episode_manager.parse_filename(metadata_file)
-            if not episode_info:
-                continue
-
-            episode_id = self.episode_manager.get_episode_id_for_state(episode_info)
-
-            items.append(
-                ProcessingItem(
-                    episode_id=episode_id,
-                    input_path=metadata_file,
-                    metadata={"episode_info": episode_info},
-                ),
-            )
-
-        return items
+        return self._get_episode_processing_items_from_metadata(
+            "**/frame_metadata.json",
+            self.frames_dir,
+            self.episode_manager,
+        )
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
-
+        episode_dir = self._build_episode_output_dir(episode_info, self.output_dir)
         hash_output = episode_dir / "image_hashes.json"
         return [OutputSpec(path=hash_output, required=True)]
 

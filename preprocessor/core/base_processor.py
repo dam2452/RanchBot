@@ -93,6 +93,38 @@ class BaseProcessor(ABC):
     def cleanup(self) -> None:
         pass
 
+    @staticmethod
+    def _get_episode_processing_items_from_metadata(
+        metadata_pattern: str,
+        base_dir: Path,
+        episode_manager: "EpisodeManager",
+    ) -> List[ProcessingItem]:
+        all_metadata_files = list(base_dir.glob(metadata_pattern))
+        items = []
+
+        for metadata_file in all_metadata_files:
+            episode_info = episode_manager.parse_filename(metadata_file)
+            if not episode_info:
+                continue
+
+            episode_id = episode_manager.get_episode_id_for_state(episode_info)
+
+            items.append(
+                ProcessingItem(
+                    episode_id=episode_id,
+                    input_path=metadata_file,
+                    metadata={"episode_info": episode_info},
+                ),
+            )
+
+        return items
+
+    @staticmethod
+    def _build_episode_output_dir(episode_info, base_output_dir: Path) -> Path:
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        return base_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+
     def _get_processing_items(self) -> List[ProcessingItem]:
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement _get_processing_items() "
