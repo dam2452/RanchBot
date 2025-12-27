@@ -24,8 +24,8 @@ from preprocessor.hashing.image_hash_processor import ImageHashProcessor
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.embedding.default_output_dir),
-    help=f"Output directory for image hashes (default: {settings.embedding.default_output_dir})",
+    default=str(settings.image_hash.output_dir),
+    help=f"Output directory for image hashes (default: {settings.image_hash.output_dir})",
 )
 @click.option(
     "--batch-size",

@@ -26,6 +26,7 @@ services:
       - HF_HOME=/models/huggingface
       - TORCH_HOME=/models/torch
       - WHISPER_CACHE=/models/whisper
+      - INSIGHTFACE_HOME=/models/insightface
 
     volumes:
       - ./input_data:/input_data:ro

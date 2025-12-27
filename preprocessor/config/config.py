@@ -59,6 +59,11 @@ class FrameExportSettings:
 
 
 @dataclass
+class ImageHashSettings:
+    output_dir: Path = Path("/app/output_data/image_hashes")
+
+
+@dataclass
 class ScraperSettings:
     output_dir: Path = Path("/app/output_data/scraped_pages")
 
@@ -68,6 +73,7 @@ class CharacterSettings:
     output_dir: Path = Path("/app/output_data/characters")
     reference_images_per_character: int = 2
     characters_list_file: Path = Path("/app/output_data/characters.json")
+    detections_dir: Path = Path("/app/output_data/character_detections")
 
 
 @dataclass
@@ -146,6 +152,7 @@ class Settings:
     embedding: EmbeddingSettings
     scene_detection: SceneDetectionSettings
     frame_export: FrameExportSettings
+    image_hash: ImageHashSettings
     scraper: ScraperSettings
     character: CharacterSettings
     face_recognition: FaceRecognitionSettings
@@ -161,6 +168,7 @@ class Settings:
             embedding=EmbeddingSettings(),
             scene_detection=SceneDetectionSettings(),
             frame_export=FrameExportSettings(),
+            image_hash=ImageHashSettings(),
             scraper=ScraperSettings(),
             character=CharacterSettings(),
             face_recognition=FaceRecognitionSettings(),

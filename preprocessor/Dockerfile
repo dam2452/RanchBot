@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/models/huggingface \
     TORCH_HOME=/models/torch \
     WHISPER_CACHE=/models/whisper \
+    INSIGHTFACE_HOME=/models/insightface \
     CUBLAS_WORKSPACE_CONFIG=:4096:8 \
     TOKENIZERS_PARALLELISM=false
 
@@ -46,7 +47,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN playwright install chromium \
     && playwright install-deps chromium
 
-RUN mkdir -p /models/huggingface /models/torch /models/whisper \
+RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface \
     /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
 COPY preprocessor/entrypoint.sh preprocessor/run_preprocessor.sh /app/

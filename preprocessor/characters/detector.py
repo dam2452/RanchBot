@@ -17,11 +17,13 @@ from numpy.linalg import norm
 
 from preprocessor.characters.utils import init_face_detection
 from preprocessor.config.config import settings
-from preprocessor.core.base_processor import BaseProcessor
-from preprocessor.utils.console import (
-    console,
-    create_progress,
+from preprocessor.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
 )
+from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.utils.console import console
 
 if TYPE_CHECKING:
     from insightface.app import FaceAnalysis
@@ -38,9 +40,12 @@ class CharacterDetector(BaseProcessor):
 
         self.frames_dir: Path = self._args["frames_dir"]
         self.characters_dir: Path = self._args.get("characters_dir", settings.character.output_dir)
-        self.output_json: Path = self._args["output_json"]
+        self.output_dir: Path = self._args.get("output_dir", settings.character.detections_dir)
         self.threshold: float = settings.face_recognition.threshold
         self.use_gpu: bool = settings.face_recognition.use_gpu
+
+        episodes_info_json = self._args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
         self.face_app: FaceAnalysis = None
         self.character_vectors: Dict[str, np.ndarray] = {}
@@ -48,14 +53,38 @@ class CharacterDetector(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "frames_dir" not in args:
             raise ValueError("frames_dir is required")
-        if "output_json" not in args:
-            raise ValueError("output_json is required")
 
-    def _execute(self) -> None:
-        if not self.frames_dir.exists():
-            console.print(f"[red]Frames directory not found: {self.frames_dir}[/red]")
-            return
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        all_frame_metadata_files = list(self.frames_dir.glob("**/frame_metadata.json"))
+        items = []
 
+        for metadata_file in all_frame_metadata_files:
+            episode_info = self.episode_manager.parse_filename(metadata_file)
+            if not episode_info:
+                continue
+
+            episode_id = self.episode_manager.get_episode_id_for_state(episode_info)
+
+            items.append(
+                ProcessingItem(
+                    episode_id=episode_id,
+                    input_path=metadata_file,
+                    metadata={"episode_info": episode_info},
+                ),
+            )
+
+        return items
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        episode_info = item.metadata["episode_info"]
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_dir = self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+
+        detections_output = episode_dir / "detections.json"
+        return [OutputSpec(path=detections_output, required=True)]
+
+    def _execute_processing(self, items: List[ProcessingItem]) -> None:
         if not self.characters_dir.exists():
             console.print(f"[red]Characters directory not found: {self.characters_dir}[/red]")
             return
@@ -67,18 +96,28 @@ class CharacterDetector(BaseProcessor):
             console.print("[yellow]No character references loaded[/yellow]")
             return
 
-        console.print("[blue]Detecting characters in frames...[/blue]")
-        results = self._detect_in_all_frames()
+        super()._execute_processing(items)
+        console.print("[green]Character detection completed[/green]")
 
-        self.output_json.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_json, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+        metadata_file = item.input_path
+        episode_info = item.metadata["episode_info"]
+        frames_dir = metadata_file.parent
 
-        total_frames = len(results)
-        frames_with_chars = sum(1 for r in results if r["characters"])
-        console.print(f"[green]✓ Processed {total_frames} frames[/green]")
-        console.print(f"[green]✓ Found characters in {frames_with_chars} frames[/green]")
-        console.print(f"[green]✓ Results saved to: {self.output_json}[/green]")
+        frame_files = sorted([
+            f for f in frames_dir.glob("*.jpg")
+            if f.is_file() and f.name.startswith("frame_")
+        ])
+
+        results = []
+        for frame_path in frame_files:
+            detected_chars = self._detect_in_frame(frame_path)
+            results.append({
+                "frame": frame_path.name,
+                "characters": detected_chars,
+            })
+
+        self._save_detections(episode_info, results)
 
     def _load_character_references(self):
         console.print("[blue]Loading character references...[/blue]")
@@ -119,33 +158,28 @@ class CharacterDetector(BaseProcessor):
         faces.sort(key=lambda x: (x.bbox[2]-x.bbox[0]) * (x.bbox[3]-x.bbox[1]), reverse=True)
         return faces[0].normed_embedding
 
-    def _detect_in_all_frames(self) -> List[Dict[str, Any]]:
-        frame_files = sorted([
-            f for f in self.frames_dir.rglob("*.jpg")
-            if f.is_file()
-        ])
+    def _save_detections(self, episode_info, results: List[Dict[str, Any]]) -> None:
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_dir = self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_dir.mkdir(parents=True, exist_ok=True)
 
-        results = []
+        minimal_episode_info = {
+            "season": episode_info.season,
+            "episode_number": episode_info.relative_episode,
+        }
 
-        with create_progress() as progress:
-            task = progress.add_task("Detecting characters", total=len(frame_files))
+        detections_data = {
+            "episode_info": minimal_episode_info,
+            "detections": results,
+        }
 
-            for frame_path in frame_files:
-                try:
-                    detected_chars = self._detect_in_frame(frame_path)
-                    relative_path = frame_path.relative_to(self.frames_dir)
+        detections_output = episode_dir / "detections.json"
+        with open(detections_output, "w", encoding="utf-8") as f:
+            json.dump(detections_data, f, indent=2, ensure_ascii=False)
 
-                    results.append({
-                        "frame": str(relative_path),
-                        "characters": detected_chars,
-                    })
-
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Error processing {frame_path}: {e}")
-
-                progress.advance(task)
-
-        return results
+        frames_with_chars = sum(1 for r in results if r["characters"])
+        console.print(f"[green]✓ S{season:02d}E{episode:02d}: {len(results)} frames, {frames_with_chars} with characters[/green]")
 
     def _detect_in_frame(self, frame_path: Path) -> List[Dict[str, Any]]:
         img = cv2.imread(str(frame_path))

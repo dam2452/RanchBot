@@ -33,7 +33,7 @@ class ImageHashProcessor(BaseProcessor):
         )
 
         self.frames_dir: Path = Path(self._args.get("frames_dir", settings.frame_export.output_dir))
-        self.output_dir: Path = Path(self._args.get("output_dir", settings.embedding.default_output_dir))
+        self.output_dir: Path = Path(self._args.get("output_dir", settings.image_hash.output_dir))
         self.batch_size: int = self._args.get("batch_size", settings.embedding.batch_size)
         self.device: str = "cuda"
 

@@ -29,13 +29,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         self.transcription_jsons: Path = self._args["transcription_jsons"]
         self.embeddings_dir: Optional[Path] = self._args.get("embeddings_dir")
         self.scene_timestamps_dir: Optional[Path] = self._args.get("scene_timestamps_dir")
+        self.character_detections_dir: Optional[Path] = self._args.get("character_detections_dir")
         self.output_dir: Path = self._args.get("output_dir", Path("/app/output_data/elastic_documents"))
 
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
-
-        self.character_detections: Dict[str, List[Dict[str, Any]]] = {}
-        self.__load_character_detections()
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "transcription_jsons" not in args:
@@ -117,6 +115,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         video_path = self.episode_manager.build_video_path_for_elastic(episode_info)
 
         scene_timestamps = self.__load_scene_timestamps(episode_info)
+        character_detections = self.__load_character_detections(episode_info)
 
         if any("_segments.jsonl" in str(o.path) for o in missing_outputs):
             self.__generate_segments(
@@ -156,6 +155,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_metadata,
                     video_path,
                     scene_timestamps,
+                    character_detections,
                     season_dir,
                     base_name,
                 )
@@ -176,29 +176,34 @@ class ElasticDocumentGenerator(BaseProcessor):
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-    def __load_character_detections(self) -> None:
-        if not self.embeddings_dir:
-            return
+    def __load_character_detections(self, episode_info) -> Dict[str, List[Dict[str, Any]]]:
+        if not self.character_detections_dir:
+            return {}
 
-        detection_file = self.embeddings_dir / "character_detections.json"
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        detection_file = self.character_detections_dir / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+
         if not detection_file.exists():
-            console.print("[yellow]No character_detections.json found, skipping character data[/yellow]")
-            return
+            return {}
 
         try:
             with open(detection_file, "r", encoding="utf-8") as f:
-                detections = json.load(f)
+                data = json.load(f)
 
-            for detection in detections:
+            detections_dict = {}
+            for detection in data.get("detections", []):
                 frame_path = detection["frame"]
-                self.character_detections[frame_path] = detection["characters"]
+                detections_dict[frame_path] = detection["characters"]
 
-            console.print(f"[green]Loaded character detections for {len(self.character_detections)} frames[/green]")
+            return detections_dict
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Error loading character detections: {e}")
+            return {}
 
-    def __get_characters_for_frame(self, frame_path: str) -> List[str]:
-        characters = self.character_detections.get(frame_path, [])
+    @staticmethod
+    def __get_characters_for_frame(frame_path: str, character_detections: Dict[str, List[Dict[str, Any]]]) -> List[str]:
+        characters = character_detections.get(frame_path, [])
         return [char["name"] for char in characters]
 
     @staticmethod
@@ -314,13 +319,14 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated {len(text_embeddings)} text embedding documents → {output_file.name}[/green]")
 
-    def __generate_video_embeddings(  # pylint: disable=too-many-locals
+    def __generate_video_embeddings(
         self,
         video_emb_file: Path,
         episode_id: str,
         episode_metadata: Dict[str, Any],
         video_path: str,
         scene_timestamps: Optional[Dict[str, Any]],
+        character_detections: Dict[str, List[Dict[str, Any]]],
         season_dir: str,
         base_name: str,
     ) -> None:
@@ -359,7 +365,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 }
 
                 if frame_path:
-                    characters = self.__get_characters_for_frame(frame_path)
+                    characters = self.__get_characters_for_frame(frame_path, character_detections)
                     if characters:
                         doc["character_appearances"] = characters
 

@@ -88,13 +88,19 @@ def run_character_detection_step(**kwargs):
 
     frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
     characters_dir = settings.character.output_dir
-    output_dir = settings.embedding.default_output_dir
+    output_dir = settings.character.detections_dir
+    episodes_info_json = kwargs.get("episodes_info_json")
+    name = kwargs.get("name")
+    state_manager = kwargs.get("state_manager")
 
     detector = CharacterDetector(
         {
             "frames_dir": frames_dir,
             "characters_dir": characters_dir,
-            "output_json": output_dir / "character_detections.json",
+            "output_dir": output_dir,
+            "episodes_info_json": episodes_info_json,
+            "series_name": name,
+            "state_manager": state_manager,
         },
     )
     return detector.work()
@@ -257,6 +263,7 @@ def run_elastic_documents_step(**kwargs):
     transcription_jsons = kwargs.get("transcription_jsons")
     embeddings_dir = settings.embedding.default_output_dir
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
+    character_detections_dir = settings.character.detections_dir
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
 
@@ -265,6 +272,7 @@ def run_elastic_documents_step(**kwargs):
             "transcription_jsons": transcription_jsons,
             "embeddings_dir": embeddings_dir,
             "scene_timestamps_dir": scene_timestamps_dir,
+            "character_detections_dir": character_detections_dir,
             "output_dir": Path("/app/output_data/elastic_documents"),
             "series_name": name,
             "episodes_info_json": episodes_info_json,
