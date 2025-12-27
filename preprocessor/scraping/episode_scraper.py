@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from playwright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
+from patchright.sync_api import sync_playwright  # noqa: F401  # pylint: disable=unused-import
 
 from preprocessor.scraping.base_scraper import BaseScraper
 from preprocessor.utils.console import console

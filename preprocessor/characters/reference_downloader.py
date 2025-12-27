@@ -9,12 +9,12 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
+    Optional,
 )
 
 import cv2
 import numpy as np
-import requests
-import ua_generator
+from patchright.sync_api import sync_playwright
 
 from preprocessor.characters.base_image_search import BaseImageSearch
 from preprocessor.characters.duckduckgo_search import DuckDuckGoImageSearch
@@ -29,6 +29,10 @@ from preprocessor.utils.console import (
 
 if TYPE_CHECKING:
     from insightface.app import FaceAnalysis
+    from patchright.sync_api import (
+        BrowserContext,
+        Page,
+    )
 
 
 class CharacterReferenceDownloader(BaseProcessor):
@@ -55,6 +59,7 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         self.search_engine: BaseImageSearch = self._create_search_engine()
         self.face_app: FaceAnalysis = None
+        self.browser_context: Optional[BrowserContext] = None
 
     def _create_search_engine(self) -> BaseImageSearch:
         if self.search_mode == "premium":
@@ -85,24 +90,38 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         console.print(f"[blue]Downloading reference images for {len(characters)} characters...[/blue]")
 
-        with create_progress() as progress:
-            task = progress.add_task("Downloading references", total=len(characters))
+        with sync_playwright() as p:
+            self.browser_context = p.chromium.launch_persistent_context(
+                user_data_dir="/tmp/patchright_profile",
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                ],
+                ignore_default_args=['--enable-automation'],
+            )
 
-            for i, char in enumerate(characters):
-                char_name = char["name"]
-                try:
-                    self._download_character_references(char_name, progress)
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Failed to download references for {char_name}: {e}")
-                finally:
-                    progress.advance(task)
+            with create_progress() as progress:
+                task = progress.add_task("Downloading references", total=len(characters))
 
-                if i < len(characters) - 1:
-                    delay = random.uniform(
-                        settings.face_recognition.request_delay_min,
-                        settings.face_recognition.request_delay_max,
-                    )
-                    time.sleep(delay)
+                for i, char in enumerate(characters):
+                    char_name = char["name"]
+                    try:
+                        self._download_character_references(char_name, progress)
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.error(f"Failed to download references for {char_name}: {e}")
+                    finally:
+                        progress.advance(task)
+
+                    if i < len(characters) - 1:
+                        delay = random.uniform(
+                            settings.face_recognition.request_delay_min,
+                            settings.face_recognition.request_delay_max,
+                        )
+                        time.sleep(delay)
+
+            self.browser_context.close()
 
         console.print("[green]✓ Reference download completed[/green]")
 
@@ -110,57 +129,72 @@ class CharacterReferenceDownloader(BaseProcessor):
         faces = self.face_app.get(img)
         return len(faces)
 
-    def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals,too-many-statements
+    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
+        try:
+            response = page.goto(img_url, timeout=10000, wait_until="domcontentloaded")
+            if not response or response.status != 200:
+                return None
+
+            content_type = response.headers.get("content-type", "")
+            if "image" not in content_type:
+                return None
+
+            img_bytes = response.body()
+            img_array = np.asarray(bytearray(img_bytes), dtype=np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            return img
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.debug(f"Failed to download image {img_url}: {e}")
+            return None
+
+    def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals
         search_query = f"Serial {self.series_name} {char_name} postać"
         output_folder = self.output_dir / char_name.replace(" ", "_").lower()
         output_folder.mkdir(parents=True, exist_ok=True)
 
         progress.console.print(f"[cyan]Searching [{self.search_engine.name}]: {search_query}[/cyan]")
 
-        ua = ua_generator.generate()
-        headers = {'User-Agent': str(ua)}
         saved_count = 0
         processed = 0
 
-        for attempt in range(settings.face_recognition.retry_attempts):
+        for attempt in range(settings.face_recognition.retry_attempts):  # pylint: disable=too-many-nested-blocks
             try:
                 results = self.search_engine.search(search_query)
+                page = self.browser_context.new_page()
 
-                for res in results:
-                    if saved_count >= self.images_per_character:
-                        break
+                try:
+                    for res in results:
+                        if saved_count >= self.images_per_character:
+                            break
 
-                    img_url = res['image']
-                    processed += 1
+                        img_url = res['image']
+                        processed += 1
 
-                    try:  # pylint: disable=too-many-try-statements
-                        response = requests.get(img_url, headers=headers, timeout=5)
-                        if response.status_code != 200:
+                        try:
+                            img = self._download_image_with_browser(img_url, page)
+
+                            if img is None:
+                                continue
+
+                            h, w = img.shape[:2]
+                            if w < self.min_width or h < self.min_height:
+                                continue
+
+                            face_count = self._count_faces(img)
+
+                            if face_count == 1:
+                                filename = f"{saved_count:02d}.jpg"
+                                path = output_folder / filename
+                                cv2.imwrite(str(path), img)
+                                saved_count += 1
+
+                        except Exception as e:  # pylint: disable=broad-exception-caught
+                            self.logger.debug(f"Error processing image: {e}")
                             continue
 
-                        img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
-                        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
-                        if img is None:
-                            continue
-
-                        h, w = img.shape[:2]
-                        if w < self.min_width or h < self.min_height:
-                            continue
-
-                        face_count = self._count_faces(img)
-
-                        if face_count == 1:
-                            filename = f"{saved_count:02d}.jpg"
-                            path = output_folder / filename
-                            cv2.imwrite(str(path), img)
-                            saved_count += 1
-
-                    except (requests.exceptions.Timeout, requests.exceptions.RequestException):
-                        continue
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        self.logger.debug(f"Error processing image: {e}")
-                        continue
+                finally:
+                    page.close()
 
                 break
 

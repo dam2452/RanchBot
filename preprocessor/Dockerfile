@@ -37,15 +37,14 @@ COPY preprocessor/requirements.txt /app/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip \
     && pip install \
-        playwright \
         torchvision \
         accelerate \
         nvidia-cublas-cu12 \
         nvidia-cudnn-cu12 \
         -r /app/requirements.txt
 
-RUN playwright install chromium \
-    && playwright install-deps chromium
+RUN patchright install chromium \
+    && patchright install-deps chromium
 
 RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface \
     /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}

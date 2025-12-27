@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from playwright.sync_api import sync_playwright
+from patchright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,14 @@ class ScraperClipboard:
     def scrape(url: str, headless: bool = True) -> Optional[str]:
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=headless)
+                browser = p.chromium.launch(
+                    headless=headless,
+                    args=[
+                        '--no-sandbox',
+                        '--disable-dev-shm-usage',
+                        '--disable-gpu',
+                    ],
+                )
                 context = browser.new_context()
                 page = context.new_page()
 

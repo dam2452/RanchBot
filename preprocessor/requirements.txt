@@ -1,8 +1,7 @@
 elevenlabs
 transnetv2-pytorch
 crawl4ai
-playwright
-playwright-stealth
+patchright
 opencv-python-headless
 decord
 transformers==4.51.3
