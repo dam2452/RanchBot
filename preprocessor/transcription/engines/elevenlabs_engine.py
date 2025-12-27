@@ -12,10 +12,11 @@ from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
 
 from preprocessor.config.config import settings
+from preprocessor.transcription.engines.base_engine import TranscriptionEngine
 from preprocessor.utils.console import console
 
 
-class ElevenLabsEngine:
+class ElevenLabsEngine(TranscriptionEngine):
     def __init__(
         self,
         model_id: Optional[str] = None,
@@ -156,6 +157,5 @@ class ElevenLabsEngine:
 
         return unified_data
 
-    @staticmethod
-    def get_name() -> str:
+    def get_name(self) -> str:
         return "ElevenLabs"

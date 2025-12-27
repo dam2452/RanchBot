@@ -65,7 +65,7 @@ def run_character_scrape_step(character_urls, characters_json, name, **_kwargs):
     return 0
 
 
-def run_character_reference_download_step(name, characters_json, **_kwargs):
+def run_character_reference_download_step(name, characters_json, search_mode="normal", **_kwargs):
     from preprocessor.characters.reference_downloader import CharacterReferenceDownloader  # pylint: disable=import-outside-toplevel
 
     if not characters_json.exists():
@@ -78,6 +78,7 @@ def run_character_reference_download_step(name, characters_json, **_kwargs):
             "series_name": name,
             "output_dir": settings.character.output_dir,
             "images_per_character": settings.character.reference_images_per_character,
+            "search_mode": search_mode,
         },
     )
     return downloader.work()
@@ -131,11 +132,33 @@ def run_transcode_step(videos, episodes_info_json, name, resolution, codec, pres
     return transcoder.work()
 
 
-def run_transcribe_step(videos, episodes_info_json, name, model, language, device, ramdisk_path, state_manager, **kwargs):
+def run_transcribe_step(videos, episodes_info_json, name, model, language, device, ramdisk_path, state_manager, transcription_mode="normal", **kwargs):
+    transcription_jsons = kwargs.get("transcription_jsons")
+
+    if transcription_mode == "premium":
+        from preprocessor.transcription.elevenlabs import ElevenLabsTranscriber  # pylint: disable=import-outside-toplevel
+
+        console.print("[cyan]Using premium transcription mode (ElevenLabs API)[/cyan]")
+
+        transcriber = ElevenLabsTranscriber(
+            {
+                "videos": videos,
+                "output_dir": transcription_jsons,
+                "episodes_info_json": episodes_info_json,
+                "series_name": name,
+                "api_key": settings.elevenlabs.api_key,
+                "model_id": settings.elevenlabs.model_id,
+                "language_code": settings.elevenlabs.language_code,
+                "diarize": settings.elevenlabs.diarize,
+                "state_manager": state_manager,
+            },
+        )
+        return transcriber.work()
+
     from preprocessor.config.config import TranscriptionConfig  # pylint: disable=import-outside-toplevel
     from preprocessor.transcription.generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
 
-    transcription_jsons = kwargs.get("transcription_jsons")
+    console.print("[cyan]Using normal transcription mode (Whisper)[/cyan]")
 
     transcription_config = TranscriptionConfig(
         videos=videos,

@@ -12,11 +12,13 @@ from typing import (
 )
 
 import cv2
-from ddgs import DDGS
 import numpy as np
 import requests
 import ua_generator
 
+from preprocessor.characters.base_image_search import BaseImageSearch
+from preprocessor.characters.duckduckgo_search import DuckDuckGoImageSearch
+from preprocessor.characters.google_image_search import GoogleImageSearch
 from preprocessor.characters.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
@@ -49,8 +51,16 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.min_width: int = settings.face_recognition.min_image_width
         self.min_height: int = settings.face_recognition.min_image_height
         self.use_gpu: bool = settings.face_recognition.use_gpu
+        self.search_mode: str = self._args.get("search_mode", "normal")
 
+        self.search_engine: BaseImageSearch = self._create_search_engine()
         self.face_app: FaceAnalysis = None
+
+    def _create_search_engine(self) -> BaseImageSearch:
+        if self.search_mode == "premium":
+            serpapi_key = settings.face_recognition.serpapi_key
+            return GoogleImageSearch(api_key=serpapi_key, max_results=self.max_results)
+        return DuckDuckGoImageSearch(max_results=self.max_results)
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "characters_json" not in args:
@@ -105,7 +115,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         output_folder = self.output_dir / char_name.replace(" ", "_").lower()
         output_folder.mkdir(parents=True, exist_ok=True)
 
-        progress.console.print(f"[cyan]Searching: {search_query}[/cyan]")
+        progress.console.print(f"[cyan]Searching [{self.search_engine.name}]: {search_query}[/cyan]")
 
         ua = ua_generator.generate()
         headers = {'User-Agent': str(ua)}
@@ -114,44 +124,43 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         for attempt in range(settings.face_recognition.retry_attempts):
             try:
-                with DDGS() as ddgs:
-                    results = ddgs.images(search_query, max_results=self.max_results)
+                results = self.search_engine.search(search_query)
 
-                    for res in results:
-                        if saved_count >= self.images_per_character:
-                            break
+                for res in results:
+                    if saved_count >= self.images_per_character:
+                        break
 
-                        img_url = res['image']
-                        processed += 1
+                    img_url = res['image']
+                    processed += 1
 
-                        try:  # pylint: disable=too-many-try-statements
-                            response = requests.get(img_url, headers=headers, timeout=5)
-                            if response.status_code != 200:
-                                continue
-
-                            img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
-                            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
-                            if img is None:
-                                continue
-
-                            h, w = img.shape[:2]
-                            if w < self.min_width or h < self.min_height:
-                                continue
-
-                            face_count = self._count_faces(img)
-
-                            if face_count == 1:
-                                filename = f"{saved_count:02d}.jpg"
-                                path = output_folder / filename
-                                cv2.imwrite(str(path), img)
-                                saved_count += 1
-
-                        except (requests.exceptions.Timeout, requests.exceptions.RequestException):
+                    try:  # pylint: disable=too-many-try-statements
+                        response = requests.get(img_url, headers=headers, timeout=5)
+                        if response.status_code != 200:
                             continue
-                        except Exception as e:  # pylint: disable=broad-exception-caught
-                            self.logger.debug(f"Error processing image: {e}")
+
+                        img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
+                        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+                        if img is None:
                             continue
+
+                        h, w = img.shape[:2]
+                        if w < self.min_width or h < self.min_height:
+                            continue
+
+                        face_count = self._count_faces(img)
+
+                        if face_count == 1:
+                            filename = f"{saved_count:02d}.jpg"
+                            path = output_folder / filename
+                            cv2.imwrite(str(path), img)
+                            saved_count += 1
+
+                    except (requests.exceptions.Timeout, requests.exceptions.RequestException):
+                        continue
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        self.logger.debug(f"Error processing image: {e}")
+                        continue
 
                 break
 

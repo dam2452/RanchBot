@@ -89,6 +89,19 @@ class FaceRecognitionSettings:
     retry_delay: float = 2.0
     request_delay_min: float = 2.0
     request_delay_max: float = 4.0
+    image_search_mode: str = "normal"
+    _serpapi_key: Optional[SecretStr] = None
+
+    @classmethod
+    def from_env(cls) -> "FaceRecognitionSettings":
+        api_key = None
+        if os.getenv("SERPAPI_API_KEY"):
+            api_key = SecretStr(os.getenv("SERPAPI_API_KEY", ""))
+        return cls(_serpapi_key=api_key)
+
+    @property
+    def serpapi_key(self) -> Optional[str]:
+        return self._serpapi_key.get_secret_value() if self._serpapi_key else None
 
 
 @dataclass
@@ -171,7 +184,7 @@ class Settings:
             image_hash=ImageHashSettings(),
             scraper=ScraperSettings(),
             character=CharacterSettings(),
-            face_recognition=FaceRecognitionSettings(),
+            face_recognition=FaceRecognitionSettings.from_env(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),
             transcode=TranscodeDefaults(),

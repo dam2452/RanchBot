@@ -28,4 +28,5 @@ pathvalidate
 ua-generator
 insightface
 ddgs
+google-search-results
 onnxruntime-gpu

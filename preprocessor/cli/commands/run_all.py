@@ -89,6 +89,18 @@ from preprocessor.utils.console import console
     multiple=True,
     help="URLs to scrape character metadata from (Step 0b: optional)",
 )
+@click.option(
+    "--search-mode",
+    type=click.Choice(["normal", "premium"]),
+    default="normal",
+    help="Image search mode: normal (DuckDuckGo) or premium (Google Images API)",
+)
+@click.option(
+    "--transcription-mode",
+    type=click.Choice(["normal", "premium"]),
+    default="normal",
+    help="Transcription mode: normal (Whisper) or premium (ElevenLabs API)",
+)
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
 @click.option("--skip-scenes", is_flag=True, help="Skip Step 3: Scene detection (use existing scene timestamps)")
@@ -114,6 +126,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     ramdisk_path: Path,
     scrape_urls: tuple,
     character_urls: tuple,
+    search_mode: str,
+    transcription_mode: str,
     skip_transcode: bool,
     skip_transcribe: bool,
     skip_scenes: bool,
@@ -165,6 +179,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "scrape_urls": scrape_urls,
         "character_urls": character_urls,
         "characters_json": characters_json,
+        "search_mode": search_mode,
+        "transcription_mode": transcription_mode,
         "state_manager": state_manager,
     }
 
