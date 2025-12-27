@@ -13,7 +13,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class ElasticSearchManager:
-    # noinspection PyTypeHints
     INDEX_MAPPING: json = {
         "mappings": {
             "properties": {

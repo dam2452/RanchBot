@@ -9,7 +9,7 @@ from typing import (
     Optional,
 )
 
-from preprocessor.core.base_processor import BaseProcessor
+from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 
 
 @dataclass
@@ -133,7 +133,7 @@ class EpisodeManager:
             if not dir_path.exists():
                 continue
 
-            for ext in BaseProcessor.SUPPORTED_VIDEO_EXTENSIONS:
+            for ext in SUPPORTED_VIDEO_EXTENSIONS:
                 for video_file in dir_path.glob(f"*{ext}"):
                     if re.search(episode_code, video_file.name, re.IGNORECASE):
                         return video_file

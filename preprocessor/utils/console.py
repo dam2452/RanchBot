@@ -4,6 +4,8 @@ import time
 
 from rich.console import Console
 
+from preprocessor.utils.time_utils import format_time_hms
+
 _console_instance = None
 
 
@@ -60,7 +62,7 @@ class SimpleProgress:
         elapsed = time.time() - task['start_time']
         if 0 < completed < total:
             eta_seconds = (elapsed / completed) * (total - completed)
-            eta = self._format_time(eta_seconds)
+            eta = format_time_hms(eta_seconds)
         elif completed >= total:
             eta = "0:00:00"
         else:
@@ -78,13 +80,6 @@ class SimpleProgress:
             f"[dim]ETA: {eta}[/dim]",
             highlight=False,
         )
-
-    @staticmethod
-    def _format_time(seconds: float) -> str:
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-        return f"{hours}:{minutes:02d}:{secs:02d}"
 
     def __enter__(self):
         return self

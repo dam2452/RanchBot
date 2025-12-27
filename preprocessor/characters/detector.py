@@ -4,7 +4,6 @@ import json
 import logging
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -12,6 +11,7 @@ from typing import (
 )
 
 import cv2
+from insightface.app import FaceAnalysis
 import numpy as np
 from numpy.linalg import norm
 
@@ -24,9 +24,6 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
-
-if TYPE_CHECKING:
-    from insightface.app import FaceAnalysis
 
 
 class CharacterDetector(BaseProcessor):

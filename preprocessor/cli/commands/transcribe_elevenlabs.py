@@ -9,13 +9,13 @@ from preprocessor.transcription.elevenlabs import ElevenLabsTranscriber
 from preprocessor.utils.console import console
 
 
-@click.command(name="transcribe-elevenlabs")
+@click.command(name="transcribe-elevenlabs", context_settings={"show_default": True})
 @click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
     default=str(settings.transcription.output_dir),
-    help=f"Output directory for transcriptions (default: {settings.transcription.output_dir})",
+    help="Output directory for transcriptions",
 )
 @click.option(
     "--episodes-info-json",
@@ -31,17 +31,17 @@ from preprocessor.utils.console import console
 @click.option(
     "--model-id",
     default="scribe_v1",
-    help="ElevenLabs model ID (default: scribe_v1)",
+    help="ElevenLabs model ID",
 )
 @click.option(
     "--language-code",
     default="pol",
-    help="Language code: pol, eng, etc (default: pol)",
+    help="Language code: pol, eng, etc",
 )
 @click.option(
     "--diarize/--no-diarize",
     default=True,
-    help="Enable speaker diarization (default: enabled)",
+    help="Enable speaker diarization",
 )
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 def transcribe_elevenlabs(

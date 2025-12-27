@@ -1,4 +1,3 @@
-from preprocessor.cli.commands.convert_elastic import convert_elastic
 from preprocessor.cli.commands.detect_scenes import detect_scenes
 from preprocessor.cli.commands.export_frames import export_frames
 from preprocessor.cli.commands.generate_elastic_documents import generate_elastic_documents
@@ -13,7 +12,6 @@ from preprocessor.cli.commands.transcribe import transcribe
 from preprocessor.cli.commands.transcribe_elevenlabs import transcribe_elevenlabs
 
 __all__ = [
-    "convert_elastic",
     "detect_scenes",
     "export_frames",
     "generate_elastic_documents",

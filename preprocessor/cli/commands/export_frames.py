@@ -8,7 +8,7 @@ from preprocessor.config.config import settings
 from preprocessor.video.frame_exporter import FrameExporter
 
 
-@click.command()
+@click.command(context_settings={"show_default": True})
 @click.argument("transcoded_videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--episodes-info-json",
@@ -20,19 +20,19 @@ from preprocessor.video.frame_exporter import FrameExporter
     "--scene-timestamps-dir",
     type=click.Path(exists=True, path_type=Path),
     default=str(settings.scene_detection.output_dir),
-    help=f"Directory with scene timestamps (default: {settings.scene_detection.output_dir})",
+    help="Directory with scene timestamps",
 )
 @click.option(
     "--output-frames",
     type=click.Path(path_type=Path),
     default=str(settings.frame_export.output_dir),
-    help=f"Output directory for exported frames (default: {settings.frame_export.output_dir})",
+    help="Output directory for exported frames",
 )
 @click.option(
     "--frame-height",
     type=int,
     default=480,
-    help="Height of exported frames in pixels (default: 480p)",
+    help="Height of exported frames in pixels",
 )
 @click.option("--name", required=True, help="Series name (required)")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")

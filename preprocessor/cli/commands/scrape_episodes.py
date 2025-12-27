@@ -6,7 +6,7 @@ import click
 from preprocessor.scraping.episode_scraper import EpisodeScraper
 
 
-@click.command(name="scrape-episodes")
+@click.command(name="scrape-episodes", context_settings={"show_default": True})
 @click.option(
     "--urls",
     multiple=True,
@@ -22,12 +22,12 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
 @click.option(
     "--headless/--no-headless",
     default=True,
-    help="Run browser in headless mode (default: enabled)",
+    help="Run browser in headless mode",
 )
 @click.option(
     "--merge-sources/--no-merge",
     default=True,
-    help="Merge data from multiple sources (default: enabled)",
+    help="Merge data from multiple sources",
 )
 @click.option(
     "--videos-dir",

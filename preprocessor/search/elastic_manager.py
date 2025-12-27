@@ -8,9 +8,8 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-
-class ElasticSearchManager:  # pylint: disable=duplicate-code
-    # noinspection PyTypeHints
+# pylint: disable=duplicate-code
+class ElasticSearchManager:
     INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -105,7 +104,6 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         },
     }
 
-    # noinspection PyTypeHints
     SEGMENTS_INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -145,7 +143,6 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         },
     }
 
-    # noinspection PyTypeHints
     TEXT_EMBEDDINGS_INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -173,7 +170,6 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         },
     }
 
-    # noinspection PyTypeHints
     VIDEO_EMBEDDINGS_INDEX_MAPPING: json = {
         "mappings": {
             "properties": {
@@ -200,6 +196,7 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
                 "perceptual_hash": {"type": "keyword"},
                 "perceptual_hash_int": {"type": "long"},
                 "video_path": {"type": "keyword"},
+                "character_appearances": {"type": "keyword"},
                 "scene_info": {
                     "properties": {
                         "scene_start_time": {"type": "float"},
@@ -225,7 +222,6 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         }
 
         if es_user and es_pass:
-            # noinspection PyTypeChecker
             es_config["basic_auth"] = (es_user, es_pass)
 
         es = AsyncElasticsearch(**es_config)
@@ -237,3 +233,4 @@ class ElasticSearchManager:  # pylint: disable=duplicate-code
         except es_exceptions.ConnectionError as e:
             logger.info(f"Connection error: {str(e)}")
             raise
+# pylint: enable=duplicate-code

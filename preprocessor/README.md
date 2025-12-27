@@ -363,16 +363,6 @@ Indeksowanie w Elasticsearch.
   --append
 ```
 
-### convert-elastic
-
-Migracja legacy indeksu (jednorazowa).
-
-```bash
-../run-preprocessor.sh convert-elastic \
-  --index-name ranczo \
-  --dry-run
-```
-
 ---
 
 ## Scenariusze użycia

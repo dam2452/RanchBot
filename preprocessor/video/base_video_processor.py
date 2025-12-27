@@ -14,7 +14,7 @@ from preprocessor.core.base_processor import (
 from preprocessor.core.episode_manager import EpisodeManager
 
 
-class BaseVideoProcessor(BaseProcessor, ABC): #Class BaseVideoProcessor must implement all abstract methods
+class BaseVideoProcessor(BaseProcessor, ABC):
     def __init__(
         self,
         args: Dict[str, Any],

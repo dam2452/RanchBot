@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -15,15 +14,13 @@ from typing import (
     Tuple,
 )
 
+from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import (
     console,
     create_progress,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-
-if TYPE_CHECKING:
-    from preprocessor.core.episode_manager import EpisodeManager
 
 
 @dataclass
@@ -40,15 +37,7 @@ class OutputSpec:
 
 
 class BaseProcessor(ABC):
-    SUPPORTED_VIDEO_EXTENSIONS: Tuple[str, ...] = (
-        ".mp4",
-        ".avi",
-        ".mkv",
-        ".mov",
-        ".flv",
-        ".wmv",
-        ".webm",
-    )
+    SUPPORTED_VIDEO_EXTENSIONS = SUPPORTED_VIDEO_EXTENSIONS
 
     def __init__(
         self,
@@ -70,7 +59,7 @@ class BaseProcessor(ABC):
         self.series_name: str = args.get("series_name", "unknown")
 
         from preprocessor.utils.progress_tracker import ProgressTracker  # pylint: disable=import-outside-toplevel
-        self.progress = args.get("progress_tracker", ProgressTracker(enabled=True))
+        self.progress = args.get("progress_tracker", ProgressTracker())
 
     @classmethod
     def get_video_glob_patterns(cls) -> List[str]:

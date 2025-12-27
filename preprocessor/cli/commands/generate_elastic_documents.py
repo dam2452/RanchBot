@@ -10,7 +10,7 @@ from preprocessor.cli.options.common import (
 from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator
 
 
-@click.command(name="generate-elastic-documents")
+@click.command(name="generate-elastic-documents", context_settings={"show_default": True})
 @click.option(
     "--transcription-jsons",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
@@ -31,7 +31,7 @@ from preprocessor.indexing.elastic_document_generator import ElasticDocumentGene
     "--output-dir",
     type=click.Path(path_type=Path),
     default="/app/output_data/elastic_documents",
-    help="Output directory (default: /app/output_data/elastic_documents)",
+    help="Output directory",
 )
 @name_option()
 @episodes_info_option(required=False)

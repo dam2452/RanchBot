@@ -1,74 +1,29 @@
 # Directory-based exclusions
-/RANCZO-TRANSKRYPCJE/
-/RANCZO-WIDEO/
 /.venv
-/new_venv
-/venv
 /.idea
-/DataModify
-/cache
-/__pycache__
 /bot/RANCZO-TRANSKRYPCJE/
 /bot/RANCZO-WIDEO/
 
 # Specific file-based exclusions
-/passwords.env
-/update_and_run.sh
 *.log
 *.mp4
 *.cutree
 *.pyc
 *.zip
 .env
-.db
 *.db
-/MOBILE_VIDEO_TESTS
-/m
-log.txt
-video_data_1
 *.session
-/bot/tests/e2e_tests/expected_files
-/bot/tests/expected
-/bot/tests/expected/expected_files
 *.session-journal
-Test Results - .html
 *.html
-bot/tests/received_file.txt
-/bot/KIEPSCY-TRANSKRYPCJE
-/test_trans
-/bot/KIEPSCY-TRANSKRYPCJE_OLD
-/asdfgh
-elsticKIEP
-elsticRANCZO
-Preprocessing/DataExtractionFromWiki/EpisodeInfoKIEPSCY.json
-Preprocessing/DataExtractionFromWiki/EpisodeInfo.json
 bot/RANCZO-WIDEO
-test_episodes.json
 /.claude
-/transcriptions
-/preprocessor/tests/output
-/preprocessor/tests/test_video.mp4
-/preprocessor/tests/test_episodes_info.json
-/preprocessor/tests/mock_11labs_data
-TODO.md
-preprocessor/tests/README.md
-/preprocessor/tests/output_11labs
-/preprocessor/tests/output_11labs_cache
-/preprocessor/tests/output_whisper_cache
-/preprocessor/tests/output_whisper
-USAGE_LOG.md
 /data
-/preprocessor/preprocessed
 /preprocessor/output_data
-info o whipser
-info o transnetv2
-info o qwen3 coder
-info o gme-Qwen2-VL-7B-Instruct
-logi tmp
-info o ffmpeg
 /preprocessor/input_data
-info o decord
-/testy_wykrywania_twarzy
-test_prefetch_benchmark.py
-/preprocessor/scraping/scraped_pages
-/preprocessor/output2222
+
+# Python build artifacts
+*.py[cod]
+*$py.class
+*.so
+*.so.*
+*.egg-info/

@@ -13,19 +13,19 @@ from preprocessor.utils.resolution import Resolution
 from preprocessor.video.transcoder import VideoTranscoder
 
 
-@click.command()
+@click.command(context_settings={"show_default": True})
 @click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--transcoded-videos",
     type=click.Path(path_type=Path),
     default=str(settings.transcode.output_dir),
-    help=f"Output directory for transcoded videos (default: {settings.transcode.output_dir})",
+    help="Output directory for transcoded videos",
 )
 @click.option(
     "--resolution",
     type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),
     default="1080p",
-    help="Target resolution for videos (default: 1080p)",
+    help="Target resolution for videos",
 )
 @click.option(
     "--codec",

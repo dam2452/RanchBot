@@ -9,7 +9,7 @@ from preprocessor.transcription.importer import TranscriptionImporter
 from preprocessor.utils.console import console
 
 
-@click.command(name="import-transcriptions")
+@click.command(name="import-transcriptions", context_settings={"show_default": True})
 @click.option(
     "--source-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
@@ -20,7 +20,7 @@ from preprocessor.utils.console import console
     "--output-dir",
     type=click.Path(path_type=Path),
     default=str(settings.transcription.output_dir),
-    help=f"Output directory for converted transcriptions (default: {settings.transcription.output_dir})",
+    help="Output directory for converted transcriptions",
 )
 @click.option(
     "--episodes-info-json",
@@ -32,7 +32,7 @@ from preprocessor.utils.console import console
     "--format-type",
     type=click.Choice(["11labs_segmented", "11labs"]),
     default="11labs_segmented",
-    help="Source format: 11labs_segmented or 11labs (default: 11labs_segmented)",
+    help="Source format: 11labs_segmented or 11labs",
 )
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 def import_transcriptions(

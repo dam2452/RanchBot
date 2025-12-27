@@ -2,12 +2,13 @@ from abc import abstractmethod
 import logging
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
     Optional,
 )
+
+from rich.progress import Progress
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
@@ -19,9 +20,6 @@ from preprocessor.utils.console import (
     console,
     create_progress,
 )
-
-if TYPE_CHECKING:
-    from rich.progress import Progress
 
 
 class BaseScraper(BaseProcessor):

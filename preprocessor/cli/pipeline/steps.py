@@ -236,7 +236,7 @@ def run_image_hashing_step(device, state_manager, **kwargs):
     hasher = ImageHashProcessor(
         {
             "frames_dir": frames_dir,
-            "output_dir": settings.embedding.default_output_dir,
+            "output_dir": settings.image_hash.output_dir,
             "batch_size": settings.embedding.batch_size,
             "device": device,
             "series_name": name,
@@ -262,6 +262,7 @@ def run_embedding_step(device, state_manager, **kwargs):
             "transcription_jsons": transcription_jsons,
             "frames_dir": frames_dir,
             "output_dir": settings.embedding.default_output_dir,
+            "image_hashes_dir": settings.image_hash.output_dir,
             "model": settings.embedding.model_name,
             "segments_per_embedding": settings.embedding.segments_per_embedding,
             "generate_text": True,

@@ -25,7 +25,7 @@ from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.utils.console import console
 
 
-class EmbeddingGenerator(BaseProcessor):
+class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-attributes
     def __init__(self, args: Dict[str, Any]):
         super().__init__(
             args=args,
@@ -47,6 +47,8 @@ class EmbeddingGenerator(BaseProcessor):
         self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
+
+        self.image_hashes_dir: Path = Path(self._args.get("image_hashes_dir", settings.image_hash.output_dir))
 
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
@@ -211,6 +213,35 @@ class EmbeddingGenerator(BaseProcessor):
         with open(metadata_file, "r", encoding="utf-8") as f:
             return json.load(f)
 
+    def __load_image_hashes(self, episode_info_dict: Dict[str, Any]) -> Dict[int, str]:
+        season = episode_info_dict.get("season")
+        episode = episode_info_dict.get("episode_number")
+        if season is None or episode is None:
+            return {}
+
+        hashes_episode_dir = self.image_hashes_dir / f"S{season:02d}" / f"E{episode:02d}"
+        hashes_file = hashes_episode_dir / "image_hashes.json"
+
+        if not hashes_file.exists():
+            self.logger.warning(f"Image hashes not found: {hashes_file}")
+            return {}
+
+        try:
+            with open(hashes_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            hash_map = {}
+            for item in data.get("image_hashes", []):
+                frame_num = item.get("frame_number")
+                phash = item.get("perceptual_hash")
+                if frame_num is not None and phash:
+                    hash_map[frame_num] = phash
+
+            return hash_map
+        except Exception as e: # pylint: disable=broad-exception-caught
+            self.logger.error(f"Failed to load image hashes: {e}")
+            return {}
+
     def __generate_video_embeddings(self, episode_info_dict: Dict[str, Any], frame_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
         frame_requests = frame_metadata.get("frames", [])
         if not frame_requests:
@@ -219,6 +250,8 @@ class EmbeddingGenerator(BaseProcessor):
         season = episode_info_dict.get("season")
         episode = episode_info_dict.get("episode_number")
         frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
+
+        image_hashes = self.__load_image_hashes(episode_info_dict)
 
         chunk_size = self.batch_size
         total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
@@ -236,6 +269,11 @@ class EmbeddingGenerator(BaseProcessor):
                 for request, embedding in zip(chunk_requests, chunk_embeddings):
                     result = request.copy()
                     result["embedding"] = embedding
+
+                    frame_num = request.get("frame_number")
+                    if frame_num is not None and frame_num in image_hashes:
+                        result["perceptual_hash"] = image_hashes[frame_num]
+
                     embeddings.append(result)
 
                 del pil_images

@@ -23,7 +23,7 @@ from preprocessor.config.config import settings
 from preprocessor.utils.console import console
 
 
-@click.command()
+@click.command(context_settings={"show_default": True})
 @click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--episodes-info-json",
@@ -39,20 +39,20 @@ from preprocessor.utils.console import console
     "--transcription-jsons",
     type=click.Path(path_type=Path),
     default=str(settings.transcription.output_dir),
-    help=f"Output directory for transcription JSONs (default: {settings.transcription.output_dir})",
+    help="Output directory for transcription JSONs",
 )
 @click.option(
     "--scene-timestamps-dir",
     type=click.Path(path_type=Path),
     default=str(settings.scene_detection.output_dir),
-    help=f"Output directory for scene timestamps (default: {settings.scene_detection.output_dir})",
+    help="Output directory for scene timestamps",
 )
 @click.option("--series-name", required=True, help="Series name (required)")
 @click.option(
     "--resolution",
     type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),
     default="1080p",
-    help="Target resolution (default: 1080p)",
+    help="Target resolution",
 )
 @click.option(
     "--codec",
@@ -65,12 +65,12 @@ from preprocessor.utils.console import console
 @click.option(
     "--model",
     default=settings.transcription.model,
-    help=f"Whisper model (default: {settings.transcription.model})",
+    help="Whisper model",
 )
 @click.option(
     "--language",
     default=settings.transcription.language,
-    help=f"Language for transcription (default: {settings.transcription.language})",
+    help="Language for transcription",
 )
 @click.option("--dry-run", is_flag=True, help="Dry run for Elasticsearch indexing")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")

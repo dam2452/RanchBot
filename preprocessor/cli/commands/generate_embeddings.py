@@ -8,7 +8,7 @@ from preprocessor.config.config import settings
 from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
 
 
-@click.command(name="generate-embeddings")
+@click.command(name="generate-embeddings", context_settings={"show_default": True})
 @click.option(
     "--transcription-jsons",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
@@ -19,34 +19,40 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     "--frames-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     default=str(settings.frame_export.output_dir),
-    help=f"Directory with exported frames (default: {settings.frame_export.output_dir})",
+    help="Directory with exported frames",
 )
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
     default=str(settings.embedding.default_output_dir),
-    help=f"Output directory (default: {settings.embedding.default_output_dir})",
+    help="Output directory",
+)
+@click.option(
+    "--image-hashes-dir",
+    type=click.Path(path_type=Path),
+    default=str(settings.image_hash.output_dir),
+    help="Directory with image hashes",
 )
 @click.option(
     "--model",
     default=settings.embedding.model_name,
-    help=f"Model name (default: {settings.embedding.model_name})",
+    help="Model name",
 )
 @click.option(
     "--segments-per-embedding",
     type=int,
     default=settings.embedding.segments_per_embedding,
-    help=f"Segments to group for text embeddings (default: {settings.embedding.segments_per_embedding})",
+    help="Segments to group for text embeddings",
 )
 @click.option(
     "--generate-text/--no-text",
     default=True,
-    help="Generate text embeddings (default: enabled)",
+    help="Generate text embeddings",
 )
 @click.option(
     "--generate-video/--no-video",
     default=True,
-    help="Generate video embeddings (default: enabled)",
+    help="Generate video embeddings",
 )
 @click.option(
     "--device",
@@ -58,12 +64,13 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     "--batch-size",
     type=int,
     default=settings.embedding.batch_size,
-    help=f"Batch size for GPU inference (default: {settings.embedding.batch_size}). Reduce if OOM errors occur",
+    help="Batch size for GPU inference. Reduce if OOM errors occur",
 )
 def generate_embeddings(
     transcription_jsons: Path,
     frames_dir: Path,
     output_dir: Path,
+    image_hashes_dir: Path,
     model: str,
     segments_per_embedding: int,
     generate_text: bool,
@@ -78,6 +85,7 @@ def generate_embeddings(
                 "transcription_jsons": transcription_jsons,
                 "frames_dir": frames_dir,
                 "output_dir": output_dir,
+                "image_hashes_dir": image_hashes_dir,
                 "model": model,
                 "segments_per_embedding": segments_per_embedding,
                 "generate_text": generate_text,

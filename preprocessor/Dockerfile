@@ -50,7 +50,6 @@ RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightfa
     /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
 COPY preprocessor/entrypoint.sh preprocessor/run_preprocessor.sh /app/
-COPY preprocessor/scripts/download_models.py /app/download_models.py
 RUN chmod +x /app/entrypoint.sh /app/run_preprocessor.sh
 
 COPY bot /app/bot

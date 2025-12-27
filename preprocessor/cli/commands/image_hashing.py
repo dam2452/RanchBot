@@ -8,12 +8,12 @@ from preprocessor.config.config import settings
 from preprocessor.hashing.image_hash_processor import ImageHashProcessor
 
 
-@click.command()
+@click.command(context_settings={"show_default": True})
 @click.option(
     "--frames-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     default=str(settings.frame_export.output_dir),
-    help=f"Directory with exported frames (default: {settings.frame_export.output_dir})",
+    help="Directory with exported frames",
 )
 @click.option(
     "--episodes-info-json",
@@ -25,13 +25,13 @@ from preprocessor.hashing.image_hash_processor import ImageHashProcessor
     "--output-dir",
     type=click.Path(path_type=Path),
     default=str(settings.image_hash.output_dir),
-    help=f"Output directory for image hashes (default: {settings.image_hash.output_dir})",
+    help="Output directory for image hashes",
 )
 @click.option(
     "--batch-size",
     type=int,
     default=settings.embedding.batch_size,
-    help=f"Batch size for processing (default: {settings.embedding.batch_size})",
+    help="Batch size for processing",
 )
 @click.option("--name", required=True, help="Series name (required)")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")

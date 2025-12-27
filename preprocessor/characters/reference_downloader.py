@@ -6,15 +6,19 @@ from pathlib import Path
 import random
 import time
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Optional,
 )
 
 import cv2
+from insightface.app import FaceAnalysis
 import numpy as np
-from patchright.sync_api import sync_playwright
+from patchright.sync_api import (
+    BrowserContext,
+    Page,
+    sync_playwright,
+)
 
 from preprocessor.characters.base_image_search import BaseImageSearch
 from preprocessor.characters.duckduckgo_search import DuckDuckGoImageSearch
@@ -26,13 +30,6 @@ from preprocessor.utils.console import (
     console,
     create_progress,
 )
-
-if TYPE_CHECKING:
-    from insightface.app import FaceAnalysis
-    from patchright.sync_api import (
-        BrowserContext,
-        Page,
-    )
 
 
 class CharacterReferenceDownloader(BaseProcessor):

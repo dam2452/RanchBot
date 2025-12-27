@@ -14,7 +14,7 @@ from preprocessor.transcription.generator import TranscriptionGenerator
 
 
 
-@click.command()
+@click.command(context_settings={"show_default": True})
 @click.argument("videos", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--episodes-info-json",
@@ -26,17 +26,17 @@ from preprocessor.transcription.generator import TranscriptionGenerator
     "--transcription-jsons",
     type=click.Path(path_type=Path),
     default=str(settings.transcription.output_dir),
-    help=f"Output directory for transcription JSONs (default: {settings.transcription.output_dir})",
+    help="Output directory for transcription JSONs",
 )
 @click.option(
     "--model",
     default=settings.transcription.model,
-    help=f"Whisper model: tiny, base, small, medium, large, large-v3-turbo (default: {settings.transcription.model})",
+    help="Whisper model: tiny, base, small, medium, large, large-v3-turbo",
 )
 @click.option(
     "--language",
     default=settings.transcription.language,
-    help=f"Language for transcription (default: {settings.transcription.language})",
+    help="Language for transcription",
 )
 @click.option(
     "--extra-json-keys",

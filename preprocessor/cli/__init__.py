@@ -1,7 +1,6 @@
 import click
 
 from preprocessor.cli.commands import (
-    convert_elastic,
     detect_scenes,
     export_frames,
     generate_elastic_documents,
@@ -35,8 +34,6 @@ cli.add_command(import_transcriptions)
 cli.add_command(transcribe_elevenlabs)
 # noinspection PyTypeChecker
 cli.add_command(scrape_episodes)
-# noinspection PyTypeChecker
-cli.add_command(convert_elastic)
 # noinspection PyTypeChecker
 cli.add_command(detect_scenes)
 # noinspection PyTypeChecker
