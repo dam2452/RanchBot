@@ -4,7 +4,7 @@ from preprocessor.utils.console import console
 # pylint: disable=duplicate-code
 
 
-def run_scrape_step(scrape_urls, episodes_info_json, **_kwargs):
+def run_scrape_step(scrape_urls, episodes_info_json, videos=None, **_kwargs):
     from preprocessor.scraping.episode_scraper import EpisodeScraper  # pylint: disable=import-outside-toplevel
 
     if not scrape_urls:
@@ -22,6 +22,7 @@ def run_scrape_step(scrape_urls, episodes_info_json, **_kwargs):
             "output_file": episodes_info_json,
             "headless": True,
             "merge_sources": True,
+            "videos_dir": videos,
         },
     )
     scrape_exit_code = scraper.work()

@@ -29,11 +29,17 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
     default=True,
     help="Merge data from multiple sources (default: enabled)",
 )
+@click.option(
+    "--videos-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    help="Directory containing video files for coverage validation (optional)",
+)
 def scrape_episodes(
     urls: tuple,
     output_file: Path,
     headless: bool,
     merge_sources: bool,
+    videos_dir: Path,
 ):
     """Scrape episode metadata from websites."""
     scraper = EpisodeScraper(
@@ -42,6 +48,7 @@ def scrape_episodes(
             "output_file": output_file,
             "headless": headless,
             "merge_sources": merge_sources,
+            "videos_dir": videos_dir,
         },
     )
 

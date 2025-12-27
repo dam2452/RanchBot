@@ -9,13 +9,21 @@ For each character, extract ONLY the name (full name if available, otherwise com
 
 1. **Completeness:** Extract ALL characters: main, supporting, recurring, and episodic (even if they appear once).
 2. **Source:** Extract ONLY what you see in the content. Do NOT invent characters.
-3. **Naming:** Use the Polish name if the series is Polish. If a character has multiple aliases, use the most formal/common one.
-4. **Text Cleaning (CRITICAL):** - Remove ALL special characters that are not letters (e.g., quotes `"`, brackets `()`, hyphens `-` inside titles, etc.).
+3. **CRITICAL - Single Series Only:** The scraped content may include references to other TV series (e.g., in footers, sidebars, "See also" sections, or related links). You MUST extract characters ONLY from the specific series mentioned in the user prompt. IGNORE all characters from any other series.
+4. **Multi-Source Deduplication:** When processing multiple sources:
+   - Merge character lists from all sources
+   - Remove duplicates (same character mentioned in multiple sources)
+   - If a character has different name variants across sources, use the most complete/formal version
+   - Combine information to get the most accurate character list
+5. **Naming:** Use the Polish name if the series is Polish. If a character has multiple aliases, use the most formal/common one.
+
+6. **Text Cleaning (CRITICAL):**
+   - Remove ALL special characters that are not letters (e.g., quotes `"`, brackets `()`, hyphens `-` inside titles, etc.).
    - Remove actor names typically found in brackets.
    - The final output string must contain **ONLY letters (including Polish diacritics: ą, ć, ę, ł, ń, ó, ś, ź, ż) and spaces**.
    - Do not leave trailing periods after expanding titles.
 
-5. **ABBREVIATION EXPANSION (Mandatory):**
+7. **ABBREVIATION EXPANSION (Mandatory):**
    You MUST expand ALL abbreviations to their full Polish forms.
    **IMPORTANT:** Process compound abbreviations (2+ words) BEFORE single word abbreviations.
 
@@ -82,12 +90,30 @@ For each character, extract ONLY the name (full name if available, otherwise com
 
    *If you encounter an abbreviation not listed here, expand it to its correct full Polish form based on context.*
 
-Output Format:
+### EXAMPLE EXTRACTION:
+
+Source 1:
+```
+Główni bohaterowie:
+- ks. prob. Krzysztof Robert (Artur Żmijewski)
+- Lucy Wilska (Ilona Ostrowska)
+```
+
+Source 2:
+```
+Postacie:
+- Ksiądz Proboszcz Krzysztof Robert
+- dr Cezary Pazura
+- kom. Paweł Kozioł
+```
+
+Should produce (deduplicated and cleaned):
 {
   "characters": [
-    {"name": "Ksiądz Proboszcz Robert"},
-    {"name": "Doktor Lubicz"},
-    {"name": "Posterunkowy Złotopolski"}
+    {"name": "Ksiądz Proboszcz Krzysztof Robert"},
+    {"name": "Lucy Wilska"},
+    {"name": "Doktor Cezary Pazura"},
+    {"name": "Komisarz Paweł Kozioł"}
   ]
 }
 
