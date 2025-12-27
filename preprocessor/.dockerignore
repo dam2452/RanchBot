@@ -87,5 +87,4 @@ docker-compose*.yml
 
 # Project-specific
 .claude/
-run_preprocessor.sh
 test_logging.py

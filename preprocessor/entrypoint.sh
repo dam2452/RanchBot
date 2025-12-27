@@ -11,4 +11,4 @@ log "============================================"
 log "Initialization complete!"
 log "============================================"
 
-exec /app/run_preprocessor.sh "$@"
+exec /app/run-preprocessor.sh "$@"
