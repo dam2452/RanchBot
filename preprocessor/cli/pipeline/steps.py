@@ -306,22 +306,20 @@ def run_elastic_documents_step(**kwargs):
 
 
 def run_index_step(name, dry_run, state_manager, **kwargs):
-    from preprocessor.config.config import IndexConfig  # pylint: disable=import-outside-toplevel
+    from pathlib import Path  # pylint: disable=import-outside-toplevel
+
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
 
-    transcription_jsons = kwargs.get("transcription_jsons")
     episodes_info_json = kwargs.get("episodes_info_json")
+    elastic_documents_dir = Path("/app/output_data/elastic_documents")
 
-    index_config = IndexConfig(
-        name=name,
-        transcription_jsons=transcription_jsons,
-        dry_run=dry_run,
-        append=False,
-    )
-    index_dict = index_config.to_dict()
-    index_dict["state_manager"] = state_manager
-    index_dict["series_name"] = name
-    index_dict["episodes_info_json"] = episodes_info_json
-
-    indexer = ElasticSearchIndexer(index_dict)
+    indexer = ElasticSearchIndexer({
+        "name": name,
+        "elastic_documents_dir": elastic_documents_dir,
+        "dry_run": dry_run,
+        "append": False,
+        "state_manager": state_manager,
+        "series_name": name,
+        "episodes_info_json": episodes_info_json,
+    })
     return indexer.work()

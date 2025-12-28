@@ -20,6 +20,7 @@ from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.search.elastic_manager import ElasticSearchManager
+from preprocessor.utils.console import console
 
 
 class ElasticSearchIndexer(BaseProcessor):
@@ -33,7 +34,8 @@ class ElasticSearchIndexer(BaseProcessor):
 
         self.dry_run = self._args.get("dry_run", False)
         self.name = self._args["name"]
-        self.transcription_jsons = self._args["transcription_jsons"]
+        self.elastic_documents_dir = self._args.get("elastic_documents_dir", Path("/app/output_data/elastic_documents"))
+        self.transcription_jsons = self._args.get("transcription_jsons")
         self.append = self._args.get("append", False)
 
         episodes_info_json = self._args.get("episodes_info_json")
@@ -43,8 +45,6 @@ class ElasticSearchIndexer(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "name" not in args:
             raise ValueError("index name is required")
-        if "transcription_jsons" not in args:
-            raise ValueError("transcription_jsons path is required")
 
     def __call__(self) -> None:
         asyncio.run(self._exec_async())
@@ -53,27 +53,25 @@ class ElasticSearchIndexer(BaseProcessor):
         asyncio.run(self._exec_async())
 
     def _check_files_exist(self) -> bool:
-        if not Path(self.transcription_jsons).exists():
+        if not self.elastic_documents_dir.exists():
             return False
 
-        has_files = False
-        for entry in Path(self.transcription_jsons).iterdir():
-            if entry.is_dir():
-                if any(f.suffix == ".json" for f in entry.iterdir()):
-                    has_files = True
-                    break
-            elif entry.is_file() and entry.suffix == ".json":
-                has_files = True
-                break
+        segments_dir = self.elastic_documents_dir / "segments"
+        text_emb_dir = self.elastic_documents_dir / "text_embeddings"
+        video_emb_dir = self.elastic_documents_dir / "video_embeddings"
 
-        return has_files
+        return any([
+            segments_dir.exists() and any(segments_dir.rglob("*.jsonl")),
+            text_emb_dir.exists() and any(text_emb_dir.rglob("*.jsonl")),
+            video_emb_dir.exists() and any(video_emb_dir.rglob("*.jsonl")),
+        ])
 
     async def _exec_async(self) -> None:
         if not self._check_files_exist():
-            self.logger.info("No transcription files found to index.")
+            self.logger.info("No elastic documents found to index.")
             return
 
-        self.client = await ElasticSearchManager.connect_to_elasticsearch(  # pylint: disable=duplicate-code
+        self.client = await ElasticSearchManager.connect_to_elasticsearch(
             settings.elasticsearch.host,
             settings.elasticsearch.user,
             settings.elasticsearch.password,
@@ -81,189 +79,140 @@ class ElasticSearchIndexer(BaseProcessor):
         )
 
         try:
-            if not self.append:
-                await self._delete_index()
-                await self._create_index()
-            elif not await self.client.indices.exists(index=self.name):
-                self.logger.info(
-                    f"Index '{self.name}' does not exist. Creating it since --append was used.",
-                )
-                await self._create_index()
-            else:
-                self.logger.info(f"Append mode: not deleting nor recreating index '{self.name}'.")
+            indices = {
+                "segments": f"{self.name}_segments",
+                "text_embeddings": f"{self.name}_text_embeddings",
+                "video_embeddings": f"{self.name}_video_embeddings",
+            }
 
-            await self._index_transcriptions()
+            for doc_type, index_name in indices.items():
+                console.print(f"[cyan]Processing {doc_type} → {index_name}[/cyan]")
+
+                if not self.append:
+                    await self._delete_index(index_name)
+                    await self._create_index(index_name, doc_type)
+                elif not await self.client.indices.exists(index=index_name):
+                    self.logger.info(f"Index '{index_name}' does not exist. Creating it.")
+                    await self._create_index(index_name, doc_type)
+                else:
+                    self.logger.info(f"Append mode: not deleting nor recreating index '{index_name}'.")
+
+                await self._index_documents(doc_type, index_name)
 
             if not self.dry_run:
-                await self._print_one_transcription()
+                for doc_type, index_name in indices.items():
+                    if await self.client.indices.exists(index=index_name):
+                        await self._print_sample_document(index_name)
         finally:
             await self.client.close()
 
-    async def _create_index(self) -> None:
+    async def _create_index(self, index_name: str, doc_type: str) -> None:
+        mappings = {
+            "segments": ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
+            "text_embeddings": ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
+            "video_embeddings": ElasticSearchManager.VIDEO_EMBEDDINGS_INDEX_MAPPING,
+        }
+
         async def operation():
-            if await self.client.indices.exists(index=self.name):
-                self.logger.info(f"Index '{self.name}' already exists.")
+            if await self.client.indices.exists(index=index_name):
+                self.logger.info(f"Index '{index_name}' already exists.")
             else:
                 await self.client.indices.create(
-                    index=self.name,
-                    body=ElasticSearchManager.INDEX_MAPPING,
+                    index=index_name,
+                    body=mappings[doc_type],
                 )
-                self.logger.info(f"Index '{self.name}' created.")
+                self.logger.info(f"Index '{index_name}' created.")
 
-        await self._do_crud(operation)
+        await self._do_crud(operation, index_name)
 
-    async def _delete_index(self) -> None:
+    async def _delete_index(self, index_name: str) -> None:
         async def operation():
-            if await self.client.indices.exists(index=self.name):
-                await self.client.indices.delete(index=self.name)
-                self.logger.info(f"Deleted index: {self.name}")
+            if await self.client.indices.exists(index=index_name):
+                await self.client.indices.delete(index=index_name)
+                self.logger.info(f"Deleted index: {index_name}")
             else:
-                self.logger.info(f"Index '{self.name}' does not exist. No action taken.")
+                self.logger.info(f"Index '{index_name}' does not exist. No action taken.")
 
-        await self._do_crud(operation)
+        await self._do_crud(operation, index_name)
 
-    async def _do_crud(self, operation: Callable[[], Awaitable[None]]) -> None:
+    async def _do_crud(self, operation: Callable[[], Awaitable[None]], index_name: str) -> None:
         try:
             await operation()
         except es_exceptions.RequestError as e:
-            self.logger.error(f"Failed operation on index '{self.name}': {e}")
+            self.logger.error(f"Failed operation on index '{index_name}': {e}")
             raise
         except es_exceptions.ConnectionError as e:
             self.logger.error(f"Connection error: {e}")
             raise
 
-    async def _index_transcriptions(self) -> None:
-        actions = await self._load_all_seasons_actions()
+    async def _index_documents(self, doc_type: str, index_name: str) -> None:
+        doc_dir = self.elastic_documents_dir / doc_type
+        if not doc_dir.exists():
+            self.logger.info(f"No {doc_type} directory found. Skipping.")
+            return
+
+        actions = self._load_jsonl_documents(doc_dir, index_name)
 
         if not actions:
-            self.logger.info("No data to index.")
+            self.logger.info(f"No {doc_type} documents to index.")
             return
 
-        self.logger.info(
-            f"Prepared {len(actions)} segments for indexing into '{self.name}'.",
-        )
+        console.print(f"[cyan]Prepared {len(actions)} {doc_type} documents for indexing[/cyan]")
 
         if self.dry_run:
-            for action in actions:
-                self.logger.info(
-                    f"Prepared action: {json.dumps(action, indent=2)}",
-                )
-            self.logger.info("Dry-run complete. No data sent to Elasticsearch.")
+            self.logger.info(f"Dry-run: would index {len(actions)} documents to '{index_name}'")
+            if actions:
+                sample = json.dumps(actions[0], indent=2, ensure_ascii=False)[:500]
+                self.logger.info(f"Sample document:\n{sample}...")
         else:
             try:
-                await async_bulk(self.client, actions)
-                self.logger.info("Data indexed successfully.")
+                await async_bulk(self.client, actions, chunk_size=500)
+                console.print(f"[green]✓ Indexed {len(actions)} {doc_type} documents → {index_name}[/green]")
             except BulkIndexError as e:
                 self.logger.error(f"Bulk indexing failed: {len(e.errors)} errors.")
-                for error in e.errors:
+                for error in e.errors[:5]:
                     self.logger.error(f"Failed document: {json.dumps(error, indent=2)}")
 
-    async def _load_all_seasons_actions(self) -> List[Dict[str, Any]]:
+    def _load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
         actions = []
 
-        for entry in self.transcription_jsons.iterdir():
-            if entry.is_dir():
-                season_actions = await self._load_season(entry)
-                actions += season_actions
-            elif entry.is_file() and entry.suffix == ".json":
-                self.logger.error(
-                    f"JSON file {entry} found directly in {self.transcription_jsons}, expected in season directory.",
-                )
-        return actions
-
-    async def _load_season(self, season_path: Path) -> List[Dict[str, Any]]:
-        season_actions = []
-
-        for episode_file in season_path.iterdir():
-            if episode_file.suffix == ".json":
-                self.logger.info(f"Processing file: {episode_file}")
-                season_actions += await self._load_episode(episode_file)
-
-        return season_actions
-
-    async def _load_episode(self, episode_file: Path) -> List[Dict[str, Any]]:
-        with episode_file.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        episode_info = data.get("episode_info", {})
-        season = episode_info.get("season")
-        episode = episode_info.get("episode_number")
-
-        if season is None or episode is None:
-            self.logger.error(f"Episode info missing in {episode_file}")
-            return []
-
-        if "is_special_feature" not in episode_info:
-            episode_info["is_special_feature"] = season == 0
-
-        if season == 0 and "special_feature_type" not in episode_info:
-            episode_info["special_feature_type"] = "special"
-
-        episode_obj = self.episode_manager.get_episode_by_season_and_relative(season, episode)
-        if not episode_obj:
-            self.logger.error(f"Cannot find episode info for S{season:02d}E{episode:02d}")
-            return []
-
-        video_path = self.episode_manager.build_video_path_for_elastic(episode_obj)
-
-        transcription = data.get("transcription", {})
-        scene_timestamps = data.get("scene_timestamps", {})
-        text_embeddings = data.get("text_embeddings", [])
-        video_embeddings = data.get("video_embeddings", [])
-
-        actions = []
-        for segment in data.get("segments", []):
-            if not all(key in segment for key in ("text", "start", "end")):
-                self.logger.error(f"Skipping invalid segment in {episode_file}")
-                continue
-
-            source = {
-                "episode_info": episode_info,
-                "text": segment.get("text"),
-                "start": segment.get("start"),
-                "end": segment.get("end"),
-                "id": segment.get("id"),
-                "seek": segment.get("seek"),
-                "author": segment.get("author", ""),
-                "comment": segment.get("comment", ""),
-                "tags": segment.get("tags", []),
-                "location": segment.get("location", ""),
-                "actors": segment.get("actors", []),
-                "video_path": video_path,
-            }
-
-            if transcription:
-                source["transcription"] = transcription
-
-            if scene_timestamps:
-                source["scene_timestamps"] = scene_timestamps
-
-            if text_embeddings:
-                source["text_embeddings"] = text_embeddings
-
-            if video_embeddings:
-                source["video_embeddings"] = video_embeddings
-
-            actions.append({
-                "_index": self.name,
-                "_source": source,
-            })
+        for jsonl_file in doc_dir.rglob("*.jsonl"):
+            self.logger.info(f"Loading {jsonl_file.name}")
+            with open(jsonl_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        doc = json.loads(line)
+                        actions.append({
+                            "_index": index_name,
+                            "_source": doc,
+                        })
 
         return actions
 
-    async def _print_one_transcription(self) -> None:
-        response = await self.client.search(index=self.name, size=1)
-        if not response["hits"]["hits"]:
-            self.logger.error("No documents found.")
-            return
+    async def _print_sample_document(self, index_name: str) -> None:
+        try:  # pylint: disable=too-many-try-statements
+            response = await self.client.search(index=index_name, size=1)
+            if not response["hits"]["hits"]:
+                self.logger.info(f"No documents found in {index_name}.")
+                return
 
-        document = response["hits"]["hits"][0]["_source"]
-        document["video_path"] = document["video_path"].replace("\\", "/")
-        readable_output = (
-            f"Document ID: {response['hits']['hits'][0]['_id']}\n"
-            f"Episode Info: {document['episode_info']}\n"
-            f"Video Path: {document['video_path']}\n"
-            f"Segment Text: {document.get('text', 'No text available')}\n"
-            f"Timestamp: {document.get('timestamp', 'No timestamp available')}"
-        )
-        self.logger.info("Retrieved document:\n" + readable_output)
+            document = response["hits"]["hits"][0]["_source"]
+            doc_id = response["hits"]["hits"][0]["_id"]
+
+            console.print(f"\n[cyan]Sample document from {index_name}:[/cyan]")
+            console.print(f"  Document ID: {doc_id}")
+
+            if "episode_id" in document:
+                console.print(f"  Episode: {document['episode_id']}")
+            if "video_path" in document:
+                console.print(f"  Video: {document['video_path']}")
+            if "text" in document:
+                text_preview = document['text'][:100]
+                console.print(f"  Text: {text_preview}...")
+            if "perceptual_hash" in document:
+                console.print(f"  Hash: {document['perceptual_hash']}")
+            if "timestamp" in document:
+                console.print(f"  Timestamp: {document['timestamp']}")
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error(f"Failed to retrieve sample document: {e}")
