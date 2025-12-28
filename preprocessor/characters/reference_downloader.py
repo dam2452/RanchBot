@@ -70,6 +70,15 @@ class CharacterReferenceDownloader(BaseProcessor):
         if "series_name" not in args:
             raise ValueError("series_name is required")
 
+    def _all_references_exist(self, characters: list) -> bool:
+        for char in characters:
+            char_name = char["name"]
+            output_folder = self.output_dir / char_name.replace(" ", "_").lower()
+            existing_images = list(output_folder.glob("*.jpg"))
+            if len(existing_images) < self.images_per_character:
+                return False
+        return True
+
     def _execute(self) -> None:
         if not self.characters_json.exists():
             console.print(f"[red]Characters JSON not found: {self.characters_json}[/red]")
@@ -81,6 +90,10 @@ class CharacterReferenceDownloader(BaseProcessor):
         characters = data.get("characters", [])
         if not characters:
             console.print("[yellow]No characters found in JSON[/yellow]")
+            return
+
+        if self._all_references_exist(characters):
+            console.print(f"[green]✓ All reference images already exist for {len(characters)} characters (skipping)[/green]")
             return
 
         self.face_app = init_face_detection(self.use_gpu)
@@ -145,14 +158,21 @@ class CharacterReferenceDownloader(BaseProcessor):
             self.logger.debug(f"Failed to download image {img_url}: {e}")
             return None
 
-    def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals
+    def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals,too-many-statements
         search_query = f"Serial {self.series_name} {char_name} postać"
         output_folder = self.output_dir / char_name.replace(" ", "_").lower()
         output_folder.mkdir(parents=True, exist_ok=True)
 
+        existing_images = list(output_folder.glob("*.jpg"))
+        if len(existing_images) >= self.images_per_character:
+            progress.console.print(
+                f"[green]✓ {char_name}: {len(existing_images)} images already exist (skipping)[/green]",
+            )
+            return
+
         progress.console.print(f"[cyan]Searching [{self.search_engine.name}]: {search_query}[/cyan]")
 
-        saved_count = 0
+        saved_count = len(existing_images)
         processed = 0
 
         for attempt in range(settings.face_recognition.retry_attempts):  # pylint: disable=too-many-nested-blocks

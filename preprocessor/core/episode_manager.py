@@ -41,12 +41,14 @@ class EpisodeManager:
                 self.episodes_data = json.load(f)
 
     def parse_filename(self, file_path: Path) -> Optional[EpisodeInfo]:
-        match_absolute = re.search(r'E(\d+)', file_path.name, re.IGNORECASE)
+        full_path_str = str(file_path)
+
+        match_absolute = re.search(r'E(\d+)', full_path_str, re.IGNORECASE)
         if match_absolute:
             absolute = int(match_absolute.group(1))
             return self.parse_absolute_episode(absolute)
 
-        match_season_episode = re.search(r'S(\d+)E(\d+)', file_path.name, re.IGNORECASE)
+        match_season_episode = re.search(r'S(\d+)[/\\]?E(\d+)', full_path_str, re.IGNORECASE)
         if match_season_episode:
             season = int(match_season_episode.group(1))
             episode = int(match_season_episode.group(2))

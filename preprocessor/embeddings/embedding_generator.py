@@ -223,7 +223,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         hashes_file = hashes_episode_dir / "image_hashes.json"
 
         if not hashes_file.exists():
-            self.logger.warning(f"Image hashes not found: {hashes_file}")
+            self.logger.debug(f"Image hashes not found: {hashes_file}")
             return {}
 
         try:

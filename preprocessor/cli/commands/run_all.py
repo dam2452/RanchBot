@@ -167,6 +167,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "transcoded_videos": transcoded_videos,
         "transcription_jsons": transcription_jsons,
         "scene_timestamps_dir": scene_timestamps_dir,
+        "output_frames": settings.frame_export.output_dir,
         "name": series_name,
         "resolution": resolution,
         "codec": codec,

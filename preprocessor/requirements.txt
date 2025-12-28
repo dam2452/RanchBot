@@ -15,6 +15,8 @@ pillow~=12.0.0
 pydantic~=2.10.6
 rich~=13.9.4
 torch~=2.9.1
+torchvision~=0.24.1
 transformers==4.51.3
+transnetv2-pytorch~=1.0.5
 ua-generator~=2.0.19
 urllib3~=2.2.3

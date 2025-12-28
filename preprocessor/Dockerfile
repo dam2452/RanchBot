@@ -49,13 +49,12 @@ RUN patchright install chromium \
 RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface \
     /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
-COPY preprocessor/entrypoint.sh preprocessor/run-preprocessor.sh /app/
-RUN chmod +x /app/entrypoint.sh /app/run-preprocessor.sh
-
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
 ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["/app/run-preprocessor.sh"]
+WORKDIR /app
+
+ENTRYPOINT ["python", "-m", "preprocessor.cli"]
+CMD ["--help"]
