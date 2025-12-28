@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from pathlib import Path
 from typing import (
@@ -91,7 +92,7 @@ class FrameExporter(BaseVideoProcessor):
             self.logger.error(f"Failed to extract frames from {item.input_path}: {e}")
             raise
 
-        self.__write_metadata(episode_dir, frame_requests)
+        self.__write_metadata(episode_dir, frame_requests, episode_info, item.input_path)
         console.print(f"[green]✓ Exported {len(frame_requests)} frames to {episode_dir}[/green]")
 
     def __get_episode_dir(self, episode_info) -> Path:
@@ -131,9 +132,40 @@ class FrameExporter(BaseVideoProcessor):
         return frame.resize((new_width, self.resize_height), Image.Resampling.LANCZOS)
 
     @staticmethod
-    def __write_metadata(episode_dir: Path, frame_requests: List[Dict[str, Any]]) -> None:
+    def __calculate_total_scenes(frame_requests: List[Dict[str, Any]]) -> int:
+        scene_numbers = set(f.get("scene_number", -1) for f in frame_requests)
+        has_invalid = -1 in scene_numbers
+        return len(scene_numbers) - (1 if has_invalid else 0)
+
+    def __write_metadata(self, episode_dir: Path, frame_requests: List[Dict[str, Any]], episode_info, source_video: Path) -> None:
+        frame_types_count = {}
+        for frame in frame_requests:
+            frame_type = frame.get("type", "unknown")
+            frame_types_count[frame_type] = frame_types_count.get(frame_type, 0) + 1
+
         metadata = {
-            "frame_count": len(frame_requests),
+            "generated_at": datetime.now().isoformat(),
+            "episode_info": {
+                "season": episode_info.season,
+                "episode_number": episode_info.relative_episode,
+                "absolute_episode": episode_info.absolute_episode,
+            },
+            "source_video": str(source_video),
+            "processing_parameters": {
+                "frame_height": self.resize_height,
+                "keyframe_strategy": self.keyframe_strategy.value,
+                "keyframe_interval": self.keyframe_interval,
+                "frames_per_scene": self.frames_per_scene,
+            },
+            "statistics": {
+                "total_frames": len(frame_requests),
+                "frame_types": frame_types_count,
+                "total_scenes": self.__calculate_total_scenes(frame_requests),
+                "timestamp_range": {
+                    "start": min((f.get("timestamp", 0) for f in frame_requests), default=0),
+                    "end": max((f.get("timestamp", 0) for f in frame_requests), default=0),
+                },
+            },
             "frames": frame_requests,
         }
         metadata_file = episode_dir / "frame_metadata.json"

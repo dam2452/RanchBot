@@ -1,3 +1,4 @@
+from datetime import datetime
 import gc
 import json
 import logging
@@ -135,8 +136,7 @@ class ImageHashProcessor(BaseProcessor):
         episode = episode_info.relative_episode
         return self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
 
-    @staticmethod
-    def __save_hashes(episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
+    def __save_hashes(self, episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         minimal_episode_info = {
@@ -145,7 +145,17 @@ class ImageHashProcessor(BaseProcessor):
         }
 
         hash_data = {
+            "generated_at": datetime.now().isoformat(),
             "episode_info": minimal_episode_info,
+            "processing_parameters": {
+                "device": self.device,
+                "batch_size": self.batch_size,
+                "hash_size": 8,
+            },
+            "statistics": {
+                "total_hashes": len(hash_results),
+                "unique_hashes": len(set(h.get("perceptual_hash") for h in hash_results if "perceptual_hash" in h)),
+            },
             "image_hashes": hash_results,
         }
 

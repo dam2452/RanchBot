@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 from pathlib import Path
 from typing import (
     Any,
@@ -94,25 +95,59 @@ class PipelineOrchestrator:
                 self.metadata.save_to_file(metadata_file)
                 console.print(f"[green]Processing metadata saved to: {metadata_file}[/green]")
 
-    def __collect_additional_statistics(self) -> Dict[str, Any]:
+    def __collect_additional_statistics(self) -> Dict[str, Any]:  # pylint: disable=too-many-locals
         stats: Dict[str, Any] = {}
         # noinspection PyBroadException
-        try:
+        try:  # pylint: disable=too-many-try-statements
             transcription_jsons_dir = Path(self.metadata.params.get("transcription_jsons", ""))
             if transcription_jsons_dir.exists():
-                transcription_files = list(transcription_jsons_dir.glob("*.json"))
+                transcription_files = list(transcription_jsons_dir.rglob("*_segmented.json"))
                 stats["transcription_files_count"] = len(transcription_files)
-                stats["transcription_files"] = [f.name for f in transcription_files]
+                stats["transcription_files"] = [f.name for f in transcription_files[:20]]
 
             transcoded_videos_dir = Path(self.metadata.params.get("transcoded_videos", ""))
             if transcoded_videos_dir.exists():
-                video_files = list(transcoded_videos_dir.glob("*"))
+                video_files = list(transcoded_videos_dir.rglob("*.mp4"))
                 stats["transcoded_videos_count"] = len(video_files)
+                total_size = sum(f.stat().st_size for f in video_files if f.is_file())
+                stats["transcoded_videos_total_size_mb"] = round(total_size / (1024 * 1024), 2)
+
+            output_frames_dir = Path(settings.frame_export.output_dir)
+            if output_frames_dir.exists():
+                frame_metadata_files = list(output_frames_dir.rglob("frame_metadata.json"))
+                stats["processed_episodes_count"] = len(frame_metadata_files)
+                total_frames = 0
+                for metadata_file in frame_metadata_files:
+                    try:
+                        with open(metadata_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            total_frames += data.get("statistics", {}).get("total_frames", 0)
+                    except Exception:  # pylint: disable=broad-exception-caught
+                        pass
+                stats["total_frames_extracted"] = total_frames
 
             embeddings_dir = Path(settings.embedding.default_output_dir)
             if embeddings_dir.exists():
-                embedding_files = list(embeddings_dir.glob("*.npy"))
-                stats["embedding_files_count"] = len(embedding_files)
+                text_embedding_files = list(embeddings_dir.rglob("embeddings_text.json"))
+                video_embedding_files = list(embeddings_dir.rglob("embeddings_video.json"))
+                stats["text_embedding_files_count"] = len(text_embedding_files)
+                stats["video_embedding_files_count"] = len(video_embedding_files)
+
+            image_hashes_dir = Path(settings.image_hash.output_dir)
+            if image_hashes_dir.exists():
+                hash_files = list(image_hashes_dir.rglob("image_hashes.json"))
+                stats["image_hash_files_count"] = len(hash_files)
+
+            elastic_docs_dir = Path("/app/output_data/elastic_documents")
+            if elastic_docs_dir.exists():
+                segment_files = list((elastic_docs_dir / "segments").rglob("*.jsonl"))
+                text_emb_files = list((elastic_docs_dir / "text_embeddings").rglob("*.jsonl"))
+                video_emb_files = list((elastic_docs_dir / "video_embeddings").rglob("*.jsonl"))
+                stats["elastic_documents"] = {
+                    "segments": len(segment_files),
+                    "text_embeddings": len(text_emb_files),
+                    "video_embeddings": len(video_emb_files),
+                }
 
         except Exception: # pylint: disable=broad-exception-caught
             pass

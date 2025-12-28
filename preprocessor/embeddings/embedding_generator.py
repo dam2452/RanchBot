@@ -1,3 +1,4 @@
+from datetime import datetime
 import gc
 import json
 import logging
@@ -307,8 +308,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             return self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
         return self.output_dir / "unknown"
 
-    @staticmethod
     def __save_embeddings(
+            self,
             data,
         text_embeddings,
         video_embeddings,
@@ -325,7 +326,18 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         if text_embeddings:
             text_data = {
+                "generated_at": datetime.now().isoformat(),
                 "episode_info": minimal_episode_info,
+                "processing_parameters": {
+                    "model_name": self.model_name,
+                    "model_revision": self.model_revision,
+                    "segments_per_embedding": self.segments_per_embedding,
+                    "device": self.device,
+                },
+                "statistics": {
+                    "total_embeddings": len(text_embeddings),
+                    "embedding_dimension": len(text_embeddings[0]["embedding"]) if text_embeddings else 0,
+                },
                 "text_embeddings": text_embeddings,
             }
             with open(text_output, "w", encoding="utf-8") as f:
@@ -333,7 +345,20 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         if video_embeddings:
             video_data = {
+                "generated_at": datetime.now().isoformat(),
                 "episode_info": minimal_episode_info,
+                "processing_parameters": {
+                    "model_name": self.model_name,
+                    "model_revision": self.model_revision,
+                    "resize_height": self.resize_height,
+                    "batch_size": self.batch_size,
+                    "device": self.device,
+                },
+                "statistics": {
+                    "total_embeddings": len(video_embeddings),
+                    "embedding_dimension": len(video_embeddings[0]["embedding"]) if video_embeddings else 0,
+                    "frames_with_hash": sum(1 for e in video_embeddings if "perceptual_hash" in e),
+                },
                 "video_embeddings": video_embeddings,
             }
             with open(video_output, "w", encoding="utf-8") as f:
