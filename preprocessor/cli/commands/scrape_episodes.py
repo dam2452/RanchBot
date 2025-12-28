@@ -17,7 +17,7 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
     "--output-file",
     type=click.Path(path_type=Path),
     required=True,
-    help="Output JSON file path (required)",
+    help="Output JSON file path",
 )
 @click.option(
     "--headless/--no-headless",
@@ -32,7 +32,7 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
 @click.option(
     "--videos-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory containing video files for coverage validation (optional)",
+    help="Directory containing video files for coverage validation",
 )
 def scrape_episodes(
     urls: tuple,

@@ -34,7 +34,7 @@ from preprocessor.video.frame_exporter import FrameExporter
     default=480,
     help="Height of exported frames in pixels",
 )
-@click.option("--name", required=True, help="Series name (required)")
+@click.option("--name", required=True, help="Series name")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 def export_frames(
     transcoded_videos: Path,

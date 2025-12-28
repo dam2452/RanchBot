@@ -47,7 +47,7 @@ from preprocessor.utils.console import console
     default=str(settings.scene_detection.output_dir),
     help="Output directory for scene timestamps",
 )
-@click.option("--series-name", required=True, help="Series name (required)")
+@click.option("--series-name", required=True, help="Series name")
 @click.option(
     "--resolution",
     type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),

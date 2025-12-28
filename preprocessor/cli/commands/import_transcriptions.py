@@ -25,9 +25,9 @@ from preprocessor.utils.console import console
 @click.option(
     "--episodes-info-json",
     type=click.Path(exists=True, path_type=Path),
-    help="JSON file with episode metadata (optional)",
+    help="JSON file with episode metadata",
 )
-@click.option("--name", required=True, help="Series name (required)")
+@click.option("--name", required=True, help="Series name")
 @click.option(
     "--format-type",
     type=click.Choice(["11labs_segmented", "11labs"]),

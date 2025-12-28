@@ -8,12 +8,12 @@ from preprocessor.indexing.elasticsearch import ElasticSearchIndexer
 
 
 @click.command()
-@click.option("--name", required=True, help="Elasticsearch index name (required)")
+@click.option("--name", required=True, help="Elasticsearch index name")
 @click.option(
     "--transcription-jsons",
     type=click.Path(exists=True, path_type=Path),
     required=True,
-    help="Directory with transcription JSON files (required)",
+    help="Directory with transcription JSON files",
 )
 @click.option("--dry-run", is_flag=True, help="Validate without sending to Elasticsearch")
 @click.option("--append", is_flag=True, help="Append to existing index instead of recreating")

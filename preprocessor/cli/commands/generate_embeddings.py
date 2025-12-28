@@ -13,7 +13,7 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     "--transcription-jsons",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     required=True,
-    help="Directory with transcription JSON files (required)",
+    help="Directory with transcription JSON files",
 )
 @click.option(
     "--frames-dir",

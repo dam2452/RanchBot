@@ -33,7 +33,7 @@ from preprocessor.hashing.image_hash_processor import ImageHashProcessor
     default=settings.embedding.batch_size,
     help="Batch size for processing",
 )
-@click.option("--name", required=True, help="Series name (required)")
+@click.option("--name", required=True, help="Series name")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
 def image_hashing(
     frames_dir: Path,

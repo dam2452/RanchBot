@@ -20,7 +20,7 @@ from preprocessor.transcription.generator import TranscriptionGenerator
     "--episodes-info-json",
     type=click.Path(exists=True, path_type=Path),
     required=True,
-    help="JSON file with episode metadata (required)",
+    help="JSON file with episode metadata",
 )
 @click.option(
     "--transcription-jsons",
@@ -46,7 +46,7 @@ from preprocessor.transcription.generator import TranscriptionGenerator
 @click.option(
     "--name",
     required=True,
-    help="Series name for output files (required)",
+    help="Series name for output files",
 )
 def transcribe(
     videos: Path,

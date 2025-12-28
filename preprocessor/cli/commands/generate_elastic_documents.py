@@ -15,17 +15,17 @@ from preprocessor.indexing.elastic_document_generator import ElasticDocumentGene
     "--transcription-jsons",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     required=True,
-    help="Directory with transcription JSON files (required)",
+    help="Directory with transcription JSON files",
 )
 @click.option(
     "--embeddings-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory with embedding files (optional)",
+    help="Directory with embedding files",
 )
 @click.option(
     "--scene-timestamps-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    help="Directory with scene timestamp files (optional)",
+    help="Directory with scene timestamp files",
 )
 @click.option(
     "--output-dir",
