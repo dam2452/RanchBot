@@ -1,4 +1,3 @@
-from datetime import datetime
 import gc
 import json
 import logging
@@ -10,8 +9,9 @@ from typing import (
     Optional,
 )
 
-from PIL import Image
 import torch
+
+# pylint: disable=duplicate-code
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -21,7 +21,9 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
+from preprocessor.utils.metadata_utils import create_processing_metadata
 
 
 class ImageHashProcessor(BaseProcessor):
@@ -90,46 +92,11 @@ class ImageHashProcessor(BaseProcessor):
             return
 
         frames_dir = metadata_file.parent
-        hash_results = self.__compute_hashes(frames_dir, frame_requests)
+        hash_results = compute_hashes_in_batches(frames_dir, frame_requests, self.hasher, self.batch_size)
 
         episode_dir = self.__get_episode_output_dir(episode_info)
         self.__save_hashes(episode_dir, episode_info, hash_results)
         self._cleanup_memory()
-
-    def __compute_hashes(self, frames_dir: Path, frame_requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        total_chunks = (len(frame_requests) + self.batch_size - 1) // self.batch_size
-        results = []
-
-        with self.progress.track_operation(f"Image hashing ({len(frame_requests)} frames)", total_chunks) as tracker:
-            for chunk_idx in range(total_chunks):
-                chunk_start = chunk_idx * self.batch_size
-                chunk_end = min(chunk_start + self.batch_size, len(frame_requests))
-                chunk_requests = frame_requests[chunk_start:chunk_end]
-
-                pil_images = self.__load_frames(frames_dir, chunk_requests)
-                phashes = self.hasher.compute_phash_batch(pil_images)
-
-                for request, phash in zip(chunk_requests, phashes):
-                    result = request.copy()
-                    result["perceptual_hash"] = phash
-                    results.append(result)
-
-                del pil_images
-                tracker.update(chunk_idx + 1, interval=10)
-
-        return results
-
-    @staticmethod
-    def __load_frames(frames_dir: Path, frame_requests: List[Dict[str, Any]]) -> List[Image.Image]:
-        images = []
-        for request in frame_requests:
-            frame_num = request["frame_number"]
-            frame_path = frames_dir / f"frame_{frame_num:06d}.jpg"
-            if frame_path.exists():
-                images.append(Image.open(frame_path))
-            else:
-                images.append(Image.new('RGB', (1, 1)))
-        return images
 
     def __get_episode_output_dir(self, episode_info) -> Path:
         season = episode_info.season
@@ -139,25 +106,20 @@ class ImageHashProcessor(BaseProcessor):
     def __save_hashes(self, episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
         episode_dir.mkdir(parents=True, exist_ok=True)
 
-        minimal_episode_info = {
-            "season": episode_info.season,
-            "episode_number": episode_info.relative_episode,
-        }
-
-        hash_data = {
-            "generated_at": datetime.now().isoformat(),
-            "episode_info": minimal_episode_info,
-            "processing_parameters": {
+        hash_data = create_processing_metadata(
+            episode_info=episode_info,
+            processing_params={
                 "device": self.device,
                 "batch_size": self.batch_size,
                 "hash_size": 8,
             },
-            "statistics": {
+            statistics={
                 "total_hashes": len(hash_results),
                 "unique_hashes": len(set(h.get("perceptual_hash") for h in hash_results if "perceptual_hash" in h)),
             },
-            "image_hashes": hash_results,
-        }
+            results_key="image_hashes",
+            results_data=hash_results,
+        )
 
         hash_output = episode_dir / "image_hashes.json"
         with open(hash_output, "w", encoding="utf-8") as f:

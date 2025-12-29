@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import (
     Any,
     Dict,
     List,
-    Optional,
 )
 
-import cv2
 from insightface.app import FaceAnalysis
 import numpy as np
-from numpy.linalg import norm
 
+# pylint: disable=duplicate-code
+
+from preprocessor.characters.face_detection_utils import load_character_references
 from preprocessor.characters.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -24,6 +23,10 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
+from preprocessor.utils.detection_io import (
+    process_frames_for_detection,
+    save_character_detections,
+)
 
 
 class CharacterDetector(BaseProcessor):
@@ -72,7 +75,7 @@ class CharacterDetector(BaseProcessor):
             return
 
         self.face_app = init_face_detection(self.use_gpu)
-        self._load_character_references()
+        self.character_vectors = load_character_references(self.characters_dir, self.face_app)
 
         if not self.character_vectors:
             console.print("[yellow]No character references loaded[/yellow]")
@@ -91,100 +94,10 @@ class CharacterDetector(BaseProcessor):
             if f.is_file() and f.name.startswith("frame_")
         ])
 
-        results = []
-        for frame_path in frame_files:
-            detected_chars = self._detect_in_frame(frame_path)
-            results.append({
-                "frame": frame_path.name,
-                "characters": detected_chars,
-            })
-
-        self._save_detections(episode_info, results)
-
-    def _load_character_references(self):
-        console.print("[blue]Loading character references...[/blue]")
-
-        for char_dir in self.characters_dir.iterdir():
-            if not char_dir.is_dir():
-                continue
-
-            char_name = char_dir.name.replace("_", " ").title()
-            images = list(char_dir.glob("*.jpg"))
-
-            if not images:
-                continue
-
-            embeddings = []
-            for img_path in images:
-                emb = self._get_embedding(str(img_path))
-                if emb is not None:
-                    embeddings.append(emb)
-
-            if embeddings:
-                mean_emb = np.mean(embeddings, axis=0)
-                centroid = mean_emb / norm(mean_emb)
-                self.character_vectors[char_name] = centroid
-                console.print(f"[green]  ✓ {char_name}: {len(embeddings)} reference images[/green]")
-
-        console.print(f"[green]✓ Loaded {len(self.character_vectors)} characters[/green]")
-
-    def _get_embedding(self, img_path: str) -> Optional[np.ndarray]:
-        img = cv2.imread(img_path)
-        if img is None:
-            return None
-
-        faces = self.face_app.get(img)
-        if not faces:
-            return None
-
-        faces.sort(key=lambda x: (x.bbox[2]-x.bbox[0]) * (x.bbox[3]-x.bbox[1]), reverse=True)
-        return faces[0].normed_embedding
-
-    def _save_detections(self, episode_info, results: List[Dict[str, Any]]) -> None:
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        episode_dir.mkdir(parents=True, exist_ok=True)
-
-        minimal_episode_info = {
-            "season": episode_info.season,
-            "episode_number": episode_info.relative_episode,
-        }
-
-        detections_data = {
-            "episode_info": minimal_episode_info,
-            "detections": results,
-        }
-
-        detections_output = episode_dir / "detections.json"
-        with open(detections_output, "w", encoding="utf-8") as f:
-            json.dump(detections_data, f, indent=2, ensure_ascii=False)
-
-        frames_with_chars = sum(1 for r in results if r["characters"])
-        console.print(f"[green]✓ S{season:02d}E{episode:02d}: {len(results)} frames, {frames_with_chars} with characters[/green]")
-
-    def _detect_in_frame(self, frame_path: Path) -> List[Dict[str, Any]]:
-        img = cv2.imread(str(frame_path))
-        if img is None:
-            return []
-
-        faces = self.face_app.get(img)
-        if not faces:
-            return []
-
-        detected = []
-
-        for face in faces:
-            face_embedding = face.normed_embedding
-
-            for char_name, char_vector in self.character_vectors.items():
-                similarity = np.dot(face_embedding, char_vector)
-
-                if similarity > self.threshold:
-                    detected.append({
-                        "name": char_name,
-                        "confidence": float(similarity),
-                    })
-
-        detected.sort(key=lambda x: x["confidence"], reverse=True)
-        return detected
+        results = process_frames_for_detection(
+            frame_files,
+            self.face_app,
+            self.character_vectors,
+            self.threshold,
+        )
+        save_character_detections(episode_info, results)

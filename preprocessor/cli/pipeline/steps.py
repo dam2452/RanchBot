@@ -1,5 +1,13 @@
+from pathlib import Path
+
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
+from preprocessor.video.frame_processor import FrameProcessor
+from preprocessor.video.frame_subprocessors import (
+    CharacterDetectionSubProcessor,
+    ImageHashSubProcessor,
+    VideoEmbeddingSubProcessor,
+)
 
 # pylint: disable=duplicate-code
 
@@ -266,7 +274,7 @@ def run_embedding_step(device, state_manager, **kwargs):
             "model": settings.embedding.model_name,
             "segments_per_embedding": settings.embedding.segments_per_embedding,
             "generate_text": True,
-            "generate_video": True,
+            "generate_video": False,
             "device": device,
             "batch_size": settings.embedding.batch_size,
             "series_name": name,
@@ -280,8 +288,6 @@ def run_embedding_step(device, state_manager, **kwargs):
 
 
 def run_elastic_documents_step(**kwargs):
-    from pathlib import Path  # pylint: disable=import-outside-toplevel
-
     from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
 
     transcription_jsons = kwargs.get("transcription_jsons")
@@ -306,8 +312,6 @@ def run_elastic_documents_step(**kwargs):
 
 
 def run_index_step(name, dry_run, state_manager, **kwargs):
-    from pathlib import Path  # pylint: disable=import-outside-toplevel
-
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
 
     episodes_info_json = kwargs.get("episodes_info_json")
@@ -323,3 +327,54 @@ def run_index_step(name, dry_run, state_manager, **kwargs):
         "episodes_info_json": episodes_info_json,
     })
     return indexer.work()
+
+
+def run_frame_processing_step(device, state_manager, ramdisk_path, skip_image_hashing, skip_video_embeddings, skip_character_detection, **kwargs):
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
+    output_frames = kwargs.get("output_frames", settings.frame_export.output_dir)
+    processor = FrameProcessor(
+        {
+            "frames_dir": output_frames,
+            "ramdisk_path": ramdisk_path or Path("/dev/shm"),
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
+            "state_manager": state_manager,
+        },
+    )
+
+    sub_processors = []
+
+    if not skip_image_hashing:
+        hash_sub = ImageHashSubProcessor(
+            device=device,
+            batch_size=settings.embedding.batch_size,
+        )
+        processor.add_sub_processor(hash_sub)
+        sub_processors.append(hash_sub)
+
+    if not skip_video_embeddings:
+        embedding_sub = VideoEmbeddingSubProcessor(
+            device=device,
+            batch_size=settings.embedding.batch_size,
+            model_name=settings.embedding.model_name,
+            model_revision=settings.embedding.model_revision,
+            resize_height=settings.embedding.resize_height,
+        )
+        processor.add_sub_processor(embedding_sub)
+        sub_processors.append(embedding_sub)
+
+    if not skip_character_detection:
+        char_detection_sub = CharacterDetectionSubProcessor(
+            characters_dir=Path(settings.character.output_dir),
+            use_gpu=settings.face_recognition.use_gpu,
+            threshold=settings.face_recognition.threshold,
+        )
+        processor.add_sub_processor(char_detection_sub)
+        sub_processors.append(char_detection_sub)
+
+    try:
+        return processor.work()
+    finally:
+        for sub in sub_processors:
+            sub.cleanup()

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import logging
 from pathlib import Path
 import re
 from typing import (
@@ -10,6 +11,8 @@ from typing import (
 )
 
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,52 +46,26 @@ class EpisodeManager:
     def parse_filename(self, file_path: Path) -> Optional[EpisodeInfo]:
         full_path_str = str(file_path)
 
-        match_absolute = re.search(r'E(\d+)', full_path_str, re.IGNORECASE)
-        if match_absolute:
-            absolute = int(match_absolute.group(1))
-            return self.parse_absolute_episode(absolute)
-
         match_season_episode = re.search(r'S(\d+)[/\\]?E(\d+)', full_path_str, re.IGNORECASE)
         if match_season_episode:
             season = int(match_season_episode.group(1))
             episode = int(match_season_episode.group(2))
             return self.get_episode_by_season_and_relative(season, episode)
 
-        return None
-
-    def parse_absolute_episode(self, absolute: int) -> Optional[EpisodeInfo]:
-        if not self.episodes_data:
-            return EpisodeInfo(
-                absolute_episode=absolute,
-                season=1,
-                relative_episode=absolute,
-                title=f"Episode {absolute}",
-            )
-
-        for season in self.episodes_data.get("seasons", []):
-            season_num = season.get("season_number", 1)
-            episodes = sorted(season.get("episodes", []), key=lambda ep: ep["episode_number"])
-
-            for idx, ep_data in enumerate(episodes):
-                if ep_data.get("episode_number") == absolute:
-                    return EpisodeInfo(
-                        absolute_episode=absolute,
-                        season=season_num,
-                        relative_episode=idx + 1,
-                        title=ep_data.get("title", f"Episode {absolute}"),
-                        premiere_date=ep_data.get("premiere_date"),
-                        viewership=ep_data.get("viewership"),
-                    )
-
+        logger.error(
+            f"Cannot parse episode from filename: {file_path.name}. "
+            f"Expected format: S##E## (e.g., S01E05, S10E13). "
+            f"Absolute episode numbers (E## without season) are not supported.",
+        )
         return None
 
     def get_episode_by_season_and_relative(self, season: int, relative_episode: int) -> Optional[EpisodeInfo]:
         if not self.episodes_data:
             return EpisodeInfo(
-                absolute_episode=relative_episode,
+                absolute_episode=0,
                 season=season,
                 relative_episode=relative_episode,
-                title=f"Episode {relative_episode}",
+                title=f"S{season:02d}E{relative_episode:02d}",
             )
 
         for season_data in self.episodes_data.get("seasons", []):
@@ -98,15 +75,26 @@ class EpisodeManager:
                 if 0 < relative_episode <= len(episodes):
                     ep_data = episodes[relative_episode - 1]
                     return EpisodeInfo(
-                        absolute_episode=ep_data.get("episode_number", relative_episode),
+                        absolute_episode=0,
                         season=season,
                         relative_episode=relative_episode,
-                        title=ep_data.get("title", f"Episode {relative_episode}"),
+                        title=ep_data.get("title", f"S{season:02d}E{relative_episode:02d}"),
                         premiere_date=ep_data.get("premiere_date"),
                         viewership=ep_data.get("viewership"),
                     )
 
-        return None
+        logger.warning(
+            f"Season {season} not found in episodes_info_json! "
+            f"Processing S{season:02d}E{relative_episode:02d} with filename-only metadata. "
+            f"Scrape episode info for season {season} to get title, premiere date, etc.",
+        )
+
+        return EpisodeInfo(
+            absolute_episode=0,
+            season=season,
+            relative_episode=relative_episode,
+            title=f"S{season:02d}E{relative_episode:02d}",
+        )
 
     def build_output_path(self, episode_info: EpisodeInfo, base_dir: Path, extension: str = ".mp4") -> Path:
         filename = f"{self.series_name}_{episode_info.episode_code()}{extension}"
@@ -177,7 +165,7 @@ class EpisodeManager:
         return None
 
     @staticmethod
-    def load_scene_timestamps(episode_info: EpisodeInfo, search_dir: Optional[Path], logger=None) -> Optional[List[Dict[str, Any]]]:
+    def load_scene_timestamps(episode_info: EpisodeInfo, search_dir: Optional[Path], _logger=None) -> Optional[List[Dict[str, Any]]]:
         if not search_dir:
             return None
         scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, search_dir)
@@ -187,8 +175,8 @@ class EpisodeManager:
             with open(scene_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError) as e:
-            if logger:
-                logger.error(f"Failed to load scene timestamps: {e}")
+            if _logger:
+                _logger.error(f"Failed to load scene timestamps: {e}")
             return None
 
     @staticmethod
@@ -203,7 +191,7 @@ class EpisodeManager:
 
     @staticmethod
     def get_episode_id_for_state(episode_info: EpisodeInfo) -> str:
-        return f"E{episode_info.absolute_episode}"
+        return f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}"
 
     def list_all_episodes(self) -> List[EpisodeInfo]:
         episodes = []
@@ -221,10 +209,10 @@ class EpisodeManager:
             for idx, ep_data in enumerate(season_episodes):
                 episodes.append(
                     EpisodeInfo(
-                        absolute_episode=ep_data.get("episode_number", idx + 1),
+                        absolute_episode=0,
                         season=season_num,
                         relative_episode=idx + 1,
-                        title=ep_data.get("title", f"Episode {idx + 1}"),
+                        title=ep_data.get("title", f"S{season_num:02d}E{idx + 1:02d}"),
                         premiere_date=ep_data.get("premiere_date"),
                         viewership=ep_data.get("viewership"),
                     ),

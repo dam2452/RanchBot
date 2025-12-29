@@ -1,4 +1,3 @@
-from datetime import datetime
 import gc
 import json
 import logging
@@ -10,10 +9,11 @@ from typing import (
     Optional,
 )
 
-from PIL import Image
 import numpy as np
 import torch
 from transformers import AutoModel
+
+# pylint: disable=duplicate-code
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -23,7 +23,10 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
+from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batches
 from preprocessor.utils.console import console
+from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
+from preprocessor.utils.metadata_utils import create_processing_metadata
 
 
 class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-attributes
@@ -215,35 +218,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             return json.load(f)
 
     def __load_image_hashes(self, episode_info_dict: Dict[str, Any]) -> Dict[int, str]:
-        season = episode_info_dict.get("season")
-        episode = episode_info_dict.get("episode_number")
-        if season is None or episode is None:
-            return {}
+        return load_image_hashes_for_episode(episode_info_dict, self.logger)
 
-        hashes_episode_dir = self.image_hashes_dir / f"S{season:02d}" / f"E{episode:02d}"
-        hashes_file = hashes_episode_dir / "image_hashes.json"
-
-        if not hashes_file.exists():
-            self.logger.debug(f"Image hashes not found: {hashes_file}")
-            return {}
-
-        try:
-            with open(hashes_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            hash_map = {}
-            for item in data.get("image_hashes", []):
-                frame_num = item.get("frame_number")
-                phash = item.get("perceptual_hash")
-                if frame_num is not None and phash:
-                    hash_map[frame_num] = phash
-
-            return hash_map
-        except Exception as e: # pylint: disable=broad-exception-caught
-            self.logger.error(f"Failed to load image hashes: {e}")
-            return {}
-
-    def __generate_video_embeddings(self, episode_info_dict: Dict[str, Any], frame_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
+    def __generate_video_embeddings(self, episode_info_dict: Dict[str, Any], frame_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         frame_requests = frame_metadata.get("frames", [])
         if not frame_requests:
             return []
@@ -253,52 +230,14 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
 
         image_hashes = self.__load_image_hashes(episode_info_dict)
-
-        chunk_size = self.batch_size
-        total_chunks = (len(frame_requests) + chunk_size - 1) // chunk_size
-        embeddings = []
-
-        with self.progress.track_operation(f"Video embeddings ({len(frame_requests)} frames)", total_chunks) as tracker:
-            for chunk_idx in range(total_chunks):
-                chunk_start = chunk_idx * chunk_size
-                chunk_end = min(chunk_start + chunk_size, len(frame_requests))
-                chunk_requests = frame_requests[chunk_start:chunk_end]
-
-                pil_images = self.__load_frames(frames_episode_dir, chunk_requests)
-                chunk_embeddings = self.gpu_processor.process_images_batch(pil_images, chunk_idx)
-
-                for request, embedding in zip(chunk_requests, chunk_embeddings):
-                    result = request.copy()
-                    result["embedding"] = embedding
-
-                    frame_num = request.get("frame_number")
-                    if frame_num is not None and frame_num in image_hashes:
-                        result["perceptual_hash"] = image_hashes[frame_num]
-
-                    embeddings.append(result)
-
-                del pil_images
-                del chunk_embeddings
-                self._cleanup_memory()
-
-                tracker.update(chunk_idx + 1, interval=10)
-
-        return embeddings
-
-    @staticmethod
-    def __load_frames(frames_dir: Path, frame_requests: List[Dict[str, Any]]) -> List[Image.Image]:
-        images = []
-        for request in frame_requests:
-            frame_num = request["frame_number"]
-            frame_path = frames_dir / f"frame_{frame_num:06d}.jpg"
-            if frame_path.exists():
-                img = Image.open(frame_path)
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                images.append(img)
-            else:
-                images.append(Image.new('RGB', (1, 1)))
-        return images
+        return compute_embeddings_in_batches(
+            frames_episode_dir,
+            frame_requests,
+            self.gpu_processor,
+            self.batch_size,
+            image_hashes,
+            self._cleanup_memory,
+        )
 
     def _get_episode_output_dir(self, transcription_file: Path) -> Path:
         episode_info_from_file = self.episode_manager.parse_filename(transcription_file)
@@ -317,50 +256,55 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         video_output,
     ):
         episode_info = data.get("episode_info", {})
-        minimal_episode_info = {
-            "season": episode_info.get("season"),
-            "episode_number": episode_info.get("episode_number"),
-        }
-
         text_output.parent.mkdir(parents=True, exist_ok=True)
 
         if text_embeddings:
-            text_data = {
-                "generated_at": datetime.now().isoformat(),
-                "episode_info": minimal_episode_info,
-                "processing_parameters": {
+            text_data = create_processing_metadata(
+                episode_info=type(
+                    'obj', (object,), {
+                        'season': episode_info.get("season"),
+                        'relative_episode': episode_info.get("episode_number"),
+                    },
+                )(),
+                processing_params={
                     "model_name": self.model_name,
                     "model_revision": self.model_revision,
                     "segments_per_embedding": self.segments_per_embedding,
                     "device": self.device,
                 },
-                "statistics": {
+                statistics={
                     "total_embeddings": len(text_embeddings),
                     "embedding_dimension": len(text_embeddings[0]["embedding"]) if text_embeddings else 0,
                 },
-                "text_embeddings": text_embeddings,
-            }
+                results_key="text_embeddings",
+                results_data=text_embeddings,
+            )
             with open(text_output, "w", encoding="utf-8") as f:
                 json.dump(text_data, f, indent=2, ensure_ascii=False)
 
         if video_embeddings:
-            video_data = {
-                "generated_at": datetime.now().isoformat(),
-                "episode_info": minimal_episode_info,
-                "processing_parameters": {
+            video_data = create_processing_metadata(
+                episode_info=type(
+                    'obj', (object,), {
+                        'season': episode_info.get("season"),
+                        'relative_episode': episode_info.get("episode_number"),
+                    },
+                )(),
+                processing_params={
                     "model_name": self.model_name,
                     "model_revision": self.model_revision,
                     "resize_height": self.resize_height,
                     "batch_size": self.batch_size,
                     "device": self.device,
                 },
-                "statistics": {
+                statistics={
                     "total_embeddings": len(video_embeddings),
                     "embedding_dimension": len(video_embeddings[0]["embedding"]) if video_embeddings else 0,
                     "frames_with_hash": sum(1 for e in video_embeddings if "perceptual_hash" in e),
                 },
-                "video_embeddings": video_embeddings,
-            }
+                results_key="video_embeddings",
+                results_data=video_embeddings,
+            )
             with open(video_output, "w", encoding="utf-8") as f:
                 json.dump(video_data, f, indent=2, ensure_ascii=False)
 

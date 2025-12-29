@@ -1,0 +1,57 @@
+import json
+from pathlib import Path
+from typing import (
+    Any,
+    Dict,
+    List,
+)
+
+from preprocessor.characters.face_detection_utils import detect_characters_in_frame
+from preprocessor.config.config import settings
+from preprocessor.utils.console import console
+from preprocessor.utils.metadata_utils import create_minimal_episode_info
+
+
+def save_character_detections(episode_info, results: List[Dict[str, Any]]) -> None:
+    detections_output_dir = Path(settings.character.detections_dir)
+    season = episode_info.season
+    episode = episode_info.relative_episode
+    episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+    episode_dir.mkdir(parents=True, exist_ok=True)
+
+    detections_data = {
+        "episode_info": create_minimal_episode_info(episode_info),
+        "detections": results,
+    }
+
+    detections_output = episode_dir / "detections.json"
+    with open(detections_output, "w", encoding="utf-8") as f:
+        json.dump(detections_data, f, indent=2, ensure_ascii=False)
+
+    frames_with_chars = sum(1 for r in results if r["characters"])
+    console.print(f"[green]✓ S{season:02d}E{episode:02d}: {len(results)} frames, {frames_with_chars} with characters[/green]")
+
+
+def process_frames_for_detection(
+    frame_files: List[Path],
+    face_app,
+    character_vectors: Dict[str, Any],
+    threshold: float,
+) -> List[Dict[str, Any]]:
+    results = []
+    for idx, frame_path in enumerate(frame_files):
+        detected_chars = detect_characters_in_frame(
+            frame_path,
+            face_app,
+            character_vectors,
+            threshold,
+        )
+        results.append({
+            "frame": frame_path.name,
+            "characters": detected_chars,
+        })
+
+        if (idx + 1) % 100 == 0:
+            console.print(f"  Processed {idx + 1}/{len(frame_files)} frames")
+
+    return results
