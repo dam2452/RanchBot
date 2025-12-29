@@ -12,7 +12,7 @@ from preprocessor.video.frame_subprocessors import (
 # pylint: disable=duplicate-code
 
 
-def run_scrape_step(scrape_urls, episodes_info_json, videos=None, **_kwargs):
+def run_scrape_step(scrape_urls, episodes_info_json, videos=None, parser_mode="normal", **_kwargs):
     from preprocessor.scraping.episode_scraper import EpisodeScraper  # pylint: disable=import-outside-toplevel
 
     if not scrape_urls:
@@ -31,6 +31,7 @@ def run_scrape_step(scrape_urls, episodes_info_json, videos=None, **_kwargs):
             "headless": True,
             "merge_sources": True,
             "videos_dir": videos,
+            "parser_mode": parser_mode,
         },
     )
     scrape_exit_code = scraper.work()
@@ -43,7 +44,7 @@ def run_scrape_step(scrape_urls, episodes_info_json, videos=None, **_kwargs):
     return 0
 
 
-def run_character_scrape_step(character_urls, characters_json, name, **_kwargs):
+def run_character_scrape_step(character_urls, characters_json, name, parser_mode="normal", **_kwargs):
     from preprocessor.scraping.character_scraper import CharacterScraper  # pylint: disable=import-outside-toplevel
 
     if not character_urls:
@@ -61,6 +62,7 @@ def run_character_scrape_step(character_urls, characters_json, name, **_kwargs):
             "output_file": characters_json,
             "series_name": name,
             "headless": True,
+            "parser_mode": parser_mode,
         },
     )
     scrape_exit_code = scraper.work()

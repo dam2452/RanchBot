@@ -50,11 +50,9 @@ class FrameProcessor:
             resized_batch = self._resize_frames_gpu(batch)
             resized_frames.append(resized_batch)
             del batch
-            torch.cuda.empty_cache()
         result = torch.cat(resized_frames, dim=0)
         resized_frames.clear()
         del resized_frames
-        torch.cuda.empty_cache()
         return result
 
     def _resize_frames_gpu(self, frames_tensor: torch.Tensor) -> torch.Tensor:
@@ -63,9 +61,9 @@ class FrameProcessor:
 
         device = torch.device(self.device)
         if not frames_tensor.is_cuda:
-            frames_tensor = frames_tensor.to(device)
+            frames_tensor = frames_tensor.to(device, non_blocking=True)
 
-        frames_float = frames_tensor.float() / 255.0
+        frames_float = frames_tensor.half() / 255.0
         frames_chw = frames_float.permute(0, 3, 1, 2)
         _, _, orig_h, orig_w = frames_chw.shape
         aspect_ratio = orig_w / orig_h
@@ -78,7 +76,6 @@ class FrameProcessor:
             mode='bilinear',
             align_corners=False,
         )
-        resized_hwc = (resized.permute(0, 2, 3, 1) * 255.0).byte().cpu()
+        resized_hwc = (resized.permute(0, 2, 3, 1) * 255.0).byte().cpu(memory_format=torch.contiguous_format)
         del frames_float, frames_chw, resized
-        torch.cuda.empty_cache()
         return resized_hwc

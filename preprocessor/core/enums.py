@@ -24,6 +24,11 @@ class ScraperMethod(str, Enum):
     CRAWL4AI = "crawl4ai"
 
 
+class ParserMode(str, Enum):
+    NORMAL = "normal"
+    PREMIUM = "premium"
+
+
 class TranscriptionFormat(str, Enum):
     ELEVENLABS_SEGMENTED = "11labs_segmented"
     ELEVENLABS = "11labs"

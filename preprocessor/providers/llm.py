@@ -7,7 +7,11 @@ from typing import (
     Type,
 )
 
-from pydantic import BaseModel
+from openai import OpenAI
+from pydantic import (
+    BaseModel,
+    field_validator,
+)
 import torch
 from transformers import (
     AutoConfig,
@@ -16,6 +20,8 @@ from transformers import (
     BitsAndBytesConfig,
 )
 
+from preprocessor.config.config import settings
+from preprocessor.core.enums import ParserMode
 from preprocessor.prompts import (
     extract_all_seasons_system,
     extract_all_seasons_user,
@@ -36,6 +42,15 @@ class EpisodeInfo(BaseModel):
     title: str
     premiere_date: Optional[str] = None
     viewership: Optional[str] = None
+
+    @field_validator('viewership', mode='before')
+    @classmethod
+    def convert_viewership_to_str(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, int):
+            return str(v)
+        return v
 
 
 class SeasonMetadata(BaseModel):
@@ -65,18 +80,25 @@ class CharactersList(BaseModel):
 
 class LLMProvider:
     __DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-Coder-7B-Instruct"
+    __GEMINI_MODEL_NAME = "gemini-2.5-flash"
 
     __instance = None
     __model = None
     __tokenizer = None
+    __openai_client = None
 
-    def __new__(cls, model_name: Optional[str] = None):
+    def __new__(cls, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None):
         if cls.__instance is None:
             cls.__instance = super().__new__(cls)
         return cls.__instance
 
-    def __init__(self, model_name: Optional[str] = None):
-        if self.__model is None:
+    def __init__(self, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None):
+        self.parser_mode = parser_mode or ParserMode.NORMAL
+
+        if self.parser_mode == ParserMode.PREMIUM:
+            if self.__openai_client is None:
+                self.__init_gemini_client()
+        elif self.__model is None:
             self.model_name = model_name or self.__DEFAULT_MODEL_NAME
             self.__load_model()
 
@@ -172,13 +194,33 @@ class LLMProvider:
                 {"role": "user", "content": user_prompt},
             ]
 
-            content = self.__generate(messages)
+            if self.parser_mode == ParserMode.PREMIUM:
+                content = self.__generate_with_gemini(messages)
+            else:
+                content = self.__generate(messages)
+
             data = self.__extract_json(content)
             return response_model(**data)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             console.print(f"[red]LLM {error_context}: {e}[/red]")
             return None
+
+    def __init_gemini_client(self) -> None:
+        console.print("[cyan]Initializing Gemini 3 Flash via OpenAI SDK...[/cyan]")
+        try:
+            api_key = settings.gemini.api_key
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY not set in environment")
+
+            self.__openai_client = OpenAI(
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                api_key=api_key,
+            )
+            console.print("[green]✓ Gemini 3 Flash initialized[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed to initialize Gemini client: {e}[/red]")
+            raise e
 
     def __load_model(self) -> None:
         console.print(f"[cyan]Loading LLM: {self.model_name} (bitsandbytes 8-bit, 128K context)[/cyan]")
@@ -235,6 +277,13 @@ class LLMProvider:
 
         output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
         return self.__tokenizer.decode(output_ids, skip_special_tokens=True).strip()
+
+    def __generate_with_gemini(self, messages: List[Dict]) -> str:
+        response = self.__openai_client.chat.completions.create(
+            model=self.__GEMINI_MODEL_NAME,
+            messages=messages,
+        )
+        return response.choices[0].message.content.strip()
 
     @staticmethod
     def __extract_json(content: str) -> Dict:

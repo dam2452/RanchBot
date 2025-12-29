@@ -167,40 +167,53 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         if not segments:
             return []
 
-        total_chunks = (len(segments) + self.segments_per_embedding - 1) // self.segments_per_embedding
+        text_chunks = []
+        chunk_metadata = []
+
+        for i in range(0, len(segments), self.segments_per_embedding):
+            chunk = segments[i: i + self.segments_per_embedding]
+            combined_text = " ".join([seg.get("text", "") for seg in chunk])
+
+            if combined_text.strip():
+                text_chunks.append(combined_text)
+                chunk_metadata.append({
+                    "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
+                    "text": combined_text,
+                })
+
+        if not text_chunks:
+            return []
+
         embeddings = []
+        text_batch_size = 16
 
-        with self.progress.track_operation(f"Text embeddings ({len(segments)} segments)", total_chunks) as tracker:
-            chunk_idx = 0
-            for i in range(0, len(segments), self.segments_per_embedding):
-                chunk = segments[i: i + self.segments_per_embedding]
-                combined_text = " ".join([seg.get("text", "") for seg in chunk])
-
-                if not combined_text.strip():
-                    continue
+        with self.progress.track_operation(
+            f"Text embeddings ({len(text_chunks)} chunks)",
+            (len(text_chunks) + text_batch_size - 1) // text_batch_size,
+        ) as tracker:
+            for batch_idx in range(0, len(text_chunks), text_batch_size):
+                batch_texts = text_chunks[batch_idx: batch_idx + text_batch_size]
+                batch_meta = chunk_metadata[batch_idx: batch_idx + text_batch_size]
 
                 try:
-                    embedding = self.__encode_text(combined_text)
-                    embeddings.append(
-                        {
-                            "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
-                            "text": combined_text,
+                    batch_embeddings = self.__encode_text_batch(batch_texts)
+                    for meta, embedding in zip(batch_meta, batch_embeddings):
+                        embeddings.append({
+                            **meta,
                             "embedding": embedding.tolist(),
-                        },
-                    )
+                        })
                 except (RuntimeError, ValueError, OSError) as e:
-                    self.logger.error(f"Failed text embedding for segments {i}-{i + len(chunk)}: {e}")
+                    self.logger.error(f"Failed text embedding batch {batch_idx}: {e}")
 
-                chunk_idx += 1
-                tracker.update(chunk_idx, interval=10)
+                tracker.update((batch_idx // text_batch_size) + 1, interval=5)
 
         return embeddings
 
-    def __encode_text(self, text: str) -> np.ndarray:
-        embeddings_tensor = self.model.get_text_embeddings(texts=[text])
-        embedding = embeddings_tensor[0].cpu().numpy()
+    def __encode_text_batch(self, texts: List[str]) -> List[np.ndarray]:
+        embeddings_tensor = self.model.get_text_embeddings(texts=texts)
+        embeddings = [emb.cpu().numpy() for emb in embeddings_tensor]
         del embeddings_tensor
-        return embedding
+        return embeddings
 
     def __load_frame_metadata(self, episode_info_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         season = episode_info_dict.get("season")
@@ -231,14 +244,15 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
 
         image_hashes = self.__load_image_hashes(episode_info_dict)
-        return compute_embeddings_in_batches(
+        embeddings = compute_embeddings_in_batches(
             frames_episode_dir,
             frame_requests,
             self.gpu_processor,
             self.batch_size,
             image_hashes,
-            self._cleanup_memory,
         )
+        self._cleanup_memory()
+        return embeddings
 
     def _get_episode_output_dir(self, transcription_file: Path) -> Path:
         episode_info_from_file = self.episode_manager.parse_filename(transcription_file)

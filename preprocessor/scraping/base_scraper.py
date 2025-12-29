@@ -12,7 +12,10 @@ from rich.progress import Progress
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
-from preprocessor.core.enums import ScraperMethod
+from preprocessor.core.enums import (
+    ParserMode,
+    ScraperMethod,
+)
 from preprocessor.providers.llm import LLMProvider
 from preprocessor.scraping.clipboard import ScraperClipboard
 from preprocessor.scraping.crawl4ai import ScraperCrawl4AI
@@ -38,6 +41,9 @@ class BaseScraper(BaseProcessor):
         scraper_method_str = self._args.get("scraper_method", "crawl4ai")
         self.scraper_method = ScraperMethod(scraper_method_str)
 
+        parser_mode_str = self._args.get("parser_mode", "normal")
+        self.parser_mode = ParserMode(parser_mode_str)
+
         self.llm: Optional[LLMProvider] = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
@@ -47,7 +53,7 @@ class BaseScraper(BaseProcessor):
             raise ValueError("output_file is required")
 
     def _execute(self) -> None:
-        self.llm = LLMProvider()
+        self.llm = LLMProvider(parser_mode=self.parser_mode)
 
         console.print(f"[blue]Scraping {len(self.urls)} URLs...[/blue]")
 

@@ -100,6 +100,12 @@ from preprocessor.utils.console import console
     default="normal",
     help="Transcription mode: normal (Whisper) or premium (ElevenLabs API)",
 )
+@click.option(
+    "--parser-mode",
+    type=click.Choice(["normal", "premium"]),
+    default="normal",
+    help="Parser mode: normal (Qwen local model) or premium (Gemini 3 Flash)",
+)
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
 @click.option("--skip-scenes", is_flag=True, help="Skip Step 3: Scene detection (use existing scene timestamps)")
@@ -129,6 +135,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     character_urls: tuple,
     search_mode: str,
     transcription_mode: str,
+    parser_mode: str,
     skip_transcode: bool,
     skip_transcribe: bool,
     skip_scenes: bool,
@@ -185,6 +192,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "characters_json": characters_json,
         "search_mode": search_mode,
         "transcription_mode": transcription_mode,
+        "parser_mode": parser_mode,
         "state_manager": state_manager,
         "skip_image_hashing": skip_image_hashing,
         "skip_video_embeddings": skip_video_embeddings,

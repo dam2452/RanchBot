@@ -143,6 +143,22 @@ class ElasticsearchSettings:
 
 
 @dataclass
+class GeminiSettings:
+    _api_key: Optional[SecretStr] = None
+
+    @classmethod
+    def from_env(cls) -> "GeminiSettings":
+        api_key = None
+        if os.getenv("GEMINI_API_KEY"):
+            api_key = SecretStr(os.getenv("GEMINI_API_KEY", ""))
+        return cls(_api_key=api_key)
+
+    @property
+    def api_key(self) -> Optional[str]:
+        return self._api_key.get_secret_value() if self._api_key else None
+
+
+@dataclass
 class TranscodeDefaults:
     output_dir: Path = Path("/app/output_data/transcoded_videos")
     codec: str = "h264_nvenc"
@@ -171,6 +187,7 @@ class Settings:
     face_recognition: FaceRecognitionSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
+    gemini: GeminiSettings
     transcode: TranscodeDefaults
     transcription: TranscriptionDefaults
 
@@ -187,6 +204,7 @@ class Settings:
             face_recognition=FaceRecognitionSettings.from_env(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),
+            gemini=GeminiSettings.from_env(),
             transcode=TranscodeDefaults(),
             transcription=TranscriptionDefaults(),
         )

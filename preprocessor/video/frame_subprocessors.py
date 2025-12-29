@@ -189,7 +189,6 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             self.gpu_processor,
             self.batch_size,
             image_hashes,
-            self._cleanup_memory,
         )
         self.__save_embeddings(episode_info, video_embeddings)
 

@@ -34,12 +34,19 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     help="Directory containing video files for coverage validation",
 )
+@click.option(
+    "--parser-mode",
+    type=click.Choice(["normal", "premium"], case_sensitive=False),
+    default="normal",
+    help="Parser mode: normal (Qwen local model) or premium (Gemini 3 Flash)",
+)
 def scrape_episodes(
     urls: tuple,
     output_file: Path,
     headless: bool,
     merge_sources: bool,
     videos_dir: Path,
+    parser_mode: str,
 ):
     """Scrape episode metadata from websites."""
     scraper = EpisodeScraper(
@@ -49,6 +56,7 @@ def scrape_episodes(
             "headless": headless,
             "merge_sources": merge_sources,
             "videos_dir": videos_dir,
+            "parser_mode": parser_mode,
         },
     )
 
