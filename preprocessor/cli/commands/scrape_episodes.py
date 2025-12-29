@@ -38,7 +38,7 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
     "--parser-mode",
     type=click.Choice(["normal", "premium"], case_sensitive=False),
     default="normal",
-    help="Parser mode: normal (Qwen local model) or premium (Gemini 3 Flash)",
+    help="Parser mode: normal (Qwen local model) or premium (Gemini 2.5 Flash)",
 )
 def scrape_episodes(
     urls: tuple,

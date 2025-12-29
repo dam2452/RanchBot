@@ -220,7 +220,7 @@ class LLMProvider:
             return None
 
     def __init_gemini_client(self) -> None:
-        console.print("[cyan]Initializing Gemini 3 Flash via OpenAI SDK...[/cyan]")
+        console.print("[cyan]Initializing Gemini 2.5 Flash via OpenAI SDK...[/cyan]")
         try:
             api_key = settings.gemini.api_key
             if not api_key:
@@ -230,7 +230,7 @@ class LLMProvider:
                 base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                 api_key=api_key,
             )
-            console.print("[green]✓ Gemini 3 Flash initialized[/green]")
+            console.print("[green]✓ Gemini 2.5 Flash initialized[/green]")
         except Exception as e:
             console.print(f"[red]Failed to initialize Gemini client: {e}[/red]")
             raise e

@@ -104,7 +104,7 @@ from preprocessor.utils.console import console
     "--parser-mode",
     type=click.Choice(["normal", "premium"]),
     default="normal",
-    help="Parser mode: normal (Qwen local model) or premium (Gemini 3 Flash)",
+    help="Parser mode: normal (Qwen local model) or premium (Gemini 2.5 Flash)",
 )
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
