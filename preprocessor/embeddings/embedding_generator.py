@@ -13,8 +13,6 @@ import numpy as np
 import torch
 from transformers import AutoModel
 
-# pylint: disable=duplicate-code
-
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -27,6 +25,9 @@ from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batc
 from preprocessor.utils.console import console
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
+
+# pylint: disable=duplicate-code
+
 
 
 class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-attributes

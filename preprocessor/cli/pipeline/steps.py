@@ -333,6 +333,7 @@ def run_frame_processing_step(device, state_manager, ramdisk_path, skip_image_ha
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
     output_frames = kwargs.get("output_frames", settings.frame_export.output_dir)
+
     processor = FrameProcessor(
         {
             "frames_dir": output_frames,

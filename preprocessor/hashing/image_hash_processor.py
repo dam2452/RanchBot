@@ -11,8 +11,6 @@ from typing import (
 
 import torch
 
-# pylint: disable=duplicate-code
-
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -24,6 +22,9 @@ from preprocessor.embeddings.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
 from preprocessor.utils.metadata_utils import create_processing_metadata
+
+# pylint: disable=duplicate-code
+
 
 
 class ImageHashProcessor(BaseProcessor):

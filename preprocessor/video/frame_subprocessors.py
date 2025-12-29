@@ -14,8 +14,6 @@ import numpy as np
 import torch
 from transformers import AutoModel
 
-# pylint: disable=duplicate-code
-
 from preprocessor.characters.face_detection_utils import load_character_references
 from preprocessor.characters.utils import init_face_detection
 from preprocessor.config.config import settings
@@ -38,6 +36,9 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
 from preprocessor.video.frame_processor import FrameSubProcessor
+
+# pylint: disable=duplicate-code
+
 
 
 class ImageHashSubProcessor(FrameSubProcessor):

@@ -11,8 +11,6 @@ from typing import (
 from insightface.app import FaceAnalysis
 import numpy as np
 
-# pylint: disable=duplicate-code
-
 from preprocessor.characters.face_detection_utils import load_character_references
 from preprocessor.characters.utils import init_face_detection
 from preprocessor.config.config import settings
@@ -27,6 +25,9 @@ from preprocessor.utils.detection_io import (
     process_frames_for_detection,
     save_character_detections,
 )
+
+# pylint: disable=duplicate-code
+
 
 
 class CharacterDetector(BaseProcessor):
