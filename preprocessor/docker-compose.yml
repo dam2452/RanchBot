@@ -5,6 +5,7 @@ services:
       dockerfile: preprocessor/Dockerfile
     image: ranczo-preprocessor:latest
     container_name: ranchbot-preprocessing-app
+    network_mode: host
 
     deploy:
       resources:
