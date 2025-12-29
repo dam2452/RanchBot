@@ -34,8 +34,8 @@ from preprocessor.utils.console import console
 class EpisodeInfo(BaseModel):
     episode_number: int
     title: str
-    premiere_date: str
-    viewership: int
+    premiere_date: Optional[str] = None
+    viewership: Optional[str] = None
 
 
 class SeasonMetadata(BaseModel):
