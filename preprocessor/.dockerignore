@@ -58,6 +58,8 @@ embeddings/
 scene_timestamps/
 preprocessed/
 output_test/
+output_data/
+input_data/
 data/
 
 # Media files
