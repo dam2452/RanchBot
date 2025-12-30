@@ -16,6 +16,13 @@ from pydantic import SecretStr
 from preprocessor.utils.resolution import Resolution
 
 
+def get_output_path(relative_path: str) -> Path:
+    is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
+    if is_docker:
+        return Path(f"/app/output_data/{relative_path}")
+    return Path(f"output_data/{relative_path}")
+
+
 @dataclass
 class WhisperSettings:
     model: str = "large-v3-turbo"

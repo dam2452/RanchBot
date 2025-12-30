@@ -138,7 +138,8 @@ class PipelineOrchestrator:
                 hash_files = list(image_hashes_dir.rglob("image_hashes.json"))
                 stats["image_hash_files_count"] = len(hash_files)
 
-            elastic_docs_dir = Path("/app/output_data/elastic_documents")
+            from preprocessor.config.config import get_output_path
+            elastic_docs_dir = get_output_path("elastic_documents")
             if elastic_docs_dir.exists():
                 segment_files = list((elastic_docs_dir / "segments").rglob("*.jsonl"))
                 text_emb_files = list((elastic_docs_dir / "text_embeddings").rglob("*.jsonl"))

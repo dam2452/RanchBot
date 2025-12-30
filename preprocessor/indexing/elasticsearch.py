@@ -170,8 +170,10 @@ class ElasticSearchIndexer(BaseProcessor):
                 console.print(f"[green]✓ Indexed {len(actions)} {doc_type} documents → {index_name}[/green]")
             except BulkIndexError as e:
                 self.logger.error(f"Bulk indexing failed: {len(e.errors)} errors.")
-                for error in e.errors[:5]:
+                for error in e.errors[:10]:
                     self.logger.error(f"Failed document: {json.dumps(error, indent=2)}")
+                if len(e.errors) > 10:
+                    self.logger.error(f"... and {len(e.errors) - 10} more errors")
 
     def _load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
         actions = []

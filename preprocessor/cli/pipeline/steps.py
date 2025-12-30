@@ -290,6 +290,7 @@ def run_embedding_step(device, state_manager, **kwargs):
 
 
 def run_elastic_documents_step(**kwargs):
+    from preprocessor.config.config import get_output_path  # pylint: disable=import-outside-toplevel
     from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
 
     transcription_jsons = kwargs.get("transcription_jsons")
@@ -305,7 +306,7 @@ def run_elastic_documents_step(**kwargs):
             "embeddings_dir": embeddings_dir,
             "scene_timestamps_dir": scene_timestamps_dir,
             "character_detections_dir": character_detections_dir,
-            "output_dir": Path("/app/output_data/elastic_documents"),
+            "output_dir": get_output_path("elastic_documents"),
             "series_name": name,
             "episodes_info_json": episodes_info_json,
         },
@@ -314,10 +315,11 @@ def run_elastic_documents_step(**kwargs):
 
 
 def run_index_step(name, dry_run, state_manager, **kwargs):
+    from preprocessor.config.config import get_output_path  # pylint: disable=import-outside-toplevel
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
 
     episodes_info_json = kwargs.get("episodes_info_json")
-    elastic_documents_dir = Path("/app/output_data/elastic_documents")
+    elastic_documents_dir = get_output_path("elastic_documents")
 
     indexer = ElasticSearchIndexer({
         "name": name,
