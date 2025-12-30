@@ -10,7 +10,10 @@ from typing import (
 )
 
 from preprocessor.cli_utils.resource_scope import ResourceScope
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    get_output_path,
+    settings,
+)
 from preprocessor.core.processing_metadata import ProcessingMetadata
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
@@ -138,7 +141,6 @@ class PipelineOrchestrator:
                 hash_files = list(image_hashes_dir.rglob("image_hashes.json"))
                 stats["image_hash_files_count"] = len(hash_files)
 
-            from preprocessor.config.config import get_output_path
             elastic_docs_dir = get_output_path("elastic_documents")
             if elastic_docs_dir.exists():
                 segment_files = list((elastic_docs_dir / "segments").rglob("*.jsonl"))
