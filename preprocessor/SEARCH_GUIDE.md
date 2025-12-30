@@ -204,6 +204,7 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 ```
 [1] Score: 12.45
 Episode: S10E01 - Pilot
+Segment ID: 42
 Time: 120.50s - 125.30s [Scene 12: 115.0s - 130.0s]
 Speaker: Lucy Wilska
 Text: Kto tu rządzi? No kto?
@@ -214,7 +215,8 @@ Path: /app/output_data/transcoded_videos/ranczo_S10E01.mp4
 ```
 [1] Score: 1.85
 Episode: S10E01 - Pilot
-Segments: 0-4
+Segments: 0-4 [Scene 12: 115.0s - 130.0s]
+Embedding ID: ranczo_S10E01_emb_0
 Text: Lucy przyjeżdża do wsi. Spotyka Solejukową. Rozmowa o zagrodzie.
 Path: /app/output_data/transcoded_videos/ranczo_S10E01.mp4
 ```
@@ -225,22 +227,37 @@ Path: /app/output_data/transcoded_videos/ranczo_S10E01.mp4
 Episode: S10E01 - Pilot
 Frame: 3450 @ 115.0s [Scene 12: 115.0s - 130.0s]
 Type: scene_start
+Scene number: 12
 Hash: 191b075b6d0363cf
 Characters: Lucy Wilska, Solejukowa
 Path: /app/output_data/transcoded_videos/ranczo_S10E01.mp4
 ```
 
-**Pola:**
-- **Score** - BM25 (text) lub cosine similarity + 1.0 (semantic, zakres: 0-2)
-- **Episode** - format S{season:02d}E{episode:02d} - tytuł
-- **Time/Frame** - timestamp lub numer klatki + timestamp
-- **Scene context** - [Scene N: start - end] w sekundach
-- **Speaker** - mówca (tylko dla --text)
-- **Segments** - zakres segmentów (tylko dla --text-semantic)
-- **Hash** - perceptual hash 16-znakowy hex
-- **Characters** - lista wykrytych postaci
-- **Text** - transkrypcja
+**Wszystkie wyniki zawierają pełen kontekst:**
+- **Score** - BM25 relevance (text) lub cosine similarity + 1.0 (semantic, zakres: 0-2)
+- **Episode** - format S{season:02d}E{episode:02d} - tytuł odcinka
+- **Scene context** - [Scene N: start - end] w sekundach (ZAWSZE, dla wszystkich trybów)
 - **Path** - ścieżka do pliku video
+
+**Dodatkowe pola według typu wyszukiwania:**
+
+**Full-text (`--text`):**
+- Segment ID - identyfikator segmentu transkrypcji
+- Time - timestamp początek-koniec w sekundach
+- Speaker - mówca (jeśli wykryty)
+- Text - transkrypcja segmentu
+
+**Semantic text (`--text-semantic`):**
+- Segments - zakres segmentów (start-end)
+- Embedding ID - identyfikator embeddingu
+- Text - połączone transkrypcje z 5 segmentów
+
+**Video/Image/Character (`--image`, `--character`, `--hash`):**
+- Frame - numer klatki @ timestamp
+- Type - typ klatki (scene_start, scene_middle, scene_end)
+- Scene number - numer sceny w odcinku
+- Hash - perceptual hash (16-znakowy hex, jeśli dostępny)
+- Characters - lista wykrytych postaci (jeśli są)
 
 ### JSON output (`--json-output`)
 Zwraca surowy obiekt `hits` z Elasticsearch:

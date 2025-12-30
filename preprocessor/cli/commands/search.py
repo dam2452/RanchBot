@@ -1,14 +1,14 @@
 # pylint: disable=duplicate-code,too-many-arguments,too-many-statements
 import asyncio
 import json
-import sys
 from pathlib import Path
+import sys
 
-import click
-import torch
 from PIL import Image
+import click
 from elasticsearch import AsyncElasticsearch
 from qwen_vl_utils import process_vision_info
+import torch
 from transformers import (
     AutoProcessor,
     Qwen2VLForConditionalGeneration,
@@ -165,7 +165,10 @@ async def search_text_semantic(es_client, text, season=None, episode=None, limit
         index="ranczo_text_embeddings",
         query=query,
         size=limit,
-        _source=["episode_id", "embedding_id", "text", "segment_range", "video_path", "episode_metadata"],
+        _source=[
+            "episode_id", "embedding_id", "text", "segment_range",
+            "video_path", "episode_metadata", "scene_info",
+        ],
     )
 
 
@@ -196,7 +199,7 @@ async def search_video_semantic(es_client, image_path, season=None, episode=None
         size=limit,
         _source=[
             "episode_id", "frame_number", "timestamp", "frame_type", "scene_number",
-            "perceptual_hash", "video_path", "episode_metadata", "character_appearances", "scene_info"
+            "perceptual_hash", "video_path", "episode_metadata", "character_appearances", "scene_info",
         ],
     )
 
@@ -267,16 +270,20 @@ def print_results(result, result_type="text"):
         click.echo(f"Episode: S{meta['season']:02d}E{meta['episode_number']:02d} - {meta.get('title', 'N/A')}")
 
         if result_type == "text":
+            click.echo(f"Segment ID: {source.get('segment_id', 'N/A')}")
             click.echo(f"Time: {source['start_time']:.2f}s - {source['end_time']:.2f}s{scene_ctx}")
             click.echo(f"Speaker: {source.get('speaker', 'N/A')}")
             click.echo(f"Text: {source['text']}")
         elif result_type == "text_semantic":
-            click.echo(f"Segments: {source['segment_range'][0]}-{source['segment_range'][1]}")
+            click.echo(f"Segments: {source['segment_range'][0]}-{source['segment_range'][1]}{scene_ctx}")
+            click.echo(f"Embedding ID: {source.get('embedding_id', 'N/A')}")
             click.echo(f"Text: {source['text']}")
         else:
             click.echo(f"Frame: {source['frame_number']} @ {source['timestamp']:.2f}s{scene_ctx}")
             if "frame_type" in source:
                 click.echo(f"Type: {source['frame_type']}")
+            if "scene_number" in source:
+                click.echo(f"Scene number: {source['scene_number']}")
             if "perceptual_hash" in source:
                 click.echo(f"Hash: {source['perceptual_hash']}")
             if source.get("character_appearances"):
