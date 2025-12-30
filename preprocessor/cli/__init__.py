@@ -10,6 +10,7 @@ from preprocessor.cli.commands import (
     index,
     run_all,
     scrape_episodes,
+    search,
     transcode,
     transcribe,
     transcribe_elevenlabs,
@@ -44,6 +45,8 @@ cli.add_command(image_hashing)
 cli.add_command(generate_embeddings)
 # noinspection PyTypeChecker
 cli.add_command(generate_elastic_documents)
+# noinspection PyTypeChecker
+cli.add_command(search)
 # noinspection PyTypeChecker
 cli.add_command(run_all)
 

@@ -410,6 +410,38 @@ Indeksowanie w Elasticsearch (tworzy 3 indeksy: segments, text_embeddings, video
   --dry-run
 ```
 
+### search
+
+Kompleksowe narzędzie do przeszukiwania zaindeksowanych danych w Elasticsearch.
+
+**Tryby wyszukiwania:**
+- Full-text search (BM25) - wyszukiwanie w transkrypcjach
+- Semantic text search - wyszukiwanie po embedingach tekstowych
+- Semantic image search - wyszukiwanie podobnych scen po obrazku
+- Character search - wyszukiwanie po wykrytych postaciach
+- Perceptual hash - znajdowanie duplikatów/podobnych klatek
+
+```bash
+# Statystyki i lista postaci
+./run-preprocessor.sh search --stats
+./run-preprocessor.sh search --list-characters
+
+# Wyszukiwanie tekstowe
+./run-preprocessor.sh search --text "Kto tu rządzi" --limit 5
+
+# Semantic search
+./run-preprocessor.sh search --text-semantic "wesele" --season 10
+
+# Image search
+./run-preprocessor.sh search --image /input_data/screenshot.jpg --character "Lucy"
+
+# Perceptual hash (string lub ścieżka do obrazka)
+./run-preprocessor.sh search --hash "191b075b6d0363cf"
+./run-preprocessor.sh search --hash /input_data/frame.jpg
+```
+
+**📖 Pełna dokumentacja:** [SEARCH_GUIDE.md](SEARCH_GUIDE.md)
+
 ---
 
 ## Scenariusze użycia
