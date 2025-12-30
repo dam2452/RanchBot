@@ -52,7 +52,7 @@ cp /twoje/wideo/*.mp4 input_data/videos/
 
 docker-compose build
 
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
   --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
   --series-name ranczo
@@ -63,31 +63,30 @@ docker logs ranchbot-preprocessing-app -f
 ### Z gotową transkrypcją i transkodowaniem
 
 ```bash
-../run-preprocessor.sh detect-scenes /input_data/videos
+./run-preprocessor.sh detect-scenes /input_data/transcoded_videos
 
-../run-preprocessor.sh export-frames /input_data/videos \
+./run-preprocessor.sh export-frames /input_data/transcoded_videos \
   --episodes-info-json /input_data/episodes.json \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
   --name ranczo
 
-../run-preprocessor.sh image-hashing \
-  --frames-dir /app/output_data/frames \
+./run-preprocessor.sh image-hashing \
+  --frames-dir /app/output_data/frames_480p \
   --episodes-info-json /input_data/episodes.json \
   --name ranczo
 
-../run-preprocessor.sh generate-embeddings \
+./run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
-  --videos /input_data/videos \
-  --scene-timestamps-dir /app/output_data/scene_timestamps
+  --frames-dir /app/output_data/frames_480p
 
-../run-preprocessor.sh generate-elastic-documents \
+./run-preprocessor.sh generate-elastic-documents \
   --transcription-jsons /app/output_data/transcriptions \
   --embeddings-dir /app/output_data/embeddings \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
   --name ranczo
 
-../run-preprocessor.sh index --name ranczo \
-  --transcription-jsons /app/output_data/transcriptions
+./run-preprocessor.sh index --name ranczo \
+  --elastic-documents-dir /app/output_data/elastic_documents
 ```
 
 ---
@@ -99,17 +98,19 @@ docker logs ranchbot-preprocessing-app -f
 │                                         run-all Pipeline (11 kroków)                                       │
 ├───────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                            │
-│  [0a] scrape episodes   →  [1] transcode  →  [2] transcribe  →  [3] detect scenes                        │
-│       (Qwen + crawl4ai)      (NVENC)           (Whisper)          (TransNetV2)                            │
+│  [0a/9] scrape episodes   →  [1/9] transcode  →  [2/9] transcribe  →  [3/9] detect scenes                │
+│         (Qwen + crawl4ai)      (NVENC)             (Whisper)            (TransNetV2)                      │
 │                                                                                                            │
-│  [0b] scrape characters →  [0c] download references                                                       │
-│       (Qwen + crawl4ai)       (DuckDuckGo + InsightFace)                                                  │
+│  [0b/9] scrape characters →  [0c/9] download references                                                   │
+│         (Qwen + crawl4ai)       (DuckDuckGo + InsightFace)                                                │
 │                                                                                                            │
-│  [4] export frames  →  [5] image hashing  →  [6] embeddings  →  [7] detect characters                    │
-│      (480p JPG)         (perceptual hash)      (Qwen2-VL)         (InsightFace)                           │
+│  [4/9] export frames  →  [5/9] frame processing (3 sub-kroki):                                            │
+│        (480p JPG)              [5a] image hashing (perceptual hash)                                       │
+│                                [5b] video embeddings (Qwen2-VL per-frame)                                 │
+│                                [5c] character detection (InsightFace)                                     │
 │                                                                                                            │
-│  [8] generate elastic docs  →  [9] index                                                                  │
-│      (JSON merging)             (Elasticsearch)                                                            │
+│  [6/9] text embeddings  →  [7/9] generate elastic docs  →  [8/9] index                                   │
+│        (Qwen2-VL)              (JSON merging)                  (Elasticsearch)                            │
 │                                                                                                            │
 │  Całkowicie SEKWENCYJNE przetwarzanie (pipeline + pliki w każdej fazie)                                   │
 │  Optymalizacja dla jednego GPU bez strat wydajności                                                       │
@@ -125,9 +126,11 @@ docker logs ranchbot-preprocessing-app -f
 | Transcribe (Whisper)           | ~5 min |
 | Scene detection (TransNetV2)   | ~3 min |
 | Export frames (480p)           | ~2 min |
-| Image hashing                  | ~1 min |
-| **Embeddings (batch_size=28)** | **~5-7 min** |
-| Character detection            | ~2 min |
+| Frame processing (5/9)         | ~8-10 min |
+| - Image hashing (5a)           | ~1 min |
+| - Video embeddings (5b)        | ~5-7 min |
+| - Character detection (5c)     | ~2 min |
+| Text embeddings (6/9)          | ~3-5 min |
 | Generate elastic docs          | ~1 min |
 | Index (Elasticsearch)          | ~2 min |
 | **Łącznie**                    | **~23-25 min** |
@@ -194,33 +197,62 @@ preprocessor/
 
 ## Komendy CLI
 
-Wszystkie komendy: `../run-preprocessor.sh <komenda> [args]`
+Wszystkie komendy: `./run-preprocessor.sh <komenda> [args]` (z folderu `preprocessor`)
 
-Pomoc: `../run-preprocessor.sh --help`
+Pomoc: `./run-preprocessor.sh --help`
 
 ### run-all
 
-Pełny pipeline ze wszystkimi krokami (11 kroków).
+Pełny pipeline ze wszystkimi krokami (11 kroków: 0a-0c, 1-8).
 
 ```bash
 # Z automatycznym scrapingiem metadanych (odcinki + postacie)
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
   --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
   --series-name ranczo
 
 # Z istniejącym episodes.json
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --series-name ranczo
 
 # Pominięcie wybranych kroków
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --series-name ranczo \
   --skip-transcode \
-  --skip-frame-export
+  --skip-frame-export \
+  --skip-image-hashing \
+  --skip-video-embeddings \
+  --skip-character-detection
+
+# Premium modes (Gemini parser, ElevenLabs transcription, Google Images)
+./run-preprocessor.sh run-all /input_data/videos \
+  --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
+  --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
+  --series-name ranczo \
+  --parser-mode premium \
+  --transcription-mode premium \
+  --search-mode premium
 ```
+
+**Dostępne flagi skip:**
+- `--skip-transcode` - Krok 1: Transkodowanie
+- `--skip-transcribe` - Krok 2: Transkrypcja
+- `--skip-scenes` - Krok 3: Detekcja scen
+- `--skip-frame-export` - Krok 4: Eksport klatek
+- `--skip-image-hashing` - Krok 5a: Image hashing (sub-krok)
+- `--skip-video-embeddings` - Krok 5b: Video embeddings (sub-krok)
+- `--skip-character-detection` - Krok 5c: Character detection (sub-krok)
+- `--skip-embeddings` - Krok 6: Text embeddings
+- `--skip-elastic-documents` - Krok 7: Generowanie dokumentów Elasticsearch
+- `--skip-index` - Krok 8: Indeksowanie
+
+**Premium modes:**
+- `--parser-mode premium` - Gemini 2.5 Flash zamiast Qwen (scraping)
+- `--transcription-mode premium` - ElevenLabs API zamiast Whisper
+- `--search-mode premium` - Google Images API zamiast DuckDuckGo
 
 ### scrape-episodes
 
@@ -229,10 +261,16 @@ Batch scraping metadanych odcinków.
 **Flow:** URLe → crawl4ai (markdown) → Qwen2.5-Coder-7B (128K context) → JSON
 
 ```bash
-../run-preprocessor.sh scrape-episodes \
+./run-preprocessor.sh scrape-episodes \
   --urls https://ranczo.fandom.com/wiki/Seria_I \
   --urls https://ranczo.fandom.com/wiki/Seria_II \
   --output-file /input_data/episodes.json
+
+# Z premium parser mode (Gemini 2.5 Flash)
+./run-preprocessor.sh scrape-episodes \
+  --urls https://ranczo.fandom.com/wiki/Seria_I \
+  --output-file /input_data/episodes.json \
+  --parser-mode premium
 ```
 
 **Uwaga:** Scraping postaci (`--character-urls`) i pobieranie ich referencyjnych zdjęć dzieje się automatycznie w ramach `run-all` pipeline. Brak osobnych komend CLI dla tych operacji.
@@ -242,7 +280,7 @@ Batch scraping metadanych odcinków.
 Transkodowanie wideo (Jellyfin FFmpeg 7 + NVENC).
 
 ```bash
-../run-preprocessor.sh transcode /input_data/videos \
+./run-preprocessor.sh transcode /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --resolution 1080p
 ```
@@ -252,7 +290,7 @@ Transkodowanie wideo (Jellyfin FFmpeg 7 + NVENC).
 Transkrypcja audio (Whisper large-v3-turbo).
 
 ```bash
-../run-preprocessor.sh transcribe /input_data/videos \
+./run-preprocessor.sh transcribe /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --name ranczo \
   --model large-v3-turbo
@@ -264,7 +302,7 @@ Transkrypcja przez ElevenLabs API (płatne, speaker diarization).
 
 ```bash
 export ELEVEN_API_KEY=your_key
-../run-preprocessor.sh transcribe-elevenlabs /input_data/videos \
+./run-preprocessor.sh transcribe-elevenlabs /input_data/videos \
   --name ranczo \
   --episodes-info-json /input_data/episodes.json
 ```
@@ -274,7 +312,7 @@ export ELEVEN_API_KEY=your_key
 Import istniejących transkrypcji.
 
 ```bash
-../run-preprocessor.sh import-transcriptions \
+./run-preprocessor.sh import-transcriptions \
   --source-dir /input_data/11labs_output \
   --name ranczo \
   --format-type 11labs_segmented
@@ -285,16 +323,16 @@ Import istniejących transkrypcji.
 Detekcja scen (TransNetV2).
 
 ```bash
-../run-preprocessor.sh detect-scenes /input_data/videos \
+./run-preprocessor.sh detect-scenes /input_data/transcoded_videos \
   --threshold 0.5
 ```
 
 ### export-frames
 
-Eksport klatek wideo (480p) na podstawie strategii keyframe.
+Eksport klatek wideo (480p) na podstawie scene timestamps.
 
 ```bash
-../run-preprocessor.sh export-frames /input_data/transcoded_videos \
+./run-preprocessor.sh export-frames /input_data/transcoded_videos \
   --episodes-info-json /input_data/episodes.json \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
   --name ranczo \
@@ -306,8 +344,8 @@ Eksport klatek wideo (480p) na podstawie strategii keyframe.
 Generowanie perceptual hashes dla wyeksportowanych klatek.
 
 ```bash
-../run-preprocessor.sh image-hashing \
-  --frames-dir /app/output_data/frames \
+./run-preprocessor.sh image-hashing \
+  --frames-dir /app/output_data/frames_480p \
   --episodes-info-json /input_data/episodes.json \
   --name ranczo \
   --batch-size 28
@@ -315,30 +353,33 @@ Generowanie perceptual hashes dla wyeksportowanych klatek.
 
 ### generate-embeddings
 
-Generowanie embeddingów tekst+wideo (gme-Qwen2-VL-2B).
+Generowanie embeddingów tekstowych i wideo (gme-Qwen2-VL-2B).
+
+**UWAGA:** Ta komenda generuje tylko **text embeddings** (domyślnie `--generate-text`).
+Video embeddings są generowane w kroku 5b (frame processing) podczas `run-all`.
 
 ```bash
-# Scene-based (domyślnie)
-../run-preprocessor.sh generate-embeddings \
+# Text embeddings (domyślnie)
+./run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
-  --videos /input_data/videos \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
+  --frames-dir /app/output_data/frames_480p \
   --batch-size 28
 
-# Keyframe-based
-../run-preprocessor.sh generate-embeddings \
+# Text + video embeddings (ręcznie)
+./run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
-  --videos /input_data/videos \
-  --keyframe-strategy keyframes \
-  --keyframe-interval 1
+  --frames-dir /app/output_data/frames_480p \
+  --batch-size 28 \
+  --generate-text \
+  --generate-video
 ```
 
 ### generate-elastic-documents
 
-Generowanie dokumentów Elasticsearch (łączenie transkrypcji, embeddingów, scen).
+Generowanie dokumentów Elasticsearch (łączenie transkrypcji, embeddingów, scen, postaci).
 
 ```bash
-../run-preprocessor.sh generate-elastic-documents \
+./run-preprocessor.sh generate-elastic-documents \
   --transcription-jsons /app/output_data/transcriptions \
   --embeddings-dir /app/output_data/embeddings \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
@@ -348,19 +389,25 @@ Generowanie dokumentów Elasticsearch (łączenie transkrypcji, embeddingów, sc
 
 ### index
 
-Indeksowanie w Elasticsearch.
+Indeksowanie w Elasticsearch (tworzy 3 indeksy: segments, text_embeddings, video_embeddings).
 
 ```bash
 # Nowy indeks
-../run-preprocessor.sh index \
+./run-preprocessor.sh index \
   --name ranczo \
-  --transcription-jsons /app/output_data/transcriptions
+  --elastic-documents-dir /app/output_data/elastic_documents
 
 # Append do istniejącego
-../run-preprocessor.sh index \
+./run-preprocessor.sh index \
   --name ranczo \
-  --transcription-jsons /app/output_data/transcriptions \
+  --elastic-documents-dir /app/output_data/elastic_documents \
   --append
+
+# Dry run (walidacja bez wysyłania do ES)
+./run-preprocessor.sh index \
+  --name ranczo \
+  --elastic-documents-dir /app/output_data/elastic_documents \
+  --dry-run
 ```
 
 ---
@@ -376,7 +423,7 @@ cp /ścieżka/do/*.mp4 input_data/videos/
 
 docker-compose build
 
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
   --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
   --series-name ranczo
@@ -385,36 +432,36 @@ docker-compose build
 ### 2. Z gotową transkrypcją i transkodowaniem
 
 ```bash
-../run-preprocessor.sh detect-scenes /input_data/videos
+./run-preprocessor.sh detect-scenes /input_data/transcoded_videos
 
-../run-preprocessor.sh export-frames /input_data/videos \
+./run-preprocessor.sh export-frames /input_data/transcoded_videos \
   --episodes-info-json /input_data/episodes.json \
   --scene-timestamps-dir /app/output_data/scene_timestamps \
   --name ranczo
 
-../run-preprocessor.sh image-hashing \
-  --frames-dir /app/output_data/frames \
+./run-preprocessor.sh image-hashing \
+  --frames-dir /app/output_data/frames_480p \
   --episodes-info-json /input_data/episodes.json \
   --name ranczo
 
-../run-preprocessor.sh generate-embeddings \
+./run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
-  --videos /input_data/videos \
-  --scene-timestamps-dir /app/output_data/scene_timestamps
+  --frames-dir /app/output_data/frames_480p
 
-../run-preprocessor.sh generate-elastic-documents \
+./run-preprocessor.sh generate-elastic-documents \
   --transcription-jsons /app/output_data/transcriptions \
   --embeddings-dir /app/output_data/embeddings \
+  --scene-timestamps-dir /app/output_data/scene_timestamps \
   --name ranczo
 
-../run-preprocessor.sh index --name ranczo \
-  --transcription-jsons /app/output_data/transcriptions
+./run-preprocessor.sh index --name ranczo \
+  --elastic-documents-dir /app/output_data/elastic_documents
 ```
 
 ### 3. Z gotowym episodes.json
 
 ```bash
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --series-name ranczo
 ```
@@ -422,21 +469,22 @@ docker-compose build
 ### 4. Pominięcie niektórych kroków (skip flags)
 
 ```bash
-../run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --series-name ranczo \
   --skip-transcode \
   --skip-transcribe \
-  --skip-frame-export
+  --skip-frame-export \
+  --skip-character-detection
 ```
 
 ### 5. Tylko transkrypcja (bez embeddings i wykrywania postaci)
 
 ```bash
-../run-preprocessor.sh transcode /input_data/videos \
+./run-preprocessor.sh transcode /input_data/videos \
   --episodes-info-json /input_data/episodes.json
 
-../run-preprocessor.sh transcribe /input_data/videos \
+./run-preprocessor.sh transcribe /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
   --name ranczo
 ```
@@ -460,7 +508,15 @@ docker-compose build
 | Search | Elasticsearch | Full-text + vector indexing |
 | Web scraping | crawl4ai | Markdown extraction |
 
-**Cache modeli:** ~30GB w wolumenie `ranchbot-ai-models` (persistent)
+**Cache modeli:** ~25-30GB w wolumenie `ranchbot-ai-models` (persistent)
+
+**Modele pobierane automatycznie:**
+- Whisper large-v3-turbo (~1.5GB)
+- gme-Qwen2-VL-2B-Instruct (~5GB)
+- TransNetV2 (~200MB)
+- InsightFace buffalo_l (~1GB)
+- Qwen2.5-Coder-7B-Instruct (przez Ollama, ~8GB)
+- Playwright Chromium (~300MB)
 
 ---
 
@@ -617,20 +673,24 @@ docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor ffmpeg -
 ### Brak miejsca na dysku
 
 ```bash
+cd preprocessor
 docker system prune -a
 docker volume prune
 
-# Uwaga: re-download przy następnym uruchomieniu
+# Uwaga: re-download modeli przy następnym uruchomieniu (~30GB)
 docker volume rm ranchbot-ai-models
 ```
 
 ### Out of memory (CUDA OOM)
 
 ```bash
-# Aplikacja domyślnie używa batch_size=28 (RTX 3090)
+# Aplikacja domyślnie używa batch_size=28 (RTX 3090 24GB)
 # Jeśli masz inną kartę, musisz dostosować ręcznie:
-../run-preprocessor.sh generate-embeddings --batch-size 14  # dla ~16GB VRAM
-../run-preprocessor.sh generate-embeddings --batch-size 7   # dla ~12GB VRAM
+./run-preprocessor.sh generate-embeddings --batch-size 14  # dla ~16GB VRAM
+./run-preprocessor.sh generate-embeddings --batch-size 7   # dla ~12GB VRAM
+
+# Dla run-all: brak możliwości ustawienia batch-size przez flagę
+# Należy edytować config/config.py → settings.embedding.batch_size
 ```
 
 ### Kontener się crashuje
