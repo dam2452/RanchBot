@@ -101,15 +101,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             text_output = episode_dir / "embeddings_text.json"
             outputs.append(OutputSpec(path=text_output, required=True))
 
-            episode_info = self.episode_manager.parse_filename(item.input_path)
-            if episode_info:
-                episode_name_output = (
-                    settings.embedding.episode_name_output_dir
-                    / f"S{episode_info.season:02d}"
-                    / f"E{episode_info.relative_episode:02d}"
-                    / "episode_name_embedding.json"
-                )
-                outputs.append(OutputSpec(path=episode_name_output, required=True))
+            episode_name_output = episode_dir / "episode_name_embedding.json"
+            outputs.append(OutputSpec(path=episode_name_output, required=True))
 
         if self.generate_video:
             video_output = episode_dir / "embeddings_video.json"

@@ -378,6 +378,8 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 - `episode_metadata` (object) - sezon, odcinek, tytuł, data premiery
 - `video_path` (string) - ścieżka do pliku
 
+**Lokalizacja embeddings:** `output_data/embeddings/S{season:02d}/E{episode:02d}/episode_name_embedding.json`
+
 **Sprawdź statystyki:** `./run-preprocessor.sh search --stats`
 
 ---

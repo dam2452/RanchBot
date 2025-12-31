@@ -26,7 +26,7 @@ class EpisodeNameEmbedder:
         self.model = model
         self.episode_manager = episode_manager
         self.series_name = series_name
-        self.output_dir = output_dir or settings.embedding.episode_name_output_dir
+        self.output_dir = output_dir or settings.embedding.default_output_dir
         self.logger = logger or logging.getLogger(__name__)
 
     def generate_episode_name_embeddings(
@@ -131,7 +131,7 @@ class EpisodeNameEmbedder:
         output_dir: Optional[Path] = None,
     ) -> Optional[Dict[str, Any]]:
         if output_dir is None:
-            output_dir = settings.embedding.episode_name_output_dir
+            output_dir = settings.embedding.default_output_dir
 
         embedding_file = output_dir / f"S{season:02d}" / f"E{episode:02d}" / "episode_name_embedding.json"
 

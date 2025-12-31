@@ -39,7 +39,6 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
     model_revision: str = "8a9317b07ab75fe4679770aec54efcd4317be636"
     default_output_dir: Path = Path("/app/output_data/embeddings")
-    episode_name_output_dir: Path = Path("/app/output_data/episode_name_embeddings")
     segments_per_embedding: int = 5
     keyframe_strategy: str = "scene_changes"
     keyframe_interval: int = 1
