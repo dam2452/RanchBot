@@ -16,6 +16,7 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 ✅ **Semantic text search** - wyszukiwanie po embedingach tekstowych (cosine similarity)
 ✅ **Semantic image search** - wyszukiwanie podobnych scen po obrazku
 ✅ **Character search** - wyszukiwanie po postaciach (wykrywanie twarzy)
+✅ **Episode name search** - wyszukiwanie po nazwach odcinków (fuzzy + semantic)
 ✅ **Perceptual hash** - znajdowanie duplikatów klatek (pHash)
 ✅ **Scene context** - pokazuje kontekst scen (początek/koniec)
 ✅ **Filtry** - sezon, odcinek, postać
@@ -102,6 +103,23 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 
 # Konkretny odcinek
 ./run-preprocessor.sh search --character "Wicek Wilski" --season 10 --episode 1
+```
+
+### Episode name search
+```bash
+# Fuzzy search po nazwach odcinków (toleruje błędy pisowni)
+./run-preprocessor.sh search --episode-name "Spadek"
+./run-preprocessor.sh search --episode-name "Wielkie wybory"
+
+# Semantic search po nazwach odcinków (rozumie kontekst/znaczenie)
+./run-preprocessor.sh search --episode-name-semantic "wesele"
+./run-preprocessor.sh search --episode-name-semantic "wybory"
+
+# Z filtrem po sezonie
+./run-preprocessor.sh search --episode-name "Porwanie" --season 1
+
+# Znajdź odcinki o podobnym tytule/temacie
+./run-preprocessor.sh search --episode-name-semantic "święta" --limit 10
 ```
 
 ### Perceptual hash (duplikaty/podobne klatki)
@@ -286,11 +304,13 @@ Zwraca surowy obiekt `hits` z Elasticsearch:
 - `--image PATH` - semantic search po video embeddings (ścieżka do obrazka w /input_data/)
 - `--hash HASH_OR_PATH` - perceptual hash search (podaj hash string lub ścieżkę do obrazka)
 - `--character NAME` - wyszukiwanie po postaci
+- `--episode-name TEXT` - fuzzy search po nazwach odcinków
+- `--episode-name-semantic TEXT` - semantic search po nazwach odcinków
 - `--stats` - statystyki indeksów
 - `--list-characters` - lista wszystkich postaci
 
 ### Filtry (opcjonalne, można łączyć)
-- `--season N` - filtruj po sezonie (dostępne dla: text, text-semantic, image, character)
+- `--season N` - filtruj po sezonie (dostępne dla: text, text-semantic, image, character, episode-name, episode-name-semantic)
 - `--episode N` - filtruj po odcinku (dostępne dla: text, text-semantic, image, character)
 - `--character NAME` - filtruj po postaci (dostępne dla: image)
 - `--limit N` - limit wyników (default: 20)
@@ -303,7 +323,7 @@ Zwraca surowy obiekt `hits` z Elasticsearch:
 
 ## Indeksy Elasticsearch
 
-Narzędzie przeszukuje 3 indeksy:
+Narzędzie przeszukuje 4 indeksy:
 
 ### `ranczo_segments`
 Segmenty transkrypcji (dokładne timestampy).
@@ -344,6 +364,18 @@ Embeddingi video + perceptual hashes + wykryte postacie.
 - `character_appearances` (keyword array) - wykryte postacie
 - `scene_info` (object) - numer sceny, start/end sceny
 - `episode_metadata` (object) - sezon, odcinek, tytuł
+- `video_path` (string) - ścieżka do pliku
+
+### `ranczo_episode_names`
+Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
+
+**Używane przez:** `--episode-name`, `--episode-name-semantic`
+
+**Kluczowe pola:**
+- `title` (text) - tytuł odcinka
+- `title_embedding` (dense_vector, 768-dim) - embedding Qwen2-VL
+- `episode_id` (keyword) - identyfikator odcinka (S01E01)
+- `episode_metadata` (object) - sezon, odcinek, tytuł, data premiery
 - `video_path` (string) - ścieżka do pliku
 
 **Sprawdź statystyki:** `./run-preprocessor.sh search --stats`
@@ -515,7 +547,69 @@ Embeddingi video + perceptual hashes + wykryte postacie.
 ./run-preprocessor.sh search --hash "191b075b6d0363cf" --limit 100
 ```
 
-### 6. Statystyki (`--stats`)
+### 6. Episode name search (`--episode-name`)
+
+**Algorytm:** Elasticsearch BM25 z fuzzy matching
+
+**Indeks:** `ranczo_episode_names`
+
+**Przeszukuje:**
+- Tytuły odcinków (pole `title`, waga x2)
+- Tytuły odcinków w metadanych (pole `episode_metadata.title`)
+
+**Cechy:**
+- Automatyczne fuzzy matching (tolerancja błędów pisowni)
+- Wyszukiwanie dokładnych nazw odcinków
+- Filtry: `--season`
+- Domyślny limit: 20 wyników
+- Score: BM25 relevance
+
+**Kiedy używać:**
+- Pamiętasz nazwę odcinka (dokładną lub przybliżoną)
+- Szukasz odcinka po tytule
+- Chcesz znaleźć odcinek mimo błędu w pisowni
+- Potrzebujesz znaleźć konkretny odcinek po nazwie
+
+**Przykłady:**
+```bash
+./run-preprocessor.sh search --episode-name "Spadek"
+./run-preprocessor.sh search --episode-name "Wielkie wybory"
+./run-preprocessor.sh search --episode-name "Porwanie" --season 1
+```
+
+### 7. Episode name semantic search (`--episode-name-semantic`)
+
+**Algorytm:** Cosine similarity na 768-wymiarowych embeddingach Qwen2-VL
+
+**Indeks:** `ranczo_episode_names`
+
+**Przeszukuje:**
+- Embeddingi wygenerowane z tytułów odcinków
+- Pole `title_embedding` (dense_vector 768-dim)
+
+**Cechy:**
+- Rozumie znaczenie i kontekst tytułów
+- Znajduje odcinki o podobnej tematyce
+- Działa nawet bez dokładnej nazwy
+- Filtry: `--season`
+- Domyślny limit: 20 wyników
+- Score: 0-2 (cosine similarity + 1.0, >1.5 = bardzo podobne)
+
+**Kiedy używać:**
+- Pamiętasz temat odcinka, ale nie dokładny tytuł
+- Szukasz odcinków o podobnej tematyce
+- Chcesz znaleźć odcinki związane z konkretnym wydarzeniem
+- Wyszukujesz odcinki po abstrakcyjnym opisie
+
+**Przykłady:**
+```bash
+./run-preprocessor.sh search --episode-name-semantic "wesele"
+./run-preprocessor.sh search --episode-name-semantic "wybory"
+./run-preprocessor.sh search --episode-name-semantic "święta" --limit 10
+./run-preprocessor.sh search --episode-name-semantic "konflikt" --season 10
+```
+
+### 8. Statystyki (`--stats`)
 
 Wyświetla liczbę dokumentów w każdym indeksie.
 
@@ -523,6 +617,7 @@ Wyświetla liczbę dokumentów w każdym indeksie.
 - `ranczo_segments` - segmenty transkrypcji
 - `ranczo_text_embeddings` - embeddingi tekstowe
 - `ranczo_video_embeddings` - embeddingi video + hashes + postacie
+- `ranczo_episode_names` - embeddingi nazw odcinków
 
 **Przykład:**
 ```bash
@@ -530,7 +625,7 @@ Wyświetla liczbę dokumentów w każdym indeksie.
 ./run-preprocessor.sh search --stats --json-output
 ```
 
-### 7. Lista postaci (`--list-characters`)
+### 9. Lista postaci (`--list-characters`)
 
 Wyświetla wszystkie wykryte postacie z liczbą wystąpień.
 

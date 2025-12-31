@@ -239,11 +239,59 @@ async def list_characters(es_client):
     return [(b["key"], b["doc_count"]) for b in buckets]
 
 
+async def search_episode_name(es_client, query, season=None, limit=20):
+    must_clauses = [{
+        "multi_match": {
+            "query": query,
+            "fields": ["title^2", "episode_metadata.title"],
+            "fuzziness": "AUTO",
+        },
+    }]
+
+    if season is not None:
+        must_clauses.append({"term": {"episode_metadata.season": season}})
+
+    query_body = {"bool": {"must": must_clauses}}
+
+    return await es_client.search(
+        index="ranczo_episode_names",
+        query=query_body,
+        size=limit,
+        _source=["episode_id", "title", "video_path", "episode_metadata"],
+    )
+
+
+async def search_episode_name_semantic(es_client, text, season=None, limit=10):
+    embedding = get_text_embedding(text)
+
+    filter_clauses = []
+    if season is not None:
+        filter_clauses.append({"term": {"episode_metadata.season": season}})
+
+    query = {
+        "script_score": {
+            "query": {"bool": {"filter": filter_clauses}} if filter_clauses else {"match_all": {}},
+            "script": {
+                "source": "cosineSimilarity(params.query_vector, 'title_embedding') + 1.0",
+                "params": {"query_vector": embedding},
+            },
+        },
+    }
+
+    return await es_client.search(
+        index="ranczo_episode_names",
+        query=query,
+        size=limit,
+        _source=["episode_id", "title", "video_path", "episode_metadata"],
+    )
+
+
 async def get_stats(es_client):
     return {
         "segments": (await es_client.count(index="ranczo_segments"))["count"],
         "text_embeddings": (await es_client.count(index="ranczo_text_embeddings"))["count"],
         "video_embeddings": (await es_client.count(index="ranczo_video_embeddings"))["count"],
+        "episode_names": (await es_client.count(index="ranczo_episode_names"))["count"],
     }
 
 
@@ -278,6 +326,8 @@ def print_results(result, result_type="text"):
             click.echo(f"Segments: {source['segment_range'][0]}-{source['segment_range'][1]}{scene_ctx}")
             click.echo(f"Embedding ID: {source.get('embedding_id', 'N/A')}")
             click.echo(f"Text: {source['text']}")
+        elif result_type == "episode_name":
+            click.echo(f"Episode Title: {source.get('title', 'N/A')}")
         else:
             click.echo(f"Frame: {source['frame_number']} @ {source['timestamp']:.2f}s{scene_ctx}")
             if "frame_type" in source:
@@ -298,6 +348,8 @@ def print_results(result, result_type="text"):
 @click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search po video embeddings")
 @click.option("--hash", "phash", type=str, help="Szukaj po perceptual hash (podaj hash string lub sciezke do obrazka)")
 @click.option("--character", type=str, help="Szukaj po postaci")
+@click.option("--episode-name", type=str, help="Fuzzy search po nazwach odcinkow")
+@click.option("--episode-name-semantic", type=str, help="Semantic search po nazwach odcinkow")
 @click.option("--list-characters", "list_chars_flag", is_flag=True, help="Lista wszystkich postaci")
 @click.option("--season", type=int, help="Filtruj po sezonie")
 @click.option("--episode", type=int, help="Filtruj po odcinku")
@@ -305,10 +357,14 @@ def print_results(result, result_type="text"):
 @click.option("--stats", is_flag=True, help="Pokaz statystyki indeksow")
 @click.option("--json-output", is_flag=True, help="Output w formacie JSON")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
-def search(text, text_semantic, image, phash, character, list_chars_flag, season, episode, limit, stats, json_output, host):
+def search(
+    text, text_semantic, image, phash, character, episode_name,
+    episode_name_semantic, list_chars_flag, season, episode, limit,
+    stats, json_output, host,
+):
     """Search tool - comprehensive Elasticsearch search"""
 
-    if not any([text, text_semantic, image, phash, character, list_chars_flag, stats]):
+    if not any([text, text_semantic, image, phash, character, episode_name, episode_name_semantic, list_chars_flag, stats]):
         click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
         sys.exit(1)
 
@@ -326,7 +382,7 @@ def search(text, text_semantic, image, phash, character, list_chars_flag, season
         else:
             hash_value = phash
 
-    async def run():  # pylint: disable=too-many-branches,too-many-nested-blocks
+    async def run():  # pylint: disable=too-many-branches
         es_client = AsyncElasticsearch(hosts=[host], verify_certs=False)
 
         try:
@@ -345,6 +401,7 @@ def search(text, text_semantic, image, phash, character, list_chars_flag, season
                     click.echo(f"  Segments: {result['segments']:,}")
                     click.echo(f"  Text Embeddings: {result['text_embeddings']:,}")
                     click.echo(f"  Video Embeddings: {result['video_embeddings']:,}")
+                    click.echo(f"  Episode Names: {result['episode_names']:,}")
 
             elif list_chars_flag:
                 chars = await list_characters(es_client)
@@ -389,6 +446,20 @@ def search(text, text_semantic, image, phash, character, list_chars_flag, season
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
                     print_results(result, "video")
+
+            elif episode_name:
+                result = await search_episode_name(es_client, episode_name, season, limit)
+                if json_output:
+                    click.echo(json.dumps(result["hits"], indent=2))
+                else:
+                    print_results(result, "episode_name")
+
+            elif episode_name_semantic:
+                result = await search_episode_name_semantic(es_client, episode_name_semantic, season, limit)
+                if json_output:
+                    click.echo(json.dumps(result["hits"], indent=2))
+                else:
+                    print_results(result, "episode_name")
 
         finally:
             await es_client.close()

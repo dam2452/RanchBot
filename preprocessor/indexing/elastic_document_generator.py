@@ -14,6 +14,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.utils.console import console
 
 
@@ -84,6 +85,19 @@ class ElasticDocumentGenerator(BaseProcessor):
                         required=True,
                     ),
                 )
+
+            if episode_info:
+                episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
+                    episode_info.season,
+                    episode_info.relative_episode,
+                )
+                if episode_name_emb:
+                    outputs.append(
+                        OutputSpec(
+                            path=self.output_dir / "episode_names" / season_dir / f"{base_name}_episode_name.jsonl",
+                            required=True,
+                        ),
+                    )
 
         return outputs
 
@@ -159,6 +173,17 @@ class ElasticDocumentGenerator(BaseProcessor):
                     season_dir,
                     base_name,
                 )
+
+        episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(season, episode_number)
+        if episode_name_emb and any("_episode_name.jsonl" in str(o.path) for o in missing_outputs):
+            self.__generate_episode_name_document(
+                episode_name_emb,
+                episode_id,
+                episode_metadata,
+                video_path,
+                season_dir,
+                base_name,
+            )
 
         console.print(f"[green]Completed: {trans_file.name}[/green]")
 
@@ -385,3 +410,32 @@ class ElasticDocumentGenerator(BaseProcessor):
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
         console.print(f"[green]Generated {len(video_embeddings)} video embedding documents → {output_file.name}[/green]")
+
+    def __generate_episode_name_document(
+        self,
+        episode_name_emb: Dict[str, Any],
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        season_dir: str,
+        base_name: str,
+    ) -> None:
+        output_file = self.output_dir / "episode_names" / season_dir / f"{base_name}_episode_name.jsonl"
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        title_embedding = episode_name_emb.get("title_embedding", [])
+        if not title_embedding:
+            return
+
+        doc = {
+            "episode_id": episode_id,
+            "episode_metadata": episode_metadata,
+            "title": episode_name_emb.get("title", ""),
+            "title_embedding": title_embedding,
+            "video_path": video_path,
+        }
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated episode name document → {output_file.name}[/green]")

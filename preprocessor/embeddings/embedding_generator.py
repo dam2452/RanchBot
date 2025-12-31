@@ -20,6 +20,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batches
 from preprocessor.utils.console import console
@@ -61,6 +62,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.model = None
         self.processor = None
         self.gpu_processor: Optional[GPUBatchProcessor] = None
+        self.episode_name_embedder: Optional[EpisodeNameEmbedder] = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "transcription_jsons" not in args:
@@ -99,6 +101,16 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             text_output = episode_dir / "embeddings_text.json"
             outputs.append(OutputSpec(path=text_output, required=True))
 
+            episode_info = self.episode_manager.parse_filename(item.input_path)
+            if episode_info:
+                episode_name_output = (
+                    settings.embedding.episode_name_output_dir
+                    / f"S{episode_info.season:02d}"
+                    / f"E{episode_info.relative_episode:02d}"
+                    / "episode_name_embedding.json"
+                )
+                outputs.append(OutputSpec(path=episode_name_output, required=True))
+
         if self.generate_video:
             video_output = episode_dir / "embeddings_video.json"
             outputs.append(OutputSpec(path=video_output, required=True))
@@ -112,6 +124,12 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         self._load_model()
         self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
+        self.episode_name_embedder = EpisodeNameEmbedder(
+            model=self.model,
+            episode_manager=self.episode_manager,
+            series_name=self.series_name,
+            logger=self.logger,
+        )
 
         super()._execute_processing(items)
         console.print("[green]Embedding generation completed[/green]")
@@ -144,6 +162,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         need_text = any("embeddings_text.json" in str(o.path) for o in missing_outputs)
         need_video = any("embeddings_video.json" in str(o.path) for o in missing_outputs)
+        need_episode_name = any("episode_name_embedding.json" in str(o.path) for o in missing_outputs)
 
         text_embeddings = []
         if need_text:
@@ -155,6 +174,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             frame_metadata = self.__load_frame_metadata(episode_info)
             if frame_metadata:
                 video_embeddings = self.__generate_video_embeddings(episode_info, frame_metadata)
+
+        if need_episode_name and self.episode_name_embedder:
+            self.episode_name_embedder.generate_and_save_for_transcription(data)
 
         episode_dir = self._get_episode_output_dir(trans_file)
         text_output = episode_dir / "embeddings_text.json"

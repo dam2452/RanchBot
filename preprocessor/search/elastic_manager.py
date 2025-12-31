@@ -209,6 +209,38 @@ class ElasticSearchManager:
         },
     }
 
+    EPISODE_NAMES_INDEX_MAPPING: json = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+                        "premiere_date": {"type": "date", "format": "dd.MM.yyyy||d.MM.yyyy||d.M.yyyy||yyyy-MM-dd||strict_date_optional_time||epoch_millis"},
+                        "series_name": {"type": "keyword"},
+                        "viewership": {"type": "keyword"},
+                    },
+                },
+                "title": {
+                    "type": "text",
+                    "analyzer": "standard",
+                    "fields": {
+                        "keyword": {"type": "keyword"},
+                    },
+                },
+                "title_embedding": {
+                    "type": "dense_vector",
+                    "dims": 1536,
+                    "index": True,
+                    "similarity": "cosine",
+                },
+                "video_path": {"type": "keyword"},
+            },
+        },
+    }
+
     @staticmethod
     async def connect_to_elasticsearch(
         es_host: str,

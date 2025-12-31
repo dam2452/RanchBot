@@ -59,11 +59,13 @@ class ElasticSearchIndexer(BaseProcessor):
         segments_dir = self.elastic_documents_dir / "segments"
         text_emb_dir = self.elastic_documents_dir / "text_embeddings"
         video_emb_dir = self.elastic_documents_dir / "video_embeddings"
+        episode_names_dir = self.elastic_documents_dir / "episode_names"
 
         return any([
             segments_dir.exists() and any(segments_dir.rglob("*.jsonl")),
             text_emb_dir.exists() and any(text_emb_dir.rglob("*.jsonl")),
             video_emb_dir.exists() and any(video_emb_dir.rglob("*.jsonl")),
+            episode_names_dir.exists() and any(episode_names_dir.rglob("*.jsonl")),
         ])
 
     async def _exec_async(self) -> None:
@@ -83,6 +85,7 @@ class ElasticSearchIndexer(BaseProcessor):
                 "segments": f"{self.name}_segments",
                 "text_embeddings": f"{self.name}_text_embeddings",
                 "video_embeddings": f"{self.name}_video_embeddings",
+                "episode_names": f"{self.name}_episode_names",
             }
 
             for doc_type, index_name in indices.items():
@@ -111,6 +114,7 @@ class ElasticSearchIndexer(BaseProcessor):
             "segments": ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
             "text_embeddings": ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
             "video_embeddings": ElasticSearchManager.VIDEO_EMBEDDINGS_INDEX_MAPPING,
+            "episode_names": ElasticSearchManager.EPISODE_NAMES_INDEX_MAPPING,
         }
 
         async def operation():

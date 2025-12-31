@@ -174,6 +174,7 @@ preprocessor/
 │   └── image_hash_processor.py
 ├── embeddings/              # Generowanie embeddingów
 │   ├── generator.py        # Qwen2-VL
+│   ├── episode_name_embedder.py # Embeddingi nazw odcinków
 │   └── strategies/         # Frame selection
 ├── indexing/                # Elasticsearch
 │   ├── elastic_document_generator.py
@@ -389,7 +390,7 @@ Generowanie dokumentów Elasticsearch (łączenie transkrypcji, embeddingów, sc
 
 ### index
 
-Indeksowanie w Elasticsearch (tworzy 3 indeksy: segments, text_embeddings, video_embeddings).
+Indeksowanie w Elasticsearch (tworzy 4 indeksy: segments, text_embeddings, video_embeddings, episode_names).
 
 ```bash
 # Nowy indeks
@@ -419,6 +420,7 @@ Kompleksowe narzędzie do przeszukiwania zaindeksowanych danych w Elasticsearch.
 - Semantic text search - wyszukiwanie po embedingach tekstowych
 - Semantic image search - wyszukiwanie podobnych scen po obrazku
 - Character search - wyszukiwanie po wykrytych postaciach
+- Episode name search - wyszukiwanie po nazwach odcinków (fuzzy + semantic)
 - Perceptual hash - znajdowanie duplikatów/podobnych klatek
 
 ```bash
@@ -434,6 +436,14 @@ Kompleksowe narzędzie do przeszukiwania zaindeksowanych danych w Elasticsearch.
 
 # Image search
 ./run-preprocessor.sh search --image /input_data/screenshot.jpg --character "Lucy"
+
+# Episode name search (fuzzy)
+./run-preprocessor.sh search --episode-name "Spadek"
+./run-preprocessor.sh search --episode-name "Wielkie wybory" --season 1
+
+# Episode name search (semantic)
+./run-preprocessor.sh search --episode-name-semantic "wesele"
+./run-preprocessor.sh search --episode-name-semantic "święta" --limit 10
 
 # Perceptual hash (string lub ścieżka do obrazka)
 ./run-preprocessor.sh search --hash "191b075b6d0363cf"

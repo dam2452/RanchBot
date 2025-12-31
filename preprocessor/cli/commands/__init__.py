@@ -7,6 +7,7 @@ from preprocessor.cli.commands.import_transcriptions import import_transcription
 from preprocessor.cli.commands.index import index
 from preprocessor.cli.commands.run_all import run_all
 from preprocessor.cli.commands.scrape_episodes import scrape_episodes
+from preprocessor.cli.commands.search import search
 from preprocessor.cli.commands.transcode import transcode
 from preprocessor.cli.commands.transcribe import transcribe
 from preprocessor.cli.commands.transcribe_elevenlabs import transcribe_elevenlabs
@@ -21,6 +22,7 @@ __all__ = [
     "index",
     "run_all",
     "scrape_episodes",
+    "search",
     "transcode",
     "transcribe",
     "transcribe_elevenlabs",
