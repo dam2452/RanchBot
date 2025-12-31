@@ -55,32 +55,13 @@ Thumbs.db
 .huggingface/
 
 # Application data directories (paths relative to build context root)
-preprocessor/videos/
-preprocessor/transcoded_videos/
-preprocessor/transcriptions/
-preprocessor/embeddings/
-preprocessor/scene_timestamps/
-preprocessor/preprocessed/
-preprocessor/output_test/
+# Note: These are OUTPUT/DATA folders, not source code folders!
 preprocessor/output_data/
 preprocessor/input_data/
-preprocessor/data/
-bot/videos/
-bot/data/
 bot/RANCZO-WIDEO/
 bot/RANCZO-TRANSKRYPCJE/
 bot/output_data/
 bot/input_data/
-videos/
-transcoded_videos/
-transcriptions/
-embeddings/
-scene_timestamps/
-preprocessed/
-output_test/
-output_data/
-input_data/
-data/
 
 # Media files
 *.mp4
