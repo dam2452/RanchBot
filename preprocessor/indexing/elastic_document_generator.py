@@ -377,7 +377,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 scene_info = self.__find_scene_for_timestamp(timestamp, scene_timestamps)
 
                 perceptual_hash = emb.get("perceptual_hash")
-                frame_path = emb.get("frame_path", "")
+                frame_path = emb.get("frame_path", f"frame_{frame_number:06d}.jpg" if frame_number is not None else "")
 
                 doc = {
                     "episode_id": episode_id,

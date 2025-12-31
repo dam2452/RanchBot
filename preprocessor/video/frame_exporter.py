@@ -139,9 +139,16 @@ class FrameExporter(BaseVideoProcessor):
 
     def __write_metadata(self, episode_dir: Path, frame_requests: List[Dict[str, Any]], episode_info, source_video: Path) -> None:
         frame_types_count = {}
+        frames_with_paths = []
+
         for frame in frame_requests:
             frame_type = frame.get("type", "unknown")
             frame_types_count[frame_type] = frame_types_count.get(frame_type, 0) + 1
+
+            frame_with_path = frame.copy()
+            frame_num = frame["frame_number"]
+            frame_with_path["frame_path"] = f"frame_{frame_num:06d}.jpg"
+            frames_with_paths.append(frame_with_path)
 
         metadata = {
             "generated_at": datetime.now().isoformat(),
@@ -166,7 +173,7 @@ class FrameExporter(BaseVideoProcessor):
                     "end": max((f.get("timestamp", 0) for f in frame_requests), default=0),
                 },
             },
-            "frames": frame_requests,
+            "frames": frames_with_paths,
         }
         metadata_file = episode_dir / "frame_metadata.json"
         with open(metadata_file, "w", encoding="utf-8") as f:

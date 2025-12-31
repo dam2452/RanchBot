@@ -28,6 +28,11 @@ from preprocessor.indexing.elastic_document_generator import ElasticDocumentGene
     help="Directory with scene timestamp files",
 )
 @click.option(
+    "--character-detections-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    help="Directory with character detection files",
+)
+@click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
     default="/app/output_data/elastic_documents",
@@ -39,6 +44,7 @@ def generate_elastic_documents(
     transcription_jsons: Path,
     embeddings_dir: Path,
     scene_timestamps_dir: Path,
+    character_detections_dir: Path,
     output_dir: Path,
     name: str,
     episodes_info_json: Path,
@@ -47,6 +53,7 @@ def generate_elastic_documents(
         "transcription_jsons": transcription_jsons,
         "embeddings_dir": embeddings_dir,
         "scene_timestamps_dir": scene_timestamps_dir,
+        "character_detections_dir": character_detections_dir,
         "output_dir": output_dir,
         "series_name": name,
         "episodes_info_json": episodes_info_json,
