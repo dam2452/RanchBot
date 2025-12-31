@@ -1,40 +1,130 @@
-/data/
-/preprocessor/videos/
-/preprocessor/preprocessed/
-/preprocessor/transcoded_videos/
-/preprocessor/scene_timestamps/
-/RANCZO-TRANSKRYPCJE/
-/RANCZO-WIDEO/
-/bot/RANCZO-TRANSKRYPCJE/
-/bot/RANCZO-WIDEO/
-/bot/KIEPSCY-WIDEO/
-/bot/KIEPSCY-TRANSKRYPCJE/
-/OLD/
-/STARE RANCZ WIDEO/
-/passwords.env
-/.venv
-/new_venv
-/venv
-/.idea
-/update_and_run.sh
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+preprocessor/.venv/
+preprocessor/venv/
+bot/.venv/
+bot/venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+tests/
+test_*/
+*_test.py
+conftest.py
+pytest.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Logs
 *.log
-/DataModify
-/cache
-/__pycache__
+*.pot
+
+# Cache
+.cache/
+.huggingface/
+
+# Application data directories (paths relative to build context root)
+preprocessor/videos/
+preprocessor/transcoded_videos/
+preprocessor/transcriptions/
+preprocessor/embeddings/
+preprocessor/scene_timestamps/
+preprocessor/preprocessed/
+preprocessor/output_test/
+preprocessor/output_data/
+preprocessor/input_data/
+preprocessor/data/
+bot/videos/
+bot/data/
+bot/RANCZO-WIDEO/
+bot/RANCZO-TRANSKRYPCJE/
+bot/output_data/
+bot/input_data/
+videos/
+transcoded_videos/
+transcriptions/
+embeddings/
+scene_timestamps/
+preprocessed/
+output_test/
+output_data/
+input_data/
+data/
+
+# Media files
 *.mp4
-*.cutree
-.env
-log.txt
-preprocessing_video.py
-Dockerfile
-docker-compose.yml
-/Preprocessing
+*.avi
+*.mkv
+*.mov
 *.png
 *.jpg
 *.jpeg
+
+# State and backup files
+*.json.backup
+.preprocessing_state.json
+.benchmarks/
+
+# Documentation (except main README)
 *.md
 !README.md
-!bot/README.md
 !preprocessor/README.md
+!preprocessor/SEARCH_GUIDE.md
 
+# Docker and config
+Dockerfile
+docker-compose*.yml
+.dockerignore
+.env
+.env.*
+preprocessor/Dockerfile
+preprocessor/docker-compose*.yml
+preprocessor/.dockerignore
+preprocessor/.env
+preprocessor/.env.*
+bot/Dockerfile
+bot/docker-compose*.yml
+bot/.dockerignore
+bot/.env
+bot/.env.*
 
+# Project-specific
+.claude/
+preprocessor/.claude/
+preprocessor/test_logging.py
+preprocessor/run-preprocessor.sh
+preprocessor/.preprocessing_state.json
+bot/.claude/
+test_logging.py
+run-preprocessor.sh
