@@ -35,7 +35,7 @@ class WhisperSettings:
 
 
 @dataclass
-class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
+class EmbeddingSettings:
     model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
     model_revision: str = "8a9317b07ab75fe4679770aec54efcd4317be636"
     default_output_dir: Path = Path("/app/output_data/embeddings")
