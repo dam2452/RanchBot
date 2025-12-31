@@ -65,7 +65,7 @@ def get_text_embedding(text):
         embedding = output.hidden_states[-1][:, -1, :].squeeze(0)
         embedding = torch.nn.functional.normalize(embedding, p=2, dim=0)
 
-    return embedding.cpu().numpy().tolist()
+    return embedding.float().cpu().numpy().tolist()
 
 
 def get_image_embedding(image_path):
@@ -96,7 +96,7 @@ def get_image_embedding(image_path):
         embedding = output.hidden_states[-1][:, -1, :].squeeze(0)
         embedding = torch.nn.functional.normalize(embedding, p=2, dim=0)
 
-    return embedding.cpu().numpy().tolist()
+    return embedding.float().cpu().numpy().tolist()
 
 
 def load_hasher():
