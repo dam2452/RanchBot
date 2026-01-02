@@ -74,24 +74,23 @@ Pełna lista komend znajduje się w [📚 Dokumentacji Komend](./COMMANDS.md).
 - **asyncpg**
 - **pydantic-settings**
 - **pydantic**
+## 🤝 Contributing
 
-## 🤝 Wkład w Projekt
-Wkład w projekt jest zawsze mile widziany! Jeśli chciałbyś pomóc w jego udoskonaleniu, śmiało współpracuj poprzez zgłaszanie pull requestów lub sugerowanie zmian.
+Contributions are always welcome! If you'd like to help improve the project, feel free to collaborate by submitting pull requests or suggesting changes.
 
-## 📄 Licencja
+## 📄 License
 
-Ten projekt **NIE JEST** projektem Open Source w klasycznym rozumieniu.
-Kod jest udostępniony w modelu **Source Available** z zastrzeżeniem wszelkich praw (**All Rights Reserved**).
+This project is **NOT** Open Source. It is **Source Available** software with **All Rights Reserved**.
 
-### Zasady użytkowania:
-- ✅ **Użytek Osobisty:** Możesz pobrać i uruchomić bota na własnym serwerze dla własnych potrzeb prywatnych.
-- 🤝 **Wkład (Pull Requests):** Zachęcam do ulepszania kodu! Możesz stworzyć fork tylko po to, aby przygotować poprawki i wysłać **Pull Request** do tego repozytorium.
-- ❌ **ZAKAZ ROZPOWSZECHNIANIA:** Nie wolno Ci publikować, hostować ani utrzymywać publicznych kopii (forków) tego projektu jako osobnych bytów.
-- ❌ **ZAKAZ KOMERCJI:** Bezwzględny zakaz zarabiania na tym oprogramowaniu w jakikolwiek sposób.
+### Terms of use:
+- ✅ **Personal Use:** You may download and run the bot for your own private, personal use.
+- 🤝 **Contributing (Pull Requests):** Contributions are welcome! You may fork this repository **solely** for the purpose of submitting a **Pull Request** back to this main repository.
+- ❌ **NO REDISTRIBUTION:** You are strictly prohibited from publishing, hosting, or maintaining public forks/mirrors of this project as standalone repositories.
+- ❌ **NO COMMERCIAL USE:** You are strictly prohibited from using this software for any commercial purpose or profit.
 
-**Jeśli chcesz wprowadzić zmiany, zrób to poprzez oficjalny Pull Request tutaj. Nie chcemy fragmentacji – rozwijajmy jednego, wspólnego bota!**
+**Please submit any changes via Pull Requests to this repository. Let's keep the development centralized!**
 
-Szczegóły licencji znajdują się w pliku [LICENSE](./LICENSE).
+Full license details are available in the [LICENSE](./LICENSE) file.
 
 ## 🚀 Uzyskaj Dostęp do Bota
 Jeśli jesteś zainteresowany dostępem do RanchBot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
