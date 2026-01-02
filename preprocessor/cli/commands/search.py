@@ -204,6 +204,38 @@ async def search_video_semantic(es_client, image_path, season=None, episode=None
     )
 
 
+async def search_text_to_video(es_client, text, season=None, episode=None, character=None, limit=10):
+    embedding = get_text_embedding(text)
+
+    filter_clauses = []
+    if season is not None:
+        filter_clauses.append({"term": {"episode_metadata.season": season}})
+    if episode is not None:
+        filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
+    if character:
+        filter_clauses.append({"term": {"character_appearances": character}})
+
+    query = {
+        "script_score": {
+            "query": {"bool": {"filter": filter_clauses}} if filter_clauses else {"match_all": {}},
+            "script": {
+                "source": "cosineSimilarity(params.query_vector, 'video_embedding') + 1.0",
+                "params": {"query_vector": embedding},
+            },
+        },
+    }
+
+    return await es_client.search(
+        index="ranczo_video_embeddings",
+        query=query,
+        size=limit,
+        _source=[
+            "episode_id", "frame_number", "timestamp", "frame_type", "scene_number",
+            "perceptual_hash", "video_path", "episode_metadata", "character_appearances", "scene_info",
+        ],
+    )
+
+
 async def search_by_character(es_client, character, season=None, episode=None, limit=20):
     filter_clauses = [{"term": {"character_appearances": character}}]
 
@@ -345,6 +377,7 @@ def print_results(result, result_type="text"):
 @click.command(context_settings={"show_default": True})
 @click.option("--text", type=str, help="Full-text search po transkrypcjach")
 @click.option("--text-semantic", type=str, help="Semantic search po text embeddings")
+@click.option("--text-to-video", type=str, help="Cross-modal search: text query w video embeddings")
 @click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search po video embeddings")
 @click.option("--hash", "phash", type=str, help="Szukaj po perceptual hash (podaj hash string lub sciezke do obrazka)")
 @click.option("--character", type=str, help="Szukaj po postaci")
@@ -358,13 +391,13 @@ def print_results(result, result_type="text"):
 @click.option("--json-output", is_flag=True, help="Output w formacie JSON")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
 def search(
-    text, text_semantic, image, phash, character, episode_name,
+    text, text_semantic, text_to_video, image, phash, character, episode_name,
     episode_name_semantic, list_chars_flag, season, episode, limit,
     stats, json_output, host,
 ):
     """Search tool - comprehensive Elasticsearch search"""
 
-    if not any([text, text_semantic, image, phash, character, episode_name, episode_name_semantic, list_chars_flag, stats]):
+    if not any([text, text_semantic, text_to_video, image, phash, character, episode_name, episode_name_semantic, list_chars_flag, stats]):
         click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
         sys.exit(1)
 
@@ -425,6 +458,13 @@ def search(
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
                     print_results(result, "text_semantic")
+
+            elif text_to_video:
+                result = await search_text_to_video(es_client, text_to_video, season, episode, character, limit)
+                if json_output:
+                    click.echo(json.dumps(result["hits"], indent=2))
+                else:
+                    print_results(result, "video")
 
             elif image:
                 result = await search_video_semantic(es_client, str(image), season, episode, character, limit)

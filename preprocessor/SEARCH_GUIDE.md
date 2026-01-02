@@ -72,6 +72,22 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 ./run-preprocessor.sh search --text-semantic "problemy finansowe"
 ```
 
+### Cross-modal search (text-to-video)
+```bash
+# Szukaj klatek video po opisie tekstowym (cross-modal)
+./run-preprocessor.sh search --text-to-video "romantyczna scena"
+
+# Znajdź sceny pasujące do opisu
+./run-preprocessor.sh search --text-to-video "pocałunek" --season 10
+./run-preprocessor.sh search --text-to-video "smutna twarz" --limit 15
+
+# Z filtrem po postaci
+./run-preprocessor.sh search --text-to-video "uśmiech" --character "Lucy Wilska"
+
+# Kombinacja filtrów
+./run-preprocessor.sh search --text-to-video "kłótnia" --season 10 --character "Solejukowa"
+```
+
 ### Semantic image search (video embeddings)
 ```bash
 # Znajdź podobne sceny do obrazka
@@ -301,6 +317,7 @@ Zwraca surowy obiekt `hits` z Elasticsearch:
 ### Wyszukiwanie (wymagana jedna z tych opcji)
 - `--text TEXT` - full-text search po transkrypcjach
 - `--text-semantic TEXT` - semantic search po text embeddings
+- `--text-to-video TEXT` - cross-modal search (tekst → klatki wideo)
 - `--image PATH` - semantic search po video embeddings (ścieżka do obrazka w /input_data/)
 - `--hash HASH_OR_PATH` - perceptual hash search (podaj hash string lub ścieżkę do obrazka)
 - `--character NAME` - wyszukiwanie po postaci
@@ -310,9 +327,9 @@ Zwraca surowy obiekt `hits` z Elasticsearch:
 - `--list-characters` - lista wszystkich postaci
 
 ### Filtry (opcjonalne, można łączyć)
-- `--season N` - filtruj po sezonie (dostępne dla: text, text-semantic, image, character, episode-name, episode-name-semantic)
-- `--episode N` - filtruj po odcinku (dostępne dla: text, text-semantic, image, character)
-- `--character NAME` - filtruj po postaci (dostępne dla: image)
+- `--season N` - filtruj po sezonie (dostępne dla: text, text-semantic, text-to-video, image, character, episode-name, episode-name-semantic)
+- `--episode N` - filtruj po odcinku (dostępne dla: text, text-semantic, text-to-video, image, character)
+- `--character NAME` - filtruj po postaci (dostępne dla: text-to-video, image)
 - `--limit N` - limit wyników (default: 20)
 
 ### Output
@@ -344,7 +361,7 @@ Embeddingi tekstowe (grupy 5 segmentów).
 **Używane przez:** `--text-semantic`
 
 **Kluczowe pola:**
-- `text_embedding` (dense_vector, 768-dim) - embedding Qwen2-VL
+- `text_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
 - `text` (string) - połączone transkrypcje 5 segmentów
 - `segment_range` (array) - [start_segment, end_segment]
 - `episode_metadata` (object) - sezon, odcinek, tytuł
@@ -356,7 +373,7 @@ Embeddingi video + perceptual hashes + wykryte postacie.
 **Używane przez:** `--image`, `--character`, `--hash`
 
 **Kluczowe pola:**
-- `video_embedding` (dense_vector, 768-dim) - embedding Qwen2-VL
+- `video_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
 - `frame_number` (int) - numer klatki
 - `timestamp` (float) - timestamp w sekundach
 - `frame_type` (string) - typ klatki (scene_start, scene_middle, scene_end)
@@ -373,7 +390,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 **Kluczowe pola:**
 - `title` (text) - tytuł odcinka
-- `title_embedding` (dense_vector, 768-dim) - embedding Qwen2-VL
+- `title_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
 - `episode_id` (keyword) - identyfikator odcinka (S01E01)
 - `episode_metadata` (object) - sezon, odcinek, tytuł, data premiery
 - `video_path` (string) - ścieżka do pliku
@@ -418,7 +435,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 ### 2. Semantic text search (`--text-semantic`)
 
-**Algorytm:** Cosine similarity na 768-wymiarowych embeddingach Qwen2-VL
+**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL
 
 **Indeks:** `ranczo_text_embeddings`
 
@@ -449,9 +466,47 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 ./run-preprocessor.sh search --text-semantic "przygotowania do święta"
 ```
 
-### 3. Semantic image search (`--image`)
+### 3. Cross-modal search (`--text-to-video`)
 
-**Algorytm:** Cosine similarity na 768-wymiarowych embeddingach Qwen2-VL
+**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL (cross-modal)
+
+**Indeks:** `ranczo_video_embeddings`
+
+**Przeszukuje:**
+- Embeddingi wygenerowane z klatek wideo
+- Używa embeddingu tekstowego do wyszukiwania w embeddingach wideo
+- Klatki wyeksportowane (scene_start, scene_middle, scene_end)
+
+**Cechy:**
+- Wyszukiwanie wizualne po opisie tekstowym
+- Cross-modal retrieval (tekst → obraz)
+- Rozumie semantykę opisu i znajduje pasujące klatki
+- Filtry: `--season`, `--episode`, `--character`
+- Domyślny limit: 20 wyników
+- Score: 0-2 (cosine similarity + 1.0, >1.5 = bardzo podobne)
+
+**Kiedy używać:**
+- Szukasz scen po opisie wizualnym (np. "pocałunek", "kłótnia")
+- Chcesz znaleźć klatki pasujące do koncepcji (np. "romantyczna scena")
+- Potrzebujesz scen z konkretną emocją/atmosferą wizualną
+- Nie masz obrazka, ale wiesz jak scena powinna wyglądać
+
+**Przykłady:**
+```bash
+./run-preprocessor.sh search --text-to-video "romantyczna scena"
+./run-preprocessor.sh search --text-to-video "pocałunek" --season 10
+./run-preprocessor.sh search --text-to-video "smutna twarz" --limit 15
+./run-preprocessor.sh search --text-to-video "uśmiech" --character "Lucy Wilska"
+./run-preprocessor.sh search --text-to-video "kłótnia" --season 10 --character "Solejukowa"
+```
+
+**Różnica od `--text-semantic`:**
+- `--text-semantic` szuka w transkrypcjach tekstowych (co zostało powiedziane)
+- `--text-to-video` szuka w klatkach wideo (jak wygląda scena wizualnie)
+
+### 4. Semantic image search (`--image`)
+
+**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL
 
 **Indeks:** `ranczo_video_embeddings`
 
@@ -482,7 +537,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 **Uwaga:** Obrazek musi być w `preprocessor/input_data/` (volume kontener)
 
-### 4. Character search (`--character`)
+### 5. Character search (`--character`)
 
 **Algorytm:** Exact match na wykrytych postaciach (InsightFace buffalo_l)
 
@@ -514,7 +569,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 **Uwaga:** Sprawdź dokładną nazwę: `./run-preprocessor.sh search --list-characters | grep -i lucy`
 
-### 5. Perceptual hash (`--hash`)
+### 6. Perceptual hash (`--hash`)
 
 **Algorytm:** Exact match na 16-znakowym perceptual hash (pHash, hash_size=8)
 
@@ -549,7 +604,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 ./run-preprocessor.sh search --hash "191b075b6d0363cf" --limit 100
 ```
 
-### 6. Episode name search (`--episode-name`)
+### 7. Episode name search (`--episode-name`)
 
 **Algorytm:** Elasticsearch BM25 z fuzzy matching
 
@@ -579,15 +634,15 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 ./run-preprocessor.sh search --episode-name "Porwanie" --season 1
 ```
 
-### 7. Episode name semantic search (`--episode-name-semantic`)
+### 8. Episode name semantic search (`--episode-name-semantic`)
 
-**Algorytm:** Cosine similarity na 768-wymiarowych embeddingach Qwen2-VL
+**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL
 
 **Indeks:** `ranczo_episode_names`
 
 **Przeszukuje:**
 - Embeddingi wygenerowane z tytułów odcinków
-- Pole `title_embedding` (dense_vector 768-dim)
+- Pole `title_embedding` (dense_vector 1536-dim)
 
 **Cechy:**
 - Rozumie znaczenie i kontekst tytułów
@@ -611,7 +666,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 ./run-preprocessor.sh search --episode-name-semantic "konflikt" --season 10
 ```
 
-### 8. Statystyki (`--stats`)
+### 9. Statystyki (`--stats`)
 
 Wyświetla liczbę dokumentów w każdym indeksie.
 
@@ -627,7 +682,7 @@ Wyświetla liczbę dokumentów w każdym indeksie.
 ./run-preprocessor.sh search --stats --json-output
 ```
 
-### 9. Lista postaci (`--list-characters`)
+### 10. Lista postaci (`--list-characters`)
 
 Wyświetla wszystkie wykryte postacie z liczbą wystąpień.
 
@@ -972,7 +1027,7 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 ### Ile czasu zajmuje pierwsze wyszukiwanie?
 
 **Pierwsze uruchomienie (cold start):**
-- Ładowanie modelu Qwen2-VL: ~10-30s (GPU) lub ~1-2min (CPU)
+- Ładowanie modelu Qwen2-VL: ~10-30s (GPU, wymagane CUDA)
 - Kolejne zapytania: <1s (model w pamięci)
 
 **Typy zapytań:**
@@ -995,20 +1050,20 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 ### Użyte technologie
 
 - **Elasticsearch 8.17.0** - wyszukiwarka i baza wektorowa
-- **Qwen2-VL** (`Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`) - embeddingi text/video (768-dim)
+- **Qwen2-VL** (`Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`) - embeddingi text/video (1536-dim)
 - **InsightFace** (`buffalo_l`) - wykrywanie twarzy (ArcFace embeddings)
 - **pHash** - perceptual hashing (DCT-based, hash_size=8)
 - **BM25** - ranking algorithm dla full-text search
 - **Cosine similarity** - metric dla semantic search
-- **CUDA** - GPU acceleration (opcjonalne, fallback: CPU)
+- **CUDA** - GPU acceleration (wymagane)
 
 ### Parametry embeddingów
 
 **Model:** `Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`
-- **Wymiar:** 768 (dense_vector)
+- **Wymiar:** 1536 (dense_vector)
 - **Normalizacja:** L2 normalized
-- **Dtype:** bfloat16 (GPU) / float32 (CPU)
-- **Device:** Auto (CUDA jeśli dostępne)
+- **Dtype:** bfloat16
+- **Device:** CUDA (wymagane)
 
 **Similarity:**
 - Cosine similarity + 1.0 (zakres: 0-2)
@@ -1019,7 +1074,7 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 **Model:** InsightFace `buffalo_l`
 - **Embedding dim:** 512 (ArcFace)
 - **Threshold:** Konfigurowalny (default w settings)
-- **GPU:** Opcjonalne (fallback: CPU)
+- **GPU:** CUDA (wymagane)
 
 ### Parametry perceptual hash
 
