@@ -79,14 +79,17 @@ Contributions are always welcome! If you'd like to help improve the project, fee
 
 ## 📄 License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
+This project is **NOT** Open Source. It is **Source Available** software with **All Rights Reserved**.
 
-This means that:
-- ✅ **You ARE allowed** to use, copy, and modify the code for personal and educational purposes.
-- ✅ **You ARE allowed** to share modified versions, provided you keep the same license and credit the original author.
-- ❌ **You are NOT allowed** to use this code (in whole or in part) for commercial purposes (profit-making) without explicit, written permission from the author.
+### Terms of use:
+- ✅ **Personal Use:** You may download and run the bot for your own private, personal use.
+- 🤝 **Contributing (Pull Requests):** Contributions are welcome! You may fork this repository **solely** for the purpose of submitting a **Pull Request** back to this main repository.
+- ❌ **NO REDISTRIBUTION:** You are strictly prohibited from publishing, hosting, or maintaining public forks/mirrors of this project as standalone repositories.
+- ❌ **NO COMMERCIAL USE:** You are strictly prohibited from using this software for any commercial purpose or profit.
 
-All rights for commercial use are reserved. If you are interested in using this software for a commercial project, please contact me to obtain an appropriate license.
+**Please submit any changes via Pull Requests to this repository. Let's keep the development centralized!**
+
+Full license details are available in the [LICENSE](./LICENSE) file.
 
 ## 🚀 Get Access to the Bot
 
@@ -101,4 +104,5 @@ If you like this project and would like to support its development, consider buy
 </a>
 
 ---
+
 
