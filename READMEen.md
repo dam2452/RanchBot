@@ -79,7 +79,14 @@ Contributions are always welcome! If you'd like to help improve the project, fee
 
 ## 📄 License
 
-This project is licensed under the MIT License. You are free to use and modify the software for personal or internal purposes. However, distribution or public sharing of modified versions should be done through contributions to this project. If you wish to use this software in a significant or commercial capacity, please contact the project maintainers for further discussion.
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
+
+This means that:
+- ✅ **You ARE allowed** to use, copy, and modify the code for personal and educational purposes.
+- ✅ **You ARE allowed** to share modified versions, provided you keep the same license and credit the original author.
+- ❌ **You are NOT allowed** to use this code (in whole or in part) for commercial purposes (profit-making) without explicit, written permission from the author.
+
+All rights for commercial use are reserved. If you are interested in using this software for a commercial project, please contact me to obtain an appropriate license.
 
 ## 🚀 Get Access to the Bot
 
@@ -94,3 +101,4 @@ If you like this project and would like to support its development, consider buy
 </a>
 
 ---
+
