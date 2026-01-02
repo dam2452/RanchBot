@@ -79,7 +79,15 @@ Pełna lista komend znajduje się w [📚 Dokumentacji Komend](./COMMANDS.md).
 Wkład w projekt jest zawsze mile widziany! Jeśli chciałbyś pomóc w jego udoskonaleniu, śmiało współpracuj poprzez zgłaszanie pull requestów lub sugerowanie zmian.
 
 ## 📄 Licencja
-Ten projekt jest licencjonowany na podstawie licencji MIT. Możesz używać i modyfikować oprogramowanie do celów osobistych lub wewnętrznych. Jednak dystrybucja lub publiczne udostępnianie zmodyfikowanych wersji powinno odbywać się poprzez wkład w ten projekt. Jeśli chcesz użyć tego oprogramowania w znacznej lub komercyjnej formie, skontaktuj się z twórcami projektu w celu dalszej dyskusji.
+
+Ten projekt jest udostępniony na licencji **Creative Commons Uznanie autorstwa-Użycie niekomercyjne-Na tych samych warunkach 4.0 Międzynarodowe (CC BY-NC-SA 4.0)**.
+
+Oznacza to, że:
+- ✅ **Możesz** używać, kopiować i modyfikować kod do celów osobistych i edukacyjnych.
+- ✅ **Możesz** udostępniać zmodyfikowane wersje, pod warunkiem zachowania tej samej licencji i wskazania autora.
+- ❌ **NIE MOŻESZ** używać tego kodu (w całości ani we fragmentach) do celów komercyjnych (zarobkowych) bez wyraźnej, pisemnej zgody autora.
+
+Wszelkie prawa do użytku komercyjnego są zastrzeżone. Jeśli jesteś zainteresowany wykorzystaniem tego oprogramowania w projekcie komercyjnym, skontaktuj się ze mną w celu uzyskania odpowiedniej licencji.
 
 ## 🚀 Uzyskaj Dostęp do Bota
 Jeśli jesteś zainteresowany dostępem do RanchBot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
