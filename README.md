@@ -80,14 +80,18 @@ Wkład w projekt jest zawsze mile widziany! Jeśli chciałbyś pomóc w jego udo
 
 ## 📄 Licencja
 
-Ten projekt jest udostępniony na licencji **Creative Commons Uznanie autorstwa-Użycie niekomercyjne-Na tych samych warunkach 4.0 Międzynarodowe (CC BY-NC-SA 4.0)**.
+Ten projekt **NIE JEST** projektem Open Source w klasycznym rozumieniu.
+Kod jest udostępniony w modelu **Source Available** z zastrzeżeniem wszelkich praw (**All Rights Reserved**).
 
-Oznacza to, że:
-- ✅ **Możesz** używać, kopiować i modyfikować kod do celów osobistych i edukacyjnych.
-- ✅ **Możesz** udostępniać zmodyfikowane wersje, pod warunkiem zachowania tej samej licencji i wskazania autora.
-- ❌ **NIE MOŻESZ** używać tego kodu (w całości ani we fragmentach) do celów komercyjnych (zarobkowych) bez wyraźnej, pisemnej zgody autora.
+### Zasady użytkowania:
+- ✅ **Użytek Osobisty:** Możesz pobrać i uruchomić bota na własnym serwerze dla własnych potrzeb prywatnych.
+- 🤝 **Wkład (Pull Requests):** Zachęcam do ulepszania kodu! Możesz stworzyć fork tylko po to, aby przygotować poprawki i wysłać **Pull Request** do tego repozytorium.
+- ❌ **ZAKAZ ROZPOWSZECHNIANIA:** Nie wolno Ci publikować, hostować ani utrzymywać publicznych kopii (forków) tego projektu jako osobnych bytów.
+- ❌ **ZAKAZ KOMERCJI:** Bezwzględny zakaz zarabiania na tym oprogramowaniu w jakikolwiek sposób.
 
-Wszelkie prawa do użytku komercyjnego są zastrzeżone. Jeśli jesteś zainteresowany wykorzystaniem tego oprogramowania w projekcie komercyjnym, skontaktuj się ze mną w celu uzyskania odpowiedniej licencji.
+**Jeśli chcesz wprowadzić zmiany, zrób to poprzez oficjalny Pull Request tutaj. Nie chcemy fragmentacji – rozwijajmy jednego, wspólnego bota!**
+
+Szczegóły licencji znajdują się w pliku [LICENSE](./LICENSE).
 
 ## 🚀 Uzyskaj Dostęp do Bota
 Jeśli jesteś zainteresowany dostępem do RanchBot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
