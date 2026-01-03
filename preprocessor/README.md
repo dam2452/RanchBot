@@ -359,12 +359,34 @@ Generowanie embeddingów tekstowych i wideo (gme-Qwen2-VL-2B).
 **UWAGA:** Ta komenda generuje tylko **text embeddings** (domyślnie `--generate-text`).
 Video embeddings są generowane w kroku 5b (frame processing) podczas `run-all`.
 
+**Text embedding chunking:**
+
+Domyślnie używa **sentence-based chunking** z następującymi parametrami:
+- **8 zdań** na chunk (konfigurowalne)
+- **3 zdania overlapa** między chunkami (~37.5%)
+- **Normalizacja interpunkcji**: `...` → `.`, `!!!` → `!`, `???` → `?`
+- **Minimalna długość**: 30 znaków (łączy krótkie fragmenty)
+- **Finalne chunki**: ~240-480 znaków kontekstu
+
 ```bash
-# Text embeddings (domyślnie)
+# Text embeddings z sentence-based chunking (domyślnie)
 ./run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
   --frames-dir /app/output_data/frames_480p \
   --batch-size 28
+
+# Dostosowanie parametrów sentence chunking
+./run-preprocessor.sh generate-embeddings \
+  --transcription-jsons /app/output_data/transcriptions \
+  --frames-dir /app/output_data/frames_480p \
+  --sentences-per-chunk 10 \
+  --chunk-overlap 4
+
+# Stary sposób (segment-based chunking po 5 segmentów)
+./run-preprocessor.sh generate-embeddings \
+  --transcription-jsons /app/output_data/transcriptions \
+  --frames-dir /app/output_data/frames_480p \
+  --segment-chunking
 
 # Text + video embeddings (ręcznie)
 ./run-preprocessor.sh generate-embeddings \
@@ -374,6 +396,12 @@ Video embeddings są generowane w kroku 5b (frame processing) podczas `run-all`.
   --generate-text \
   --generate-video
 ```
+
+**Zalety sentence-based chunking:**
+- ✅ Lepszy kontekst semantyczny (dzieli po naturalnych granicach)
+- ✅ Overlap chroni przed gubieniem kontekstu na granicach
+- ✅ Normalizacja interpunkcji eliminuje artefakty transkrypcji
+- ✅ Łączenie krótkich fragmentów zapewnia minimalny kontekst
 
 ### generate-elastic-documents
 
@@ -417,11 +445,19 @@ Kompleksowe narzędzie do przeszukiwania zaindeksowanych danych w Elasticsearch.
 
 **Tryby wyszukiwania:**
 - Full-text search (BM25) - wyszukiwanie w transkrypcjach
-- Semantic text search - wyszukiwanie po embedingach tekstowych
-- Semantic image search - wyszukiwanie podobnych scen po obrazku
+- Semantic text search - wyszukiwanie po embedingach tekstowych (kNN + HNSW)
+- Semantic image search - wyszukiwanie podobnych scen po obrazku (kNN + HNSW)
+- Cross-modal search - wyszukiwanie video po zapytaniu tekstowym (kNN + HNSW)
 - Character search - wyszukiwanie po wykrytych postaciach
-- Episode name search - wyszukiwanie po nazwach odcinków (fuzzy + semantic)
+- Episode name search - wyszukiwanie po nazwach odcinków (fuzzy + semantic kNN)
 - Perceptual hash - znajdowanie duplikatów/podobnych klatek
+
+**Semantic search:**
+Wszystkie semantic search wykorzystują **kNN query z HNSW index** zamiast brute-force `script_score`:
+- ✅ **~10-100x szybsze** wyszukiwanie
+- ✅ **Approximate nearest neighbors** (dokładność ~95%+)
+- ✅ **Skalowalne** dla dużych zbiorów danych
+- ⚠️ Trade-off: speed vs perfect accuracy (optymalne zamiast perfekcyjne)
 
 ```bash
 # Statystyki i lista postaci
@@ -434,8 +470,11 @@ Kompleksowe narzędzie do przeszukiwania zaindeksowanych danych w Elasticsearch.
 # Semantic search
 ./run-preprocessor.sh search --text-semantic "wesele" --season 10
 
-# Image search
+# Image search (semantic)
 ./run-preprocessor.sh search --image /input_data/screenshot.jpg --character "Lucy"
+
+# Cross-modal search (text → video)
+./run-preprocessor.sh search --text-to-video "Lucy w stodole" --limit 10
 
 # Episode name search (fuzzy)
 ./run-preprocessor.sh search --episode-name "Spadek"
@@ -700,6 +739,28 @@ nvidia-smi
 # Sprawdzenie NVENC
 ffmpeg -encoders | grep nvenc
 ```
+
+---
+
+## Changelog
+
+### 2026-01-03 - Optymalizacje search i embeddings
+
+**Search (kNN + HNSW):**
+- ✅ Zamiana `script_score` na **kNN query** dla wszystkich semantic search
+- ✅ ~10-100x szybsze wyszukiwanie (approximate nearest neighbors)
+- ✅ HNSW index już był w mappingach, teraz faktycznie wykorzystywany
+
+**Text embeddings (sentence-based chunking):**
+- ✅ Domyślnie **8 zdań + 3 overlap** (było: 5 segmentów bez overlapa)
+- ✅ Normalizacja interpunkcji: `...` → `.`, `!!!` → `!`, `???` → `?`
+- ✅ Łączenie krótkich fragmentów (min 30 znaków)
+- ✅ Przełączniki CLI: `--sentence-chunking/--segment-chunking`
+- ✅ Parametry: `--sentences-per-chunk`, `--chunk-overlap`
+- ✅ Finalne chunki: ~240-480 znaków kontekstu
+
+**Bugfixy:**
+- ✅ Naprawiono błąd `LoggerNotFinalizedException` w frame sub-procesorach
 
 ---
 

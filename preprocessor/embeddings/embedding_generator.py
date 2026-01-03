@@ -258,15 +258,37 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         return embeddings
 
     def __split_into_sentences(self, text: str) -> List[str]:
-        sentences = re.split(r'([.!?]+(?:\s+|$))', text)
-        result = []
+        normalized_text = re.sub(r'\.{2,}', '.', text)
+        normalized_text = re.sub(r'!{2,}', '!', normalized_text)
+        normalized_text = re.sub(r'\?{2,}', '?', normalized_text)
+
+        sentences = re.split(r'([.!?]+(?:\s+|$))', normalized_text)
+        raw_sentences = []
         for i in range(0, len(sentences) - 1, 2):
             sentence = sentences[i] + (sentences[i + 1] if i + 1 < len(sentences) else "")
             sentence = sentence.strip()
             if sentence:
-                result.append(sentence)
+                raw_sentences.append(sentence)
         if len(sentences) % 2 == 1 and sentences[-1].strip():
-            result.append(sentences[-1].strip())
+            raw_sentences.append(sentences[-1].strip())
+
+        result = []
+        buffer = ""
+        min_sentence_length = 30
+
+        for sentence in raw_sentences:
+            buffer = (buffer + " " + sentence).strip() if buffer else sentence
+
+            if len(buffer) >= min_sentence_length:
+                result.append(buffer)
+                buffer = ""
+
+        if buffer:
+            if result:
+                result[-1] = result[-1] + " " + buffer
+            else:
+                result.append(buffer)
+
         return result
 
     def __find_segment_at_position(self, segments: List[Dict[str, Any]], char_pos: int) -> int:
