@@ -53,6 +53,11 @@ class FrameProcessor(BaseProcessor):
             outputs.extend(sub_processor.get_expected_outputs(item))
         return outputs
 
+    def cleanup(self) -> None:
+        for sub_processor in self.sub_processors:
+            sub_processor.finalize()
+        console.print("[green]✓ All sub-processors finalized[/green]")
+
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         metadata_file = item.input_path
         episode_info = item.metadata["episode_info"]
@@ -107,3 +112,6 @@ class FrameSubProcessor:
 
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         raise NotImplementedError
+
+    def finalize(self) -> None:
+        pass

@@ -66,7 +66,24 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     default=settings.embedding.batch_size,
     help="Batch size for GPU inference. Reduce if OOM errors occur",
 )
-def generate_embeddings(
+@click.option(
+    "--sentence-chunking/--segment-chunking",
+    default=settings.embedding.use_sentence_based_chunking,
+    help="Use sentence-based chunking (smart, with overlap) or segment-based chunking (simple)",
+)
+@click.option(
+    "--sentences-per-chunk",
+    type=int,
+    default=settings.embedding.text_sentences_per_chunk,
+    help="Number of sentences per chunk (only for --sentence-chunking)",
+)
+@click.option(
+    "--chunk-overlap",
+    type=int,
+    default=settings.embedding.text_chunk_overlap,
+    help="Number of overlapping sentences between chunks (only for --sentence-chunking)",
+)
+def generate_embeddings(  # pylint: disable=too-many-arguments
     transcription_jsons: Path,
     frames_dir: Path,
     output_dir: Path,
@@ -77,6 +94,9 @@ def generate_embeddings(
     generate_video: bool,
     device: str,
     batch_size: int,
+    sentence_chunking: bool,
+    sentences_per_chunk: int,
+    chunk_overlap: int,
 ):
     """Generate text and video embeddings from transcriptions and exported frames."""
     with ResourceScope():
@@ -92,6 +112,9 @@ def generate_embeddings(
                 "generate_video": generate_video,
                 "device": device,
                 "batch_size": batch_size,
+                "use_sentence_based_chunking": sentence_chunking,
+                "text_sentences_per_chunk": sentences_per_chunk,
+                "text_chunk_overlap": chunk_overlap,
             },
         )
         exit_code = generator.work()

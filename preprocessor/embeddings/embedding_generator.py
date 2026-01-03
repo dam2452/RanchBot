@@ -2,6 +2,7 @@ import gc
 import json
 import logging
 from pathlib import Path
+import re
 from typing import (
     Any,
     Dict,
@@ -51,6 +52,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.device: str = "cuda"
 
         self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
+        self.use_sentence_based_chunking: bool = self._args.get("use_sentence_based_chunking", settings.embedding.use_sentence_based_chunking)
+        self.text_sentences_per_chunk: int = self._args.get("text_sentences_per_chunk", settings.embedding.text_sentences_per_chunk)
+        self.text_chunk_overlap: int = self._args.get("text_chunk_overlap", settings.embedding.text_chunk_overlap)
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
 
@@ -177,7 +181,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.__save_embeddings(data, text_embeddings, video_embeddings, text_output, video_output)
         self._cleanup_memory()
 
-    def __generate_text_embeddings(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def __generate_text_embeddings(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
         segments = data.get("segments", [])
         if not segments:
             return []
@@ -185,16 +189,45 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         text_chunks = []
         chunk_metadata = []
 
-        for i in range(0, len(segments), self.segments_per_embedding):
-            chunk = segments[i: i + self.segments_per_embedding]
-            combined_text = " ".join([seg.get("text", "") for seg in chunk])
+        if self.use_sentence_based_chunking:
+            full_text = " ".join([seg.get("text", "") for seg in segments])
+            sentences = self.__split_into_sentences(full_text)
 
-            if combined_text.strip():
-                text_chunks.append(combined_text)
+            sentences_per_chunk = self.text_sentences_per_chunk
+            overlap = self.text_chunk_overlap
+            step = sentences_per_chunk - overlap
+
+            for i in range(0, len(sentences), step):
+                chunk_sentences = sentences[i:i + sentences_per_chunk]
+                if not chunk_sentences:
+                    continue
+
+                chunk_text = " ".join(chunk_sentences).strip()
+                if not chunk_text:
+                    continue
+
+                char_start = sum(len(s) + 1 for s in sentences[:i])
+                char_end = char_start + len(chunk_text)
+
+                start_seg_id = self.__find_segment_at_position(segments, char_start)
+                end_seg_id = self.__find_segment_at_position(segments, char_end)
+
+                text_chunks.append(chunk_text)
                 chunk_metadata.append({
-                    "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
-                    "text": combined_text,
+                    "segment_range": [start_seg_id, end_seg_id],
+                    "text": chunk_text,
                 })
+        else:
+            for i in range(0, len(segments), self.segments_per_embedding):
+                chunk = segments[i: i + self.segments_per_embedding]
+                combined_text = " ".join([seg.get("text", "") for seg in chunk])
+
+                if combined_text.strip():
+                    text_chunks.append(combined_text)
+                    chunk_metadata.append({
+                        "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
+                        "text": combined_text,
+                    })
 
         if not text_chunks:
             return []
@@ -223,6 +256,28 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 tracker.update((batch_idx // text_batch_size) + 1, interval=5)
 
         return embeddings
+
+    def __split_into_sentences(self, text: str) -> List[str]:
+        sentences = re.split(r'([.!?]+(?:\s+|$))', text)
+        result = []
+        for i in range(0, len(sentences) - 1, 2):
+            sentence = sentences[i] + (sentences[i + 1] if i + 1 < len(sentences) else "")
+            sentence = sentence.strip()
+            if sentence:
+                result.append(sentence)
+        if len(sentences) % 2 == 1 and sentences[-1].strip():
+            result.append(sentences[-1].strip())
+        return result
+
+    def __find_segment_at_position(self, segments: List[Dict[str, Any]], char_pos: int) -> int:
+        cumulative_length = 0
+        for seg in segments:
+            seg_text = seg.get("text", "")
+            seg_length = len(seg_text) + 1
+            if cumulative_length <= char_pos < cumulative_length + seg_length:
+                return seg.get("id", 0)
+            cumulative_length += seg_length
+        return segments[-1].get("id", 0) if segments else 0
 
     def __encode_text_batch(self, texts: List[str]) -> List[np.ndarray]:
         embeddings_tensor = self.model.get_text_embeddings(texts=texts)
@@ -300,6 +355,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                     "model_name": self.model_name,
                     "model_revision": self.model_revision,
                     "segments_per_embedding": self.segments_per_embedding,
+                    "use_sentence_based_chunking": self.use_sentence_based_chunking,
+                    "text_sentences_per_chunk": self.text_sentences_per_chunk if self.use_sentence_based_chunking else None,
+                    "text_chunk_overlap": self.text_chunk_overlap if self.use_sentence_based_chunking else None,
                     "device": self.device,
                 },
                 statistics={

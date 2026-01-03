@@ -57,6 +57,10 @@ class ImageHashSubProcessor(FrameSubProcessor):
         self.hasher = None
         self._cleanup_memory()
 
+    def finalize(self) -> None:
+        if hasattr(self, 'logger'):
+            self.logger.finalize()
+
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         hash_output_dir = Path(settings.image_hash.output_dir)
@@ -151,6 +155,10 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         self.model = None
         self.gpu_processor = None
         self._cleanup_memory()
+
+    def finalize(self) -> None:
+        if hasattr(self, 'logger'):
+            self.logger.finalize()
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
@@ -250,6 +258,10 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
     def cleanup(self) -> None:
         self.face_app = None
         self.character_vectors = {}
+
+    def finalize(self) -> None:
+        if hasattr(self, 'logger'):
+            self.logger.finalize()
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]

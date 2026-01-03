@@ -383,3 +383,4 @@ def run_frame_processing_step(device, state_manager, ramdisk_path, skip_image_ha
     finally:
         for sub in sub_processors:
             sub.cleanup()
+        processor.cleanup()
