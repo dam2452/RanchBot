@@ -151,19 +151,18 @@ async def search_text_semantic(es_client, text, season=None, episode=None, limit
     if episode is not None:
         filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
 
-    query = {
-        "script_score": {
-            "query": {"bool": {"filter": filter_clauses}} if filter_clauses else {"match_all": {}},
-            "script": {
-                "source": "cosineSimilarity(params.query_vector, 'text_embedding') + 1.0",
-                "params": {"query_vector": embedding},
-            },
-        },
+    knn_query = {
+        "field": "text_embedding",
+        "query_vector": embedding,
+        "k": limit,
+        "num_candidates": limit * 10,
     }
+    if filter_clauses:
+        knn_query["filter"] = filter_clauses
 
     return await es_client.search(
         index="ranczo_text_embeddings",
-        query=query,
+        knn=knn_query,
         size=limit,
         _source=[
             "episode_id", "embedding_id", "text", "segment_range",
@@ -183,19 +182,18 @@ async def search_video_semantic(es_client, image_path, season=None, episode=None
     if character:
         filter_clauses.append({"term": {"character_appearances": character}})
 
-    query = {
-        "script_score": {
-            "query": {"bool": {"filter": filter_clauses}} if filter_clauses else {"match_all": {}},
-            "script": {
-                "source": "cosineSimilarity(params.query_vector, 'video_embedding') + 1.0",
-                "params": {"query_vector": embedding},
-            },
-        },
+    knn_query = {
+        "field": "video_embedding",
+        "query_vector": embedding,
+        "k": limit,
+        "num_candidates": limit * 10,
     }
+    if filter_clauses:
+        knn_query["filter"] = filter_clauses
 
     return await es_client.search(
         index="ranczo_video_embeddings",
-        query=query,
+        knn=knn_query,
         size=limit,
         _source=[
             "episode_id", "frame_number", "timestamp", "frame_type", "scene_number",
@@ -215,19 +213,18 @@ async def search_text_to_video(es_client, text, season=None, episode=None, chara
     if character:
         filter_clauses.append({"term": {"character_appearances": character}})
 
-    query = {
-        "script_score": {
-            "query": {"bool": {"filter": filter_clauses}} if filter_clauses else {"match_all": {}},
-            "script": {
-                "source": "cosineSimilarity(params.query_vector, 'video_embedding') + 1.0",
-                "params": {"query_vector": embedding},
-            },
-        },
+    knn_query = {
+        "field": "video_embedding",
+        "query_vector": embedding,
+        "k": limit,
+        "num_candidates": limit * 10,
     }
+    if filter_clauses:
+        knn_query["filter"] = filter_clauses
 
     return await es_client.search(
         index="ranczo_video_embeddings",
-        query=query,
+        knn=knn_query,
         size=limit,
         _source=[
             "episode_id", "frame_number", "timestamp", "frame_type", "scene_number",
@@ -300,19 +297,18 @@ async def search_episode_name_semantic(es_client, text, season=None, limit=10):
     if season is not None:
         filter_clauses.append({"term": {"episode_metadata.season": season}})
 
-    query = {
-        "script_score": {
-            "query": {"bool": {"filter": filter_clauses}} if filter_clauses else {"match_all": {}},
-            "script": {
-                "source": "cosineSimilarity(params.query_vector, 'title_embedding') + 1.0",
-                "params": {"query_vector": embedding},
-            },
-        },
+    knn_query = {
+        "field": "title_embedding",
+        "query_vector": embedding,
+        "k": limit,
+        "num_candidates": limit * 10,
     }
+    if filter_clauses:
+        knn_query["filter"] = filter_clauses
 
     return await es_client.search(
         index="ranczo_episode_names",
-        query=query,
+        knn=knn_query,
         size=limit,
         _source=["episode_id", "title", "video_path", "episode_metadata"],
     )
