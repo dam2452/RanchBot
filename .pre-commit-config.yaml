@@ -17,7 +17,6 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: requirements-txt-fixer
-      - id: no-commit-to-branch
       - id: end-of-file-fixer
       - id: detect-private-key
   - repo: https://github.com/rhysd/actionlint

@@ -2,10 +2,10 @@ import asyncio
 import logging
 
 import pytest
-from telethon.sync import TelegramClient
+from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
-import bot.tests.messages as msg
+from bot.platforms.rest_runner import app
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -30,18 +30,27 @@ async def db_pool():
     await DatabaseManager.pool.close()
 
 @pytest.fixture(scope="class")
-def telegram_client():
-    client = TelegramClient(
-        s.SESSION,
-        s.API_ID,
-        s.API_HASH.get_secret_value(),
-    )
-    client.start(password=s.PASSWORD.get_secret_value(), phone=s.PHONE)
+def test_client():
+    """Create FastAPI TestClient for testing REST API."""
+    with TestClient(app) as client:
+        logger.info("TestClient started for REST API testing")
+        yield client
+        logger.info("TestClient closed")
 
-    logger.info(msg.client_started())
-    yield client
-    client.disconnect()
-    logger.info(msg.client_disconnected())
+@pytest.fixture(scope="class")
+def auth_token(test_client):
+    """Authenticate and return access token for the default admin user."""
+    login_response = test_client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": s.ADMIN_USERNAME,
+            "password": s.ADMIN_PASSWORD.get_secret_value(),
+        },
+    )
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
+    token_data = login_response.json()
+    logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
+    return token_data["access_token"]
 
 @pytest.fixture(autouse=True)
 async def prepare_database():

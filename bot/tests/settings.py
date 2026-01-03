@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN: int = Field(...)
     ADMIN_USERNAME: str = Field("Admin")
     ADMIN_FULL_NAME: str = Field("Admin")
+    ADMIN_PASSWORD: SecretStr = Field(...)
+
+    REST_API_HOST: str = Field("127.0.0.1")
+    REST_API_PORT: int = Field(8000)
+    REST_API_BASE_URL: str = Field("http://127.0.0.1:8000/api/v1")
 
     TESTER_USERNAME: str = Field("dam2452")
 
