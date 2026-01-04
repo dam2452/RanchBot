@@ -79,7 +79,17 @@ Contributions are always welcome! If you'd like to help improve the project, fee
 
 ## 📄 License
 
-This project is licensed under the MIT License. You are free to use and modify the software for personal or internal purposes. However, distribution or public sharing of modified versions should be done through contributions to this project. If you wish to use this software in a significant or commercial capacity, please contact the project maintainers for further discussion.
+This project is **NOT** Open Source. It is **Source Available** software with **All Rights Reserved**.
+
+### Terms of use:
+- ✅ **Personal Use:** You may download and run the bot for your own private, personal use.
+- 🤝 **Contributing (Pull Requests):** Contributions are welcome! You may fork this repository **solely** for the purpose of submitting a **Pull Request** back to this main repository.
+- ❌ **NO REDISTRIBUTION:** You are strictly prohibited from publishing, hosting, or maintaining public forks/mirrors of this project as standalone repositories.
+- ❌ **NO COMMERCIAL USE:** You are strictly prohibited from using this software for any commercial purpose or profit.
+
+**Please submit any changes via Pull Requests to this repository. Let's keep the development centralized!**
+
+Full license details are available in the [LICENSE](./LICENSE) file.
 
 ## 🚀 Get Access to the Bot
 
@@ -94,3 +104,5 @@ If you like this project and would like to support its development, consider buy
 </a>
 
 ---
+
+

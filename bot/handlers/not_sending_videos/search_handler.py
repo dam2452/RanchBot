@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
@@ -29,7 +30,7 @@ class SearchHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 1, await self.get_response(RK.INVALID_ARGS_COUNT),
+            self._message, 1, await self.get_response(RK.INVALID_ARGS_COUNT), math.inf,
         )
 
     async def __check_quote_length(self) -> bool:
