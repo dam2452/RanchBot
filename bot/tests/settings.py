@@ -13,11 +13,6 @@ env_path = load_env_file()
 
 class Settings(BaseSettings):
     SESSION: str = Field("name")
-    API_ID: int = Field(...)
-    API_HASH: SecretStr = Field(...)
-    BOT_USERNAME: str = Field(...)
-    PASSWORD: SecretStr = Field(...)
-    PHONE: str = Field(...)
 
     SPECIALIZED_TABLE: str = Field(...)
 
@@ -34,7 +29,6 @@ class Settings(BaseSettings):
 
     REST_API_HOST: str = Field("127.0.0.1")
     REST_API_PORT: int = Field(8000)
-    REST_API_BASE_URL: str = Field("http://127.0.0.1:8000/api/v1")
 
     TESTER_USERNAME: str = Field("dam2452")
 
