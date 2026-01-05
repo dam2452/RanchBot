@@ -6,7 +6,7 @@ from bot.tests.base_test import BaseTest
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestAddWhitelistHandler(BaseTest):
-    @pytest.mark.quick
+    
     async def test_add_and_remove_valid_user_whitelist(self):
         user_id = 123456789
         await self.get_response(
@@ -23,7 +23,7 @@ class TestAddWhitelistHandler(BaseTest):
             [expected_add_message],
         )
 
-    @pytest.mark.quick
+    
     async def test_add_nonexistent_user_whitelist(self):
         user_id = 99999999999
         await self.expect_command_result_contains(

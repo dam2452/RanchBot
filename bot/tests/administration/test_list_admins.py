@@ -8,7 +8,7 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListAdminsCommand(BaseTest):
 
-    @pytest.mark.quick
+    
     async def test_list_admins_with_admins(self):
         admin_user = await self.add_test_admin_user()
 

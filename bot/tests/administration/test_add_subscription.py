@@ -13,7 +13,7 @@ from bot.tests.settings import settings as s
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestAddSubscriptionHandler(BaseTest):
 
-    @pytest.mark.quick
+    
     async def test_add_subscription_valid_user(self):
         user_id = 123456789
         days = 30
@@ -43,7 +43,7 @@ class TestAddSubscriptionHandler(BaseTest):
         )
 
 
-    @pytest.mark.quick
+    
     async def test_add_subscription_nonexistent_user(self):
         user_id = 999999999
         days = 30
@@ -53,7 +53,7 @@ class TestAddSubscriptionHandler(BaseTest):
             [await self.get_response(RK.SUBSCRIPTION_ERROR)],
         )
 
-    @pytest.mark.long
+    
     async def test_add_subscription_invalid_days_format(self):
         user_id = 123456789
         invalid_days = "trzydzieści"
@@ -63,7 +63,7 @@ class TestAddSubscriptionHandler(BaseTest):
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
         )
 
-    @pytest.mark.long
+    
     async def test_add_subscription_invalid_user_id_format(self):
         user_id_invalid = "user123"
         days = 30
@@ -73,7 +73,7 @@ class TestAddSubscriptionHandler(BaseTest):
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
         )
 
-    @pytest.mark.long
+    
     async def test_add_subscription_negative_days(self):
         user_id = 123456789
         negative_days = -30
