@@ -175,7 +175,7 @@ class BaseTest:
         user_id = user_id or secrets.randbits(32)
         username = username or self.generate_random_username()
 
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=user_id,
             username=username,
             full_name=full_name,
@@ -194,7 +194,7 @@ class BaseTest:
 
     @staticmethod
     async def add_test_admin_user() -> Dict[str, Union[int, str]]:
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=s.DEFAULT_ADMIN,
             username=s.ADMIN_USERNAME,
             full_name=s.ADMIN_FULL_NAME,

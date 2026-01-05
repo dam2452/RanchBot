@@ -2,6 +2,7 @@ import pytest
 
 from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
+from bot.database.database_manager import DatabaseManager
 
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
@@ -10,7 +11,7 @@ class TestRemoveSubscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_remove_existing_subscription(self):
         user_id = 2015344951
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=user_id,
             username="test_user",
             full_name="Test User",
@@ -40,7 +41,7 @@ class TestRemoveSubscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_remove_subscription_twice(self):
         user_id = 2015344951
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=user_id,
             username="test_user",
             full_name="Test User",

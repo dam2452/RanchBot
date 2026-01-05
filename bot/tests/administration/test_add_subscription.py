@@ -5,6 +5,7 @@ from datetime import (
 
 import pytest
 
+from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 from bot.tests.settings import settings as s
@@ -17,7 +18,7 @@ class TestAddSubscriptionHandler(BaseTest):
         user_id = 123456789
         days = 30
 
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=user_id,
             username="test_user",
             full_name="Test User",

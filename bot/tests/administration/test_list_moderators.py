@@ -31,7 +31,7 @@ class TestListModeratorsCommand(BaseTest):
         ]
 
         for user in moderators:
-            await self.get_response(
+            await DatabaseManager.add_user(
                 user_id=user["user_id"],
                 username=user["username"],
                 full_name=user["full_name"],
@@ -55,6 +55,7 @@ class TestListModeratorsCommand(BaseTest):
             '/listmoderators', [format_moderators_list(user_profiles)],
         )
 
+    @pytest.mark.asyncio
     async def test_list_moderators_empty(self):
         await self.expect_command_result_contains(
             '/listmoderators', [get_no_moderators_found_message()],

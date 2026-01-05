@@ -4,6 +4,7 @@ from bot.database.models import UserProfile
 from bot.responses.administration.list_whitelist_handler_responses import create_whitelist_response
 from bot.tests.base_test import BaseTest
 from bot.tests.settings import settings as s
+from bot.database.database_manager import DatabaseManager
 
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
@@ -21,14 +22,14 @@ class TestListWhitelistCommand(BaseTest):
             "full_name": "Test User 2",
         }
 
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=user1["user_id"],
             username=user1["username"],
             full_name=user1["full_name"],
             note=None,
             subscription_days=None,
         )
-        await self.get_response(
+        await DatabaseManager.add_user(
             user_id=user2["user_id"],
             username=user2["username"],
             full_name=user2["full_name"],

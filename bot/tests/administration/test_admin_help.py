@@ -21,6 +21,7 @@ class TestAdminHelpHandler(BaseTest):
             args=['skroty']
         )
 
+    @pytest.mark.asyncio
     async def test_admin_invalid_command(self):
         await self.expect_command_result_contains(
             '/admin',
