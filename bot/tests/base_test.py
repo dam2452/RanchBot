@@ -55,6 +55,7 @@ class BaseTest:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
     async def send_command(self, command_text: str, args: Optional[List[str]] = None):
+        asyncio.get_event_loop()
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -142,6 +143,7 @@ class BaseTest:
         return "\n".join(lines[n:])
 
     async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
+        asyncio.get_event_loop()
         response = await self.send_command(command, args=args)
         resolved_expected = []
         for fragment in expected:
