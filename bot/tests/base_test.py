@@ -135,20 +135,21 @@ class BaseTest:
         logger.info(f"File test passed for: {expected_filename}")
 
     @staticmethod
-    def remove_n_lines(text: str, n: int) -> str:
+    async def remove_n_lines(text: str, n: int) -> str:
+        if asyncio.iscoroutine(text):
+            text = await text
         lines = text.splitlines()
         return "\n".join(lines[n:])
 
     async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
         response = self.send_command(command, args=args)
-
         resolved_expected = []
         for fragment in expected:
             if asyncio.iscoroutine(fragment):
                 fragment = await fragment
             resolved_expected.append(fragment)
-
         await self.assert_response_contains(response, resolved_expected)
+
 
     @staticmethod
     def __compute_file_hash(file_path: Path, hash_function: str = 'sha256') -> str:
@@ -165,16 +166,16 @@ class BaseTest:
 
     async def add_test_user(
         self,
-            user_id: Optional[int] = None,
-            username: Optional[str] = None,
-            full_name: str = "Test User",
-            note: Optional[str] = None,
-            subscription_days: Optional[int] = None,
+        user_id: Optional[int] = None,
+        username: Optional[str] = None,
+        full_name: str = "Test User",
+        note: Optional[str] = None,
+        subscription_days: Optional[int] = None,
     ) -> Dict[str, Union[int, str]]:
         user_id = user_id or secrets.randbits(32)
         username = username or self.generate_random_username()
 
-        await DatabaseManager.add_user(
+        await self.get_response(
             user_id=user_id,
             username=username,
             full_name=full_name,
@@ -189,9 +190,11 @@ class BaseTest:
             "note": note,
             "subscription_days": subscription_days,
         }
+
+
     @staticmethod
     async def add_test_admin_user() -> Dict[str, Union[int, str]]:
-        await DatabaseManager.add_user(
+        await self.get_response(
             user_id=s.DEFAULT_ADMIN,
             username=s.ADMIN_USERNAME,
             full_name=s.ADMIN_FULL_NAME,
@@ -247,7 +250,9 @@ class BaseTest:
         logger.info(f"Message hash test passed for key: {expected_key}")
 
     @staticmethod
-    def remove_first_line(text: str) -> str:
+    async def remove_first_line(text: str) -> str:
+        if asyncio.iscoroutine(text):
+            text = await text
         return "\n".join(text.splitlines()[1:])
 
     def expect_command_result_hash(

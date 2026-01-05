@@ -12,7 +12,7 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListModeratorsCommand(BaseTest):
 
-    def test_list_moderators_with_moderators(self):
+    async def test_list_moderators_with_moderators(self):
         moderators = [
             {
                 "user_id": 123456,
@@ -31,14 +31,14 @@ class TestListModeratorsCommand(BaseTest):
         ]
 
         for user in moderators:
-            DatabaseManager.add_user(
+            await self.get_response(
                 user_id=user["user_id"],
                 username=user["username"],
                 full_name=user["full_name"],
                 note=user["note"],
                 subscription_days=None,
             )
-            DatabaseManager.set_user_as_moderator(user_id=user["user_id"])
+            await DatabaseManager.set_user_as_moderator(user_id=user["user_id"])
 
         user_profiles = [
             UserProfile(
@@ -51,11 +51,11 @@ class TestListModeratorsCommand(BaseTest):
             for user in moderators
         ]
 
-        self.expect_command_result_contains(
+        await self.expect_command_result_contains(
             '/listmoderators', [format_moderators_list(user_profiles)],
         )
 
-    def test_list_moderators_empty(self):
-        self.expect_command_result_contains(
+    async def test_list_moderators_empty(self):
+        await self.expect_command_result_contains(
             '/listmoderators', [get_no_moderators_found_message()],
         )

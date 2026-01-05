@@ -1,6 +1,5 @@
 import pytest
 
-from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 
@@ -8,9 +7,9 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestAddWhitelistHandler(BaseTest):
     @pytest.mark.quick
-    def test_add_and_remove_valid_user_whitelist(self):
+    async def test_add_and_remove_valid_user_whitelist(self):
         user_id = 123456789
-        DatabaseManager.add_user(
+        await self.get_response(
             user_id=user_id,
             username="valid_user",
             full_name="Valid User",
@@ -18,32 +17,32 @@ class TestAddWhitelistHandler(BaseTest):
             subscription_days=None,
         )
 
-        expected_add_message = self.get_response(RK.USER_ADDED, [str(user_id)])
-        self.expect_command_result_contains(
+        expected_add_message = await self.get_response(RK.USER_ADDED, [str(user_id)])
+        await self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
             [expected_add_message],
         )
 
     @pytest.mark.quick
-    def test_add_nonexistent_user_whitelist(self):
+    async def test_add_nonexistent_user_whitelist(self):
         user_id = 99999999999
-        self.expect_command_result_contains(
+        await self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
-            [self.get_response(RK.USER_ADDED, [str(user_id)])],
+            [await self.get_response(RK.USER_ADDED, [str(user_id)])],
         )
 
-    def test_add_whitelist_invalid_user_id_format(self):
+    async def test_add_whitelist_invalid_user_id_format(self):
         user_id_invalid = "invalid_id"
-        expected_message = self.get_response(RK.NO_USER_ID_PROVIDED)
+        expected_message = await self.get_response(RK.NO_USER_ID_PROVIDED)
 
-        self.expect_command_result_contains(
+        await self.expect_command_result_contains(
             f'/addwhitelist {user_id_invalid}',
             [expected_message],
         )
 
-    def test_add_user_with_no_username(self):
+    async def test_add_user_with_no_username(self):
         user_id = 888888888
-        DatabaseManager.add_user(
+        await self.get_response(
             user_id=user_id,
             username=None,
             full_name="",
@@ -51,7 +50,7 @@ class TestAddWhitelistHandler(BaseTest):
             subscription_days=None,
         )
 
-        self.expect_command_result_contains(
+        await self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
-            [self.get_response(RK.USER_ADDED, [str(user_id)])],
+            [await self.get_response(RK.USER_ADDED, [str(user_id)])],
         )

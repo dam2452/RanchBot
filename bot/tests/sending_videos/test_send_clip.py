@@ -14,7 +14,7 @@ class TestSendClipHandler(BaseTest):
         await self.send_command(f'/zapisz {clip_name}')
 
         response = await self.send_command('/wyslij 1',timeout=60)
-        await self.assert_command_result_file_matches(
+        self.assert_command_result_file_matches(
             response, 'send_clip_geniusz_klip1.mp4',
         )
 
@@ -25,7 +25,7 @@ class TestSendClipHandler(BaseTest):
         await self.send_command(f'/zapisz {clip_name}')
 
         response = await self.send_command(f'/wyslij {clip_name}')
-        await self.assert_command_result_file_matches(
+        self.assert_command_result_file_matches(
             response, 'send_clip_geniusz_klip1.mp4',
         )
 
@@ -33,7 +33,7 @@ class TestSendClipHandler(BaseTest):
     async def test_send_nonexistent_clip(self):
         clip_number = 1
         response = await self.send_command(f'/wyslij {clip_number}')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response, [await self.get_response(RK.CLIP_NOT_FOUND_NUMBER, [str(clip_number)])],
         )
 
@@ -45,6 +45,6 @@ class TestSendClipHandler(BaseTest):
         await self.send_command(f'/zapisz {special_clip_name}')
 
         response = await self.send_command(f'/wyslij {special_clip_name}')
-        await self.assert_command_result_file_matches(
+        self.assert_command_result_file_matches(
             response, 'send_clip_geniusz_special_name.mp4',
         )

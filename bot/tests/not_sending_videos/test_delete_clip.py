@@ -25,7 +25,7 @@ class TestDeleteClipHandler(BaseTest):
     async def test_delete_nonexistent_clip(self):
         clip_id = 1337
         response = await self.send_command(f'/usunklip {clip_id}')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response,
             [
                 await self.get_response(
@@ -38,7 +38,7 @@ class TestDeleteClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_delete_clip_no_arguments(self):
         response = await self.send_command('/usunklip')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response,
             [
                 await self.get_response(
@@ -50,7 +50,7 @@ class TestDeleteClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_delete_clip_invalid_argument_format(self):
         response = await self.send_command('/usunklip abc')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response,
             [
                 await self.get_response(
@@ -96,7 +96,7 @@ class TestDeleteClipHandler(BaseTest):
     async def test_delete_clip_invalid_index(self):
         clip_id = 999
         response = await self.send_command(f'/usunklip {clip_id}')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response,
             [
                 await self.get_response(

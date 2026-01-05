@@ -9,7 +9,7 @@ class TestClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_clip_found(self):
         quote = "geniusz"
-        await self.assert_command_result_file_matches(
+        self.assert_command_result_file_matches(
             await self.send_command(f'/klip {quote}'),
             f"clip_{quote}.mp4",
         )

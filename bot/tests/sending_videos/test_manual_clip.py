@@ -16,7 +16,7 @@ class TestManualClipHandler(BaseTest):
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = await self.send_command(command)
-        await self.assert_command_result_file_matches(response, expected_file)
+        self.assert_command_result_file_matches(response, expected_file)
 
     @pytest.mark.asyncio
     async def test_cut_clip_invalid_time_format(self):
@@ -28,7 +28,7 @@ class TestManualClipHandler(BaseTest):
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = await self.send_command(command)
-        self.assert_response_contains(response, [expected_message])
+        await self.assert_response_contains(response, [expected_message])
 
     @pytest.mark.asyncio
     async def test_cut_clip_nonexistent_episode(self):
@@ -40,7 +40,7 @@ class TestManualClipHandler(BaseTest):
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = await self.send_command(command)
-        self.assert_response_contains(response, [expected_message])
+        await self.assert_response_contains(response, [expected_message])
 
     @pytest.mark.asyncio
     async def test_cut_clip_large_time_range(self):
@@ -53,7 +53,7 @@ class TestManualClipHandler(BaseTest):
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = await self.send_command(command, timeout=timeout)
-        await self.assert_command_result_file_matches(response, expected_file)
+        self.assert_command_result_file_matches(response, expected_file)
 
     @pytest.mark.asyncio
     async def test_cut_clip_end_time_before_start_time(self):
@@ -65,7 +65,7 @@ class TestManualClipHandler(BaseTest):
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = await self.send_command(command)
-        self.assert_response_contains(response, [expected_message])
+        await self.assert_response_contains(response, [expected_message])
 
     @pytest.mark.asyncio
     async def test_cut_clip_exact_episode_length(self):
@@ -79,4 +79,4 @@ class TestManualClipHandler(BaseTest):
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = await self.send_command(command, timeout=timeout)
-        self.assert_response_contains(response, [expected_message])
+        await self.assert_response_contains(response, [expected_message])

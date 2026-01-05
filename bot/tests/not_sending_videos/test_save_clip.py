@@ -27,7 +27,7 @@ class TestSaveClipHandler(BaseTest):
         clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
         await self.expect_command_result_contains(
             '/mojeklipy',
-            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME , await self.get_season_info()), 4)],
+            [await self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME , await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
@@ -57,7 +57,7 @@ class TestSaveClipHandler(BaseTest):
         clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
         await self.expect_command_result_contains(
             '/mojeklipy',
-            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)],
+            [await self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
@@ -86,7 +86,7 @@ class TestSaveClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_save_clip_no_segment_selected(self):
         response = await self.send_command('/zapisz klip_bez_segmentu')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response,
             [
                 await self.get_response(
@@ -99,7 +99,7 @@ class TestSaveClipHandler(BaseTest):
     async def test_save_clip_name_length_exceeded(self):
         long_name = "a" * (sb.MAX_CLIP_NAME_LENGTH + 1)
         response = await self.send_command(f'/zapisz {long_name}')
-        self.assert_response_contains(
+        await self.assert_response_contains(
             response,
             [
                 await self.get_response(

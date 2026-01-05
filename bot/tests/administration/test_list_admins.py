@@ -9,8 +9,8 @@ from bot.tests.base_test import BaseTest
 class TestListAdminsCommand(BaseTest):
 
     @pytest.mark.quick
-    def test_list_admins_with_admins(self):
-        admin_user = self.add_test_admin_user()
+    async def test_list_admins_with_admins(self):
+        admin_user = await self.add_test_admin_user()
 
         admins = [
             UserProfile(
@@ -22,4 +22,4 @@ class TestListAdminsCommand(BaseTest):
             ),
         ]
 
-        self.expect_command_result_contains('/listadmins', [msg.format_admins_list(admins)])
+        await self.expect_command_result_contains('/listadmins', [msg.format_admins_list(admins)])

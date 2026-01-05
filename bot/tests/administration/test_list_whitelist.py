@@ -1,6 +1,5 @@
 import pytest
 
-from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
 from bot.responses.administration.list_whitelist_handler_responses import create_whitelist_response
 from bot.tests.base_test import BaseTest
@@ -9,7 +8,7 @@ from bot.tests.settings import settings as s
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListWhitelistCommand(BaseTest):
-    def test_list_whitelist_with_users(self):
+    async def test_list_whitelist_with_users(self):
         user1 = {
             "user_id": 123456,
             "username": "test_user1",
@@ -21,14 +20,14 @@ class TestListWhitelistCommand(BaseTest):
             "full_name": "Test User 2",
         }
 
-        DatabaseManager.add_user(
+        await self.get_response(
             user_id=user1["user_id"],
             username=user1["username"],
             full_name=user1["full_name"],
             note=None,
             subscription_days=None,
         )
-        DatabaseManager.add_user(
+        await self.get_response(
             user_id=user2["user_id"],
             username=user2["username"],
             full_name=user2["full_name"],
@@ -59,4 +58,4 @@ class TestListWhitelistCommand(BaseTest):
                 note=None,
             ),
         ]
-        self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])
+        await self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])

@@ -40,7 +40,7 @@ def test_client():
 async def test_user():
     test_username = "test_api_user"
     test_id = 99999
-    await DatabaseManager.add_user(
+    await self.get_response(
         user_id=test_id,
         username=test_username,
         password=s.ADMIN_PASSWORD.get_secret_value(),
