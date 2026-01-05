@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from bot.database.database_manager import DatabaseManager
 from bot.responses.bot_message_handler_responses import get_response
 from bot.search.transcription_finder import TranscriptionFinder
+from bot.tests.settings import settings as s
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -26,11 +27,9 @@ class BaseTest:
     token: str
 
     @pytest.fixture(autouse=True)
-    def setup_client(self, test_client, auth_token, test_user_token) -> None:
+    def setup_client(self, test_client, auth_token) -> None:
         self.client = test_client
-        self.admin_token = auth_token
-        self.test_user_token = test_user_token
-        self.token = self.admin_token
+        self.token = auth_token
 
 
     @staticmethod
@@ -54,8 +53,7 @@ class BaseTest:
     def remove_until_first_space(text: str) -> str:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
-    def send_command(self, command_text: str, args: Optional[List[str]] = None, use_test_user: bool = False):
-        """Send a command to the REST API and return the response."""
+    def send_command(self, command_text: str, args: Optional[List[str]] = None):
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -63,12 +61,10 @@ class BaseTest:
             if args is None:
                 args = [parts[1]]
 
-        token = self.test_user_token if use_test_user else self.admin_token
-
         response = self.client.post(
             f"/api/v1/{command_name}",
             json={"args": args or [], "reply_json": True},
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {self.token}"},
         )
         logger.info(f"REST API response for /{command_name}: {response.status_code}")
         return response
