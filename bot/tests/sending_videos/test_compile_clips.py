@@ -4,7 +4,7 @@ from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool")
 class TestCompileClipsHandler(BaseTest):
     __SEARCH_TERM_KOZIOL = "kozioł"
     __SEARCH_TERM_ANGLII = "Anglii"

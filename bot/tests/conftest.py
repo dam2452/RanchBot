@@ -29,14 +29,14 @@ async def db_pool():
     yield
     await DatabaseManager.pool.close()
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="class", autouse=True)
 def test_client():
     with TestClient(app) as client:
         logger.info("TestClient started for REST API testing")
         yield client
         logger.info("TestClient closed")
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 async def test_user():
     test_username = "test_api_user"
     test_id = 99999
@@ -52,7 +52,7 @@ async def test_user():
     }
     await DatabaseManager.remove_user(test_id)
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="class", autouse=True)
 async def auth_token(test_client, test_user):
     login_response = test_client.post(
         "/api/v1/auth/login",

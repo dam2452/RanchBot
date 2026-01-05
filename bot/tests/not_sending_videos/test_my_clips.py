@@ -7,7 +7,7 @@ from bot.tests.base_test import BaseTest
 from bot.tests.settings import settings as s
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool")
 class TestMyClipsHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_myclips_no_clips(self):

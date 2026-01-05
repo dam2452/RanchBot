@@ -4,7 +4,7 @@ from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool")
 class TestAdjustVideoClipHandler(BaseTest):
     async def __execute_both_variants(self, command_args: str, response_key: str):
         expected_response =  await self.get_response(response_key)

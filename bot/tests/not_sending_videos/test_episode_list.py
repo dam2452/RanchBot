@@ -5,7 +5,7 @@ import bot.responses.not_sending_videos.episode_list_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool")
 class TestEpisodeListHandler(BaseTest):
 
     @pytest.mark.asyncio
