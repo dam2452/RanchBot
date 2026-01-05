@@ -38,6 +38,45 @@ def test_client():
         logger.info("TestClient closed")
 
 @pytest.fixture(scope="class")
+async def test_user(test_client):
+    """Create a test user for REST API testing."""
+    # Create test user
+    test_username = "test_api_user"
+    test_password = s.ADMIN_PASSWORD.get_secret_value()  # Use the same password as admin
+    
+    # Register the test user via API
+    response = test_client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": test_username,
+            "password": test_password,
+            "full_name": "Test API User"
+        }
+    )
+    assert response.status_code == 201, f"Failed to create test user: {response.text}"
+    
+    yield {"username": test_username, "password": test_password}
+    
+    # Cleanup: Delete test user after tests
+    # You might need to implement a delete user endpoint or use direct DB access
+    await DatabaseManager.remove_user_by_username(test_username)
+
+@pytest.fixture(scope="class")
+def test_user_token(test_client, test_user):
+    """Get authentication token for test user."""
+    login_response = test_client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": test_user["username"],
+            "password": test_user["password"],
+        },
+    )
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
+    token_data = login_response.json()
+    logger.info(f"Authenticated as {test_user['username']}")
+    return token_data["access_token"]
+
+@pytest.fixture(scope="class")
 def auth_token(test_client):
     """Authenticate and return access token for the default admin user."""
     login_response = test_client.post(

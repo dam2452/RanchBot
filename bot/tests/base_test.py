@@ -26,9 +26,13 @@ class BaseTest:
     token: str
 
     @pytest.fixture(autouse=True)
-    def setup_client(self, test_client, auth_token) -> None:
+    def setup_client(self, test_client, auth_token, test_user_token) -> None:
         self.client = test_client
-        self.token = auth_token
+        self.admin_token = auth_token
+        self.test_user_token = test_user_token
+        self.token = self.admin_token
+
+
     @staticmethod
     def __sanitize_text(text: str) -> str:
         text = text.replace('\xa0', ' ')
@@ -50,7 +54,7 @@ class BaseTest:
     def remove_until_first_space(text: str) -> str:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
-    def send_command(self, command_text: str, args: Optional[List[str]] = None):
+    def send_command(self, command_text: str, args: Optional[List[str]] = None, use_test_user: bool = False):
         """Send a command to the REST API and return the response."""
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
@@ -59,13 +63,16 @@ class BaseTest:
             if args is None:
                 args = [parts[1]]
 
+        token = self.test_user_token if use_test_user else self.admin_token
+
         response = self.client.post(
             f"/api/v1/{command_name}",
             json={"args": args or [], "reply_json": True},
-            headers={"Authorization": f"Bearer {self.token}"},
+            headers={"Authorization": f"Bearer {token}"},
         )
         logger.info(f"REST API response for /{command_name}: {response.status_code}")
         return response
+
 
     def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
         response_text = self._extract_text_from_response(response)
