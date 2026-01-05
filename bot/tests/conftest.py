@@ -12,13 +12,12 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session")
 def event_loop():
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
+    loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 @pytest.fixture(scope="session")
-async def db_pool():
+async def db_pool(event_loop):
     await DatabaseManager.init_pool(
         host=s.TEST_POSTGRES_HOST,
         port=s.TEST_POSTGRES_PORT,
@@ -38,7 +37,7 @@ def test_client():
         logger.info("TestClient closed")
 
 @pytest.fixture(scope="session", autouse=True)
-async def test_user():
+async def test_user(event_loop, db_pool):
     test_username = "test_api_user"
     test_id = 99999
     await DatabaseManager.add_user(
@@ -68,7 +67,7 @@ async def auth_token(test_client, test_user):
     return token_data["access_token"]
 
 @pytest.fixture(autouse=True)
-async def prepare_database():
+async def prepare_database(db_pool):
     tables_to_clear = [
         "user_profiles",
         "user_roles",
