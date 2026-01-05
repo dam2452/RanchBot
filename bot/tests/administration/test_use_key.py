@@ -28,14 +28,14 @@ class TestSaveUserKeyHandler(BaseTest):
     async def test_use_invalid_key(self):
         key = "invalid_key"
 
-        response = self.send_command(f'/klucz {key}')
+        response = await self.send_command(f'/klucz {key}')
         await self.assert_response_contains(response, [await self.get_response(RK.INVALID_KEY)])
 
     @pytest.mark.asyncio
     async def test_use_key_no_arguments(self):
         command = '/klucz'
 
-        response = self.send_command(command)
+        response = await self.send_command(command)
         await self.assert_response_contains(response, [await self.get_response(RK.NO_KEY_PROVIDED)])
 
     @pytest.mark.asyncio

@@ -32,7 +32,7 @@ class TestCreateKeyHandler(BaseTest):
         key_name = "klucz_na_ujemne_dni"
         days = -30
 
-        self.send_command(f'/removekey {key_name}')
+        await self.send_command(f'/removekey {key_name}')
         await self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_USAGE)],

@@ -28,7 +28,7 @@ class BaseTest:
     token: str
 
     @pytest.fixture(autouse=True)
-    def setup_client(self, test_client, auth_token) -> None:
+    async def setup_client(self, test_client, auth_token) -> None:
         self.client = test_client
         self.token = auth_token
 
@@ -54,7 +54,7 @@ class BaseTest:
     def remove_until_first_space(text: str) -> str:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
-    def send_command(self, command_text: str, args: Optional[List[str]] = None):
+    async def send_command(self, command_text: str, args: Optional[List[str]] = None):
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -142,7 +142,7 @@ class BaseTest:
         return "\n".join(lines[n:])
 
     async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
-        response = self.send_command(command, args=args)
+        response = await self.send_command(command, args=args)
         resolved_expected = []
         for fragment in expected:
             if asyncio.iscoroutine(fragment):
@@ -255,7 +255,7 @@ class BaseTest:
             text = await text
         return "\n".join(text.splitlines()[1:])
 
-    def expect_command_result_hash(
+    async def expect_command_result_hash(
         self,
         command: str,
         expected_key: str,
@@ -263,7 +263,7 @@ class BaseTest:
         args: Optional[List[str]] = None,
     ) -> None:
         """Send command and verify response hash matches expected hash."""
-        response = self.send_command(command, args=args)
+        response = await self.send_command(command, args=args)
         self.assert_message_hash_matches(
             response,
             expected_key=expected_key,

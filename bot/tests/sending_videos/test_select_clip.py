@@ -10,7 +10,7 @@ class TestSelectClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_select_valid_segment(self):
         quote = "geniusz"
-        self.expect_command_result_hash(
+        await self.expect_command_result_hash(
             f'/szukaj {quote}',
             expected_key=f"search_{quote}_results.message",
         )
@@ -26,7 +26,7 @@ class TestSelectClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_select_invalid_segment_number(self):
         quote = "geniusz"
-        self.expect_command_result_hash(
+        await self.expect_command_result_hash(
             f'/szukaj {quote}',
             expected_key="search_geniusz_results.message",
         )
