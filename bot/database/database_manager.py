@@ -28,8 +28,6 @@ from bot.database.models import (
 from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
 
-import asyncio
-
 db_manager_logger = logging.getLogger(__name__)
 
 class DatabaseManager: # pylint: disable=too-many-public-methods
@@ -45,7 +43,6 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         password: Optional[str] = None,
         schema: Optional[str] = None,
     ):
-        asyncio.get_event_loop()
         if DatabaseManager.pool is not None and not DatabaseManager.pool.is_closing():
             db_manager_logger.debug("Database connection pool already exists and is active.")
             return
@@ -125,7 +122,6 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             user_id: int, username: Optional[str], full_name: Optional[str],
             note: Optional[str], subscription_days: Optional[int] = None,
     ) -> None:
-        asyncio.get_event_loop()
 
         async with DatabaseManager.get_db_connection() as conn:
             subscription_end = date.today() + timedelta(days=subscription_days) if subscription_days else None
@@ -941,3 +937,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     note=row["note"],
                 )
             return None
+
+    @classmethod
+    def set_event_loop(cls, loop):
+        if hasattr(cls, 'pool') and cls.pool is not None:
+            cls.pool._loop = loop
