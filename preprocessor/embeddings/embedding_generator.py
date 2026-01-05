@@ -225,7 +225,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 if combined_text.strip():
                     text_chunks.append(combined_text)
                     chunk_metadata.append({
-                        "segment_range": [chunk[0].get("id", i), chunk[-1].get("id", i + len(chunk) - 1)],
+                        "segment_range": [i, i + len(chunk) - 1],
                         "text": combined_text,
                     })
 
@@ -293,13 +293,13 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
     def __find_segment_at_position(self, segments: List[Dict[str, Any]], char_pos: int) -> int:
         cumulative_length = 0
-        for seg in segments:
+        for idx, seg in enumerate(segments):
             seg_text = seg.get("text", "")
             seg_length = len(seg_text) + 1
             if cumulative_length <= char_pos < cumulative_length + seg_length:
-                return seg.get("id", 0)
+                return idx
             cumulative_length += seg_length
-        return segments[-1].get("id", 0) if segments else 0
+        return len(segments) - 1 if segments else 0
 
     def __encode_text_batch(self, texts: List[str]) -> List[np.ndarray]:
         embeddings_tensor = self.model.get_text_embeddings(texts=texts)
