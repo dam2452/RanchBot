@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     ENABLE_TELEGRAM: bool = Field(False)
     ENABLE_REST: bool = Field(False)
 
-    JWT_SECRET_KEY: Optional[SecretStr] = None
+    JWT_SECRET_KEY: Optional[SecretStr] = Field("tests")
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 30
     JWT_ISSUER: str = Field("RanchBot")
