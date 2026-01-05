@@ -18,6 +18,7 @@ from bot.database.database_manager import DatabaseManager
 from bot.responses.bot_message_handler_responses import get_response
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.tests.settings import settings as s
+import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -70,15 +71,18 @@ class BaseTest:
         return response
 
 
-    def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
+    async def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
         response_text = self._extract_text_from_response(response)
         sanitized_response = self.__sanitize_text(response_text)
 
         for fragment in expected_fragments:
+            if asyncio.iscoroutine(fragment):
+                fragment = await fragment
             sanitized_fragment = self.__sanitize_text(fragment)
             if sanitized_fragment not in sanitized_response:
                 raise AssertionError(f"Fragment '{fragment}' not found in response: {response_text}")
         return True
+
 
     @staticmethod
     def _extract_text_from_response(response) -> str:
@@ -135,10 +139,16 @@ class BaseTest:
         lines = text.splitlines()
         return "\n".join(lines[n:])
 
-    def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
-        """Send command and verify response contains expected fragments."""
+    async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
         response = self.send_command(command, args=args)
-        self.assert_response_contains(response, expected)
+
+        resolved_expected = []
+        for fragment in expected:
+            if asyncio.iscoroutine(fragment):
+                fragment = await fragment
+            resolved_expected.append(fragment)
+
+        await self.assert_response_contains(response, resolved_expected)
 
     @staticmethod
     def __compute_file_hash(file_path: Path, hash_function: str = 'sha256') -> str:
