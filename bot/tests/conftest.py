@@ -53,7 +53,7 @@ async def test_user():
     await DatabaseManager.remove_user(test_id)
 
 @pytest.fixture(scope="class")
-def auth_token(test_client, test_user):
+async def auth_token(test_client, test_user):
     login_response = test_client.post(
         "/api/v1/auth/login",
         json={
