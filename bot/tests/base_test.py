@@ -28,7 +28,7 @@ class BaseTest:
     token: str
 
     @pytest.fixture(autouse=True)
-    async def setup_client(self, test_client, auth_token) -> None:
+    async def setup_client(self, event_loop, test_client, auth_token) -> None:
         self.client = test_client
         self.token = auth_token
 

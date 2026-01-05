@@ -10,13 +10,13 @@ from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 async def db_pool(event_loop):
     await DatabaseManager.init_pool(
         host=s.TEST_POSTGRES_HOST,
@@ -40,6 +40,12 @@ def test_client():
 async def test_user(event_loop, db_pool):
     test_username = "test_api_user"
     test_id = 99999
+
+    try:
+        await DatabaseManager.remove_user(test_id)
+    except:
+        pass
+
     await DatabaseManager.add_user(
         user_id=test_id,
         username=test_username,
