@@ -9,33 +9,33 @@ from bot.tests.settings import settings as s
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestReportIssueHandler(BaseTest):
 
-    
+    @pytest.mark.asyncio
     async def test_report_with_valid_message(self):
         message = 'To i to nie działa'
         await self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
 
-    
+    @pytest.mark.asyncio
     async def test_report_with_empty_message(self):
         command = '/report'
         await self.expect_command_result_contains(command, [await self.get_response(RK.NO_REPORT_CONTENT)])
 
-    
+    @pytest.mark.asyncio
     async def test_report_with_special_characters_in_message(self):
         message = 'To się nie działa @#$%^&*()!'
         await self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
 
 
-    
+    @pytest.mark.asyncio
     async def test_report_with_alias_command(self):
         message = 'Alias działa poprawnie'
         await self.expect_command_result_contains(f'/r {message}', [await self.get_response(RK.REPORT_RECEIVED)])
 
-    
+    @pytest.mark.asyncio
     async def test_report_with_multiple_spaces(self):
         message = '   To się nie działa   '
         await self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
 
-    
+    @pytest.mark.asyncio
     async def test_report_logs(self):
         message = 'To i to nie działa'
 

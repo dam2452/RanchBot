@@ -8,6 +8,7 @@ from bot.tests.settings import settings as s
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListWhitelistCommand(BaseTest):
+    @pytest.mark.asyncio
     async def test_list_whitelist_with_users(self):
         user1 = {
             "user_id": 123456,

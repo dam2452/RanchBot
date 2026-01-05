@@ -11,7 +11,7 @@ from bot.tests.base_test import BaseTest
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListModeratorsCommand(BaseTest):
-
+    @pytest.mark.asyncio
     async def test_list_moderators_with_moderators(self):
         moderators = [
             {

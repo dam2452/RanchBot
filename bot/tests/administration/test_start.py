@@ -7,11 +7,11 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestStartHandler(BaseTest):
 
-    
+    @pytest.mark.asyncio
     async def test_start_base_command(self):
         await self.expect_command_result_contains('/start', [await self.remove_n_lines(await self.get_response(RK.BASIC_MESSAGE),5)])
 
-    
+    @pytest.mark.asyncio
     async def test_start_invalid_command(self):
         await self.expect_command_result_contains(
             '/start', [await self.remove_n_lines(await self.get_response(RK.INVALID_COMMAND_MESSAGE),5)],

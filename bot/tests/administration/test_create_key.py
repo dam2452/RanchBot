@@ -7,7 +7,7 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestCreateKeyHandler(BaseTest):
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_valid(self):
         key_name = "tajny_klucz"
         days = 30
@@ -17,7 +17,7 @@ class TestCreateKeyHandler(BaseTest):
             [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_zero_days(self):
         key_name = "klucz_na_zero_dni"
         days = 0
@@ -27,7 +27,7 @@ class TestCreateKeyHandler(BaseTest):
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_negative_days(self):
         key_name = "klucz_na_ujemne_dni"
         days = -30
@@ -38,7 +38,7 @@ class TestCreateKeyHandler(BaseTest):
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_invalid_days_format(self):
         invalid_days = "trzydzieści"
         key_name = "klucz_tekstowy_dni"
@@ -48,7 +48,7 @@ class TestCreateKeyHandler(BaseTest):
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_empty_note(self):
         days = 30
 
@@ -57,7 +57,7 @@ class TestCreateKeyHandler(BaseTest):
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_special_characters_in_note(self):
         key_name = "specjalny@klucz#!"
         days = 30
@@ -67,7 +67,7 @@ class TestCreateKeyHandler(BaseTest):
             [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_add_key_duplicate(self):
         key_name = "duplikat_klucza"
         days = 30

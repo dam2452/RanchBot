@@ -7,7 +7,7 @@ from bot.tests.base_test import BaseTest
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestRemoveSubscriptionHandler(BaseTest):
 
-    
+    @pytest.mark.asyncio
     async def test_remove_existing_subscription(self):
         user_id = 2015344951
         await self.get_response(
@@ -22,7 +22,7 @@ class TestRemoveSubscriptionHandler(BaseTest):
             [await self.get_response(RK.SUBSCRIPTION_REMOVED, [str(user_id)])],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_remove_nonexistent_subscription(self):
         user_id = 987654321
         await self.expect_command_result_contains(
@@ -30,14 +30,14 @@ class TestRemoveSubscriptionHandler(BaseTest):
             [await self.get_response(RK.SUBSCRIPTION_REMOVED, [str(user_id)])],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_remove_subscription_invalid_user_id_format(self):
         await self.expect_command_result_contains(
             '/removesubscription user123',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
         )
 
-    
+    @pytest.mark.asyncio
     async def test_remove_subscription_twice(self):
         user_id = 2015344951
         await self.get_response(

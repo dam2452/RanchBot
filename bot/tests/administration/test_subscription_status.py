@@ -12,7 +12,7 @@ from bot.tests.settings import settings as s
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestSubscriptionStatusHandler(BaseTest):
-
+    @pytest.mark.asyncio
     async def test_subscription_with_active_subscription(self):
         days = 30
         end_date = date.today() + timedelta(days=days)
@@ -26,6 +26,7 @@ class TestSubscriptionStatusHandler(BaseTest):
         await self.expect_command_result_contains('/subskrypcja', [expected_response])
         self.send_command(f'/removesubscription {s.DEFAULT_ADMIN}')
 
+    @pytest.mark.asyncio
     async def test_subscription_without_subscription(self):
         await self.add_test_admin_user()
         self.send_command(f'/removesubscription {s.DEFAULT_ADMIN}')
@@ -33,11 +34,13 @@ class TestSubscriptionStatusHandler(BaseTest):
             '/subskrypcja', [await self.get_response(RK.NO_SUBSCRIPTION)],
         )
 
+    @pytest.mark.asyncio
     async def test_subscription_with_expired_subscription(self):
         await self.expect_command_result_contains(
             '/subskrypcja', [await self.get_response(RK.NO_SUBSCRIPTION)],
         )
 
+    @pytest.mark.asyncio
     async def test_subscription_long_duration(self):
         await self.add_test_admin_user()
         long_duration = 365 * 2
@@ -51,6 +54,7 @@ class TestSubscriptionStatusHandler(BaseTest):
 
         await self.expect_command_result_contains('/subskrypcja', [expected_response])
 
+    @pytest.mark.asyncio
     async def test_subscription_invalid_user(self):
         invalid_user_id = 99999
         response = self.send_command(f'/subskrypcja {invalid_user_id}')
