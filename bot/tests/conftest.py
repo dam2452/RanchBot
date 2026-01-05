@@ -31,7 +31,6 @@ async def db_pool():
 
 @pytest.fixture(scope="class")
 def test_client():
-    """Create FastAPI TestClient for testing REST API."""
     with TestClient(app) as client:
         logger.info("TestClient started for REST API testing")
         yield client
@@ -40,8 +39,9 @@ def test_client():
 @pytest.fixture(scope="session")
 async def test_user():
     test_username = "test_api_user"
+    test_id = 99999
     await DatabaseManager.add_user(
-        user_id=secrets.randbits(32),
+        user_id=test_id,
         username=test_username,
         password=s.ADMIN_PASSWORD.get_secret_value(),
         full_name="Test API User"
@@ -50,7 +50,7 @@ async def test_user():
         "username": test_username,
         "password": s.ADMIN_PASSWORD.get_secret_value()
     }
-    await DatabaseManager.remove_user_by_username(test_username)
+    await DatabaseManager.remove_user(test_id)
 
 @pytest.fixture(scope="class")
 def auth_token(test_client, test_user):
@@ -64,21 +64,6 @@ def auth_token(test_client, test_user):
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     token_data = login_response.json()
     logger.info(f"Authenticated as {test_user['username']}")
-    return token_data["access_token"]
-
-@pytest.fixture(scope="class")
-def auth_token(test_client):
-    """Authenticate and return access token for the default admin user."""
-    login_response = test_client.post(
-        "/api/v1/auth/login",
-        json={
-            "username": s.ADMIN_USERNAME,
-            "password": s.ADMIN_PASSWORD.get_secret_value(),
-        },
-    )
-    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
-    token_data = login_response.json()
-    logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
     return token_data["access_token"]
 
 @pytest.fixture(autouse=True)
