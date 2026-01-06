@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     REST_API_HOST: str = Field("0.0.0.0")
     REST_API_PORT: int = Field(8000)
     REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
+    DISABLE_RATE_LIMITING: bool = Field(False)
 
     @model_validator(mode='after')
     def check_conditional_settings(self) -> 'Settings':

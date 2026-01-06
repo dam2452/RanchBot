@@ -6,7 +6,6 @@ import pytest
 import pytest_asyncio
 
 from bot.database.database_manager import DatabaseManager
-from bot.platforms.rest_runner import app
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -54,36 +53,23 @@ async def db_pool():
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
     """Create AsyncClient for testing REST API."""
-    from contextlib import asynccontextmanager
-    from fastapi import FastAPI
-    from bot.platforms import rest_runner
-    from unittest.mock import MagicMock
+    import sys
+    from bot.settings import settings as main_settings
 
-    original_limiter = rest_runner.limiter
-    mock_limiter = MagicMock()
-    mock_limiter.limit = lambda *args, **kwargs: lambda func: func
-    rest_runner.limiter = mock_limiter
+    if 'bot.platforms.rest_runner' in sys.modules:
+        del sys.modules['bot.platforms.rest_runner']
 
-    @asynccontextmanager
-    async def empty_lifespan(app_instance: FastAPI):
-        app_instance.state.limiter = mock_limiter
-        logger.info("Test lifespan: DB already initialized by db_pool fixture")
-        yield
-        logger.info("Test lifespan: cleanup")
+    original_flag = main_settings.DISABLE_RATE_LIMITING
+    main_settings.DISABLE_RATE_LIMITING = True
 
-    test_app = FastAPI(
-        title="Ranczo Bot API v1 (Test)",
-        lifespan=empty_lifespan,
-    )
-    for route in app.routes:
-        test_app.routes.append(route)
+    from bot.platforms.rest_runner import app
 
-    async with httpx.AsyncClient(app=test_app, base_url="http://test") as client:
+    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
         logger.info("AsyncClient started for REST API testing")
         yield client
         logger.info("AsyncClient closed")
 
-    rest_runner.limiter = original_limiter
+    main_settings.DISABLE_RATE_LIMITING = original_flag
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_user(db_pool):

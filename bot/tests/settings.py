@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     REST_API_HOST: str = Field("127.0.0.1")
     REST_API_PORT: int = Field(8000)
+    DISABLE_RATE_LIMITING: bool = Field(True)
 
     TESTER_USERNAME: str = Field("dam2452")
 

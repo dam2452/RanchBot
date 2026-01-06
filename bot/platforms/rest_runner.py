@@ -55,7 +55,17 @@ logger = logging.getLogger(__name__)
 
 command_handlers = {}
 COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
-limiter = Limiter(key_func=get_remote_address)
+
+def _noop_decorator(*args, **kwargs):
+    def decorator(func):
+        return func
+    return decorator
+
+if s.DISABLE_RATE_LIMITING:
+    limiter = type('MockLimiter', (), {'limit': _noop_decorator})()
+else:
+    limiter = Limiter(key_func=get_remote_address)
+
 security = HTTPBearer()
 
 class LoginRequest(BaseModel):
@@ -267,7 +277,8 @@ app = FastAPI(
     redoc_url="/api/v1/redoc",
 )
 
-app.add_middleware(SlowAPIMiddleware)
+if not s.DISABLE_RATE_LIMITING:
+    app.add_middleware(SlowAPIMiddleware)
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
