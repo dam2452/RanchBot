@@ -26,13 +26,10 @@ class TestAdminHelpHandler(BaseTest):
             headers = {
                 "Authorization": f"Bearer {token}"
             }
-            start_payload = {
-                "args": ["lista"]
-            }
 
             response_start = session.post(
-                f"{BASE_URL}/start",
-                json=start_payload,
+                f"{BASE_URL}/admin",
+                json={},
                 headers=headers
             )
             response_start.raise_for_status()
