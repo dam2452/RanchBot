@@ -107,4 +107,15 @@ async def auth_token(test_client, prepare_database):
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     token_data = login_response.json()
     logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
+
+    resp = await test_client.post(
+        "admin",
+        json={"args": [], "reply_json": True},
+        headers={"Authorization": f"Bearer {token_data['access_token']}"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.text is not None
+    logger.info("Test admin call succeeded")
+
     return token_data["access_token"]
