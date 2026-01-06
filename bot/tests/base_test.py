@@ -11,8 +11,8 @@ from typing import (
     Union,
 )
 
+import httpx
 import pytest_asyncio
-from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
 from bot.responses.bot_message_handler_responses import get_response
@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class BaseTest:
-    client: TestClient
+    client: httpx.AsyncClient
     token: str
 
     @pytest_asyncio.fixture(autouse=True)
@@ -54,6 +54,7 @@ class BaseTest:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
     async def send_command(self, command_text: str, args: Optional[List[str]] = None):
+        """Send a command to the REST API and return the response."""
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -62,10 +63,10 @@ class BaseTest:
                 args = [parts[1]]
 
         response = await self.client.post(
-                f"/api/v1/{command_name}",
-                json={"args": args or [], "reply_json": True},
-                headers={"Authorization": f"Bearer {self.token}"},
-            )
+            f"/api/v1/{command_name}",
+            json={"args": args or [], "reply_json": True},
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
         logger.info(f"REST API response for /{command_name}: {response.status_code}")
         return response
 
@@ -113,7 +114,6 @@ class BaseTest:
                'image' in response.headers.get('content-type', ''), \
                "Response is not a file"
 
-        # Save the received file
         received_file_path = Path(f'{received_filename}{expected_extension or ""}')
         received_file_path.write_bytes(response.content)
 
@@ -141,6 +141,7 @@ class BaseTest:
         return "\n".join(lines[n:])
 
     async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
+        """Send command and verify response contains expected fragments."""
         response = await self.send_command(command, args=args)
         resolved_expected = []
         for fragment in expected:

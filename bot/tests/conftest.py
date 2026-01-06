@@ -1,9 +1,9 @@
 import asyncio
 import logging
 
+import httpx
 import pytest
 import pytest_asyncio
-from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
 from bot.platforms.rest_runner import app
@@ -33,11 +33,12 @@ async def db_pool(event_loop):
         await DatabaseManager.pool.close()
 
 @pytest.fixture(scope="class", autouse=True)
-def test_client():
-    with TestClient(app) as client:
-        logger.info("TestClient started for REST API testing")
+async def test_client():
+    """Create AsyncClient for testing REST API."""
+    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        logger.info("AsyncClient started for REST API testing")
         yield client
-        logger.info("TestClient closed")
+        logger.info("AsyncClient closed")
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def test_user(event_loop, db_pool):
@@ -63,7 +64,8 @@ async def test_user(event_loop, db_pool):
 
 @pytest_asyncio.fixture(scope="class", autouse=True)
 async def auth_token(test_client, test_user):
-    login_response = test_client.post(
+    """Authenticate and return access token for the test user."""
+    login_response = await test_client.post(
         "/api/v1/auth/login",
         json={
             "username": test_user["username"],
