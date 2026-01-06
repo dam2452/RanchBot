@@ -58,10 +58,14 @@ async def test_client(db_pool):
     from slowapi.util import get_remote_address
     from contextlib import asynccontextmanager
     from fastapi import FastAPI
+    from bot.platforms import rest_runner
+
+    original_limiter = rest_runner.limiter
+    rest_runner.limiter = Limiter(key_func=get_remote_address, enabled=False)
 
     @asynccontextmanager
     async def empty_lifespan(app_instance: FastAPI):
-        app_instance.state.limiter = Limiter(key_func=get_remote_address)
+        app_instance.state.limiter = rest_runner.limiter
         logger.info("Test lifespan: DB already initialized by db_pool fixture")
         yield
         logger.info("Test lifespan: cleanup")
@@ -77,6 +81,8 @@ async def test_client(db_pool):
         logger.info("AsyncClient started for REST API testing")
         yield client
         logger.info("AsyncClient closed")
+
+    rest_runner.limiter = original_limiter
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_user(db_pool):
