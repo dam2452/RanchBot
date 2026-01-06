@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
@@ -14,14 +15,18 @@ logger = logging.getLogger(__name__)
 def event_loop_policy():
     return asyncio.get_event_loop_policy()
 
-@pytest.fixture(scope="session")
-def event_loop(event_loop_policy):
+@pytest_asyncio.fixture(scope="session")
+async def event_loop(event_loop_policy):
     loop = event_loop_policy.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def db_pool(event_loop):
+    if DatabaseManager.pool is not None:
+        await DatabaseManager.pool.close()
+
     await DatabaseManager.init_pool(
         host=s.TEST_POSTGRES_HOST,
         port=s.TEST_POSTGRES_PORT,
@@ -29,10 +34,10 @@ async def db_pool(event_loop):
         user=s.TEST_POSTGRES_USER,
         password=s.TEST_POSTGRES_PASSWORD.get_secret_value(),
     )
-    DatabaseManager.set_event_loop(event_loop)
     await DatabaseManager.init_db()
     yield
-    await DatabaseManager.pool.close()
+    if DatabaseManager.pool is not None:
+        await DatabaseManager.pool.close()
 
 @pytest.fixture(scope="class", autouse=True)
 def test_client():
@@ -41,7 +46,7 @@ def test_client():
         yield client
         logger.info("TestClient closed")
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def test_user(event_loop, db_pool):
     test_username = "test_api_user"
     test_id = 99999
@@ -63,7 +68,7 @@ async def test_user(event_loop, db_pool):
     }
     await DatabaseManager.remove_user(test_id)
 
-@pytest.fixture(scope="class", autouse=True)
+@pytest_asyncio.fixture(scope="class", autouse=True)
 async def auth_token(test_client, test_user):
     login_response = test_client.post(
         "/api/v1/auth/login",
@@ -77,7 +82,7 @@ async def auth_token(test_client, test_user):
     logger.info(f"Authenticated as {test_user['username']}")
     return token_data["access_token"]
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def prepare_database(db_pool):
     tables_to_clear = [
         "user_profiles",

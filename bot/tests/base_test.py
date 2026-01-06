@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 
 from bot.database.database_manager import DatabaseManager
@@ -27,7 +27,7 @@ class BaseTest:
     client: TestClient
     token: str
 
-    @pytest.fixture(autouse=True)
+    @pytest_asyncio.fixture(autouse=True)
     async def setup_client(self, event_loop, test_client, auth_token):
         self.client = test_client
         self.token = auth_token
