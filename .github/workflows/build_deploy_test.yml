@@ -64,7 +64,7 @@ jobs:
           # shellcheck disable=SC2046
           export $(grep -v '^#' .env | xargs)
           python3 -m pip install -r requirements.txt
-          python3 -m pytest bot/tests/amdinistration/test_admin_help.py
+          python3 -m pytest bot/tests/administration/test_admin_help.py
 
   build_production:
     needs: build_and_test_staging
