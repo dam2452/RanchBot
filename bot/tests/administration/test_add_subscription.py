@@ -34,6 +34,7 @@ class TestAddSubscriptionHandler(BaseTest):
             args=[str(user_id), str(days)]
         )
 
+
     @pytest.mark.asyncio
     async def test_add_subscription_existing_admin(self):
         days = 60
