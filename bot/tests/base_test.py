@@ -63,11 +63,13 @@ class BaseTest:
                 args = [parts[1]]
 
         response = await self.client.post(
-            f"/api/v1/{command_name}",
+            command_name,
             json={"args": args or [], "reply_json": True},
             headers={"Authorization": f"Bearer {self.token}"},
         )
         logger.info(f"REST API response for /{command_name}: {response.status_code}")
+        logger.info({"args": args or [], "reply_json": True})
+        logger.info({"Authorization": f"Bearer {self.token}"})
         return response
 
 
