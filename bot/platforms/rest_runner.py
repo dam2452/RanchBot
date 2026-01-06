@@ -56,15 +56,10 @@ logger = logging.getLogger(__name__)
 command_handlers = {}
 COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
 
-def _noop_decorator(*args, **kwargs):
-    def decorator(func):
-        return func
-    return decorator
-
-if s.DISABLE_RATE_LIMITING:
-    limiter = type('MockLimiter', (), {'limit': _noop_decorator})()
-else:
-    limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=not s.DISABLE_RATE_LIMITING
+)
 
 security = HTTPBearer()
 
@@ -250,6 +245,8 @@ async def universal_handler(
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
+    logger.info(f"🚀 API Startup. Rate Limiting Disabled: {s.DISABLE_RATE_LIMITING}")
+
     app_instance.state.limiter = limiter
     app_instance.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -277,8 +274,7 @@ app = FastAPI(
     redoc_url="/api/v1/redoc",
 )
 
-if not s.DISABLE_RATE_LIMITING:
-    app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(SlowAPIMiddleware)
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
