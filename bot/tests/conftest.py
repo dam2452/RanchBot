@@ -40,7 +40,7 @@ async def db_pool(event_loop):
         await DatabaseManager.pool.close()
 
 @pytest_asyncio.fixture(scope="class", autouse=True)
-async def test_client():
+async def test_client(db_pool):
     """Create AsyncClient for testing REST API."""
     from slowapi import Limiter
     from slowapi.util import get_remote_address
@@ -91,7 +91,7 @@ async def auth_token(test_client, test_user):
     return token_data["access_token"]
 
 @pytest_asyncio.fixture(autouse=True)
-async def prepare_database(db_pool):
+async def prepare_database(db_pool, test_user):
     tables_to_clear = [
         "user_profiles",
         "user_roles",
@@ -113,3 +113,13 @@ async def prepare_database(db_pool):
         full_name=s.ADMIN_FULL_NAME,
     )
     logger.info(f"Default admin with user_id {s.DEFAULT_ADMIN} has been set.")
+
+    test_username = "test_api_user"
+    test_id = 99999
+    await DatabaseManager.add_user(
+        user_id=test_id,
+        username=test_username,
+        full_name="Test API User"
+    )
+    await DatabaseManager.add_user_password(test_id, test_user["password"])
+    logger.info(f"Test user {test_username} has been restored after database cleanup.")
