@@ -145,8 +145,6 @@ class BaseTest:
         response = await self.send_command(command, args=args)
         resolved_expected = []
         for fragment in expected:
-            if asyncio.iscoroutine(fragment):
-                fragment = await fragment
             resolved_expected.append(fragment)
         await self.assert_response_contains(response, resolved_expected)
 

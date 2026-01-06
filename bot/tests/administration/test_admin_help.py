@@ -9,14 +9,14 @@ class TestAdminHelpHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_admin_help(self):
         await self.expect_command_result_contains(
-            '/admin',
+            'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
         )
 
     @pytest.mark.asyncio
     async def test_admin_shortcuts(self):
         await self.expect_command_result_contains(
-            '/admin',
+            'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_SHORTCUTS))],
             args=['skroty']
         )
@@ -24,7 +24,7 @@ class TestAdminHelpHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_admin_invalid_command(self):
         await self.expect_command_result_contains(
-            '/admin',
+            'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
             args=['nieistniejace_polecenie']
         )
