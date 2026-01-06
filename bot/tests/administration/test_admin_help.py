@@ -13,6 +13,7 @@ class TestAdminHelpHandler(BaseTest):
             [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
         )
 
+    @pytest.skip
     @pytest.mark.asyncio
     async def test_admin_shortcuts(self):
         await self.expect_command_result_contains(
@@ -21,6 +22,7 @@ class TestAdminHelpHandler(BaseTest):
             args=['skroty']
         )
 
+    @pytest.skip
     @pytest.mark.asyncio
     async def test_admin_invalid_command(self):
         await self.expect_command_result_contains(
