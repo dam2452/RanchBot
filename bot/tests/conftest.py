@@ -54,18 +54,19 @@ async def db_pool():
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
     """Create AsyncClient for testing REST API."""
-    from slowapi import Limiter
-    from slowapi.util import get_remote_address
     from contextlib import asynccontextmanager
     from fastapi import FastAPI
     from bot.platforms import rest_runner
+    from unittest.mock import MagicMock
 
     original_limiter = rest_runner.limiter
-    rest_runner.limiter = Limiter(key_func=get_remote_address, enabled=False)
+    mock_limiter = MagicMock()
+    mock_limiter.limit = lambda *args, **kwargs: lambda func: func
+    rest_runner.limiter = mock_limiter
 
     @asynccontextmanager
     async def empty_lifespan(app_instance: FastAPI):
-        app_instance.state.limiter = rest_runner.limiter
+        app_instance.state.limiter = mock_limiter
         logger.info("Test lifespan: DB already initialized by db_pool fixture")
         yield
         logger.info("Test lifespan: cleanup")
@@ -74,8 +75,8 @@ async def test_client(db_pool):
         title="Ranczo Bot API v1 (Test)",
         lifespan=empty_lifespan,
     )
-    test_app.add_middleware = app.add_middleware
-    test_app.include_router(app.router)
+    for route in app.routes:
+        test_app.routes.append(route)
 
     async with httpx.AsyncClient(app=test_app, base_url="http://test") as client:
         logger.info("AsyncClient started for REST API testing")
