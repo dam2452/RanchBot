@@ -31,7 +31,7 @@ class TestAddSubscriptionHandler(BaseTest):
         await self.expect_command_result_contains(
             'addsubscription',
             [await self.get_response(RK.SUBSCRIPTION_EXTENDED, [str(user_id), str(expected_end_date)])],
-            args=[str(user_id), str(days)]
+            args=[str(user_id) + " " + str(days)]
         )
 
 
@@ -43,7 +43,7 @@ class TestAddSubscriptionHandler(BaseTest):
         await self.expect_command_result_contains(
             'addsubscription',
             [await self.get_response(RK.SUBSCRIPTION_EXTENDED, [str(s.DEFAULT_ADMIN), str(expected_end_date)])],
-            args=[str(s.DEFAULT_ADMIN), str(days)]
+            args=[str(s.DEFAULT_ADMIN) + " " + str(days)]
         )
 
 
@@ -56,7 +56,7 @@ class TestAddSubscriptionHandler(BaseTest):
         await self.expect_command_result_contains(
             'addsubscription',
             [await self.get_response(RK.SUBSCRIPTION_ERROR)],
-            args=[str(user_id), str(days)]
+            args=[str(user_id) + " " + str(days)]
         )
 
     
@@ -68,7 +68,7 @@ class TestAddSubscriptionHandler(BaseTest):
         await self.expect_command_result_contains(
             'addsubscription',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
-            args=[str(user_id), str(invalid_days)],
+            args=[str(user_id) + " " + str(invalid_days)],
         )
 
     
@@ -80,7 +80,7 @@ class TestAddSubscriptionHandler(BaseTest):
         await self.expect_command_result_contains(
             'addsubscription',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
-            args=[str(user_id_invalid), str(days)],
+            args=[str(user_id_invalid) + " " + str(days)],
         )
 
     
@@ -92,5 +92,5 @@ class TestAddSubscriptionHandler(BaseTest):
         await self.expect_command_result_contains(
             'addsubscription',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
-            args=[str(user_id), str(negative_days)],
+            args=[str(user_id) + " " + str(negative_days)],
         )
