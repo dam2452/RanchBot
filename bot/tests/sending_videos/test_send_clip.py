@@ -13,7 +13,7 @@ class TestSendClipHandler(BaseTest):
         self.send_command('/klip geniusz')
         self.send_command(f'/zapisz {clip_name}')
 
-        response = self.send_command('/wyslij 1',timeout=60)
+        response = self.send_command('/wyslij 1')
         self.assert_command_result_file_matches(
             response, 'send_clip_geniusz_klip1.mp4',
         )

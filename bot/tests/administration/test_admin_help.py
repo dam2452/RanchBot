@@ -18,7 +18,7 @@ class TestAdminHelpHandler(BaseTest):
         self.expect_command_result_contains(
             'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_SHORTCUTS))],
-            args=['skroty']
+            args=['skroty'],
         )
 
     @pytest.mark.asyncio
@@ -26,5 +26,5 @@ class TestAdminHelpHandler(BaseTest):
         self.expect_command_result_contains(
             'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
-            args=['nieistniejace_polecenie']
+            args=['nieistniejace_polecenie'],
         )

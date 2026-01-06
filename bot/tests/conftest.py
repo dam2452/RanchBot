@@ -1,12 +1,14 @@
 import asyncio
 import logging
+from urllib.parse import urljoin
 
-import requests
+import asyncpg
 import pytest_asyncio
+import requests
 
 from bot.database.database_manager import DatabaseManager
+from bot.settings import settings as main_settings
 from bot.tests.settings import settings as s
-from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()
@@ -16,14 +18,12 @@ async def db_pool():
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
 
-    import asyncpg
-    from bot.settings import settings as main_settings
+
 
     async def init_connection(conn):
         await conn.execute("SET statement_timeout = '120s'")
 
-    async def setup_connection(conn):
-        """Called when connection is acquired from pool"""
+    async def setup_connection(_):
         pass
 
     config = {
@@ -61,14 +61,14 @@ class APIClient(requests.Session):
         return super().request(method, full_url, *args, **kwargs)
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def test_client(db_pool):
+async def test_client(db_pool):  # pylint: disable=redefined-outer-name,unused-argument
     base_url = f"http://{s.REST_API_HOST}:{s.REST_API_PORT}/api/v1/"
 
     with APIClient(base_url) as client:
         yield client
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def prepare_database(db_pool):
+async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unused-argument
     tables_to_clear = [
         "user_profiles",
         "user_roles",
@@ -88,14 +88,14 @@ async def prepare_database(db_pool):
         user_id=s.DEFAULT_ADMIN,
         username=s.ADMIN_USERNAME,
         full_name=s.ADMIN_FULL_NAME,
-        password=s.ADMIN_PASSWORD.get_secret_value()
+        password=s.ADMIN_PASSWORD.get_secret_value(),
     )
     logger.info(f"Default admin with user_id {s.DEFAULT_ADMIN} has been set.")
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.2)
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def auth_token(test_client, prepare_database):
+async def auth_token(test_client, prepare_database):  # pylint: disable=redefined-outer-name,unused-argument
     login_response = test_client.post(
         "auth/login",
         json={

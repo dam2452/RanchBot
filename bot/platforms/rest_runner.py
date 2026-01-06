@@ -58,7 +58,7 @@ COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
 
 limiter = Limiter(
     key_func=get_remote_address,
-    enabled=not s.DISABLE_RATE_LIMITING
+    enabled=not s.DISABLE_RATE_LIMITING,
 )
 
 security = HTTPBearer()

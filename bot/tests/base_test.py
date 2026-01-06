@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -11,14 +12,13 @@ from typing import (
     Union,
 )
 
-import requests
 import pytest_asyncio
+import requests
 
 from bot.database.database_manager import DatabaseManager
 from bot.responses.bot_message_handler_responses import get_response
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.tests.settings import settings as s
-import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -85,8 +85,11 @@ class BaseTest:
 
     @staticmethod
     def _extract_text_from_response(response) -> str:
+        class RequestFailedException(Exception):
+            pass
+
         if response.status_code != 200:
-            raise Exception(f"Error: {response.status_code}: {response.text}")
+            raise RequestFailedException(f"Error: {response.status_code}: {response.text}")
 
         try:
             data = response.json()
@@ -97,8 +100,8 @@ class BaseTest:
                     return data["message"]
                 return json.dumps(data)
             return str(data)
-        except Exception:
-            raise Exception(response.text)
+        except Exception as e:
+            raise RequestFailedException(response.text) from e
 
     def assert_command_result_file_matches(
             self,
@@ -133,9 +136,7 @@ class BaseTest:
         logger.info(f"File test passed for: {expected_filename}")
 
     @staticmethod
-    async def remove_n_lines(text: str, n: int) -> str:
-        if asyncio.iscoroutine(text):
-            text = await text
+    def remove_n_lines(text: str, n: int) -> str:
         lines = text.splitlines()
         return "\n".join(lines[n:])
 

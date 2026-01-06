@@ -12,9 +12,9 @@ from typing import (
     Optional,
     Union,
 )
-import bcrypt
 
 import asyncpg
+import bcrypt
 
 from bot.database.models import (
     ClipType,
