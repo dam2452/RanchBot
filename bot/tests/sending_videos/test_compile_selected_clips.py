@@ -21,7 +21,7 @@ class TestCompileSelectedClipsHandler(BaseTest):
             await self.send_command(f'/zapisz {clip["name"]}')
 
         compile_params = "1 2 3"
-        response = await self.send_command(f'/polaczklipy {compile_params}', timeout=60)
+        response = await self.send_command(f'/polaczklipy {compile_params}')
         self.assert_command_result_file_matches(response, f'merged_clip_{compile_params}.mp4')
 
     @pytest.mark.asyncio

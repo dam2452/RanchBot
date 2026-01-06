@@ -50,10 +50,9 @@ class TestManualClipHandler(BaseTest):
         end_time = "41:00.00"
 
         expected_file = f"cut_{episode}_{start_time}_{end_time}.mp4"
-        timeout = 30
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command, timeout=timeout)
+        response = await self.send_command(command)
         self.assert_command_result_file_matches(response, expected_file)
 
     @pytest.mark.asyncio
@@ -76,8 +75,7 @@ class TestManualClipHandler(BaseTest):
         end_time = "45:00.00"
 
         expected_message = await self.get_response(RK.LIMIT_EXCEEDED_CLIP_DURATION)
-        timeout = 30
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command, timeout=timeout)
+        response = await self.send_command(command)
         await self.assert_response_contains(response, [expected_message])

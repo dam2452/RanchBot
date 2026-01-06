@@ -25,8 +25,8 @@ class TestMyClipsHandler(BaseTest):
 
     @pytest.mark.asyncio
     async def test_myclips_with_compilation(self):
-        await self.send_command('/sz geniusz', timeout=30)
-        await self.send_command('/kom 1-3', timeout=30)
+        await self.send_command('/sz geniusz')
+        await self.send_command('/kom 1-3')
         await self.send_command('/zapisz klip_kompilacja')
 
         clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
