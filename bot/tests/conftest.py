@@ -2,8 +2,8 @@ import asyncio
 import logging
 
 import httpx
-import pytest
 import pytest_asyncio
+from bot.platforms.rest_runner import app
 
 from bot.database.database_manager import DatabaseManager
 from bot.tests.settings import settings as s
@@ -64,7 +64,7 @@ async def test_client(db_pool):
 
     from bot.platforms.rest_runner import app
 
-    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+    async with httpx.AsyncClient(app=app) as client:
         logger.info("AsyncClient started for REST API testing")
         yield client
         logger.info("AsyncClient closed")
