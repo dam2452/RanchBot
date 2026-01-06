@@ -11,7 +11,7 @@ from typing import (
     Union,
 )
 
-import httpx
+import requests
 import pytest_asyncio
 
 from bot.database.database_manager import DatabaseManager
@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class BaseTest:
-    client: httpx.AsyncClient
+    client: requests.Session
     token: str
 
     @pytest_asyncio.fixture(autouse=True)

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-import httpx
+import requests
 import pytest_asyncio
 
 from bot.database.database_manager import DatabaseManager
@@ -49,11 +49,17 @@ async def db_pool():
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
 
+
+class APIClient(requests.Session):
+    def __init__(self, base_url: str):
+        super().__init__()
+        self.base_url = base_url if base_url.endswith("/") else f"{base_url}/"
+
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
     base_url = f"http://{s.REST_API_HOST}:{s.REST_API_PORT}/api/v1/"
 
-    async with httpx.AsyncClient(base_url=base_url) as client:
+    with APIClient(base_url) as client:
         yield client
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
@@ -85,7 +91,7 @@ async def prepare_database(db_pool):
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def auth_token(test_client, prepare_database):
-    login_response = await test_client.post(
+    login_response = test_client.post(
         "auth/login",
         json={
             "username": s.ADMIN_USERNAME,
@@ -96,7 +102,7 @@ async def auth_token(test_client, prepare_database):
     token_data = login_response.json()
     logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
 
-    resp = await test_client.post(
+    resp = test_client.post(
         "admin",
         json={"args": [], "reply_json": True},
         headers={"Authorization": f"Bearer {token_data['access_token']}"},
