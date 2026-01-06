@@ -29,8 +29,9 @@ class TestAddSubscriptionHandler(BaseTest):
         expected_end_date = date.today() + timedelta(days=days)
 
         await self.expect_command_result_contains(
-            f'/addsubscription {user_id} {days}',
+            'addsubscription',
             [await self.get_response(RK.SUBSCRIPTION_EXTENDED, [str(user_id), str(expected_end_date)])],
+            args=[str(user_id), str(days)]
         )
 
     @pytest.mark.asyncio
@@ -39,8 +40,9 @@ class TestAddSubscriptionHandler(BaseTest):
         expected_end_date = date.today() + timedelta(days=days)
 
         await self.expect_command_result_contains(
-            f'/addsubscription {s.DEFAULT_ADMIN} {days}',
+            'addsubscription',
             [await self.get_response(RK.SUBSCRIPTION_EXTENDED, [str(s.DEFAULT_ADMIN), str(expected_end_date)])],
+            args=[str(s.DEFAULT_ADMIN), str(days)]
         )
 
 
@@ -51,8 +53,9 @@ class TestAddSubscriptionHandler(BaseTest):
         days = 30
 
         await self.expect_command_result_contains(
-            f'/addsubscription {user_id} {days}',
+            'addsubscription',
             [await self.get_response(RK.SUBSCRIPTION_ERROR)],
+            args=[str(user_id), str(days)]
         )
 
     
@@ -62,8 +65,9 @@ class TestAddSubscriptionHandler(BaseTest):
         invalid_days = "trzydzieści"
 
         await self.expect_command_result_contains(
-            f'/addsubscription {user_id} {invalid_days}',
+            'addsubscription',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
+            args=[str(user_id), str(invalid_days)],
         )
 
     
@@ -73,8 +77,9 @@ class TestAddSubscriptionHandler(BaseTest):
         days = 30
 
         await self.expect_command_result_contains(
-            f'/addsubscription {user_id_invalid} {days}',
+            'addsubscription',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
+            args=[str(user_id_invalid), str(days)],
         )
 
     
@@ -84,6 +89,7 @@ class TestAddSubscriptionHandler(BaseTest):
         negative_days = -30
 
         await self.expect_command_result_contains(
-            f'/addsubscription {user_id} {negative_days}',
+            'addsubscription',
             [await self.get_response(RK.NO_USER_ID_PROVIDED)],
+            args=[str(user_id), str(negative_days)],
         )
