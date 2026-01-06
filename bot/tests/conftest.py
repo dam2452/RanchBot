@@ -89,7 +89,7 @@ async def test_user(db_pool):
         "username": test_username,
         "password": s.ADMIN_PASSWORD.get_secret_value()
     }
-    await DatabaseManager.remove_user(test_id)
+    # await DatabaseManager.remove_user(test_id)
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def auth_token(test_client, test_user):
