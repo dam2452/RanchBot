@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 @pytest_asyncio.fixture(scope="session")
 async def event_loop():
     loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def db_pool(event_loop):
@@ -32,7 +34,7 @@ async def db_pool(event_loop):
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
 
-@pytest.fixture(scope="class", autouse=True)
+@pytest_asyncio.fixture(scope="class", autouse=True)
 async def test_client():
     """Create AsyncClient for testing REST API."""
     async with httpx.AsyncClient(app=app, base_url="http://test") as client:
