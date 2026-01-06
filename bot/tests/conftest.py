@@ -10,10 +10,13 @@ from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="session", autouse=True)
-def event_loop():
-    loop = asyncio.get_event_loop()
-    asyncio.set_event_loop(loop)
+@pytest.fixture(scope="session")
+def event_loop_policy():
+    return asyncio.get_event_loop_policy()
+
+@pytest.fixture(scope="session")
+def event_loop(event_loop_policy):
+    loop = event_loop_policy.new_event_loop()
     yield loop
     loop.close()
 
