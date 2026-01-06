@@ -68,7 +68,7 @@ async def test_client(db_pool):
 
     main_settings.DISABLE_RATE_LIMITING = original_flag
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def prepare_database(db_pool):
     tables_to_clear = [
         "user_profiles",
