@@ -52,7 +52,6 @@ async def db_pool():
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
-    """Create AsyncClient for testing REST API."""
     import sys
     from bot.settings import settings as main_settings
 
@@ -69,46 +68,8 @@ async def test_client(db_pool):
 
     main_settings.DISABLE_RATE_LIMITING = original_flag
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def test_user(db_pool):
-    test_username = "test_api_user"
-    test_id = 99999
-
-    try:
-        await DatabaseManager.remove_user(test_id)
-    except:
-        pass
-
-    await DatabaseManager.add_user(
-        user_id=test_id,
-        username=test_username,
-        full_name="Test API User"
-    )
-    await DatabaseManager.add_user_password(test_id, s.ADMIN_PASSWORD.get_secret_value())
-    await DatabaseManager.add_admin(test_id)
-    yield {
-        "username": test_username,
-        "password": s.ADMIN_PASSWORD.get_secret_value()
-    }
-    # await DatabaseManager.remove_user(test_id)
-
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def auth_token(test_client, test_user):
-    """Authenticate and return access token for the test user."""
-    login_response = await test_client.post(
-        "/api/v1/auth/login",
-        json={
-            "username": test_user["username"],
-            "password": test_user["password"],
-        },
-    )
-    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
-    token_data = login_response.json()
-    logger.info(f"Authenticated as {test_user['username']}")
-    return token_data["access_token"]
-
 @pytest_asyncio.fixture(autouse=True)
-async def prepare_database(db_pool, test_user):
+async def prepare_database(db_pool):
     tables_to_clear = [
         "user_profiles",
         "user_roles",
@@ -128,17 +89,22 @@ async def prepare_database(db_pool, test_user):
         user_id=s.DEFAULT_ADMIN,
         username=s.ADMIN_USERNAME,
         full_name=s.ADMIN_FULL_NAME,
+        password=s.ADMIN_PASSWORD.get_secret_value()
     )
     logger.info(f"Default admin with user_id {s.DEFAULT_ADMIN} has been set.")
+    await asyncio.sleep(1)
 
-    test_username = "test_api_user"
-    test_id = 99999
-    await DatabaseManager.add_user(
-        user_id=test_id,
-        username=test_username,
-        full_name="Test API User"
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def auth_token(test_client, prepare_database):
+    login_response = await test_client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": s.ADMIN_USERNAME,
+            "password": s.ADMIN_PASSWORD.get_secret_value(),
+        },
     )
-    await DatabaseManager.add_user_password(test_id, test_user["password"])
-    logger.info(f"Test user {test_username} has been restored after database cleanup.")
-
-    await asyncio.sleep(0.2)
+    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
+    token_data = login_response.json()
+    logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
+    return token_data["access_token"]

@@ -137,29 +137,6 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 )
 
     @staticmethod
-    async def add_user_password(user_id: int, password: str):
-        import asyncio
-        loop = asyncio.get_event_loop()
-
-        def hash_password_sync():
-            salt = bcrypt.gensalt()
-            return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-
-        hashed_password = await loop.run_in_executor(None, hash_password_sync)
-
-        async with DatabaseManager.get_db_connection() as conn:
-            async with conn.transaction():
-                await conn.execute(
-                    """
-                    INSERT INTO user_credentials (user_id, hashed_password)
-                    VALUES ($1, $2) ON CONFLICT (user_id) DO
-                    UPDATE SET hashed_password = EXCLUDED.hashed_password
-                    """,
-                    user_id, hashed_password,
-                )
-
-
-    @staticmethod
     async def update_user(
             user_id: int, username: Optional[str] = None, full_name: Optional[str] = None, note: Optional[str] = None,
             subscription_end: Optional[int] = None,
@@ -291,7 +268,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return result
 
     @staticmethod
-    async def set_default_admin(user_id: int, username: str, full_name: str) -> None:
+    async def set_default_admin(user_id: int, username: str, full_name: str, password: Optional[str] = None) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
@@ -307,6 +284,19 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     "ON CONFLICT (user_id) DO NOTHING",
                     user_id,
                 )
+
+                if password:
+                    salt = bcrypt.gensalt()
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+                    await conn.execute(
+                        """
+                        INSERT INTO user_credentials (user_id, hashed_password)
+                        VALUES ($1, $2)
+                        ON CONFLICT (user_id) DO UPDATE SET hashed_password = EXCLUDED.hashed_password
+                        """,
+                        user_id, hashed_password,
+                    )
 
     @staticmethod
     def _row_to_video_clip(row: asyncpg.Record) -> VideoClip:
