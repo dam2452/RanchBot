@@ -89,7 +89,7 @@ class BaseTest:
     @staticmethod
     def _extract_text_from_response(response) -> str:
         if response.status_code != 200:
-            raise Exception(f"Error: {response.status_code}")
+            raise Exception(f"Error: {response.status_code}: {response.text}")
 
         try:
             data = response.json()
