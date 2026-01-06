@@ -955,8 +955,3 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     note=row["note"],
                 )
             return None
-
-    @classmethod
-    def set_event_loop(cls, loop):
-        if hasattr(cls, 'pool') and cls.pool is not None:
-            cls.pool._loop = loop

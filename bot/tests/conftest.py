@@ -11,16 +11,9 @@ from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
 
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    return asyncio.get_event_loop_policy()
-
 @pytest_asyncio.fixture(scope="session")
-async def event_loop(event_loop_policy):
-    loop = event_loop_policy.new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
+async def event_loop():
+    loop = asyncio.new_event_loop()
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def db_pool(event_loop):

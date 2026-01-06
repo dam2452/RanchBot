@@ -28,10 +28,9 @@ class BaseTest:
     token: str
 
     @pytest_asyncio.fixture(autouse=True)
-    async def setup_client(self, event_loop, test_client, auth_token):
+    async def setup_client(self, test_client, auth_token):
         self.client = test_client
         self.token = auth_token
-        self.loop = event_loop
 
     @staticmethod
     def __sanitize_text(text: str) -> str:
@@ -55,7 +54,6 @@ class BaseTest:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
     async def send_command(self, command_text: str, args: Optional[List[str]] = None):
-        loop = asyncio.get_event_loop()
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -63,14 +61,11 @@ class BaseTest:
             if args is None:
                 args = [parts[1]]
 
-        def make_request():
-            return self.client.post(
+        response = await self.client.post(
                 f"/api/v1/{command_name}",
                 json={"args": args or [], "reply_json": True},
                 headers={"Authorization": f"Bearer {self.token}"},
             )
-
-        response = await loop.run_in_executor(None, make_request)
         logger.info(f"REST API response for /{command_name}: {response.status_code}")
         return response
 
