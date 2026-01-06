@@ -6,6 +6,7 @@ import pytest_asyncio
 
 from bot.database.database_manager import DatabaseManager
 from bot.tests.settings import settings as s
+from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()
@@ -54,6 +55,10 @@ class APIClient(requests.Session):
     def __init__(self, base_url: str):
         super().__init__()
         self.base_url = base_url if base_url.endswith("/") else f"{base_url}/"
+
+    def request(self, method, url, *args, **kwargs):
+        full_url = urljoin(self.base_url, str(url).lstrip("/"))
+        return super().request(method, full_url, *args, **kwargs)
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
