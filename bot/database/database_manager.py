@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Union,
 )
+import bcrypt
 
 import asyncpg
 
@@ -119,8 +120,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def add_user(
-            user_id: int, username: Optional[str], full_name: Optional[str],
-            note: Optional[str], subscription_days: Optional[int] = None,
+            user_id: int, username: Optional[str] = None, full_name: Optional[str] = None,
+            note: Optional[str] = None, subscription_days: Optional[int] = None,
     ) -> None:
 
         async with DatabaseManager.get_db_connection() as conn:
@@ -134,6 +135,23 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     """,
                     user_id, username, full_name, subscription_end, note,
                 )
+
+    @staticmethod
+    async def add_user_password(user_id: int, password: str):
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+        async with DatabaseManager.get_db_connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    INSERT INTO user_credentials (user_id, hashed_password)
+                    VALUES ($1, $2) ON CONFLICT (user_id) DO
+                    UPDATE SET hashed_password = EXCLUDED.hashed_password
+                    """,
+                    user_id, hashed_password,
+                )
+
 
     @staticmethod
     async def update_user(

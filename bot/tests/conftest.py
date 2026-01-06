@@ -59,9 +59,9 @@ async def test_user(event_loop, db_pool):
     await DatabaseManager.add_user(
         user_id=test_id,
         username=test_username,
-        password=s.ADMIN_PASSWORD.get_secret_value(),
         full_name="Test API User"
     )
+    await DatabaseManager.add_user_password(test_id, s.ADMIN_PASSWORD.get_secret_value())
     yield {
         "username": test_username,
         "password": s.ADMIN_PASSWORD.get_secret_value()
