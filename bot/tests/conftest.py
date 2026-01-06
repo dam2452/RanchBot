@@ -85,6 +85,7 @@ async def test_user(db_pool):
         full_name="Test API User"
     )
     await DatabaseManager.add_user_password(test_id, s.ADMIN_PASSWORD.get_secret_value())
+    await DatabaseManager.add_admin(test_id)
     yield {
         "username": test_username,
         "password": s.ADMIN_PASSWORD.get_secret_value()
