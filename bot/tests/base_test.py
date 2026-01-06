@@ -87,7 +87,7 @@ class BaseTest:
     @staticmethod
     def _extract_text_from_response(response) -> str:
         if response.status_code != 200:
-            return f"Error: {response.status_code}"
+            raise Exception(f"Error: {response.status_code}")
 
         try:
             data = response.json()
@@ -99,7 +99,7 @@ class BaseTest:
                 return json.dumps(data)
             return str(data)
         except Exception:
-            return response.text
+            raise Exception(response.text)
 
     def assert_command_result_file_matches(
             self,
