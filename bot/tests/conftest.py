@@ -3,7 +3,6 @@ import logging
 
 import httpx
 import pytest_asyncio
-from bot.platforms.rest_runner import app
 
 from bot.database.database_manager import DatabaseManager
 from bot.tests.settings import settings as s
@@ -52,21 +51,10 @@ async def db_pool():
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
-    import sys
-    from bot.settings import settings as main_settings
+    base_url = f"http://{s.REST_API_HOST}:{s.REST_API_PORT}/api/v1/"
 
-    if 'bot.platforms.rest_runner' in sys.modules:
-        del sys.modules['bot.platforms.rest_runner']
-
-    original_flag = main_settings.DISABLE_RATE_LIMITING
-    main_settings.DISABLE_RATE_LIMITING = True
-
-    async with httpx.AsyncClient(app=app, base_url=f"http://{s.REST_API_HOST}:{s.REST_API_PORT}/api/v1/") as client:
-        logger.info("AsyncClient started for REST API testing")
+    async with httpx.AsyncClient(base_url=base_url) as client:
         yield client
-        logger.info("AsyncClient closed")
-
-    main_settings.DISABLE_RATE_LIMITING = original_flag
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def prepare_database(db_pool):
@@ -108,14 +96,14 @@ async def auth_token(test_client, prepare_database):
     token_data = login_response.json()
     logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
 
-    # resp = await test_client.post(
-    #     "admin",
-    #     json={"args": [], "reply_json": True},
-    #     headers={"Authorization": f"Bearer {token_data['access_token']}"},
-    # )
-    #
-    # assert resp.status_code == 200
-    # assert resp.text is not None
-    # logger.info("Test admin call succeeded")
+    resp = await test_client.post(
+        "admin",
+        json={"args": [], "reply_json": True},
+        headers={"Authorization": f"Bearer {token_data['access_token']}"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.text is not None
+    logger.info("Test admin call succeeded")
 
     return token_data["access_token"]
