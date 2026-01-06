@@ -62,8 +62,6 @@ async def test_client(db_pool):
     original_flag = main_settings.DISABLE_RATE_LIMITING
     main_settings.DISABLE_RATE_LIMITING = True
 
-    from bot.platforms.rest_runner import app
-
     async with httpx.AsyncClient(app=app) as client:
         logger.info("AsyncClient started for REST API testing")
         yield client
