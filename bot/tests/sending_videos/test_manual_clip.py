@@ -16,7 +16,7 @@ class TestManualClipHandler(BaseTest):
         expected_file = f"cut_{episode}_{start_time}_{end_time}.mp4"
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command)
+        response = self.send_command(command)
         self.assert_command_result_file_matches(response, expected_file)
 
     @pytest.mark.asyncio
@@ -28,8 +28,8 @@ class TestManualClipHandler(BaseTest):
         expected_message = await self.get_response(RK.INCORRECT_TIME_FORMAT)
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command)
-        await self.assert_response_contains(response, [expected_message])
+        response = self.send_command(command)
+        self.assert_response_contains(response, [expected_message])
 
     @pytest.mark.asyncio
     async def test_cut_clip_nonexistent_episode(self):
@@ -40,8 +40,8 @@ class TestManualClipHandler(BaseTest):
         expected_message = await self.get_response(RK.VIDEO_FILE_NOT_EXIST)
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command)
-        await self.assert_response_contains(response, [expected_message])
+        response = self.send_command(command)
+        self.assert_response_contains(response, [expected_message])
 
     @pytest.mark.asyncio
     async def test_cut_clip_large_time_range(self):
@@ -52,7 +52,7 @@ class TestManualClipHandler(BaseTest):
         expected_file = f"cut_{episode}_{start_time}_{end_time}.mp4"
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command)
+        response = self.send_command(command)
         self.assert_command_result_file_matches(response, expected_file)
 
     @pytest.mark.asyncio
@@ -64,8 +64,8 @@ class TestManualClipHandler(BaseTest):
         expected_message =  await self.get_response(RK.END_TIME_EARLIER_THAN_START)
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command)
-        await self.assert_response_contains(response, [expected_message])
+        response = self.send_command(command)
+        self.assert_response_contains(response, [expected_message])
 
     @pytest.mark.asyncio
     async def test_cut_clip_exact_episode_length(self):
@@ -77,5 +77,5 @@ class TestManualClipHandler(BaseTest):
         expected_message = await self.get_response(RK.LIMIT_EXCEEDED_CLIP_DURATION)
 
         command = f"/wytnij {episode} {start_time} {end_time}"
-        response = await self.send_command(command)
-        await self.assert_response_contains(response, [expected_message])
+        response = self.send_command(command)
+        self.assert_response_contains(response, [expected_message])

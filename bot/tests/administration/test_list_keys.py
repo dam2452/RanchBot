@@ -15,14 +15,14 @@ class TestListKeysCommand(BaseTest):
 
         keys = DatabaseManager.get_all_subscription_keys()
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             '/listkey',
             [msg.create_subscription_keys_response(keys)],
         )
 
     @pytest.mark.asyncio
     async def test_list_keys_empty(self):
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             '/listkey',
             [msg.get_subscription_keys_empty_message()],
         )

@@ -22,4 +22,4 @@ class TestListAdminsCommand(BaseTest):
             ),
         ]
 
-        await self.expect_command_result_contains('/listadmins', [msg.format_admins_list(admins)])
+        self.expect_command_result_contains('/listadmins', [msg.format_admins_list(admins)])

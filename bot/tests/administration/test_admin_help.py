@@ -40,7 +40,7 @@ class TestAdminHelpHandler(BaseTest):
             assert response_start.status_code == 200
             assert response_start.text is not None
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
         )
@@ -48,7 +48,7 @@ class TestAdminHelpHandler(BaseTest):
     @pytest.mark.skip(reason="ashdahsd")
     @pytest.mark.asyncio
     async def test_admin_shortcuts(self):
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_SHORTCUTS))],
             args=['skroty']
@@ -57,7 +57,7 @@ class TestAdminHelpHandler(BaseTest):
     @pytest.mark.skip(reason="ashdahsd")
     @pytest.mark.asyncio
     async def test_admin_invalid_command(self):
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             'admin',
             [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
             args=['nieistniejace_polecenie']

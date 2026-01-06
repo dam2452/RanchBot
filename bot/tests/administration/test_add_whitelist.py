@@ -18,7 +18,7 @@ class TestAddWhitelistHandler(BaseTest):
         )
 
         expected_add_message = await self.get_response(RK.USER_ADDED, [str(user_id)])
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
             [expected_add_message],
         )
@@ -26,7 +26,7 @@ class TestAddWhitelistHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_add_nonexistent_user_whitelist(self):
         user_id = 99999999999
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
             [await self.get_response(RK.USER_ADDED, [str(user_id)])],
         )
@@ -36,7 +36,7 @@ class TestAddWhitelistHandler(BaseTest):
         user_id_invalid = "invalid_id"
         expected_message = await self.get_response(RK.NO_USER_ID_PROVIDED)
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addwhitelist {user_id_invalid}',
             [expected_message],
         )
@@ -52,7 +52,7 @@ class TestAddWhitelistHandler(BaseTest):
             subscription_days=None,
         )
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
             [await self.get_response(RK.USER_ADDED, [str(user_id)])],
         )

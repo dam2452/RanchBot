@@ -60,4 +60,4 @@ class TestListWhitelistCommand(BaseTest):
                 note=None,
             ),
         ]
-        await self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])
+        self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])

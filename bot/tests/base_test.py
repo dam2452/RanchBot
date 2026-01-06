@@ -53,8 +53,7 @@ class BaseTest:
     def remove_until_first_space(text: str) -> str:
         return text.split(' ', 1)[-1] if ' ' in text else text
 
-    async def send_command(self, command_text: str, args: Optional[List[str]] = None):
-        """Send a command to the REST API and return the response."""
+    def send_command(self, command_text: str, args: Optional[List[str]] = None):
         command_name = command_text.lstrip('/')
         if ' ' in command_name:
             parts = command_name.split(' ', 1)
@@ -62,7 +61,7 @@ class BaseTest:
             if args is None:
                 args = [parts[1]]
 
-        response = await self.client.post(
+        response = self.client.post(
             command_name,
             json={"args": args or [], "reply_json": True},
             headers={"Authorization": f"Bearer {self.token}"},
@@ -73,13 +72,11 @@ class BaseTest:
         return response
 
 
-    async def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
+    def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
         response_text = self._extract_text_from_response(response)
         sanitized_response = self.__sanitize_text(response_text)
 
         for fragment in expected_fragments:
-            if asyncio.iscoroutine(fragment):
-                fragment = await fragment
             sanitized_fragment = self.__sanitize_text(fragment)
             if sanitized_fragment not in sanitized_response:
                 raise AssertionError(f"Fragment '{fragment}' not found in response: {response_text}")
@@ -142,13 +139,12 @@ class BaseTest:
         lines = text.splitlines()
         return "\n".join(lines[n:])
 
-    async def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
-        """Send command and verify response contains expected fragments."""
-        response = await self.send_command(command, args=args)
+    def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
+        response = self.send_command(command, args=args)
         resolved_expected = []
         for fragment in expected:
             resolved_expected.append(fragment)
-        await self.assert_response_contains(response, resolved_expected)
+        self.assert_response_contains(response, resolved_expected)
 
 
     @staticmethod
@@ -263,7 +259,7 @@ class BaseTest:
         args: Optional[List[str]] = None,
     ) -> None:
         """Send command and verify response hash matches expected hash."""
-        response = await self.send_command(command, args=args)
+        response = self.send_command(command, args=args)
         self.assert_message_hash_matches(
             response,
             expected_key=expected_key,

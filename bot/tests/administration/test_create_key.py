@@ -12,7 +12,7 @@ class TestCreateKeyHandler(BaseTest):
         key_name = "tajny_klucz"
         days = 30
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
         )
@@ -22,7 +22,7 @@ class TestCreateKeyHandler(BaseTest):
         key_name = "klucz_na_zero_dni"
         days = 0
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
@@ -32,8 +32,8 @@ class TestCreateKeyHandler(BaseTest):
         key_name = "klucz_na_ujemne_dni"
         days = -30
 
-        await self.send_command(f'/removekey {key_name}')
-        await self.expect_command_result_contains(
+        self.send_command(f'/removekey {key_name}')
+        self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
@@ -43,7 +43,7 @@ class TestCreateKeyHandler(BaseTest):
         invalid_days = "trzydzieści"
         key_name = "klucz_tekstowy_dni"
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {invalid_days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
@@ -52,7 +52,7 @@ class TestCreateKeyHandler(BaseTest):
     async def test_add_key_empty_note(self):
         days = 30
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {days}',
             [await self.get_response(RK.CREATE_KEY_USAGE)],
         )
@@ -62,7 +62,7 @@ class TestCreateKeyHandler(BaseTest):
         key_name = "specjalny@klucz#!"
         days = 30
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
         )
@@ -72,12 +72,12 @@ class TestCreateKeyHandler(BaseTest):
         key_name = "duplikat_klucza"
         days = 30
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
         )
 
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
             [await self.get_response(RK.KEY_ALREADY_EXISTS, [key_name])],
         )

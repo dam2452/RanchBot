@@ -14,8 +14,8 @@ class TestSaveClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_save_clip_valid_name(self):
         clip_name = "traktor"
-        await self.send_command("/klip geniusz")
-        await self.expect_command_result_contains(
+        self.send_command("/klip geniusz")
+        self.expect_command_result_contains(
             f'/zapisz {clip_name}',
             [
                 await self.get_response(
@@ -25,14 +25,14 @@ class TestSaveClipHandler(BaseTest):
             ],
         )
         clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             '/mojeklipy',
             [await self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME , await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
     async def test_save_clip_without_name(self):
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             '/zapisz',
             [
                 await self.get_response(
@@ -44,8 +44,8 @@ class TestSaveClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_save_clip_special_characters_in_name(self):
         clip_name = "traktor@#!$"
-        await self.send_command("/klip geniusz")
-        await self.expect_command_result_contains(
+        self.send_command("/klip geniusz")
+        self.expect_command_result_contains(
             f'/zapisz {clip_name}',
             [
                 await self.get_response(
@@ -55,7 +55,7 @@ class TestSaveClipHandler(BaseTest):
             ],
         )
         clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             '/mojeklipy',
             [await self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)],
         )
@@ -63,8 +63,8 @@ class TestSaveClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_save_clip_duplicate_name(self):
         clip_name = "traktor"
-        await self.send_command("/klip geniusz")
-        await self.expect_command_result_contains(
+        self.send_command("/klip geniusz")
+        self.expect_command_result_contains(
             f'/zapisz {clip_name}',
             [
                 await self.get_response(
@@ -73,7 +73,7 @@ class TestSaveClipHandler(BaseTest):
                 ),
             ],
         )
-        await self.expect_command_result_contains(
+        self.expect_command_result_contains(
             f'/zapisz {clip_name}',
             [
                 await self.get_response(
@@ -85,8 +85,8 @@ class TestSaveClipHandler(BaseTest):
 
     @pytest.mark.asyncio
     async def test_save_clip_no_segment_selected(self):
-        response = await self.send_command('/zapisz klip_bez_segmentu')
-        await self.assert_response_contains(
+        response = self.send_command('/zapisz klip_bez_segmentu')
+        self.assert_response_contains(
             response,
             [
                 await self.get_response(
@@ -98,8 +98,8 @@ class TestSaveClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_save_clip_name_length_exceeded(self):
         long_name = "a" * (sb.MAX_CLIP_NAME_LENGTH + 1)
-        response = await self.send_command(f'/zapisz {long_name}')
-        await self.assert_response_contains(
+        response = self.send_command(f'/zapisz {long_name}')
+        self.assert_response_contains(
             response,
             [
                 await self.get_response(
