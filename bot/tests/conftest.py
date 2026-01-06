@@ -61,7 +61,7 @@ async def test_client(db_pool):
     original_flag = main_settings.DISABLE_RATE_LIMITING
     main_settings.DISABLE_RATE_LIMITING = True
 
-    async with httpx.AsyncClient(app=app, base_url=f"http://{s.REST_API_HOST}/api/v1/") as client:
+    async with httpx.AsyncClient(app=app, base_url=f"http://{s.REST_API_HOST}:{s.REST_API_PORT}/api/v1/") as client:
         logger.info("AsyncClient started for REST API testing")
         yield client
         logger.info("AsyncClient closed")
