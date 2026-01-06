@@ -10,51 +10,76 @@ from bot.platforms.rest_runner import app
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
+_test_lock = asyncio.Lock()
 
-def pytest_collection_modifyitems(config, items):
-    for item in items:
-        if "test_start.py" not in str(item.fspath):
-            item.add_marker(pytest.mark.skip(reason="Temporarily skipped for debugging"))
-
-@pytest_asyncio.fixture(scope="session")
-async def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def db_pool(event_loop):
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def db_pool():
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
 
-    await DatabaseManager.init_pool(
-        host=s.TEST_POSTGRES_HOST,
-        port=s.TEST_POSTGRES_PORT,
-        database=s.TEST_POSTGRES_DB,
-        user=s.TEST_POSTGRES_USER,
-        password=s.TEST_POSTGRES_PASSWORD.get_secret_value(),
-    )
+    import asyncpg
+    from bot.settings import settings as main_settings
+
+    async def init_connection(conn):
+        await conn.execute("SET statement_timeout = '120s'")
+
+    async def setup_connection(conn):
+        """Called when connection is acquired from pool"""
+        pass
+
+    config = {
+        "host": s.TEST_POSTGRES_HOST,
+        "port": s.TEST_POSTGRES_PORT,
+        "database": s.TEST_POSTGRES_DB,
+        "user": s.TEST_POSTGRES_USER,
+        "password": s.TEST_POSTGRES_PASSWORD.get_secret_value(),
+        "server_settings": {"search_path": main_settings.POSTGRES_SCHEMA},
+        "min_size": 10,
+        "max_size": 50,
+        "command_timeout": 120,
+        "max_inactive_connection_lifetime": 300,
+        "statement_cache_size": 0,
+        "max_cached_statement_lifetime": 0,
+        "init": init_connection,
+        "setup": setup_connection,
+        "reset": None,  # Disable connection reset on release
+    }
+    DatabaseManager.pool = await asyncpg.create_pool(**config)
     await DatabaseManager.init_db()
+    DatabaseManager._db_fully_initialized = True
     yield
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
 
-@pytest_asyncio.fixture(scope="class", autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def test_client(db_pool):
     """Create AsyncClient for testing REST API."""
     from slowapi import Limiter
     from slowapi.util import get_remote_address
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI
 
-    if not hasattr(app.state, 'limiter'):
-        app.state.limiter = Limiter(key_func=get_remote_address)
+    @asynccontextmanager
+    async def empty_lifespan(app_instance: FastAPI):
+        app_instance.state.limiter = Limiter(key_func=get_remote_address)
+        logger.info("Test lifespan: DB already initialized by db_pool fixture")
+        yield
+        logger.info("Test lifespan: cleanup")
 
-    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+    test_app = FastAPI(
+        title="Ranczo Bot API v1 (Test)",
+        lifespan=empty_lifespan,
+    )
+    test_app.add_middleware = app.add_middleware
+    test_app.include_router(app.router)
+
+    async with httpx.AsyncClient(app=test_app, base_url="http://test") as client:
         logger.info("AsyncClient started for REST API testing")
         yield client
         logger.info("AsyncClient closed")
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def test_user(event_loop, db_pool):
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def test_user(db_pool):
     test_username = "test_api_user"
     test_id = 99999
 
@@ -75,7 +100,7 @@ async def test_user(event_loop, db_pool):
     }
     await DatabaseManager.remove_user(test_id)
 
-@pytest_asyncio.fixture(scope="class", autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def auth_token(test_client, test_user):
     """Authenticate and return access token for the test user."""
     login_response = await test_client.post(
@@ -123,3 +148,5 @@ async def prepare_database(db_pool, test_user):
     )
     await DatabaseManager.add_user_password(test_id, test_user["password"])
     logger.info(f"Test user {test_username} has been restored after database cleanup.")
+
+    await asyncio.sleep(0.2)

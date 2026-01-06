@@ -138,8 +138,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def add_user_password(user_id: int, password: str):
-        salt = bcrypt.gensalt()
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+        import asyncio
+        loop = asyncio.get_event_loop()
+
+        def hash_password_sync():
+            salt = bcrypt.gensalt()
+            return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+        hashed_password = await loop.run_in_executor(None, hash_password_sync)
 
         async with DatabaseManager.get_db_connection() as conn:
             async with conn.transaction():
@@ -287,19 +293,20 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     @staticmethod
     async def set_default_admin(user_id: int, username: str, full_name: str) -> None:
         async with DatabaseManager.get_db_connection() as conn:
-            await conn.execute(
-                "INSERT INTO user_profiles (user_id, username, full_name) "
-                "VALUES ($1, $2, $3) "
-                "ON CONFLICT (user_id) DO NOTHING",
-                user_id, username, full_name,
-            )
+            async with conn.transaction():
+                await conn.execute(
+                    "INSERT INTO user_profiles (user_id, username, full_name) "
+                    "VALUES ($1, $2, $3) "
+                    "ON CONFLICT (user_id) DO NOTHING",
+                    user_id, username, full_name,
+                )
 
-            await conn.execute(
-                "INSERT INTO user_roles (user_id, is_admin) "
-                "VALUES ($1, TRUE) "
-                "ON CONFLICT (user_id) DO NOTHING",
-                user_id,
-            )
+                await conn.execute(
+                    "INSERT INTO user_roles (user_id, is_admin) "
+                    "VALUES ($1, TRUE) "
+                    "ON CONFLICT (user_id) DO NOTHING",
+                    user_id,
+                )
 
     @staticmethod
     def _row_to_video_clip(row: asyncpg.Record) -> VideoClip:
@@ -765,14 +772,15 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def __get_message_from_message_table(
         table: str, key: str, handler_name: str,
     ) -> Optional[str]:
-        async with DatabaseManager.get_db_connection() as conn:
-            query = f"""
-                SELECT message
-                FROM {table}
-                WHERE handler_name = $1 AND key = $2
-            """
-            row = await conn.fetchrow(query, handler_name, key)
-            return row["message"] if row else None
+        if DatabaseManager.pool is None:
+            raise ConnectionError("Database pool not initialized")
+        query = f"""
+            SELECT message
+            FROM {table}
+            WHERE handler_name = $1 AND key = $2
+        """
+        row = await DatabaseManager.pool.fetchrow(query, handler_name, key)
+        return row["message"] if row else None
 
     @staticmethod
     async def get_message_from_specialized_table(
