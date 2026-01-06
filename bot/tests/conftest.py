@@ -110,7 +110,7 @@ async def auth_token(test_client, prepare_database):
 
     resp = await test_client.post(
         "admin",
-        json={"args": [], "reply_json": True},
+        json={},
         headers={"Authorization": f"Bearer {token_data['access_token']}"},
     )
 
