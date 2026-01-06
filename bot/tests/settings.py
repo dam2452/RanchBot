@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: SecretStr = Field(...)
 
     REST_API_HOST: str = Field("127.0.0.1")
-    REST_API_PORT: int = Field(8000)
+    REST_API_PORT: int = Field(8199)
     DISABLE_RATE_LIMITING: bool = Field(True)
 
     TESTER_USERNAME: str = Field("dam2452")
