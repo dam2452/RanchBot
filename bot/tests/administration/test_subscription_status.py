@@ -28,7 +28,6 @@ class TestSubscriptionStatusHandler(BaseTest):
 
     @pytest.mark.asyncio
     async def test_subscription_without_subscription(self):
-        await self.add_test_admin_user()
         self.send_command(f'/removesubscription {s.DEFAULT_ADMIN}')
         self.expect_command_result_contains(
             '/subskrypcja', [await self.get_response(RK.NO_SUBSCRIPTION)],
@@ -42,7 +41,6 @@ class TestSubscriptionStatusHandler(BaseTest):
 
     @pytest.mark.asyncio
     async def test_subscription_long_duration(self):
-        await self.add_test_admin_user()
         long_duration = 365 * 2
         end_date = date.today() + timedelta(days=long_duration)
         self.send_command(f'/addsubscription {s.DEFAULT_ADMIN} {long_duration}')

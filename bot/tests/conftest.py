@@ -18,8 +18,6 @@ async def db_pool():
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
 
-
-
     async def init_connection(conn):
         await conn.execute("SET statement_timeout = '120s'")
 

@@ -160,7 +160,6 @@ class BaseTest:
     def generate_random_username(length: int = 8) -> str:
         return f"user_{secrets.token_hex(length // 2)}"
 
-
     async def add_test_user(
         self,
         user_id: Optional[int] = None,
@@ -188,21 +187,6 @@ class BaseTest:
             "subscription_days": subscription_days,
         }
 
-
-    @staticmethod
-    async def add_test_admin_user() -> Dict[str, Union[int, str]]:
-        await DatabaseManager.add_user(
-            user_id=s.DEFAULT_ADMIN,
-            username=s.ADMIN_USERNAME,
-            full_name=s.ADMIN_FULL_NAME,
-            note=None,
-            subscription_days=None,
-        )
-        return {
-            "user_id": s.DEFAULT_ADMIN,
-            "username": s.ADMIN_USERNAME,
-            "full_name": s.ADMIN_FULL_NAME,
-        }
     @staticmethod
     async def switch_to_normal_user() -> None:
         await DatabaseManager.remove_admin(s.DEFAULT_ADMIN)
