@@ -4,7 +4,6 @@ from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
 import bot.responses.not_sending_videos.my_clips_handler_responses as msg
 from bot.tests.base_test import BaseTest
-from bot.tests.settings import settings as s
 
 
 @pytest.mark.usefixtures("db_pool")

@@ -1,6 +1,6 @@
 import logging
-from typing import List
 import math
+from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
@@ -26,7 +26,7 @@ class UpdateUserNoteHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.NO_NOTE_PROVIDED), math.inf
+            self._message, 2, await self.get_response(RK.NO_NOTE_PROVIDED), math.inf,
         )
 
     async def __check_user_id(self) -> bool:
