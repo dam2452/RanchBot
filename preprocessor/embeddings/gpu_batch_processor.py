@@ -38,7 +38,8 @@ class GPUBatchProcessor:
             batch_pil = pil_images[current_idx:batch_end]
 
             try:
-                embeddings_tensor = self.model.get_image_embeddings(images=batch_pil, is_query=False)
+                inputs = [{"image": img} for img in batch_pil]
+                embeddings_tensor = self.model.process(inputs, normalize=True)
                 batch_np = embeddings_tensor.cpu().numpy()
                 del embeddings_tensor
                 results.extend([emb.tolist() for emb in batch_np])

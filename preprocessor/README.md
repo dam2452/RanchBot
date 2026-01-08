@@ -589,7 +589,7 @@ docker-compose build
 | Detekcja scen | TransNetV2 | PyTorch GPU (~1GB) |
 | Eksport klatek | FFmpeg | 480p JPG extraction |
 | Perceptual hashing | ImageHash | pHash algorithm |
-| Embeddingi | gme-Qwen2-VL-2B-Instruct | float16 (~5GB) |
+| Embeddingi | Qwen3-VL-Embedding-2B | float16 (~5GB) |
 | Face recognition | InsightFace (buffalo_l) | ArcFace embeddings (~1GB) |
 | Object detection | D-FINE-X (obj2coco) | DETR-based, 59.3% AP (~0.5GB) |
 | Image search | DuckDuckGo (DDGS) | Reference images download |

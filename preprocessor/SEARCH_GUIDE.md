@@ -442,7 +442,7 @@ Embeddingi tekstowe (grupy 5 segmentów).
 **Używane przez:** `--text-semantic`
 
 **Kluczowe pola:**
-- `text_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
+- `text_embedding` (dense_vector, 2048-dim) - embedding Qwen3-VL-Embedding
 - `text` (string) - połączone transkrypcje 5 segmentów
 - `segment_range` (array) - [start_segment, end_segment]
 - `episode_metadata` (object) - sezon, odcinek, tytuł
@@ -454,7 +454,7 @@ Embeddingi video + perceptual hashes + wykryte postacie + wykryte obiekty.
 **Używane przez:** `--image`, `--character`, `--hash`, `--object`
 
 **Kluczowe pola:**
-- `video_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
+- `video_embedding` (dense_vector, 2048-dim) - embedding Qwen3-VL-Embedding
 - `frame_number` (int) - numer klatki
 - `timestamp` (float) - timestamp w sekundach
 - `frame_type` (string) - typ klatki (scene_start, scene_middle, scene_end)
@@ -474,7 +474,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 **Kluczowe pola:**
 - `title` (text) - tytuł odcinka
-- `title_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
+- `title_embedding` (dense_vector, 2048-dim) - embedding Qwen3-VL-Embedding
 - `episode_id` (keyword) - identyfikator odcinka (S01E01)
 - `episode_metadata` (object) - sezon, odcinek, tytuł, data premiery
 - `video_path` (string) - ścieżka do pliku
@@ -519,7 +519,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 ### 2. Semantic text search (`--text-semantic`)
 
-**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL
+**Algorytm:** Cosine similarity na 2048-wymiarowych embeddingach Qwen3-VL-Embedding
 
 **Indeks:** `ranczo_text_embeddings`
 
@@ -552,7 +552,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 ### 3. Cross-modal search (`--text-to-video`)
 
-**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL (cross-modal)
+**Algorytm:** Cosine similarity na 2048-wymiarowych embeddingach Qwen3-VL-Embedding (cross-modal)
 
 **Indeks:** `ranczo_video_embeddings`
 
@@ -590,7 +590,7 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 ### 4. Semantic image search (`--image`)
 
-**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL
+**Algorytm:** Cosine similarity na 2048-wymiarowych embeddingach Qwen3-VL-Embedding
 
 **Indeks:** `ranczo_video_embeddings`
 
@@ -720,13 +720,13 @@ Embeddingi nazw odcinków (fuzzy + semantic search po tytułach).
 
 ### 8. Episode name semantic search (`--episode-name-semantic`)
 
-**Algorytm:** Cosine similarity na 1536-wymiarowych embeddingach Qwen2-VL
+**Algorytm:** Cosine similarity na 2048-wymiarowych embeddingach Qwen3-VL-Embedding
 
 **Indeks:** `ranczo_episode_names`
 
 **Przeszukuje:**
 - Embeddingi wygenerowane z tytułów odcinków
-- Pole `title_embedding` (dense_vector 1536-dim)
+- Pole `title_embedding` (dense_vector 2048-dim)
 
 **Cechy:**
 - Rozumie znaczenie i kontekst tytułów
@@ -1160,7 +1160,7 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 ### Ile czasu zajmuje pierwsze wyszukiwanie?
 
 **Pierwsze uruchomienie (cold start):**
-- Ładowanie modelu Qwen2-VL: ~10-30s (GPU, wymagane CUDA)
+- Ładowanie modelu Qwen3-VL-Embedding: ~10-30s (GPU, wymagane CUDA)
 - Kolejne zapytania: <1s (model w pamięci)
 
 **Typy zapytań:**
@@ -1183,7 +1183,7 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 ### Użyte technologie
 
 - **Elasticsearch 8.17.0** - wyszukiwarka i baza wektorowa
-- **Qwen2-VL** (`Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`) - embeddingi text/video (1536-dim)
+- **Qwen3-VL-Embedding** (`Alibaba-NLP/gme-Qwen3-VL-Embedding-2B-Instruct`) - embeddingi text/video (2048-dim)
 - **InsightFace** (`buffalo_l`) - wykrywanie twarzy (ArcFace embeddings)
 - **pHash** - perceptual hashing (DCT-based, hash_size=8)
 - **BM25** - ranking algorithm dla full-text search
@@ -1192,7 +1192,7 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 
 ### Parametry embeddingów
 
-**Model:** `Alibaba-NLP/gme-Qwen2-VL-2B-Instruct`
+**Model:** `Alibaba-NLP/gme-Qwen3-VL-Embedding-2B-Instruct`
 - **Wymiar:** 1536 (dense_vector)
 - **Normalizacja:** L2 normalized
 - **Dtype:** bfloat16
@@ -1223,4 +1223,4 @@ Numer klatki nie jest bezpośrednio wyszukiwalny, ale możesz:
 - **[Główne README](README.md)** - pełna dokumentacja preprocessor pipeline
 - **[Dev Search App](dev_search_app/README.md)** - standalone search tool (alternatywne UI)
 - **Elasticsearch Docs** - https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
-- **Qwen2-VL Docs** - https://huggingface.co/Alibaba-NLP/gme-Qwen2-VL-2B-Instruct
+- **Qwen3-VL-Embedding Docs** - https://huggingface.co/Alibaba-NLP/gme-Qwen3-VL-Embedding-2B-Instruct

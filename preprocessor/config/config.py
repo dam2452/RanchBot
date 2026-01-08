@@ -36,8 +36,9 @@ class WhisperSettings:
 
 @dataclass
 class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
-    model_name: str = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
-    model_revision: str = "8a9317b07ab75fe4679770aec54efcd4317be636"
+    model_name: str = "Qwen/Qwen3-VL-Embedding-2B"
+    model_revision: str = "main"
+    embedding_dimension: int = 2048
     default_output_dir: Path = Path("/app/output_data/embeddings")
     segments_per_embedding: int = 5
     use_sentence_based_chunking: bool = True

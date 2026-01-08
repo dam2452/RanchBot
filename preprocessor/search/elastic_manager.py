@@ -161,7 +161,7 @@ class ElasticSearchManager:
                 "text": {"type": "text"},
                 "text_embedding": {
                     "type": "dense_vector",
-                    "dims": 1536,
+                    "dims": 2048,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -189,7 +189,7 @@ class ElasticSearchManager:
                 "scene_number": {"type": "integer"},
                 "video_embedding": {
                     "type": "dense_vector",
-                    "dims": 1536,
+                    "dims": 2048,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -239,7 +239,7 @@ class ElasticSearchManager:
                 },
                 "title_embedding": {
                     "type": "dense_vector",
-                    "dims": 1536,
+                    "dims": 2048,
                     "index": True,
                     "similarity": "cosine",
                 },

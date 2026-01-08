@@ -12,7 +12,6 @@ from typing import (
 
 import numpy as np
 import torch
-from transformers import AutoModel
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -23,6 +22,7 @@ from preprocessor.core.base_processor import (
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
+from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
 from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batches
 from preprocessor.utils.console import console
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
@@ -133,14 +133,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
     def _load_model(self) -> None:
         try:
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                torch_dtype="float16",
-                device_map="cuda",
-                trust_remote_code=True,
+            self.model = Qwen3VLEmbedder(
+                model_name_or_path=self.model_name,
+                torch_dtype=torch.float16,
             )
-            self.model.eval()
-            console.print("[green]GME model loaded successfully[/green]")
+            console.print("[green]Qwen3-VL-Embedding model loaded successfully[/green]")
         except Exception as e:
             self.logger.error(f"Failed to load model: {e}")
             raise
@@ -302,7 +299,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         return len(segments) - 1 if segments else 0
 
     def __encode_text_batch(self, texts: List[str]) -> List[np.ndarray]:
-        embeddings_tensor = self.model.get_text_embeddings(texts=texts)
+        inputs = [{"text": text} for text in texts]
+        embeddings_tensor = self.model.process(inputs, normalize=True)
         embeddings = [emb.cpu().numpy() for emb in embeddings_tensor]
         del embeddings_tensor
         return embeddings
