@@ -52,11 +52,11 @@ class TestListModeratorsCommand(BaseTest):
         ]
 
         self.expect_command_result_contains(
-            '/listmoderators', [format_moderators_list(user_profiles)],
+            'listmoderators', [format_moderators_list(user_profiles)],
         )
 
     @pytest.mark.asyncio
     async def test_list_moderators_empty(self):
         self.expect_command_result_contains(
-            '/listmoderators', [get_no_moderators_found_message()],
+            'listmoderators', [get_no_moderators_found_message()],
         )
