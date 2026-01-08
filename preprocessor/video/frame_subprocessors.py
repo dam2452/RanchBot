@@ -12,7 +12,6 @@ from typing import (
 from insightface.app import FaceAnalysis
 import numpy as np
 import torch
-from transformers import AutoModel
 
 from preprocessor.characters.face_detection_utils import load_character_references
 from preprocessor.characters.utils import init_face_detection
@@ -140,16 +139,14 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
 
     def initialize(self) -> None:
         if self.model is None:
-            console.print(f"[cyan]Loading GME model: {self.model_name}[/cyan]")
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                torch_dtype="float16",
-                device_map="cuda",
-                trust_remote_code=True,
+            from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
+            console.print(f"[cyan]Loading embedding model: {self.model_name}[/cyan]")
+            self.model = Qwen3VLEmbedder(
+                model_name_or_path=self.model_name,
+                torch_dtype=torch.float16,
             )
-            self.model.eval()
             self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
-            console.print("[green]✓ GME model loaded[/green]")
+            console.print("[green]✓ Qwen3-VL-Embedding model loaded[/green]")
 
     def cleanup(self) -> None:
         self.model = None

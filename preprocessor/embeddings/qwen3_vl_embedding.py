@@ -1,20 +1,30 @@
-import torch
-import torch.nn.functional as F
-import unicodedata
-import numpy as np
+from dataclasses import dataclass
 import logging
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Union,
+)
+import unicodedata
 
 from PIL import Image
-from dataclasses import dataclass
-from typing import Optional, List, Union, Dict, Any
-from transformers.models.qwen3_vl.modeling_qwen3_vl import Qwen3VLPreTrainedModel, Qwen3VLModel, Qwen3VLConfig
-from transformers.models.qwen3_vl.processing_qwen3_vl import Qwen3VLProcessor
+import numpy as np
+from qwen_vl_utils.vision_process import process_vision_info
+import torch
+import torch.nn.functional as F
+from transformers.cache_utils import Cache
 from transformers.modeling_outputs import ModelOutput
+from transformers.models.qwen3_vl.modeling_qwen3_vl import (
+    Qwen3VLConfig,
+    Qwen3VLModel,
+    Qwen3VLPreTrainedModel,
+)
+from transformers.models.qwen3_vl.processing_qwen3_vl import Qwen3VLProcessor
 from transformers.processing_utils import Unpack
 from transformers.utils import TransformersKwargs
-from transformers.cache_utils import Cache
 from transformers.utils.generic import check_model_inputs
-from qwen_vl_utils.vision_process import process_vision_info
 
 logger = logging.getLogger(__name__)
 
@@ -135,8 +145,8 @@ def sample_frames(frames: List[Union[str, Image.Image]], num_segments: int, max_
 # Define embedder class for processing inputs and generating embeddings
 class Qwen3VLEmbedder():
     def __init__(
-        self, 
-        model_name_or_path: str, 
+        self,
+        model_name_or_path: str,
         max_length: int = MAX_LENGTH,
         min_pixels: int = MIN_PIXELS,
         max_pixels: int = MAX_PIXELS,
@@ -231,7 +241,7 @@ class Qwen3VLEmbedder():
                 if self.num_frames is not None or self.max_frames is not None:
                     video_content = sample_frames(video_content, self.num_frames, self.max_frames)
                 video_content = [
-                    ('file://' + ele if isinstance(ele, str) else ele) 
+                    ('file://' + ele if isinstance(ele, str) else ele)
                     for ele in video_content
                 ]
             elif isinstance(video, str):
@@ -286,7 +296,7 @@ class Qwen3VLEmbedder():
             video_inputs = None
             video_kwargs = {'do_sample_frames': False}
             text = self.processor.apply_chat_template(
-                [{'role': 'user', 'content': [{'type': 'text', 'text': 'NULL'}]}], 
+                [{'role': 'user', 'content': [{'type': 'text', 'text': 'NULL'}]}],
                 add_generation_prompt=True, tokenize=False
             )
 
@@ -298,7 +308,7 @@ class Qwen3VLEmbedder():
             videos, video_metadata = None, None
 
         inputs = self.processor(
-            text=text, images=images, videos=videos, video_metadata=video_metadata, truncation=True, 
+            text=text, images=images, videos=videos, video_metadata=video_metadata, truncation=True,
             max_length=self.max_length, padding=True, do_resize=False, return_tensors='pt',
             **video_kwargs
         )
