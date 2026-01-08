@@ -45,6 +45,13 @@ class TestListWhitelistCommand(BaseTest):
                 note=None,
             ),
             UserProfile(
+                user_id=self.default_admin,
+                username="TestUser1",
+                full_name="TestUser1",
+                subscription_end=None,
+                note=None,
+            ),
+            UserProfile(
                 user_id=user1["user_id"],
                 username=user1["username"],
                 full_name=user1["full_name"],

@@ -15,15 +15,12 @@ class TestTranscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_transcription_nonexistent_quote(self):
         response = self.send_command('/transkrypcja asdfghijk')
-        self.assert_message_hash_matches(response, expected_key="transcription_quote_nonexistent.message")
+        self.assert_response_contains(response, ["❌ Nie znaleziono pasujących cytatów dla: asdfghijk\\.❌"])
 
     @pytest.mark.asyncio
     async def test_transcription_no_arguments(self):
         response = self.send_command('/transkrypcja')
-        self.assert_response_contains(
-            response,
-            [await self.get_response(RK.NO_QUOTE_PROVIDED)],
-        )
+        self.assert_response_contains(response, [await self.get_response(RK.NO_QUOTE_PROVIDED)])
 
     @pytest.mark.asyncio
     async def test_transcription_valid_with_context(self):
@@ -38,7 +35,7 @@ class TestTranscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_transcription_with_invalid_characters(self):
         response = self.send_command('/transkrypcja $$$%%%^^^')
-        self.assert_message_hash_matches(response, expected_key="transcription_quote_invalid.message")
+        self.assert_response_contains(response, ["❌ Nie znaleziono pasujących cytatów dla: $$$%%%^^^\\.❌"])
 
     @pytest.mark.asyncio
     async def test_transcription_not_found_in_context(self):
