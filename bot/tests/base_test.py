@@ -188,15 +188,9 @@ class BaseTest:
             "subscription_days": subscription_days,
         }
 
-    @staticmethod
-    async def switch_to_normal_user() -> None:
+    async def switch_to_normal_user(self) -> None:
         await DatabaseManager.remove_admin(self.default_admin)
         await DatabaseManager.add_subscription(self.default_admin, 2137)
-
-    @staticmethod
-    async def switch_to_admin_user() -> None:
-        await DatabaseManager.add_admin(self.default_admin)
-        await DatabaseManager.remove_subscription(self.default_admin)
 
     @staticmethod
     async def calculate_hash_of_message(message: str) -> str:
