@@ -13,7 +13,7 @@ class TestListKeysCommand(BaseTest):
         await DatabaseManager.create_subscription_key(30, "key1")
         await DatabaseManager.create_subscription_key(60, "key2")
 
-        keys = DatabaseManager.get_all_subscription_keys()
+        keys = await DatabaseManager.get_all_subscription_keys()
 
         self.expect_command_result_contains(
             '/listkey',

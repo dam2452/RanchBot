@@ -19,7 +19,7 @@ class TestSubscriptionStatusHandler(BaseTest):
         self.send_command(f'/addsubscription {self.default_admin} {days}')
         expected_response = await self.get_response(
             RK.SUBSCRIPTION_STATUS,[
-                str(s.TESTER_USERNAME), str(end_date), str(days),
+                "TestUser0", str(end_date), str(days),
             ],
         )
 
@@ -46,7 +46,7 @@ class TestSubscriptionStatusHandler(BaseTest):
         self.send_command(f'/addsubscription {self.default_admin} {long_duration}')
         expected_response = await self.get_response(
             RK.SUBSCRIPTION_STATUS,[
-                str(s.TESTER_USERNAME), str(end_date), str(long_duration),
+                "TestUser0", str(end_date), str(long_duration),
             ],
         )
 
