@@ -91,7 +91,7 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
             password=s.TEST_PASSWORD.get_secret_value(),
         )
         logger.info(f"Admin with user_id {admin_id} has been added.")
-        i+=i
+        i+=1
 
     await asyncio.sleep(0.2)
 
