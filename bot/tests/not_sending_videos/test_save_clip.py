@@ -27,7 +27,7 @@ class TestSaveClipHandler(BaseTest):
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
         self.expect_command_result_contains(
             '/mojeklipy',
-            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME , await self.get_season_info()), 4)],
+            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0" , await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
@@ -57,7 +57,7 @@ class TestSaveClipHandler(BaseTest):
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
         self.expect_command_result_contains(
             '/mojeklipy',
-            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)],
+            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
