@@ -66,6 +66,16 @@ class FrameProcessor(BaseProcessor):
         season = episode_info.season
         episode = episode_info.relative_episode
 
+        any_sub_processor_will_run = any(
+            sub_processor.should_run(item, missing_outputs)
+            for sub_processor in self.sub_processors
+        )
+
+        if not any_sub_processor_will_run:
+            for sub_processor in self.sub_processors:
+                console.print(f"[yellow]Skipping: {sub_processor.name} (output exists)[/yellow]")
+            return
+
         ramdisk_episode_dir = self.ramdisk_path / "frames" / f"S{season:02d}" / f"E{episode:02d}"
 
         try:
