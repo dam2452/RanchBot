@@ -306,7 +306,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
 
 class ObjectDetectionSubProcessor(FrameSubProcessor):
-    def __init__(self, model_name: str = "ustc-community/dfine_x_coco", conf_threshold: float = 0.25):
+    def __init__(self, model_name: str = "ustc-community/dfine-xlarge-obj2coco", conf_threshold: float = 0.25):
         super().__init__("Object Detection")
         self.model_name = model_name
         self.conf_threshold = conf_threshold

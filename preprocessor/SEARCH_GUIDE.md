@@ -16,10 +16,11 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 ✅ **Semantic text search** - wyszukiwanie po embedingach tekstowych (cosine similarity)
 ✅ **Semantic image search** - wyszukiwanie podobnych scen po obrazku
 ✅ **Character search** - wyszukiwanie po postaciach (wykrywanie twarzy)
+✅ **Object search** - wyszukiwanie po wykrytych obiektach (D-FINE-X, 80 klas COCO)
 ✅ **Episode name search** - wyszukiwanie po nazwach odcinków (fuzzy + semantic)
 ✅ **Perceptual hash** - znajdowanie duplikatów klatek (pHash)
 ✅ **Scene context** - pokazuje kontekst scen (początek/koniec)
-✅ **Filtry** - sezon, odcinek, postać
+✅ **Filtry** - sezon, odcinek, postać, obiekty
 ✅ **JSON output** - eksport wyników do JSON
 ✅ **Statystyki** - liczba dokumentów w każdym indeksie
 
@@ -121,6 +122,41 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 ./run-preprocessor.sh search --character "Wicek Wilski" --season 10 --episode 1
 ```
 
+### Object search (D-FINE-X)
+```bash
+# Znajdź klatki z konkretnym obiektem (80 klas COCO)
+./run-preprocessor.sh search --object "dog"
+./run-preprocessor.sh search --object "car"
+./run-preprocessor.sh search --object "book"
+
+# Filtrowanie po liczbie obiektów
+./run-preprocessor.sh search --object "person:5+"    # 5 lub więcej osób
+./run-preprocessor.sh search --object "chair:2-4"    # 2-4 krzesła
+./run-preprocessor.sh search --object "bottle:3"     # dokładnie 3 butelki
+./run-preprocessor.sh search --object "person:10+"   # tłum (10+ osób)
+
+# Z filtrem po sezonie
+./run-preprocessor.sh search --object "dog" --season 10
+
+# Kombinacja: obiekt + postać
+./run-preprocessor.sh search --object "car" --character "Lucy" --season 10
+
+# Znajdź wszystkie sceny z jedzeniem
+./run-preprocessor.sh search --object "bottle" --limit 50
+./run-preprocessor.sh search --object "cup" --limit 50
+./run-preprocessor.sh search --object "bowl" --limit 50
+```
+
+**Dostępne klasy COCO (80 obiektów):**
+- **Ludzie**: person
+- **Pojazdy**: bicycle, car, motorcycle, airplane, bus, train, truck, boat
+- **Meble**: chair, couch, bed, diningtable, toilet
+- **Elektronika**: tv, laptop, mouse, remote, keyboard, cell phone
+- **Jedzenie**: bottle, wine glass, cup, fork, knife, spoon, bowl, banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut, cake
+- **Zwierzęta**: bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe
+- **Pozostałe**: backpack, umbrella, handbag, tie, suitcase, frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket, book, clock, vase, scissors, teddy bear, hair drier, toothbrush
+- I więcej...
+
 ### Episode name search
 ```bash
 # Fuzzy search po nazwach odcinków (toleruje błędy pisowni)
@@ -205,6 +241,10 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 
 # Pamiętasz kto był w scenie
 ./run-preprocessor.sh search --character "Lucy" --season 10 --limit 20
+
+# Pamiętasz co było w scenie (obiekty)
+./run-preprocessor.sh search --object "car" --season 10 --limit 10
+./run-preprocessor.sh search --object "dog" --character "Lucy"
 ```
 
 ### Analiza postaci
@@ -218,6 +258,29 @@ Narzędzie search jest wbudowane w główny preprocessor CLI i używa tego sameg
 # Sceny Lucy + semantic search (emocje)
 ./run-preprocessor.sh search --text-semantic "smutna scena" --season 10
 # (potem ręcznie sprawdź które mają Lucy)
+```
+
+### Analiza obiektów w serialu
+```bash
+# Znajdź wszystkie sceny z samochodami
+./run-preprocessor.sh search --object "car" --limit 100
+
+# Sceny z wieloma osobami (tłumy, wesela, zebrania)
+./run-preprocessor.sh search --object "person:10+" --limit 50
+
+# Sceny przy stole (posiłki, rozmowy)
+./run-preprocessor.sh search --object "diningtable" --limit 50
+./run-preprocessor.sh search --object "chair:4+" --limit 50
+
+# Zwierzęta w serialu
+./run-preprocessor.sh search --object "dog" --limit 50
+./run-preprocessor.sh search --object "horse" --limit 50
+
+# Kombinacje (np. Lucy z psem)
+./run-preprocessor.sh search --object "dog" --character "Lucy"
+
+# Sceny z konkretną liczbą osób (np. rozmowy 2-3 osobowe)
+./run-preprocessor.sh search --object "person:2-3" --limit 100
 ```
 
 ### Znajdowanie duplikatów
@@ -253,6 +316,24 @@ Segments: 0-4 [Scene 12: 115.0s - 130.0s]
 Embedding ID: ranczo_S10E01_emb_0
 Text: Lucy przyjeżdża do wsi. Spotyka Solejukową. Rozmowa o zagrodzie.
 Path: /app/output_data/transcoded_videos/ranczo_S10E01.mp4
+```
+
+### Object search (`--object`)
+```
+[1] Score: 1.00
+Episode: S10E01 - Pilot
+Frame: frame_00120.jpg
+Time: 120.50s [Scene 12: 115.0s - 130.0s]
+Frame Type: scene_middle
+Detected Objects:
+  - person: 5
+  - chair: 8
+  - diningtable: 1
+  - bottle: 2
+Characters: Lucy Wilska, Solejukowa
+Hash: 191b075b6d0363cf
+Path: /app/output_data/frames_480p/S10/E01/frame_00120.jpg
+Video: /app/output_data/transcoded_videos/ranczo_S10E01.mp4
 ```
 
 ### Video/Image/Character search (`--image`, `--character`, `--hash`)
@@ -368,9 +449,9 @@ Embeddingi tekstowe (grupy 5 segmentów).
 - `video_path` (string) - ścieżka do pliku
 
 ### `ranczo_video_embeddings`
-Embeddingi video + perceptual hashes + wykryte postacie.
+Embeddingi video + perceptual hashes + wykryte postacie + wykryte obiekty.
 
-**Używane przez:** `--image`, `--character`, `--hash`
+**Używane przez:** `--image`, `--character`, `--hash`, `--object`
 
 **Kluczowe pola:**
 - `video_embedding` (dense_vector, 1536-dim) - embedding Qwen2-VL
@@ -379,6 +460,9 @@ Embeddingi video + perceptual hashes + wykryte postacie.
 - `frame_type` (string) - typ klatki (scene_start, scene_middle, scene_end)
 - `perceptual_hash` (keyword) - 16-znakowy hex hash
 - `character_appearances` (keyword array) - wykryte postacie
+- `detected_objects` (nested) - wykryte obiekty D-FINE-X:
+  - `class` (keyword) - klasa obiektu (np. "person", "car", "dog")
+  - `count` (integer) - liczba wystąpień na klatce
 - `scene_info` (object) - numer sceny, start/end sceny
 - `episode_metadata` (object) - sezon, odcinek, tytuł
 - `video_path` (string) - ścieżka do pliku
@@ -695,6 +779,55 @@ Wyświetla wszystkie wykryte postacie z liczbą wystąpień.
 ./run-preprocessor.sh search --list-characters
 ./run-preprocessor.sh search --list-characters --json-output
 ```
+
+### 11. Object search (`--object`)
+
+**Algorytm:** Elasticsearch nested query na wykrytych obiektach (D-FINE-X)
+
+**Indeks:** `ranczo_video_embeddings`
+
+**Przeszukuje:**
+- Pole `detected_objects` (nested, 80 klas COCO)
+- Wspiera filtrowanie po liczbie obiektów na klatce
+
+**Cechy:**
+- Wykrywanie **80 klas obiektów COCO** (person, car, chair, dog, bottle, itd.)
+- Filtrowanie po dokładnej liczbie: `--object "person:5"` (dokładnie 5 osób)
+- Minimum: `--object "person:5+"` (5 lub więcej osób)
+- Zakres: `--object "chair:2-4"` (2-4 krzesła)
+- Kombinacje z innymi filtrami: `--season`, `--episode`, `--character`
+- Domyślny limit: 20 wyników
+- Score: 1.0 (dokładne dopasowanie)
+
+**Model:** D-FINE-X (xlarge-obj2coco)
+- 59.3% AP na COCO
+- Pretrained na Objects365 (365 klas) → finetuned na COCO (80 klas)
+- Najlepszy model D-FINE dla complex scenes
+
+**Kiedy używać:**
+- Szukasz scen z konkretnymi obiektami (samochody, zwierzęta, meble)
+- Analizujesz liczbę osób w scenach (tłumy, rozmowy 1-na-1)
+- Badasz obecność konkretnych rekwizytów
+- Kombinujesz z wyszukiwaniem po postaciach
+
+**Przykłady:**
+```bash
+# Proste wyszukiwanie
+./run-preprocessor.sh search --object "dog"
+./run-preprocessor.sh search --object "car" --season 10
+
+# Filtrowanie po liczbie
+./run-preprocessor.sh search --object "person:5+"    # tłumy
+./run-preprocessor.sh search --object "chair:2-4"    # małe zebrania
+./run-preprocessor.sh search --object "person:2"     # rozmowy 1-na-1
+
+# Kombinacje
+./run-preprocessor.sh search --object "dog" --character "Lucy"
+./run-preprocessor.sh search --object "car" --season 10 --episode 1
+```
+
+**Dostępne klasy (80 obiektów COCO):**
+person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign, parking meter, bench, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe, backpack, umbrella, handbag, tie, suitcase, frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket, bottle, wine glass, cup, fork, knife, spoon, bowl, banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut, cake, chair, couch, potted plant, bed, dining table, toilet, tv, laptop, mouse, remote, keyboard, cell phone, microwave, oven, toaster, sink, refrigerator, book, clock, vase, scissors, teddy bear, hair drier, toothbrush
 
 ---
 

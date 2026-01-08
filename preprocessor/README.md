@@ -104,10 +104,12 @@ docker logs ranchbot-preprocessing-app -f
 │  [0b/9] scrape characters →  [0c/9] download references                                                   │
 │         (Qwen + crawl4ai)       (DuckDuckGo + InsightFace)                                                │
 │                                                                                                            │
-│  [4/9] export frames  →  [5/9] frame processing (3 sub-kroki):                                            │
+│  [4/9] export frames  →  [5/9] frame processing (5 sub-kroków):                                           │
 │        (480p JPG)              [5a] image hashing (perceptual hash)                                       │
 │                                [5b] video embeddings (Qwen2-VL per-frame)                                 │
 │                                [5c] character detection (InsightFace)                                     │
+│                                [5d] object detection (D-FINE-X)                                           │
+│                                [5e] object visualization (annotated frames)                               │
 │                                                                                                            │
 │  [6/9] text embeddings  →  [7/9] generate elastic docs  →  [8/9] index                                   │
 │        (Qwen2-VL)              (JSON merging)                  (Elasticsearch)                            │
@@ -126,14 +128,16 @@ docker logs ranchbot-preprocessing-app -f
 | Transcribe (Whisper)           | ~5 min |
 | Scene detection (TransNetV2)   | ~3 min |
 | Export frames (480p)           | ~2 min |
-| Frame processing (5/9)         | ~8-10 min |
+| Frame processing (5/9)         | ~12-15 min |
 | - Image hashing (5a)           | ~1 min |
 | - Video embeddings (5b)        | ~5-7 min |
 | - Character detection (5c)     | ~2 min |
+| - Object detection (5d)        | ~2-3 min |
+| - Object visualization (5e)    | ~1-2 min |
 | Text embeddings (6/9)          | ~3-5 min |
 | Generate elastic docs          | ~1 min |
 | Index (Elasticsearch)          | ~2 min |
-| **Łącznie**                    | **~23-25 min** |
+| **Łącznie**                    | **~28-32 min** |
 
 **Throughput:** ~2-3 odcinki (45 min każdy) na godzinę przetwarzania.
 
@@ -226,7 +230,9 @@ Pełny pipeline ze wszystkimi krokami (11 kroków: 0a-0c, 1-8).
   --skip-frame-export \
   --skip-image-hashing \
   --skip-video-embeddings \
-  --skip-character-detection
+  --skip-character-detection \
+  --skip-object-detection \
+  --skip-object-visualization
 
 # Premium modes (Gemini parser, ElevenLabs transcription, Google Images)
 ./run-preprocessor.sh run-all /input_data/videos \
@@ -246,6 +252,8 @@ Pełny pipeline ze wszystkimi krokami (11 kroków: 0a-0c, 1-8).
 - `--skip-image-hashing` - Krok 5a: Image hashing (sub-krok)
 - `--skip-video-embeddings` - Krok 5b: Video embeddings (sub-krok)
 - `--skip-character-detection` - Krok 5c: Character detection (sub-krok)
+- `--skip-object-detection` - Krok 5d: Object detection (sub-krok)
+- `--skip-object-visualization` - Krok 5e: Object visualization (sub-krok)
 - `--skip-embeddings` - Krok 6: Text embeddings
 - `--skip-elastic-documents` - Krok 7: Generowanie dokumentów Elasticsearch
 - `--skip-index` - Krok 8: Indeksowanie
@@ -583,6 +591,7 @@ docker-compose build
 | Perceptual hashing | ImageHash | pHash algorithm |
 | Embeddingi | gme-Qwen2-VL-2B-Instruct | float16 (~5GB) |
 | Face recognition | InsightFace (buffalo_l) | ArcFace embeddings (~1GB) |
+| Object detection | D-FINE-X (obj2coco) | DETR-based, 59.3% AP (~0.5GB) |
 | Image search | DuckDuckGo (DDGS) | Reference images download |
 | LLM scraping | Qwen2.5-Coder-7B-Instruct | 8-bit, 128K context (~8GB) |
 | Video decoding | Decord | GPU (5-10x szybsze niż OpenCV) |
@@ -594,6 +603,7 @@ docker-compose build
 **Modele pobierane automatycznie:**
 - Whisper large-v3-turbo (~1.5GB)
 - gme-Qwen2-VL-2B-Instruct (~5GB)
+- D-FINE-X xlarge-obj2coco (~250MB)
 - TransNetV2 (~200MB)
 - InsightFace buffalo_l (~1GB)
 - Qwen2.5-Coder-7B-Instruct (przez Ollama, ~8GB)
