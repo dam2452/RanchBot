@@ -33,6 +33,11 @@ from preprocessor.indexing.elastic_document_generator import ElasticDocumentGene
     help="Directory with character detection files",
 )
 @click.option(
+    "--object-detections-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    help="Directory with object detection files",
+)
+@click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
     default="/app/output_data/elastic_documents",
@@ -45,6 +50,7 @@ def generate_elastic_documents(
     embeddings_dir: Path,
     scene_timestamps_dir: Path,
     character_detections_dir: Path,
+    object_detections_dir: Path,
     output_dir: Path,
     name: str,
     episodes_info_json: Path,
@@ -54,6 +60,7 @@ def generate_elastic_documents(
         "embeddings_dir": embeddings_dir,
         "scene_timestamps_dir": scene_timestamps_dir,
         "character_detections_dir": character_detections_dir,
+        "object_detections_dir": object_detections_dir,
         "output_dir": output_dir,
         "series_name": name,
         "episodes_info_json": episodes_info_json,
