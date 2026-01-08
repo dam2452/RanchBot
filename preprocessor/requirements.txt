@@ -21,4 +21,5 @@ torchvision~=0.24.1
 transformers==4.51.3
 transnetv2-pytorch~=1.0.5
 ua-generator~=2.0.19
+ultralytics~=8.3.49
 urllib3~=2.2.3

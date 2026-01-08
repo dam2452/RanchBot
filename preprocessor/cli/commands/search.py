@@ -249,6 +249,89 @@ async def search_by_character(es_client, character, season=None, episode=None, l
     )
 
 
+async def search_by_object(es_client, object_query, season=None, episode=None, limit=20):
+    filter_clauses = []
+    if season is not None:
+        filter_clauses.append({"term": {"episode_metadata.season": season}})
+    if episode is not None:
+        filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
+
+    must_clauses = []
+
+    if ":" in object_query:
+        object_class, count_filter = object_query.split(":", 1)
+        object_class = object_class.strip()
+
+        if count_filter.endswith("+"):
+            min_count = int(count_filter[:-1])
+            must_clauses.append({
+                "nested": {
+                    "path": "detected_objects",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"detected_objects.class": object_class}},
+                                {"range": {"detected_objects.count": {"gte": min_count}}},
+                            ],
+                        },
+                    },
+                },
+            })
+        elif "-" in count_filter:
+            min_c, max_c = count_filter.split("-")
+            must_clauses.append({
+                "nested": {
+                    "path": "detected_objects",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"detected_objects.class": object_class}},
+                                {"range": {"detected_objects.count": {"gte": int(min_c), "lte": int(max_c)}}},
+                            ],
+                        },
+                    },
+                },
+            })
+        else:
+            exact_count = int(count_filter)
+            must_clauses.append({
+                "nested": {
+                    "path": "detected_objects",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"detected_objects.class": object_class}},
+                                {"term": {"detected_objects.count": exact_count}},
+                            ],
+                        },
+                    },
+                },
+            })
+    else:
+        must_clauses.append({
+            "nested": {
+                "path": "detected_objects",
+                "query": {
+                    "term": {"detected_objects.class": object_query.strip()},
+                },
+            },
+        })
+
+    query_body = {
+        "bool": {
+            "must": must_clauses,
+            "filter": filter_clauses,
+        },
+    }
+
+    return await es_client.search(
+        index="ranczo_video_embeddings",
+        query=query_body,
+        size=limit,
+        _source=["episode_id", "frame_number", "timestamp", "detected_objects", "character_appearances", "video_path", "episode_metadata", "scene_info"],
+    )
+
+
 async def search_perceptual_hash(es_client, phash, limit=10):
     return await es_client.search(
         index="ranczo_video_embeddings",
@@ -366,6 +449,9 @@ def print_results(result, result_type="text"):
                 click.echo(f"Hash: {source['perceptual_hash']}")
             if source.get("character_appearances"):
                 click.echo(f"Characters: {', '.join(source['character_appearances'])}")
+            if source.get("detected_objects"):
+                objects_str = ", ".join([f"{obj['class']}:{obj['count']}" for obj in source['detected_objects']])
+                click.echo(f"Objects: {objects_str}")
 
         click.echo(f"Path: {source['video_path']}")
 
@@ -377,6 +463,7 @@ def print_results(result, result_type="text"):
 @click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search po video embeddings")
 @click.option("--hash", "phash", type=str, help="Szukaj po perceptual hash (podaj hash string lub sciezke do obrazka)")
 @click.option("--character", type=str, help="Szukaj po postaci")
+@click.option("--object", "object_query", type=str, help="Szukaj po wykrytych obiektach (np. 'dog', 'person:5+', 'chair:2-4')")
 @click.option("--episode-name", type=str, help="Fuzzy search po nazwach odcinkow")
 @click.option("--episode-name-semantic", type=str, help="Semantic search po nazwach odcinkow")
 @click.option("--list-characters", "list_chars_flag", is_flag=True, help="Lista wszystkich postaci")
@@ -387,13 +474,13 @@ def print_results(result, result_type="text"):
 @click.option("--json-output", is_flag=True, help="Output w formacie JSON")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
 def search(
-    text, text_semantic, text_to_video, image, phash, character, episode_name,
+    text, text_semantic, text_to_video, image, phash, character, object_query, episode_name,
     episode_name_semantic, list_chars_flag, season, episode, limit,
     stats, json_output, host,
 ):
     """Search tool - comprehensive Elasticsearch search"""
 
-    if not any([text, text_semantic, text_to_video, image, phash, character, episode_name, episode_name_semantic, list_chars_flag, stats]):
+    if not any([text, text_semantic, text_to_video, image, phash, character, object_query, episode_name, episode_name_semantic, list_chars_flag, stats]):
         click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
         sys.exit(1)
 
@@ -471,6 +558,13 @@ def search(
 
             elif character:
                 result = await search_by_character(es_client, character, season, episode, limit)
+                if json_output:
+                    click.echo(json.dumps(result["hits"], indent=2))
+                else:
+                    print_results(result, "video")
+
+            elif object_query:
+                result = await search_by_object(es_client, object_query, season, episode, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:

@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TORCH_HOME=/models/torch \
     WHISPER_CACHE=/models/whisper \
     INSIGHTFACE_HOME=/models/insightface \
+    YOLO_CONFIG_DIR=/models/ultralytics \
     CUBLAS_WORKSPACE_CONFIG=:4096:8 \
     TOKENIZERS_PARALLELISM=false
 
@@ -49,7 +50,7 @@ RUN patchright install chromium \
 RUN playwright install chromium \
     && playwright install-deps chromium
 
-RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface \
+RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface /models/ultralytics \
     /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
 
 COPY bot /app/bot

@@ -113,6 +113,8 @@ from preprocessor.utils.console import console
 @click.option("--skip-image-hashing", is_flag=True, help="Skip Step 5a: Image hashing sub-step (use existing hashes)")
 @click.option("--skip-video-embeddings", is_flag=True, help="Skip Step 5b: Video embeddings sub-step (use existing)")
 @click.option("--skip-character-detection", is_flag=True, help="Skip Step 5c: Character detection sub-step (use existing)")
+@click.option("--skip-object-detection", is_flag=True, help="Skip Step 5d: Object detection sub-step (use existing)")
+@click.option("--skip-object-visualization", is_flag=True, help="Skip Step 5e: Object visualization sub-step (skip annotated frames)")
 @click.option("--skip-embeddings", is_flag=True, help="Skip Step 6: Text embedding generation (use existing text embeddings)")
 @click.option("--skip-elastic-documents", is_flag=True, help="Skip Step 7: Generate Elasticsearch documents (use existing documents)")
 @click.option("--skip-index", is_flag=True, help="Skip Step 8: Elasticsearch indexing")
@@ -143,6 +145,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_image_hashing: bool,
     skip_video_embeddings: bool,
     skip_character_detection: bool,
+    skip_object_detection: bool,
+    skip_object_visualization: bool,
     skip_embeddings: bool,
     skip_elastic_documents: bool,
     skip_index: bool,
@@ -197,6 +201,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "skip_image_hashing": skip_image_hashing,
         "skip_video_embeddings": skip_video_embeddings,
         "skip_character_detection": skip_character_detection,
+        "skip_object_detection": skip_object_detection,
+        "skip_object_visualization": skip_object_visualization,
     }
 
     metadata_output_dir = Path("/app/output_data/processing_metadata")
@@ -206,7 +212,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         series_name=series_name,
         metadata_output_dir=metadata_output_dir,
     )
-    skip_frame_processing = skip_image_hashing and skip_video_embeddings and skip_character_detection
+    skip_frame_processing = skip_image_hashing and skip_video_embeddings and skip_character_detection and skip_object_detection and skip_object_visualization
 
     orchestrator.add_step("Scraping episode metadata", "0a/9", run_scrape_step, skip=False)
     orchestrator.add_step("Scraping character metadata", "0b/9", run_character_scrape_step, skip=False)

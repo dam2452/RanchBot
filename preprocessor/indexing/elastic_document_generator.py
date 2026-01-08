@@ -31,6 +31,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self.embeddings_dir: Optional[Path] = self._args.get("embeddings_dir")
         self.scene_timestamps_dir: Optional[Path] = self._args.get("scene_timestamps_dir")
         self.character_detections_dir: Optional[Path] = self._args.get("character_detections_dir")
+        self.object_detections_dir: Optional[Path] = self._args.get("object_detections_dir")
         self.output_dir: Path = self._args.get("output_dir", Path("/app/output_data/elastic_documents"))
 
         episodes_info_json = self._args.get("episodes_info_json")
@@ -130,6 +131,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         scene_timestamps = self.__load_scene_timestamps(episode_info)
         character_detections = self.__load_character_detections(episode_info)
+        object_detections = self.__load_object_detections(episode_info)
 
         if any("_segments.jsonl" in str(o.path) for o in missing_outputs):
             self.__generate_segments(
@@ -170,6 +172,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                     video_path,
                     scene_timestamps,
                     character_detections,
+                    object_detections,
                     season_dir,
                     base_name,
                 )
@@ -226,10 +229,48 @@ class ElasticDocumentGenerator(BaseProcessor):
             self.logger.error(f"Error loading character detections: {e}")
             return {}
 
+    def __load_object_detections(self, episode_info) -> Dict[str, List[Dict[str, Any]]]:
+        if not self.object_detections_dir:
+            return {}
+
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        detection_file = self.object_detections_dir / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+
+        if not detection_file.exists():
+            return {}
+
+        try:
+            with open(detection_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            detections_dict = {}
+            for frame_data in data.get("detections", []):
+                frame_name = frame_data["frame_name"]
+                detections_dict[frame_name] = frame_data.get("detections", [])
+
+            return detections_dict
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error(f"Error loading object detections: {e}")
+            return {}
+
     @staticmethod
     def __get_characters_for_frame(frame_path: str, character_detections: Dict[str, List[Dict[str, Any]]]) -> List[str]:
         characters = character_detections.get(frame_path, [])
         return [char["name"] for char in characters]
+
+    @staticmethod
+    def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+        detections = object_detections.get(frame_name, [])
+        objects_summary = {}
+        for det in detections:
+            class_name = det["class_name"]
+            if class_name in objects_summary:
+                objects_summary[class_name] += 1
+            else:
+                objects_summary[class_name] = 1
+
+        return [{"class": cls, "count": cnt} for cls, cnt in objects_summary.items()]
 
     @staticmethod
     def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -352,6 +393,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         video_path: str,
         scene_timestamps: Optional[Dict[str, Any]],
         character_detections: Dict[str, List[Dict[str, Any]]],
+        object_detections: Dict[str, List[Dict[str, Any]]],
         season_dir: str,
         base_name: str,
     ) -> None:
@@ -393,6 +435,11 @@ class ElasticDocumentGenerator(BaseProcessor):
                     characters = self.__get_characters_for_frame(frame_path, character_detections)
                     if characters:
                         doc["character_appearances"] = characters
+
+                    frame_name = Path(frame_path).name if isinstance(frame_path, str) else frame_path
+                    objects = self.__get_objects_for_frame(frame_name, object_detections)
+                    if objects:
+                        doc["detected_objects"] = objects
 
                 if perceptual_hash:
                     doc["perceptual_hash"] = perceptual_hash

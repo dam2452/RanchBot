@@ -303,3 +303,291 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
             self.threshold,
         )
         save_character_detections(episode_info, results)
+
+
+class ObjectDetectionSubProcessor(FrameSubProcessor):
+    def __init__(self, model_name: str = "yolo11x.pt", conf_threshold: float = 0.25):
+        super().__init__("Object Detection")
+        self.model_name = model_name
+        self.conf_threshold = conf_threshold
+        self.model: Optional[Any] = None
+        self.logger = ErrorHandlingLogger("ObjectDetectionSubProcessor", logging.DEBUG, 15)
+
+    def initialize(self) -> None:
+        if self.model is None:
+            if not torch.cuda.is_available():
+                raise RuntimeError("CUDA is not available. Object detection requires GPU.")
+
+            from ultralytics import YOLO  # pylint: disable=import-outside-toplevel
+
+            console.print(f"[cyan]Loading YOLO model: {self.model_name}[/cyan]")
+            self.model = YOLO(self.model_name)
+            self.model.to("cuda")
+            console.print("[green]✓ YOLO model loaded on GPU[/green]")
+
+    def cleanup(self) -> None:
+        self.model = None
+        self._cleanup_memory()
+
+    def finalize(self) -> None:
+        if hasattr(self, 'logger'):
+            self.logger.finalize()
+
+    def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        episode_info = item.metadata["episode_info"]
+        detections_output_dir = Path(settings.object_detection.output_dir)
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        detections_output = episode_dir / "detections.json"
+        return [OutputSpec(path=detections_output, required=True)]
+
+    def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
+        expected = self.get_expected_outputs(item)
+        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
+
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
+        self.initialize()
+
+        episode_info = item.metadata["episode_info"]
+
+        frame_files = sorted([
+            f for f in ramdisk_frames_dir.glob("*.jpg")
+            if f.is_file() and f.name.startswith("frame_")
+        ])
+
+        if not frame_files:
+            console.print(f"[yellow]No frames found in {ramdisk_frames_dir}[/yellow]")
+            return
+
+        console.print(f"[cyan]Detecting objects in {len(frame_files)} frames[/cyan]")
+
+        detections_data = {
+            "episode_code": f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}",
+            "model": self.model_name,
+            "confidence_threshold": self.conf_threshold,
+            "frames": [],
+        }
+
+        for frame_path in frame_files:
+            results = self.model(str(frame_path), conf=self.conf_threshold, verbose=False)
+
+            frame_result = {
+                "frame_name": frame_path.name,
+                "detections": [],
+            }
+
+            for result in results:
+                boxes = result.boxes
+                for box in boxes:
+                    detection = {
+                        "class_id": int(box.cls[0]),
+                        "class_name": result.names[int(box.cls[0])],
+                        "confidence": float(box.conf[0]),
+                        "bbox": {
+                            "x1": float(box.xyxy[0][0]),
+                            "y1": float(box.xyxy[0][1]),
+                            "x2": float(box.xyxy[0][2]),
+                            "y2": float(box.xyxy[0][3]),
+                        },
+                    }
+                    frame_result["detections"].append(detection)
+
+            frame_result["detection_count"] = len(frame_result["detections"])
+            detections_data["frames"].append(frame_result)
+
+        total_detections = sum(f['detection_count'] for f in detections_data['frames'])
+        frames_with_detections = len([f for f in detections_data['frames'] if f['detection_count'] > 0])
+
+        console.print(f"[green]✓ Total detections: {total_detections}[/green]")
+        console.print(f"[green]✓ Frames with detections: {frames_with_detections}/{len(frame_files)}[/green]")
+
+        class_counts = {}
+        for frame in detections_data["frames"]:
+            for det in frame["detections"]:
+                class_name = det["class_name"]
+                class_counts[class_name] = class_counts.get(class_name, 0) + 1
+
+        if class_counts:
+            top_classes = sorted(class_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            console.print(f"[cyan]Top 5 classes: {', '.join(f'{cls}:{cnt}' for cls, cnt in top_classes)}[/cyan]")
+
+        self.__save_detections(episode_info, detections_data)
+
+    def __save_detections(self, episode_info, detections_data: Dict[str, Any]) -> None:
+        detections_output_dir = Path(settings.object_detection.output_dir)
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_dir.mkdir(parents=True, exist_ok=True)
+
+        output_data = create_processing_metadata(
+            episode_info=episode_info,
+            processing_params={
+                "model": self.model_name,
+                "confidence_threshold": self.conf_threshold,
+            },
+            statistics={
+                "total_frames": len(detections_data["frames"]),
+                "total_detections": sum(f['detection_count'] for f in detections_data['frames']),
+                "frames_with_detections": len([f for f in detections_data['frames'] if f['detection_count'] > 0]),
+            },
+            results_key="detections",
+            results_data=detections_data["frames"],
+        )
+
+        detections_output = episode_dir / "detections.json"
+        with open(detections_output, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
+
+        console.print(f"[green]✓ Saved object detections to: {detections_output}[/green]")
+
+    @staticmethod
+    def _cleanup_memory() -> None:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
+    def __init__(self):
+        super().__init__("Object Detection Visualization")
+        self.logger = ErrorHandlingLogger("ObjectDetectionVisualizationSubProcessor", logging.DEBUG, 15)
+
+    def initialize(self) -> None:
+        pass
+
+    def cleanup(self) -> None:
+        pass
+
+    def finalize(self) -> None:
+        if hasattr(self, 'logger'):
+            self.logger.finalize()
+
+    def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        episode_info = item.metadata["episode_info"]
+        visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_code = f"S{season:02d}E{episode:02d}"
+        output_episode_dir = visualized_output_dir / episode_code
+        marker_file = output_episode_dir / ".visualization_complete"
+        return [OutputSpec(path=marker_file, required=True)]
+
+    def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
+        episode_info = item.metadata["episode_info"]
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+
+        if not detection_file.exists():
+            console.print(f"[yellow]No object detections found for {episode_info.episode_code}, skipping visualization[/yellow]")
+            return False
+
+        expected = self.get_expected_outputs(item)
+        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
+
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals,too-many-statements
+        import cv2  # pylint: disable=import-outside-toplevel
+
+        episode_info = item.metadata["episode_info"]
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        episode_code = f"S{season:02d}E{episode:02d}"
+
+        detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+        frames_source_dir = Path(settings.frame_export.output_dir) / f"S{season:02d}" / f"E{episode:02d}"
+
+        if not detection_file.exists():
+            console.print(f"[yellow]No detections JSON found: {detection_file}[/yellow]")
+            return
+
+        if not frames_source_dir.exists():
+            console.print(f"[yellow]No frames directory found: {frames_source_dir}[/yellow]")
+            return
+
+        with open(detection_file, 'r', encoding='utf-8') as f:
+            detection_data = json.load(f)
+
+        detections_frames = detection_data.get("detections", [])
+        frames_with_detections = [f for f in detections_frames if f['detection_count'] > 0]
+
+        if not frames_with_detections:
+            console.print(f"[yellow]No frames with detections for {episode_code}[/yellow]")
+            return
+
+        visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
+        output_episode_dir = visualized_output_dir / episode_code
+        output_episode_dir.mkdir(parents=True, exist_ok=True)
+
+        colors = self._generate_colors()
+        conf_threshold = detection_data.get("processing_params", {}).get("confidence_threshold", 0.25)
+
+        console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames with detections for {episode_code}[/cyan]")
+
+        for frame_data in frames_with_detections:
+            frame_name = frame_data['frame_name']
+            frame_path = frames_source_dir / frame_name
+            output_path = output_episode_dir / frame_name
+
+            if output_path.exists():
+                continue
+
+            if not frame_path.exists():
+                continue
+
+            img = cv2.imread(str(frame_path))
+            if img is None:
+                continue
+
+            for detection in frame_data['detections']:
+                if detection['confidence'] < conf_threshold:
+                    continue
+
+                class_id = detection['class_id']
+                class_name = detection['class_name']
+                confidence = detection['confidence']
+                bbox = detection['bbox']
+
+                x1, y1 = int(bbox['x1']), int(bbox['y1'])
+                x2, y2 = int(bbox['x2']), int(bbox['y2'])
+
+                color = colors.get(class_id, (0, 255, 0))
+
+                cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+
+                label = f"{class_name} {confidence:.2f}"
+                label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                label_y1 = max(y1 - 10, label_size[1])
+
+                cv2.rectangle(
+                    img,
+                    (x1, label_y1 - label_size[1] - 5),
+                    (x1 + label_size[0], label_y1),
+                    color,
+                    -1,
+                )
+
+                cv2.putText(
+                    img,
+                    label,
+                    (x1, label_y1 - 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                )
+
+            cv2.imwrite(str(output_path), img)
+
+        marker_file = output_episode_dir / ".visualization_complete"
+        marker_file.touch()
+
+        console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_episode_dir}[/green]")
+
+    def _generate_colors(self, num_colors: int = 80) -> Dict[int, tuple]:
+        np.random.seed(42)
+        colors = {}
+        for i in range(num_colors):
+            colors[i] = tuple(int(x) for x in np.random.randint(50, 255, 3))
+        return colors

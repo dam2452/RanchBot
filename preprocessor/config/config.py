@@ -87,6 +87,14 @@ class CharacterSettings:
 
 
 @dataclass
+class ObjectDetectionSettings:
+    model_name: str = "yolo11x.pt"
+    conf_threshold: float = 0.25
+    output_dir: Path = Path("/app/output_data/object_detections")
+    visualized_output_dir: Path = Path("/app/output_data/object_detection_frames")
+
+
+@dataclass
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
     detection_size: tuple = (640, 640)
@@ -194,6 +202,7 @@ class Settings:
     image_hash: ImageHashSettings
     scraper: ScraperSettings
     character: CharacterSettings
+    object_detection: ObjectDetectionSettings
     face_recognition: FaceRecognitionSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
@@ -211,6 +220,7 @@ class Settings:
             image_hash=ImageHashSettings(),
             scraper=ScraperSettings(),
             character=CharacterSettings(),
+            object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings.from_env(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),

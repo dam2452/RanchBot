@@ -6,6 +6,8 @@ from preprocessor.video.frame_processor import FrameProcessor
 from preprocessor.video.frame_subprocessors import (
     CharacterDetectionSubProcessor,
     ImageHashSubProcessor,
+    ObjectDetectionSubProcessor,
+    ObjectDetectionVisualizationSubProcessor,
     VideoEmbeddingSubProcessor,
 )
 
@@ -297,6 +299,7 @@ def run_elastic_documents_step(**kwargs):
     embeddings_dir = settings.embedding.default_output_dir
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
     character_detections_dir = settings.character.detections_dir
+    object_detections_dir = settings.object_detection.output_dir
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
 
@@ -306,6 +309,7 @@ def run_elastic_documents_step(**kwargs):
             "embeddings_dir": embeddings_dir,
             "scene_timestamps_dir": scene_timestamps_dir,
             "character_detections_dir": character_detections_dir,
+            "object_detections_dir": object_detections_dir,
             "output_dir": get_output_path("elastic_documents"),
             "series_name": name,
             "episodes_info_json": episodes_info_json,
@@ -333,7 +337,17 @@ def run_index_step(name, dry_run, state_manager, **kwargs):
     return indexer.work()
 
 
-def run_frame_processing_step(device, state_manager, ramdisk_path, skip_image_hashing, skip_video_embeddings, skip_character_detection, **kwargs):
+def run_frame_processing_step(  # pylint: disable=too-many-locals
+    device,
+    state_manager,
+    ramdisk_path,
+    skip_image_hashing,
+    skip_video_embeddings,
+    skip_character_detection,
+    skip_object_detection,
+    skip_object_visualization,
+    **kwargs,
+):
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
     output_frames = kwargs.get("output_frames", settings.frame_export.output_dir)
@@ -377,6 +391,19 @@ def run_frame_processing_step(device, state_manager, ramdisk_path, skip_image_ha
         )
         processor.add_sub_processor(char_detection_sub)
         sub_processors.append(char_detection_sub)
+
+    if not skip_object_detection:
+        object_detection_sub = ObjectDetectionSubProcessor(
+            model_name=settings.object_detection.model_name,
+            conf_threshold=settings.object_detection.conf_threshold,
+        )
+        processor.add_sub_processor(object_detection_sub)
+        sub_processors.append(object_detection_sub)
+
+    if not skip_object_visualization:
+        object_viz_sub = ObjectDetectionVisualizationSubProcessor()
+        processor.add_sub_processor(object_viz_sub)
+        sub_processors.append(object_viz_sub)
 
     try:
         return processor.work()
