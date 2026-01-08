@@ -85,7 +85,7 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
     i = 0
     for admin_id in s.ADMIN_IDS.split(","):
         await DatabaseManager.set_default_admin(
-            user_id=s.DEFAULT_ADMIN,
+            user_id=int(admin_id),
             username=f"User{i}",
             password=s.TEST_PASSWORD.get_secret_value(),
         )
