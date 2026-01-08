@@ -24,7 +24,6 @@ from transformers.models.qwen3_vl.modeling_qwen3_vl import (
 from transformers.models.qwen3_vl.processing_qwen3_vl import Qwen3VLProcessor
 from transformers.processing_utils import Unpack
 from transformers.utils import TransformersKwargs
-from transformers.utils.generic import check_model_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +69,17 @@ class Qwen3VLForEmbedding(Qwen3VLPreTrainedModel):
         return self.model.get_decoder()
 
     # Extract video features from model
-    def get_video_features(self, pixel_values_videos: torch.FloatTensor,
-                           video_grid_thw: Optional[torch.LongTensor] = None):
+    def get_video_features(
+        self, pixel_values_videos: torch.FloatTensor,
+        video_grid_thw: Optional[torch.LongTensor] = None,
+    ):
         return self.model.get_video_features(pixel_values_videos, video_grid_thw)
 
     # Extract image features from model
-    def get_image_features(self, pixel_values: torch.FloatTensor,
-                           image_grid_thw: Optional[torch.LongTensor] = None):
+    def get_image_features(
+        self, pixel_values: torch.FloatTensor,
+        image_grid_thw: Optional[torch.LongTensor] = None,
+    ):
         return self.model.get_image_features(pixel_values, image_grid_thw)
 
     # Make modules accessible through properties
@@ -88,21 +91,20 @@ class Qwen3VLForEmbedding(Qwen3VLPreTrainedModel):
     def visual(self):
         return self.model.visual
 
-    # Forward pass through model with input parameters
-    # @check_model_inputs
-    def forward(self,
-                input_ids: torch.LongTensor = None,
-                attention_mask: Optional[torch.Tensor] = None,
-                position_ids: Optional[torch.LongTensor] = None,
-                past_key_values: Optional[Cache] = None,
-                inputs_embeds: Optional[torch.FloatTensor] = None,
-                pixel_values: Optional[torch.Tensor] = None,
-                pixel_values_videos: Optional[torch.FloatTensor] = None,
-                image_grid_thw: Optional[torch.LongTensor] = None,
-                video_grid_thw: Optional[torch.LongTensor] = None,
-                cache_position: Optional[torch.LongTensor] = None,
-                logits_to_keep: Union[int, torch.Tensor] = 0,
-                **kwargs: Unpack[TransformersKwargs],
+    def forward(  # pylint: disable=too-many-arguments
+        self,
+                    input_ids: torch.LongTensor = None,
+                    attention_mask: Optional[torch.Tensor] = None,
+                    position_ids: Optional[torch.LongTensor] = None,
+                    past_key_values: Optional[Cache] = None,
+                    inputs_embeds: Optional[torch.FloatTensor] = None,
+                    pixel_values: Optional[torch.Tensor] = None,
+                    pixel_values_videos: Optional[torch.FloatTensor] = None,
+                    image_grid_thw: Optional[torch.LongTensor] = None,
+                    video_grid_thw: Optional[torch.LongTensor] = None,
+                    cache_position: Optional[torch.LongTensor] = None,
+                    _logits_to_keep: Union[int, torch.Tensor] = 0,
+                    **kwargs: Unpack[TransformersKwargs],
     ) -> Union[tuple, Qwen3VLForEmbeddingOutput]:
         # Pass inputs through the model
         outputs = self.model(
@@ -135,7 +137,7 @@ def sample_frames(frames: List[Union[str, Image.Image]], num_segments: int, max_
     for frame_idx in frame_id_list:
         try:
             sampled_frames.append(frames[frame_idx])
-        except:
+        except (IndexError, KeyError):
             break
     # Ensure the sampled list meets the required segment count
     while len(sampled_frames) < num_segments:
@@ -155,7 +157,7 @@ class Qwen3VLEmbedder():
         num_frames: int = MAX_FRAMES,
         max_frames: int = MAX_FRAMES,
         default_instruction: str = "Represent the user's input.",
-        **kwargs
+        **kwargs,
     ):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -170,10 +172,10 @@ class Qwen3VLEmbedder():
         self.default_instruction = default_instruction
 
         self.model = Qwen3VLForEmbedding.from_pretrained(
-            model_name_or_path, trust_remote_code=True, **kwargs
+            model_name_or_path, trust_remote_code=True, **kwargs,
         ).to(device)
         self.processor = Qwen3VLProcessor.from_pretrained(
-            model_name_or_path, padding_side='right'
+            model_name_or_path, padding_side='right',
         )
         self.model.eval()
 
@@ -182,7 +184,7 @@ class Qwen3VLEmbedder():
         outputs = self.model(**inputs)
         return {
             'last_hidden_state': outputs.last_hidden_state,
-            'attention_mask': inputs.get('attention_mask')
+            'attention_mask': inputs.get('attention_mask'),
         }
 
     # Truncate token sequence to a specified max length
@@ -212,7 +214,7 @@ class Qwen3VLEmbedder():
         video: Optional[Union[str, List[Union[str, Image.Image]]]] = None,
         instruction: Optional[str] = None,
         fps: Optional[float] = None,
-        max_frames: Optional[int] = None
+        max_frames: Optional[int] = None,
     ) -> List[Dict]:
 
         # Ensure instruction ends with punctuation
@@ -225,7 +227,7 @@ class Qwen3VLEmbedder():
         content = []
         conversation = [
             {"role": "system", "content": [{"type": "text", "text": instruction or self.default_instruction}]},
-            {"role": "user", "content": content}
+            {"role": "user", "content": content},
         ]
 
         # Add text, image, or video content to conversation
@@ -235,7 +237,7 @@ class Qwen3VLEmbedder():
 
         if video:
             video_content = None
-            video_kwargs = { 'total_pixels': self.total_pixels }
+            video_kwargs = { 'total_pixels': self.total_pixels}
             if isinstance(video, list):
                 video_content = video
                 if self.num_frames is not None or self.max_frames is not None:
@@ -246,7 +248,7 @@ class Qwen3VLEmbedder():
                 ]
             elif isinstance(video, str):
                 video_content = video if video.startswith(('http://', 'https://')) else 'file://' + video
-                video_kwargs = {'fps': fps or self.fps, 'max_frames': max_frames or self.max_frames,}
+                video_kwargs = {'fps': fps or self.fps, 'max_frames': max_frames or self.max_frames}
             else:
                 raise TypeError(f"Unrecognized video type: {type(video)}")
 
@@ -254,7 +256,7 @@ class Qwen3VLEmbedder():
             if video_content:
                 content.append({
                     'type': 'video', 'video': video_content,
-                    **video_kwargs
+                    **video_kwargs,
                 })
 
         if image:
@@ -271,7 +273,7 @@ class Qwen3VLEmbedder():
                 content.append({
                     'type': 'image', 'image': image_content,
                     "min_pixels": self.min_pixels,
-                    "max_pixels": self.max_pixels
+                    "max_pixels": self.max_pixels,
                 })
 
         if text:
@@ -282,22 +284,22 @@ class Qwen3VLEmbedder():
     # Preprocess input conversations for model consumption
     def _preprocess_inputs(self, conversations: List[List[Dict]]) -> Dict[str, torch.Tensor]:
         text = self.processor.apply_chat_template(
-            conversations, add_generation_prompt=True, tokenize=False
+            conversations, add_generation_prompt=True, tokenize=False,
         )
 
         try:
             images, video_inputs, video_kwargs = process_vision_info(
                 conversations, image_patch_size=16,
-                return_video_metadata=True, return_video_kwargs=True
+                return_video_metadata=True, return_video_kwargs=True,
             )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(f"Error in processing vision info: {e}")
             images = None
             video_inputs = None
             video_kwargs = {'do_sample_frames': False}
             text = self.processor.apply_chat_template(
                 [{'role': 'user', 'content': [{'type': 'text', 'text': 'NULL'}]}],
-                add_generation_prompt=True, tokenize=False
+                add_generation_prompt=True, tokenize=False,
             )
 
         if video_inputs is not None:
@@ -310,7 +312,7 @@ class Qwen3VLEmbedder():
         inputs = self.processor(
             text=text, images=images, videos=videos, video_metadata=video_metadata, truncation=True,
             max_length=self.max_length, padding=True, do_resize=False, return_tensors='pt',
-            **video_kwargs
+            **video_kwargs,
         )
         return inputs
 
@@ -325,14 +327,16 @@ class Qwen3VLEmbedder():
 
     # Process inputs to generate normalized embeddings
     def process(self, inputs: List[Dict[str, Any]], normalize: bool = True) -> tuple:
-        conversations = [self.format_model_input(
-            text=ele.get('text'),
-            image=ele.get('image'),
-            video=ele.get('video'),
-            instruction=ele.get('instruction'),
-            fps=ele.get('fps'),
-            max_frames=ele.get('max_frames')
-        ) for ele in inputs]
+        conversations = [
+            self.format_model_input(
+                text=ele.get('text'),
+                image=ele.get('image'),
+                video=ele.get('video'),
+                instruction=ele.get('instruction'),
+                fps=ele.get('fps'),
+                max_frames=ele.get('max_frames'),
+            ) for ele in inputs
+        ]
 
         processed_inputs = self._preprocess_inputs(conversations)
         processed_inputs = {k: v.to(self.model.device) for k, v in processed_inputs.items()}

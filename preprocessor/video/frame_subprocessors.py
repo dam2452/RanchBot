@@ -139,7 +139,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
 
     def initialize(self) -> None:
         if self.model is None:
-            from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
+            from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder  # pylint: disable=import-outside-toplevel
             console.print(f"[cyan]Loading embedding model: {self.model_name}[/cyan]")
             self.model = Qwen3VLEmbedder(
                 model_name_or_path=self.model_name,
