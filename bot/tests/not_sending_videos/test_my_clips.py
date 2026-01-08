@@ -19,7 +19,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command('klip geniusz')
         self.send_command('zapisz pierwszy_klip')
 
-        clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
+        clips = await DatabaseManager.get_saved_clips(self.default_admin)
         response = self.remove_n_lines(await msg.format_myclips_response(clips, s.TESTER_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
@@ -29,7 +29,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command('kom 1-3')
         self.send_command('zapisz klip_kompilacja')
 
-        clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
+        clips = await DatabaseManager.get_saved_clips(self.default_admin)
         for clip in clips:
             clip.is_compilation = True
         response = self.remove_n_lines(await msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)
@@ -41,7 +41,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command('klip geniusz')
         self.send_command(f'zapisz {long_name}')
 
-        clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
+        clips = await DatabaseManager.get_saved_clips(self.default_admin)
         response = self.remove_n_lines(await msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
@@ -51,7 +51,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command('klip geniusz')
         self.send_command(f'zapisz {special_name}')
 
-        clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
+        clips = await DatabaseManager.get_saved_clips(self.default_admin)
         response = self.remove_n_lines(await msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
@@ -60,7 +60,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command('klip geniusz')
         self.send_command('zapisz klip_bez_czasu')
 
-        clips = await DatabaseManager.get_saved_clips(s.DEFAULT_ADMIN)
+        clips = await DatabaseManager.get_saved_clips(self.default_admin)
         for clip in clips:
             clip.duration = None
         response = self.remove_n_lines(await msg.format_myclips_response(clips, s.ADMIN_USERNAME, s.ADMIN_FULL_NAME, await self.get_season_info()), 5)

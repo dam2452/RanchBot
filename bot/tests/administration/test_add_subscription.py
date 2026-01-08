@@ -42,8 +42,8 @@ class TestAddSubscriptionHandler(BaseTest):
 
         self.expect_command_result_contains(
             'addsubscription',
-            [await self.get_response(RK.SUBSCRIPTION_EXTENDED, [str(s.DEFAULT_ADMIN), str(expected_end_date)])],
-            args=[str(s.DEFAULT_ADMIN) + " " + str(days)],
+            [await self.get_response(RK.SUBSCRIPTION_EXTENDED, [str(self.default_admin), str(expected_end_date)])],
+            args=[str(self.default_admin) + " " + str(days)],
         )
 
 

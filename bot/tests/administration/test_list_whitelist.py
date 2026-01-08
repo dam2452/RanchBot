@@ -39,7 +39,7 @@ class TestListWhitelistCommand(BaseTest):
 
         users = [
             UserProfile(
-                user_id=s.DEFAULT_ADMIN,
+                user_id=self.default_admin,
                 username=s.ADMIN_USERNAME,
                 full_name=s.ADMIN_FULL_NAME,
                 subscription_end=None,

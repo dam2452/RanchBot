@@ -41,7 +41,7 @@ class TestReportIssueHandler(BaseTest):
 
         self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
 
-        reports = await DatabaseManager.get_reports(s.DEFAULT_ADMIN)
+        reports = await DatabaseManager.get_reports(self.default_admin)
 
         assert len(reports) > 0, "Zgłoszenie nie zostało zapisane w bazie danych."
         assert reports[0]['report'] == message, f"Oczekiwano: {message}, otrzymano: {reports[0]['report']}"

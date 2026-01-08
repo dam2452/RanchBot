@@ -31,6 +31,7 @@ class BaseTest:
     async def setup_client(self, test_client, auth_token):
         self.client = test_client
         self.token = auth_token
+        self.default_admin = int(s.TEST_ADMINS.split(",")[0])
 
     @staticmethod
     def __sanitize_text(text: str) -> str:
@@ -189,13 +190,13 @@ class BaseTest:
 
     @staticmethod
     async def switch_to_normal_user() -> None:
-        await DatabaseManager.remove_admin(s.DEFAULT_ADMIN)
-        await DatabaseManager.add_subscription(s.DEFAULT_ADMIN, 2137)
+        await DatabaseManager.remove_admin(self.default_admin)
+        await DatabaseManager.add_subscription(self.default_admin, 2137)
 
     @staticmethod
     async def switch_to_admin_user() -> None:
-        await DatabaseManager.add_admin(s.DEFAULT_ADMIN)
-        await DatabaseManager.remove_subscription(s.DEFAULT_ADMIN)
+        await DatabaseManager.add_admin(self.default_admin)
+        await DatabaseManager.remove_subscription(self.default_admin)
 
     @staticmethod
     async def calculate_hash_of_message(message: str) -> str:
