@@ -71,7 +71,6 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
         "user_profiles",
         "user_roles",
         "user_logs",
-        "system_logs",
         "video_clips",
         "reports",
         "search_history",
