@@ -64,12 +64,10 @@ class BaseTest:
 
         response = self.client.post(
             command_name,
-            json={"args": args or [], "reply_json": True},
+            json={"args": args or [], "reply_json": False},
             headers={"Authorization": f"Bearer {self.token}"},
         )
-        logger.info(f"REST API response for /{command_name}: {response.status_code}")
-        logger.info({"args": args or [], "reply_json": True})
-        logger.info({"Authorization": f"Bearer {self.token}"})
+        logger.info(f"Response code for /{command_name}: {response.status_code}")
         return response
 
 
@@ -202,7 +200,6 @@ class BaseTest:
             expected_key: str,
             expected_hashes_file: str = 'expected_file_hashes.json',
     ) -> None:
-        """Verify that response text hash matches expected hash."""
         response_text = self._extract_text_from_response(response)
         sanitized_message = self.__sanitize_text(response_text)
 
@@ -238,7 +235,6 @@ class BaseTest:
         expected_hashes_file: str = 'expected_file_hashes.json',
         args: Optional[List[str]] = None,
     ) -> None:
-        """Send command and verify response hash matches expected hash."""
         response = self.send_command(command, args=args)
         self.assert_message_hash_matches(
             response,
