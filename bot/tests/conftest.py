@@ -83,7 +83,7 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
     logger.info("The specified test database tables have been cleared.")
 
     i = 0
-    for admin_id in s.ADMIN_IDS.split(","):
+    for admin_id in s.TEST_ADMINS.split(","):
         await DatabaseManager.set_default_admin(
             user_id=int(admin_id),
             username=f"User{i}",
