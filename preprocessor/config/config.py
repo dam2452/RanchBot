@@ -88,7 +88,7 @@ class CharacterSettings:
 
 @dataclass
 class ObjectDetectionSettings:
-    model_name: str = "yolo11x.pt"
+    model_name: str = "ustc-community/dfine_x_coco"
     conf_threshold: float = 0.25
     output_dir: Path = Path("/app/output_data/object_detections")
     visualized_output_dir: Path = Path("/app/output_data/object_detection_frames")

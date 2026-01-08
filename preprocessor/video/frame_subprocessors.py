@@ -306,11 +306,12 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
 
 class ObjectDetectionSubProcessor(FrameSubProcessor):
-    def __init__(self, model_name: str = "yolo11x.pt", conf_threshold: float = 0.25):
+    def __init__(self, model_name: str = "ustc-community/dfine_x_coco", conf_threshold: float = 0.25):
         super().__init__("Object Detection")
         self.model_name = model_name
         self.conf_threshold = conf_threshold
         self.model: Optional[Any] = None
+        self.image_processor: Optional[Any] = None
         self.logger = ErrorHandlingLogger("ObjectDetectionSubProcessor", logging.DEBUG, 15)
 
     def initialize(self) -> None:
@@ -318,15 +319,20 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             if not torch.cuda.is_available():
                 raise RuntimeError("CUDA is not available. Object detection requires GPU.")
 
-            from ultralytics import YOLO  # pylint: disable=import-outside-toplevel
+            from transformers import (  # pylint: disable=import-outside-toplevel
+                AutoImageProcessor,
+                DFineForObjectDetection,
+            )
 
-            console.print(f"[cyan]Loading YOLO model: {self.model_name}[/cyan]")
-            self.model = YOLO(self.model_name)
+            console.print(f"[cyan]Loading D-FINE model: {self.model_name}[/cyan]")
+            self.image_processor = AutoImageProcessor.from_pretrained(self.model_name)
+            self.model = DFineForObjectDetection.from_pretrained(self.model_name)
             self.model.to("cuda")
-            console.print("[green]✓ YOLO model loaded on GPU[/green]")
+            console.print("[green]✓ D-FINE model loaded on GPU[/green]")
 
     def cleanup(self) -> None:
         self.model = None
+        self.image_processor = None
         self._cleanup_memory()
 
     def finalize(self) -> None:
@@ -349,6 +355,8 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
         self.initialize()
 
+        from PIL import Image  # pylint: disable=import-outside-toplevel
+
         episode_info = item.metadata["episode_info"]
 
         frame_files = sorted([
@@ -370,7 +378,18 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         }
 
         for frame_path in frame_files:
-            results = self.model(str(frame_path), conf=self.conf_threshold, verbose=False)
+            image = Image.open(frame_path)
+            inputs = self.image_processor(images=image, return_tensors="pt")
+            inputs = {k: v.to("cuda") for k, v in inputs.items()}
+
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+
+            results = self.image_processor.post_process_object_detection(
+                outputs,
+                target_sizes=[(image.height, image.width)],
+                threshold=self.conf_threshold,
+            )
 
             frame_result = {
                 "frame_name": frame_path.name,
@@ -378,17 +397,20 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             }
 
             for result in results:
-                boxes = result.boxes
-                for box in boxes:
+                for score, label_id, box in zip(result["scores"], result["labels"], result["boxes"]):
+                    score_value = score.item()
+                    label = label_id.item()
+                    box_coords = [float(i) for i in box.tolist()]
+
                     detection = {
-                        "class_id": int(box.cls[0]),
-                        "class_name": result.names[int(box.cls[0])],
-                        "confidence": float(box.conf[0]),
+                        "class_id": label,
+                        "class_name": self.model.config.id2label[label],
+                        "confidence": score_value,
                         "bbox": {
-                            "x1": float(box.xyxy[0][0]),
-                            "y1": float(box.xyxy[0][1]),
-                            "x2": float(box.xyxy[0][2]),
-                            "y2": float(box.xyxy[0][3]),
+                            "x1": box_coords[0],
+                            "y1": box_coords[1],
+                            "x2": box_coords[2],
+                            "y2": box_coords[3],
                         },
                     }
                     frame_result["detections"].append(detection)
