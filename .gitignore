@@ -27,3 +27,4 @@ bot/RANCZO-WIDEO
 *.so
 *.so.*
 *.egg-info/
+preprocessor/BENCHMARK_REPORT.md
