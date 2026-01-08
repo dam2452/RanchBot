@@ -22,15 +22,11 @@ class Settings(BaseSettings):
     TEST_POSTGRES_HOST: str = Field(...)
     TEST_POSTGRES_PORT: str = Field(...)
 
-    DEFAULT_ADMIN: int = Field(...)
-    ADMIN_USERNAME: str = Field("Admin")
-    ADMIN_FULL_NAME: str = Field("Admin")
-    ADMIN_PASSWORD: SecretStr = Field(...)
+    TEST_ADMINS: str = Field(...)
+    TEST_PASSWORD: SecretStr = Field(...)
 
     REST_API_HOST: str = Field("192.168.1.210")
     REST_API_PORT: int = Field(8199)
-
-    TESTER_USERNAME: str = Field("dam2452")
 
     class Config:
         env_file = str(env_path)

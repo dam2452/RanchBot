@@ -82,13 +82,16 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
     await DatabaseManager.clear_test_db(tables=tables_to_clear, schema="ranczo")
     logger.info("The specified test database tables have been cleared.")
 
-    await DatabaseManager.set_default_admin(
-        user_id=s.DEFAULT_ADMIN,
-        username=s.ADMIN_USERNAME,
-        full_name=s.ADMIN_FULL_NAME,
-        password=s.ADMIN_PASSWORD.get_secret_value(),
-    )
-    logger.info(f"Default admin with user_id {s.DEFAULT_ADMIN} has been set.")
+    i = 0
+    for admin_id in s.ADMIN_IDS.split(","):
+        await DatabaseManager.set_default_admin(
+            user_id=s.DEFAULT_ADMIN,
+            username=f"User{i}",
+            password=s.TEST_PASSWORD.get_secret_value(),
+        )
+        logger.info(f"Admin with user_id {admin_id} has been added.")
+        i+=i
+
     await asyncio.sleep(0.2)
 
 
@@ -97,12 +100,12 @@ async def auth_token(test_client, prepare_database):  # pylint: disable=redefine
     login_response = test_client.post(
         "auth/login",
         json={
-            "username": s.ADMIN_USERNAME,
-            "password": s.ADMIN_PASSWORD.get_secret_value(),
+            "username": "User0",
+            "password": s.TEST_PASSWORD.get_secret_value(),
         },
     )
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     token_data = login_response.json()
-    logger.info(f"Authenticated as {s.ADMIN_USERNAME}")
+    logger.info("Authenticated as '0'")
 
     return token_data["access_token"]
