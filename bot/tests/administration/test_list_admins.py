@@ -10,15 +10,11 @@ class TestListAdminsCommand(BaseTest):
 
     @pytest.mark.asyncio
     async def test_list_admins_with_admins(self):
-        admin_user = await self.add_test_admin_user()
-
         admins = [
             UserProfile(
-                user_id=admin_user["user_id"],
-                username=admin_user["username"],
-                full_name=admin_user["full_name"],
-                subscription_end=None,
-                note=None,
+                user_id=self.default_admin,
+                username="TestUser0",
+                full_name="TestUser0",
             ),
         ]
 

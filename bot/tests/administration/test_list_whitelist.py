@@ -4,7 +4,6 @@ from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
 from bot.responses.administration.list_whitelist_handler_responses import create_whitelist_response
 from bot.tests.base_test import BaseTest
-from bot.tests.settings import settings as s
 
 
 @pytest.mark.usefixtures("db_pool", "test_client", "auth_token")

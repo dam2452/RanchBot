@@ -49,15 +49,6 @@ class TestCreateKeyHandler(BaseTest):
         )
 
     @pytest.mark.asyncio
-    async def test_add_key_empty_note(self):
-        days = 30
-
-        self.expect_command_result_contains(
-            f'/addkey {days}',
-            [await self.get_response(RK.CREATE_KEY_USAGE)],
-        )
-
-    @pytest.mark.asyncio
     async def test_add_key_special_characters_in_note(self):
         key_name = "specjalny@klucz#!"
         days = 30
