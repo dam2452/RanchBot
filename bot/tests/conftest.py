@@ -86,8 +86,8 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
     for admin_id in s.TEST_ADMINS.split(","):
         await DatabaseManager.set_default_admin(
             user_id=int(admin_id),
-            username=f"User{i}",
-            full_name=f"User{i}",
+            username=f"TestUser{i}",
+            full_name=f"TestUser{i}",
             password=s.TEST_PASSWORD.get_secret_value(),
         )
         logger.info(f"Admin with user_id {admin_id} has been added.")
@@ -101,7 +101,7 @@ async def auth_token(test_client, prepare_database):  # pylint: disable=redefine
     login_response = test_client.post(
         "auth/login",
         json={
-            "username": "User0",
+            "username": "TestUser0",
             "password": s.TEST_PASSWORD.get_secret_value(),
         },
     )
