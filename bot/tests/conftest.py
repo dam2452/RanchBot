@@ -2,7 +2,6 @@ import asyncio
 import logging
 from urllib.parse import urljoin
 
-import asyncpg
 import pytest_asyncio
 import requests
 

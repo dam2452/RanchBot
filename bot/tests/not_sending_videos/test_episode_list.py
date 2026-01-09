@@ -1,7 +1,6 @@
 import pytest
 
 from bot.database.response_keys import ResponseKey as RK
-import bot.responses.not_sending_videos.episode_list_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -50,4 +49,4 @@ class TestEpisodeListHandler(BaseTest):
     async def test_episodes_for_season_11(self):
         season_number = 11
         response = self.send_command(f'/odcinki {season_number}')
-        self.assert_command_result_file_matches(response, "abababa")
+        self.assert_command_result_file_matches(response, "season_11.message")
