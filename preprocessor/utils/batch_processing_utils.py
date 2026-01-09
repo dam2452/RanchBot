@@ -116,6 +116,10 @@ def compute_embeddings_in_batches(  # pylint: disable=too-many-locals
 
     console.print(f"[cyan]Computing embeddings for {len(frame_requests)} frames in {total_chunks} batches (with prefetch={prefetch_count})[/cyan]")
 
+    actual_checkpoint_interval = min(checkpoint_interval, max(1, total_chunks // 2))
+    if actual_checkpoint_interval != checkpoint_interval:
+        console.print(f"[dim cyan]Adjusted checkpoint interval: {actual_checkpoint_interval} (every ~50% of batches)[/dim cyan]")
+
     start_time = time.time()
     processed_batches = 0
     batches_to_process = total_chunks - start_chunk_idx
@@ -152,7 +156,7 @@ def compute_embeddings_in_batches(  # pylint: disable=too-many-locals
             start_time,
         )
 
-        if checkpoint_file and (chunk_idx + 1) % checkpoint_interval == 0:
+        if checkpoint_file and (chunk_idx + 1) % actual_checkpoint_interval == 0:
             _save_checkpoint(checkpoint_file, chunk_idx, embeddings)
 
     if checkpoint_file and checkpoint_file.exists():

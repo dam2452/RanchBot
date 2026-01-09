@@ -119,7 +119,13 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         console.print(f"[cyan]Batch size: {self.batch_size}[/cyan]")
 
         self._load_model()
-        self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
+        self.gpu_processor = GPUBatchProcessor(
+            self.model,
+            self.batch_size,
+            self.logger,
+            self.device,
+            progress_sub_batch_size=settings.embedding.progress_sub_batch_size,
+        )
         self.episode_name_embedder = EpisodeNameEmbedder(
             model=self.model,
             episode_manager=self.episode_manager,

@@ -1,3 +1,4 @@
+import time
 from typing import List
 
 from PIL import Image
@@ -14,9 +15,11 @@ class GPUBatchProcessor:
         batch_size: int,
         logger: ErrorHandlingLogger,
         device: str,
+        progress_sub_batch_size: int = 100,
     ):
         self.model = model
         self.batch_size = batch_size
+        self.progress_sub_batch_size = progress_sub_batch_size
         self.logger = logger
         self.device = device
         self.max_vram_used = 0.0
@@ -58,18 +61,26 @@ class GPUBatchProcessor:
         chunk_idx: int,
     ) -> List[List[float]]:
         results = []
-        current_idx = 0
         total_images = len(pil_images)
-        current_batch_size = self.batch_size
+        effective_batch_size = min(self.batch_size, self.progress_sub_batch_size)
+        batch_start_time = time.time()
 
-        while current_idx < total_images:
-            if current_batch_size < 1:
-                raise RuntimeError("Batch size reduced to 0. Cannot process image.")
-
-            batch_end = min(current_idx + current_batch_size, total_images)
-            batch_pil = pil_images[current_idx:batch_end]
+        for sub_idx in range(0, total_images, effective_batch_size):
+            sub_end = min(sub_idx + effective_batch_size, total_images)
+            batch_pil = pil_images[sub_idx:sub_end]
+            current_batch_size = len(batch_pil)
 
             try:
+                sub_batch_start = time.time()
+
+                if total_images > self.progress_sub_batch_size:
+                    console.print(
+                        f"    [dim cyan]→ {sub_idx + 1}-{sub_end}/{total_images} "
+                        f"({sub_end / total_images * 100:.0f}%)...[/dim cyan]",
+                        end="",
+                        flush=True,
+                    )
+
                 inputs = [{"image": img} for img in batch_pil]
                 embeddings_tensor = self.model.process(inputs, normalize=True)
                 self._log_vram_usage()
@@ -77,21 +88,28 @@ class GPUBatchProcessor:
                 del embeddings_tensor
                 results.extend([emb.tolist() for emb in batch_np])
                 del batch_np
-                current_idx = batch_end
                 torch.cuda.empty_cache()
+
+                if total_images > self.progress_sub_batch_size:
+                    elapsed = time.time() - sub_batch_start
+                    rate = current_batch_size / elapsed if elapsed > 0 else 0
+                    console.print(f" done in {elapsed:.1f}s ({rate:.1f} img/s)")
+
+                    elapsed_total = time.time() - batch_start_time
+                    if sub_end < total_images:
+                        remaining_images = total_images - sub_end
+                        eta = remaining_images / (sub_end / elapsed_total) if elapsed_total > 0 else 0
+                        console.print(f"    [dim]Batch ETA: {eta:.0f}s[/dim]")
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
                     torch.cuda.empty_cache()
-                    new_batch_size = current_batch_size // 2
-                    console.print(
-                        f"[yellow]OOM in chunk {chunk_idx}: batch {current_batch_size} -> {new_batch_size}[/yellow]",
+                    self.logger.error(
+                        f"OOM in chunk {chunk_idx} with batch_size={current_batch_size}. "
+                        f"Try reducing progress_sub_batch_size in config.",
                     )
-                    current_batch_size = new_batch_size
-                    continue
-                self.logger.error(f"Failed batch in chunk {chunk_idx} at index {current_idx}: {e}")
                 raise e
             except Exception as e:
-                self.logger.error(f"Unexpected error in chunk {chunk_idx}: {e}")
+                self.logger.error(f"Unexpected error in chunk {chunk_idx} sub-batch {sub_idx}-{sub_end}: {e}")
                 raise e
 
         return results

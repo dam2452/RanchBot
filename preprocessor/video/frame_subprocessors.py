@@ -144,7 +144,13 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
                 model_name_or_path=self.model_name,
                 dtype=torch.float16,
             )
-            self.gpu_processor = GPUBatchProcessor(self.model, self.batch_size, self.logger, self.device)
+            self.gpu_processor = GPUBatchProcessor(
+                self.model,
+                self.batch_size,
+                self.logger,
+                self.device,
+                progress_sub_batch_size=settings.embedding.progress_sub_batch_size,
+            )
             console.print("[green]✓ Qwen3-VL-Embedding model loaded[/green]")
 
     def cleanup(self) -> None:

@@ -48,6 +48,7 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     keyframe_interval: int = 1
     frames_per_scene: int = 1
     batch_size: int = 350
+    progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
     video_chunk_size: int = 2048
     color_diff_threshold: float = 0.3
