@@ -27,6 +27,6 @@ def init_face_detection() -> FaceAnalysis:
     face_app.prepare(ctx_id=0, det_size=settings.face_recognition.detection_size)
 
     console.print(f"[green]✓ Face detection initialized ({settings.face_recognition.model_name})[/green]")
-    console.print(f"[dim]  Device: GPU (CUDA)[/dim]")
+    console.print("[dim]  Device: GPU (CUDA)[/dim]")
     console.print(f"[dim]  Model cache: {model_root}[/dim]")
     return face_app

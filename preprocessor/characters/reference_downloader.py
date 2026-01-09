@@ -139,12 +139,29 @@ class CharacterReferenceDownloader(BaseProcessor):
         faces = self.face_app.get(img)
         return len(faces)
 
-    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
+    def _validate_and_decode_image(self, img_bytes: bytes, img_url: str) -> np.ndarray | None:
+        if not img_bytes:
+            return None
+
+        img_array = np.asarray(bytearray(img_bytes), dtype=np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+        if img is None or img.size == 0:
+            self.logger.debug(f"Failed to decode image from {img_url}")
+            return None
+
+        if len(img.shape) != 3 or img.shape[2] != 3:
+            self.logger.debug(f"Image has unexpected shape {img.shape} from {img_url}")
+            return None
+
+        return img
+
+    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:  # pylint: disable=too-many-try-statements
         try:
             response = page.goto(
                 img_url,
                 timeout=settings.face_recognition.page_navigation_timeout,
-                wait_until="domcontentloaded"
+                wait_until="domcontentloaded",
             )
             if not response or response.status != 200:
                 return None
@@ -206,7 +223,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                     key=lambda x: (
                         0 if x.get('image', '').lower().endswith(('.jpg', '.jpeg')) else 1,
                         1 if x.get('image', '').lower().endswith('.png') else 2,
-                    )
+                    ),
                 )
 
                 page = self.browser_context.new_page()

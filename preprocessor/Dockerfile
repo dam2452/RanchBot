@@ -42,7 +42,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         accelerate \
         nvidia-cublas-cu12 \
         nvidia-cudnn-cu12 \
-        -r /app/requirements.txt
+        -r /app/requirements.txt \
+    && pip install --force-reinstall onnxruntime-gpu~=1.21.0
 
 RUN patchright install chromium \
     && patchright install-deps chromium
