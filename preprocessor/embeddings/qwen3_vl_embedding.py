@@ -159,7 +159,10 @@ class Qwen3VLEmbedder():
         default_instruction: str = "Represent the user's input.",
         **kwargs,
     ):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is required but not available. This pipeline requires GPU.")
+
+        device = torch.device("cuda")
 
         self.max_length = max_length
         self.min_pixels = min_pixels

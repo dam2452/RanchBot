@@ -261,7 +261,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
     def initialize(self) -> None:
         if self.face_app is None:
             console.print("[cyan]Initializing face detection...[/cyan]")
-            self.face_app = init_face_detection(self.use_gpu)
+            self.face_app = init_face_detection()
             self.character_vectors = load_character_references(self.characters_dir, self.face_app)
             console.print("[green]✓ Face detection initialized[/green]")
 

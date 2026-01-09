@@ -28,18 +28,18 @@ def load_model():
         return _model, _processor, _device
 
     click.echo("Loading embedding model...", err=True)
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is required but not available. This pipeline requires GPU.")
+
     model_name = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
-    _device = "cuda" if torch.cuda.is_available() else "cpu"
+    _device = "cuda"
 
     _model = Qwen2VLForConditionalGeneration.from_pretrained(
         model_name,
-        dtype=torch.bfloat16 if _device == "cuda" else torch.float32,
-        device_map="auto" if _device == "cuda" else None,
+        dtype=torch.bfloat16,
+        device_map="auto",
     )
     _processor = AutoProcessor.from_pretrained(model_name)
-
-    if _device == "cpu":
-        _model = _model.to(_device)
 
     click.echo(f"Model loaded on {_device}", err=True)
     return _model, _processor, _device
@@ -105,9 +105,11 @@ def load_hasher():
         return _hasher
 
     click.echo("Loading perceptual hasher...", err=True)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    _hasher = PerceptualHasher(device=device, hash_size=8)
-    click.echo(f"Hasher loaded on {device}", err=True)
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is required but not available. This pipeline requires GPU.")
+
+    _hasher = PerceptualHasher(device="cuda", hash_size=8)
+    click.echo("Hasher loaded on cuda", err=True)
     return _hasher
 
 

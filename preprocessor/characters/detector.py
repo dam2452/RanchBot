@@ -75,7 +75,7 @@ class CharacterDetector(BaseProcessor):
             console.print(f"[red]Characters directory not found: {self.characters_dir}[/red]")
             return
 
-        self.face_app = init_face_detection(self.use_gpu)
+        self.face_app = init_face_detection()
         self.character_vectors = load_character_references(self.characters_dir, self.face_app)
 
         if not self.character_vectors:

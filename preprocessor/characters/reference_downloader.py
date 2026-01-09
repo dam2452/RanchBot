@@ -96,7 +96,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             console.print(f"[green]✓ All reference images already exist for {len(characters)} characters (skipping)[/green]")
             return
 
-        self.face_app = init_face_detection(self.use_gpu)
+        self.face_app = init_face_detection()
 
         console.print(f"[blue]Downloading reference images for {len(characters)} characters...[/blue]")
 
@@ -141,7 +141,11 @@ class CharacterReferenceDownloader(BaseProcessor):
 
     def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
         try:
-            response = page.goto(img_url, timeout=10000, wait_until="domcontentloaded")
+            response = page.goto(
+                img_url,
+                timeout=settings.face_recognition.page_navigation_timeout,
+                wait_until="domcontentloaded"
+            )
             if not response or response.status != 200:
                 return None
 
@@ -160,10 +164,20 @@ class CharacterReferenceDownloader(BaseProcessor):
                 self.logger.debug(f"Failed to decode image from {img_url}")
                 return None
 
+            if len(img.shape) != 3 or img.shape[2] != 3:
+                self.logger.debug(f"Image has unexpected shape {img.shape} from {img_url}")
+                return None
+
             return img
 
+        except TimeoutError:
+            self.logger.debug(f"Timeout downloading image {img_url}")
+            return None
         except Exception as e:  # pylint: disable=broad-exception-caught
-            self.logger.debug(f"Failed to download image {img_url}: {e}")
+            if "net::ERR_CONNECTION_CLOSED" in str(e) or "Navigation" in str(e):
+                self.logger.debug(f"Connection/navigation error for {img_url}: {e}")
+            else:
+                self.logger.debug(f"Failed to download image {img_url}: {e}")
             return None
 
     def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals,too-many-statements
@@ -186,10 +200,19 @@ class CharacterReferenceDownloader(BaseProcessor):
         for attempt in range(settings.face_recognition.retry_attempts):  # pylint: disable=too-many-nested-blocks
             try:
                 results = self.search_engine.search(search_query)
+
+                sorted_results = sorted(
+                    results,
+                    key=lambda x: (
+                        0 if x.get('image', '').lower().endswith(('.jpg', '.jpeg')) else 1,
+                        1 if x.get('image', '').lower().endswith('.png') else 2,
+                    )
+                )
+
                 page = self.browser_context.new_page()
 
                 try:
-                    for res in results:
+                    for res in sorted_results:
                         if saved_count >= self.images_per_character:
                             break
 
@@ -244,9 +267,13 @@ class CharacterReferenceDownloader(BaseProcessor):
                 else:
                     self.logger.error(f"All retry attempts failed for {char_name}: {e}")
 
-        if saved_count > 0:
+        if saved_count >= self.images_per_character:
             progress.console.print(
                 f"[green]✓[/green] {char_name}: {saved_count}/{self.images_per_character} images",
             )
+        elif saved_count > 0:
+            progress.console.print(
+                f"[yellow]⚠[/yellow] {char_name}: {saved_count}/{self.images_per_character} images (incomplete)",
+            )
         else:
-            progress.console.print(f"[yellow]⚠[/yellow] {char_name}: No suitable images found")
+            progress.console.print(f"[red]✗[/red] {char_name}: No suitable images found")

@@ -104,9 +104,10 @@ class FaceRecognitionSettings:
     min_image_width: int = 800
     min_image_height: int = 600
     retry_attempts: int = 3
-    retry_delay: float = 2.0
-    request_delay_min: float = 2.0
-    request_delay_max: float = 4.0
+    retry_delay: float = 3.0
+    request_delay_min: float = 3.0
+    request_delay_max: float = 6.0
+    page_navigation_timeout: int = 30000
     image_search_mode: str = "normal"
     _serpapi_key: Optional[SecretStr] = None
 
