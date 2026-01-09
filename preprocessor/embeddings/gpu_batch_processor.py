@@ -55,7 +55,7 @@ class GPUBatchProcessor:
 
         return suggested
 
-    def process_images_batch(
+    def process_images_batch(  # pylint: disable=too-many-locals
         self,
         pil_images: List[Image.Image],
         chunk_idx: int,
@@ -70,7 +70,7 @@ class GPUBatchProcessor:
             batch_pil = pil_images[sub_idx:sub_end]
             current_batch_size = len(batch_pil)
 
-            try:
+            try:  # pylint: disable=too-many-try-statements
                 sub_batch_start = time.time()
 
                 inputs = [{"image": img} for img in batch_pil]
