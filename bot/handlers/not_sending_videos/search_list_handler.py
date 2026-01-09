@@ -63,6 +63,9 @@ class SearchListHandler(BotMessageHandler):
             sanitized_search_term = self.__sanitize_search_term(search_term)
             file_path = Path(tempfile.gettempdir()) / self.FILE_NAME_TEMPLATE.format(sanitized_search_term=sanitized_search_term)
 
+            await self._log_system_message(logging.INFO, file_path)
+            await self._log_system_message(logging.INFO, response)
+
             with file_path.open("w", encoding="utf-8") as file:
                 file.write(response)
 
