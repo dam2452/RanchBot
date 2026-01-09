@@ -6,8 +6,6 @@ from typing import (
     Tuple,
 )
 
-from aiogram.types import Message
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
@@ -24,22 +22,38 @@ class SubscriptionStatusHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["subskrypcja", "subscription", "sub"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
-    async def _do_handle(self, message: Message) -> None:
-        subscription_status = await self.__get_subscription_status(message.from_user.id)
+    async def _do_handle(self) -> None:
+        user_id = self._message.get_user_id()
+        username = self._message.get_username()
 
+        subscription_status = await self.__get_subscription_status(user_id)
         if subscription_status is None:
-            return await self.__reply_no_subscription(message)
+            return await self.__reply_no_subscription(username)
 
         subscription_end, days_remaining = subscription_status
-        user_name = message.from_user.username or message.from_user.full_name
-        response = await self.get_response(RK.SUBSCRIPTION_STATUS, [user_name, str(subscription_end), str(days_remaining)])
 
-        await self._answer_markdown(message , response)
-        await self._log_system_message(logging.INFO, get_log_subscription_status_sent_message(user_name))
+        if self._message.should_reply_json():
+            await self.reply(
+                key="",
+                data={
+                    "username": username,
+                    "subscription_end": subscription_end.isoformat(),
+                    "days_remaining": days_remaining,
+                },
+            )
+        else:
+            await self.reply(
+                RK.SUBSCRIPTION_STATUS,
+                args=[username, str(subscription_end), str(days_remaining)],
+            )
 
+        return await self._log_system_message(
+            logging.INFO,
+            get_log_subscription_status_sent_message(username),
+        )
 
     @staticmethod
     async def __get_subscription_status(user_id: int) -> Optional[Tuple[date, int]]:
@@ -49,7 +63,9 @@ class SubscriptionStatusHandler(BotMessageHandler):
         days_remaining = (subscription_end - date.today()).days
         return subscription_end, days_remaining
 
-    async def __reply_no_subscription(self, message: Message) -> None:
-        user_name = message.from_user.username or message.from_user.full_name
-        await self._answer(message,await self.get_response(RK.NO_SUBSCRIPTION))
-        await self._log_system_message(logging.INFO, get_log_no_active_subscription_message(user_name))
+    async def __reply_no_subscription(self, username: str) -> None:
+        await self.reply_error(RK.NO_SUBSCRIPTION)
+        await self._log_system_message(
+            logging.INFO,
+            get_log_no_active_subscription_message(username),
+        )

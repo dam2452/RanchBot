@@ -36,8 +36,6 @@ def get_log_no_episodes_found_message(season: int) -> str:
 def get_log_episode_list_sent_message(season: int, username: str) -> str:
     return f"Sent episode list for season {season} to user '{username}'."
 
-def get_invalid_argument_count_log_message(user_id: int, message_text: str) -> str:
-    return f"Invalid argument count for user {user_id}: {message_text}"
 
 def get_season_11_petition_message() -> str:
     return (

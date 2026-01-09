@@ -1,18 +1,31 @@
-from bot.factory.permission_level_factory import *  # pylint: disable=wildcard-import, unused-wildcard-import
+from typing import (
+    List,
+    Type,
+)
+
+from bot.factory.permission_level_factory import PermissionLevelFactory
+from bot.handlers import (
+    AdminHelpHandler,
+    ListAdminsHandler,
+    ListModeratorsHandler,
+    ListWhitelistHandler,
+    TranscriptionHandler,
+    UpdateUserNoteHandler,
+)
+from bot.middlewares import ModeratorMiddleware
+from bot.middlewares.bot_middleware import BotMiddleware
 
 
 class ModeratorPermissionLevelFactory(PermissionLevelFactory):
-    def create_handlers(self) -> List[BotMessageHandler]:
+    def create_handler_classes(self) -> List[Type]:
         return [
-            AdminHelpHandler(self._bot, self._logger),
-            ListAdminsHandler(self._bot, self._logger),
-            ListModeratorsHandler(self._bot, self._logger),
-            ListWhitelistHandler(self._bot, self._logger),
-            TranscriptionHandler(self._bot, self._logger),
-            UpdateUserNoteHandler(self._bot, self._logger),
+            AdminHelpHandler,
+            ListAdminsHandler,
+            ListModeratorsHandler,
+            ListWhitelistHandler,
+            TranscriptionHandler,
+            UpdateUserNoteHandler,
         ]
 
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
-        return [
-            ModeratorMiddleware(self._logger, commands),
-        ]
+        return [ModeratorMiddleware(self._logger, commands)]

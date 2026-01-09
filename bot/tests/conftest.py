@@ -23,7 +23,7 @@ async def db_pool():
         port=s.TEST_POSTGRES_PORT,
         database=s.TEST_POSTGRES_DB,
         user=s.TEST_POSTGRES_USER,
-        password=s.TEST_POSTGRES_PASSWORD,
+        password=s.TEST_POSTGRES_PASSWORD.get_secret_value(),
     )
     await DatabaseManager.init_db()
     yield
@@ -34,9 +34,9 @@ def telegram_client():
     client = TelegramClient(
         s.SESSION,
         s.API_ID,
-        s.API_HASH,
+        s.API_HASH.get_secret_value(),
     )
-    client.start(password=s.PASSWORD, phone=s.PHONE)
+    client.start(password=s.PASSWORD.get_secret_value(), phone=s.PHONE)
 
     logger.info(msg.client_started())
     yield client
@@ -57,7 +57,7 @@ async def prepare_database():
         "subscription_keys",
         "user_command_limits",
     ]
-    await DatabaseManager.clear_test_db(tables=tables_to_clear)
+    await DatabaseManager.clear_test_db(tables=tables_to_clear, schema="ranczo")
     logger.info("The specified test database tables have been cleared.")
 
     await DatabaseManager.set_default_admin(

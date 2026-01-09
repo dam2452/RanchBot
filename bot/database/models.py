@@ -7,18 +7,40 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+from bot.database.serializable import Serializable
+
 
 @dataclass
-class UserProfile:
+class UserProfile(Serializable):
     user_id: int
-    username: Optional[str]
+    username: str
     full_name: Optional[str]
-    subscription_end: Optional[date]
-    note: Optional[str]
+    subscription_end: Optional[date] = None
+    note: Optional[str] = None
 
 
 @dataclass
-class VideoClip:
+class UserCredentials(Serializable):
+    user_id: int
+    hashed_password: str
+    created_at: datetime
+    last_updated: datetime
+
+@dataclass
+class RefreshToken:
+    id: int
+    user_id: int
+    token: str
+    created_at: datetime
+    expires_at: datetime
+    revoked: bool
+    revoked_at: Optional[datetime]
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+
+
+@dataclass
+class VideoClip(Serializable):
     id: int
     chat_id: int
     user_id: int
@@ -41,7 +63,7 @@ class ClipType(Enum):
 
 
 @dataclass
-class LastClip:
+class LastClip(Serializable):
     id: int
     chat_id: int
     segment: str
@@ -54,7 +76,7 @@ class LastClip:
 
 
 @dataclass
-class SearchHistory:
+class SearchHistory(Serializable):
     id: int
     chat_id: int
     quote: str
@@ -68,7 +90,7 @@ class FormattedSegmentInfo:
     episode_title: str
 
 @dataclass
-class SubscriptionKey:
+class SubscriptionKey(Serializable):
     id: int
     key: str
     days: int
@@ -76,7 +98,7 @@ class SubscriptionKey:
     timestamp: Optional[datetime] = None
 
 @dataclass
-class ClipInfo:
+class ClipInfo(Serializable):
     output_filename: Path
     start_time: float
     end_time: float

@@ -30,28 +30,28 @@ CREATE TABLE IF NOT EXISTS user_logs (
 ) PARTITION BY RANGE (timestamp);
 
 CREATE TABLE IF NOT EXISTS user_logs_2023 PARTITION OF user_logs
-    FOR VALUES FROM ('2023-01-01') TO ('2023-12-31');
+    FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2024 PARTITION OF user_logs
-    FOR VALUES FROM ('2024-01-01') TO ('2024-12-31');
+    FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2025 PARTITION OF user_logs
-    FOR VALUES FROM ('2025-01-01') TO ('2025-12-31');
+    FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2026 PARTITION OF user_logs
-    FOR VALUES FROM ('2026-01-01') TO ('2026-12-31');
+    FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2027 PARTITION OF user_logs
-    FOR VALUES FROM ('2027-01-01') TO ('2027-12-31');
+    FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2028 PARTITION OF user_logs
-    FOR VALUES FROM ('2028-01-01') TO ('2028-12-31');
+    FOR VALUES FROM ('2028-01-01') TO ('2029-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2029 PARTITION OF user_logs
-    FOR VALUES FROM ('2029-01-01') TO ('2029-12-31');
+    FOR VALUES FROM ('2029-01-01') TO ('2030-01-01');
 
 CREATE TABLE IF NOT EXISTS user_logs_2030 PARTITION OF user_logs
-    FOR VALUES FROM ('2030-01-01') TO ('2030-12-31');
+    FOR VALUES FROM ('2030-01-01') TO ('2031-01-01');
 
 CREATE INDEX IF NOT EXISTS idx_user_logs_user_id ON user_logs(user_id);
 
@@ -277,3 +277,28 @@ BEGIN
         FOR EACH ROW EXECUTE FUNCTION clean_old_user_command_limits();
     END IF;
 END $$;
+
+-- --- ---
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(255)
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+
+CREATE TABLE IF NOT EXISTS user_credentials (
+    user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    hashed_password VARCHAR(255) NOT NULL,
+    auth_provider TEXT DEFAULT 'local',
+    last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_credentials_user_id ON user_credentials(user_id);

@@ -84,6 +84,12 @@ bot/input_data/
 !preprocessor/SEARCH_GUIDE.md
 
 # Docker and config
+*.cutree
+.env
+.env.*
+*.env
+log.txt
+preprocessing_video.py
 Dockerfile
 docker-compose*.yml
 .dockerignore
@@ -109,3 +115,26 @@ preprocessor/.preprocessing_state.json
 bot/.claude/
 test_logging.py
 run-preprocessor.sh
+docker-compose.yml
+/Preprocessing
+/kapitan_bomba_trans
+/kb
+/bot/KAPITAN_BOMBA-WIDEO
+*.db
+*.session
+*.session-journal
+.DS_Store
+.git
+.gitignore
+*.md
+.claude
+/test_trans
+/MOBILE_VIDEO_TESTS
+*.zip
+*.html
+cookies.txt
+/bot/tests/e2e_tests/expected_files
+/bot/tests/expected
+pytest.ini
+.pytest_cache
+*.pyc

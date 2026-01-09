@@ -1,12 +1,11 @@
 import logging
+import math
 from pathlib import Path
 import tempfile
 from typing import (
     List,
     Optional,
 )
-
-from aiogram.types import Message
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.response_keys import ResponseKey as RK
@@ -26,89 +25,94 @@ class SendClipHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["wyślij", "wyslij", "send", "wys"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
             self.__check_argument_count,
             self.__check_clip_existence,
         ]
 
-    async def __check_clip_existence(self, message: Message) -> bool:
-        content = message.text.split()
+    async def __check_argument_count(self) -> bool:
+        return await self._validate_argument_count(
+            self._message,
+            1,
+            await self.get_response(RK.GIVE_CLIP_NAME),
+            math.inf,
+        )
 
+    async def __check_clip_existence(self) -> bool:
+        content = self._message.get_text().split()
         clip_identifier = " ".join(content[1:])
+        user_id = self._message.get_user_id()
 
-        clips = await DatabaseManager.get_saved_clips(message.from_user.id) or []
+        clips = await DatabaseManager.get_saved_clips(user_id) or []
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
             if clip_number < 1 or clip_number > len(clips):
-                await self.__reply_clip_not_found(message, clip_number)
+                await self.__reply_clip_not_found(clip_number)
                 return False
         else:
-            clip = await DatabaseManager.get_clip_by_name(message.from_user.id, clip_identifier)
+            clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
             if not clip:
-                await self.__reply_clip_not_found(message, None)
+                await self.__reply_clip_not_found(None)
                 return False
 
         return True
 
-    async def __check_argument_count(self, message: Message) -> bool:
-        return await self._validate_argument_count(message, 2, await self.get_response(RK.GIVE_CLIP_NAME))
-
-    async def _do_handle(self, message: Message) -> None:
-        content = message.text.split()
+    async def _do_handle(self) -> None:
+        content = self._message.get_text().split()
         clip_identifier = " ".join(content[1:])
+        user_id = self._message.get_user_id()
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
-            clips = await DatabaseManager.get_saved_clips(message.from_user.id)
+            clips = await DatabaseManager.get_saved_clips(user_id)
             clip = clips[clip_number - 1]
         else:
-            clip = await DatabaseManager.get_clip_by_name(message.from_user.id, clip_identifier)
+            clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
 
-        if await self._handle_clip_duration_limit_exceeded(message, clip.duration):
-            return
+        if await self._handle_clip_duration_limit_exceeded(clip.duration):
+            return None
 
         video_data = clip.video_data
         if not video_data:
-            return await self.__reply_empty_clip_file(message, clip_identifier)
+            return await self.__reply_empty_clip_file(clip.name)
 
         temp_file_path = Path(tempfile.gettempdir()) / f"{clip.name}.mp4"
         with temp_file_path.open("wb") as temp_file:
             temp_file.write(video_data)
 
         if temp_file_path.stat().st_size == 0:
-            return await self.__reply_empty_file_error(message, clip_identifier)
+            return await self.__reply_empty_file_error(clip.name)
 
-        await self._answer_video(message, temp_file_path)
-        temp_file_path.unlink()
+        await self._responder.send_video(temp_file_path)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
-            get_log_clip_sent_message(clip.name, message.from_user.username),
+            get_log_clip_sent_message(clip.name, self._message.get_username()),
         )
 
-    async def __reply_clip_not_found(self, message: Message, clip_number: Optional[int]) -> None:
+    async def __reply_clip_not_found(self, clip_number: Optional[int]) -> None:
         if clip_number:
             response = await self.get_response(RK.CLIP_NOT_FOUND_NUMBER, [str(clip_number)])
         else:
             response = await self.get_response(RK.CLIP_NOT_FOUND_NAME)
-        await self._answer(message, response)
+        await self._responder.send_text(response)
         await self._log_system_message(
             logging.INFO,
-            get_log_clip_not_found_message(clip_number, message.from_user.username),
+            get_log_clip_not_found_message(clip_number, self._message.get_username()),
         )
 
-    async def __reply_empty_clip_file(self, message: Message, clip_name: str) -> None:
-        await self._answer(message,await self.get_response(RK.EMPTY_CLIP_FILE))
+    async def __reply_empty_clip_file(self, clip_name: str) -> None:
+        await self._responder.send_text(await self.get_response(RK.EMPTY_CLIP_FILE))
         await self._log_system_message(
             logging.WARNING,
-            get_log_empty_clip_file_message(clip_name, message.from_user.username),
+            get_log_empty_clip_file_message(clip_name, self._message.get_username()),
         )
 
-    async def __reply_empty_file_error(self, message: Message, clip_name: str) -> None:
-        await self._answer(message,await self.get_response(RK.EMPTY_FILE_ERROR))
+    async def __reply_empty_file_error(self, clip_name: str) -> None:
+        await self._responder.send_text(await self.get_response(RK.EMPTY_FILE_ERROR))
         await self._log_system_message(
             logging.ERROR,
-            get_log_empty_file_error_message(clip_name, message.from_user.username),
+            get_log_empty_file_error_message(clip_name, self._message.get_username()),
         )

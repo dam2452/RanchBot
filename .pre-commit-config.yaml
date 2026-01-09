@@ -2,7 +2,7 @@ fail_fast: false
 exclude: '^(bot/RANCZO-WIDEO/|bot/RANCZO-TRANSKRYPCJE/)'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: pretty-format-json
         args: [--autofix]
@@ -11,12 +11,27 @@ repos:
       - id: check-ast
       - id: trailing-whitespace
       - id: check-xml
-      - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=2000"]
       - id: check-symlinks
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
+      - id: requirements-txt-fixer
+      - id: no-commit-to-branch
+      - id: end-of-file-fixer
+      - id: detect-private-key
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.29.0
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.91.0
+    hooks:
+      - id: trufflehog
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.5
     hooks:
@@ -26,16 +41,16 @@ repos:
       - id: remove-tabs
         args: [--whitespaces-count, '4']
   - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+    rev: 7.0.0
     hooks:
       - id: isort
         args: ["--trailing-comma", "--multi-line=3", "--force-grid-wrap=2", "--combine-as", "--use-parentheses",  "--force-sort-within-sections", "--line-length=140"]
   - repo: https://github.com/PyCQA/pylint
-    rev: v3.2.5
+    rev: v4.0.3
     hooks:
       - id: pylint
         args: ["--rcfile=./pylintrc"]
   - repo: https://github.com/asottile/add-trailing-comma
-    rev: v3.1.0
+    rev: v4.0.0
     hooks:
       - id: add-trailing-comma

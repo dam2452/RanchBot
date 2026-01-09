@@ -1,11 +1,11 @@
 
 ---
 
-# 🎥 RanczoKlipy Bot 🤖
-🎥 Zobacz RanczoKlipy Bot w akcji:
+# 🎥 RanchBot 🤖
+🎥 Zobacz RanchBot w akcji:
 [![🎬 Zobacz wideo](https://img.youtube.com/vi/3Tp3qJHLFPI/maxresdefault.jpg)](https://www.youtube.com/watch?v=3Tp3qJHLFPI)
 
-**RanczoKlipy Bot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z popularnego serialu "Ranczo". 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści.
+**RanchBot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z popularnego serialu "Ranczo". 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści.
 
 ## 🇬🇧 English Version
 For the English version of this README, please refer to [README.md](./READMEen.md).
@@ -74,15 +74,27 @@ Pełna lista komend znajduje się w [📚 Dokumentacji Komend](./COMMANDS.md).
 - **asyncpg**
 - **pydantic-settings**
 - **pydantic**
-
+- 
 ## 🤝 Wkład w Projekt
 Wkład w projekt jest zawsze mile widziany! Jeśli chciałbyś pomóc w jego udoskonaleniu, śmiało współpracuj poprzez zgłaszanie pull requestów lub sugerowanie zmian.
 
 ## 📄 Licencja
-Ten projekt jest licencjonowany na podstawie licencji MIT. Możesz używać i modyfikować oprogramowanie do celów osobistych lub wewnętrznych. Jednak dystrybucja lub publiczne udostępnianie zmodyfikowanych wersji powinno odbywać się poprzez wkład w ten projekt. Jeśli chcesz użyć tego oprogramowania w znacznej lub komercyjnej formie, skontaktuj się z twórcami projektu w celu dalszej dyskusji.
+
+Ten projekt **NIE JEST** projektem Open Source w klasycznym rozumieniu.
+Kod jest udostępniony w modelu **Source Available** z zastrzeżeniem wszelkich praw (**All Rights Reserved**).
+
+### Zasady użytkowania:
+- ✅ **Użytek Osobisty:** Możesz pobrać i uruchomić bota na własnym serwerze dla własnych potrzeb prywatnych.
+- 🤝 **Wkład (Pull Requests):** Zachęcam do ulepszania kodu! Możesz stworzyć fork tylko po to, aby przygotować poprawki i wysłać **Pull Request** do tego repozytorium.
+- ❌ **ZAKAZ ROZPOWSZECHNIANIA:** Nie wolno Ci publikować, hostować ani utrzymywać publicznych kopii (forków) tego projektu jako osobnych bytów.
+- ❌ **ZAKAZ KOMERCJI:** Bezwzględny zakaz zarabiania na tym oprogramowaniu w jakikolwiek sposób.
+
+**Jeśli chcesz wprowadzić zmiany, zrób to poprzez oficjalny Pull Request tutaj. Nie chcemy fragmentacji – rozwijajmy jednego, wspólnego bota!**
+
+Szczegóły licencji znajdują się w pliku [LICENSE](./LICENSE).
 
 ## 🚀 Uzyskaj Dostęp do Bota
-Jeśli jesteś zainteresowany dostępem do RanczoKlipy Bot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
+Jeśli jesteś zainteresowany dostępem do RanchBot, proszę skontaktuj się ze mną na Telegramie: [@dam2452](https://t.me/dam2452).
 
 ## ☕ Wesprzyj Projekt
 Jeśli podoba Ci się ten projekt i chciałbyś wesprzeć jego rozwój, rozważ postawienie mi kawy:
@@ -92,4 +104,3 @@ Jeśli podoba Ci się ten projekt i chciałbyś wesprzeć jego rozwój, rozważ 
 </a>
 
 ---
-

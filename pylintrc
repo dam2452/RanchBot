@@ -40,10 +40,6 @@ load-plugins=
 # number of processors available to use.
 jobs=1
 
-# When enabled, pylint would attempt to guess common misconfiguration and emit
-# user-friendly hints instead of false-positive error messages.
-suggestion-mode=yes
-
 # Allow loading of arbitrary C extensions. Extensions are imported into the
 # active Python interpreter and may run arbitrary code.
 unsafe-load-any-extension=no
@@ -108,7 +104,8 @@ disable=
     consider-using-alias,
     import-error,
     logging-fstring-interpolation,
-    consider-alternative-union-syntax
+    consider-alternative-union-syntax,
+    too-many-positional-arguments
 
 [REPORTS]
 

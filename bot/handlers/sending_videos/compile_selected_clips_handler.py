@@ -1,8 +1,7 @@
 import logging
+import math
 import tempfile
 from typing import List
-
-from aiogram.types import Message
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
@@ -30,41 +29,46 @@ class CompileSelectedClipsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["połączklipy", "polaczklipy", "concatclips", "pk"]
 
-    def _get_validator_functions(self) -> ValidatorFunctions:
+    async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
             self.__check_argument_count,
             self.__check_user_has_clips,
         ]
 
-    async def __check_argument_count(self, message: Message) -> bool:
-        return await self._validate_argument_count(message, 2, await self.get_response(RK.INVALID_ARGS_COUNT))
+    async def __check_argument_count(self) -> bool:
+        return await self._validate_argument_count(
+            self._message,
+            2,
+            await self.get_response(RK.INVALID_ARGS_COUNT),
+            math.inf,
+        )
 
-    async def __check_user_has_clips(self, message: Message) -> bool:
-        user_clips = await DatabaseManager.get_saved_clips(message.from_user.id)
+    async def __check_user_has_clips(self) -> bool:
+        user_clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
         if not user_clips:
-            await self.__reply_no_matching_clips_found(message)
+            await self.__reply_no_matching_clips_found()
             return False
         return True
 
-    async def _do_handle(self, message: Message) -> None:
-        content = message.text.split()
+    async def _do_handle(self) -> None:
+        content = self._message.get_text().split()
 
         try:
             clip_numbers = [int(clip) for clip in content[1:]]
         except ValueError:
-            return await self._reply_invalid_args_count(message, await self.get_response(RK.INVALID_ARGS_COUNT))
+            return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
 
-        user_clips = await DatabaseManager.get_saved_clips(message.from_user.id)
+        user_clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
 
         selected_clips = []
         for clip_number in clip_numbers:
             if 1 <= clip_number <= len(user_clips):
                 selected_clips.append(user_clips[clip_number - 1])
             else:
-                return await self._reply_invalid_args_count(message, await self.get_response(RK.INVALID_ARGS_COUNT))
+                return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
 
         if not selected_clips:
-            return await self.__reply_no_matching_clips_found(message)
+            return await self.__reply_no_matching_clips_found()
 
         selected_segments = []
         for clip in selected_clips:
@@ -79,15 +83,18 @@ class CompileSelectedClipsHandler(BotMessageHandler):
 
         total_duration = sum(clip.duration for clip in selected_clips)
 
-        if await self._handle_clip_duration_limit_exceeded(message, total_duration):
-            return
+        if await self._handle_clip_duration_limit_exceeded(total_duration):
+            return None
 
-        compiled_output = await ClipsCompiler.compile(message, selected_segments, self._logger)
-        await process_compiled_clip(message, compiled_output, ClipType.COMPILED)
-        await self._answer_video(message, compiled_output)
+        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
+        await process_compiled_clip(self._message, compiled_output, ClipType.COMPILED)
+        await self._responder.send_video(compiled_output)
 
-        await self._log_system_message(logging.INFO, get_compiled_clip_sent_message(message.from_user.username))
+        return await self._log_system_message(
+            logging.INFO,
+            get_compiled_clip_sent_message(self._message.get_username()),
+        )
 
-    async def __reply_no_matching_clips_found(self, message: Message) -> None:
-        await self._answer(message,await self.get_response(RK.NO_MATCHING_CLIPS_FOUND))
+    async def __reply_no_matching_clips_found(self) -> None:
+        await self._responder.send_text(await self.get_response(RK.NO_MATCHING_CLIPS_FOUND))
         await self._log_system_message(logging.INFO, get_log_no_matching_clips_found_message())
