@@ -156,8 +156,8 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         return img
 
-    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:  # pylint: disable=too-many-try-statements
-        try:
+    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
+        try:  # pylint: disable=too-many-try-statements
             response = page.goto(
                 img_url,
                 timeout=settings.face_recognition.page_navigation_timeout,
