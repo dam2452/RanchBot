@@ -174,18 +174,6 @@ ON common_messages (handler_name);
 
 CREATE INDEX IF NOT EXISTS idx_ranczo_messages_handler_name
 ON ranczo_messages (handler_name);
-CREATE TABLE IF NOT EXISTS bomba_messages (
-    handler_name TEXT NOT NULL,
-    key TEXT NOT NULL,
-    message TEXT NOT NULL,
-    PRIMARY KEY (handler_name, key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_bomba_messages_key
-    ON bomba_messages (key);
-
-CREATE INDEX IF NOT EXISTS idx_bomba_messages_handler_name
-    ON bomba_messages (handler_name);
 
 
 CREATE OR REPLACE FUNCTION clean_old_last_clips() RETURNS trigger AS $$

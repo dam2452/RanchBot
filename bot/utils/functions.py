@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import logging
 from typing import (
@@ -11,24 +12,16 @@ from bot.database.models import FormattedSegmentInfo
 
 logger = logging.getLogger(__name__)
 
+@dataclass
+class Resolution:
+    width: int
+    height: int
 
-
-NUMBER_TO_EMOJI: Dict[str, str] = {
-    "0": "0️⃣",
-    "1": "1️⃣",
-    "2": "2️⃣",
-    "3": "3️⃣",
-    "4": "4️⃣",
-    "5": "5️⃣",
-    "6": "6️⃣",
-    "7": "7️⃣",
-    "8": "8️⃣",
-    "9": "9️⃣",
+RESOLUTIONS: Dict[str, Resolution] = {
+    "1080p": Resolution(1920, 1080),
+    "720p": Resolution(1280, 720),
+    "480p": Resolution(854, 480),
 }
-
-
-def convert_number_to_emoji(number: int) -> str:
-    return "".join(NUMBER_TO_EMOJI.get(digit, digit) for digit in str(number))
 
 class InvalidTimeStringException(Exception):
     def __init__(self, time: str) -> None:
@@ -109,6 +102,25 @@ def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegme
     )
 
 
+
+number_to_emoji: Dict[str, str] = {
+    "0": "0️⃣",
+    "1": "1️⃣",
+    "2": "2️⃣",
+    "3": "3️⃣",
+    "4": "4️⃣",
+    "5": "5️⃣",
+    "6": "6️⃣",
+    "7": "7️⃣",
+    "8": "8️⃣",
+    "9": "9️⃣",
+}
+
+
+def convert_number_to_emoji(number: int) -> str:
+    return "".join(number_to_emoji.get(digit, digit) for digit in str(number))
+
+
 def format_user_list(users: List[UserProfile], title: str) -> str:
     user_lines = []
 
@@ -125,7 +137,7 @@ def format_user_list(users: List[UserProfile], title: str) -> str:
     response += "```\n" + "\n\n".join(user_lines) + "\n```"
     return response
 
-def remove_diacritics_and_lowercase(text: str) -> str:
+def remove_diacritics_and_lowercase(text):
     normalized_text = unicodedata.normalize('NFKD', text)
     cleaned_text = ''.join([char for char in normalized_text if not unicodedata.combining(char)])
     return cleaned_text.lower()
