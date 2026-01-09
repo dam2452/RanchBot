@@ -24,6 +24,7 @@ class TestAdjustVideoClipHandler(BaseTest):
         video_name = "geniusz"
         self.assert_command_result_file_matches(self.send_command(f"/klip {video_name}"), f"clip_{video_name}.mp4")
 
+        await self.__execute_both_variants("-abc", RK.INVALID_ARGS_COUNT)
         await self.__execute_both_variants("-abc 1.2", RK.INVALID_ARGS_COUNT)
         await self.__execute_both_variants("-abc 1.2 1.2 1.2 1.2", RK.INVALID_ARGS_COUNT)
 

@@ -72,6 +72,13 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
         original_start_time = float(segment_info.get("start", 0))
         original_end_time = float(segment_info.get("end", 0))
+
+        try:
+            float(content[-2])
+            float(content[-1])
+        except ValueError:
+            return await self.__reply_invalid_interval()
+
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
 
