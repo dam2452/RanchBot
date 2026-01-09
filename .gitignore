@@ -1,38 +1,33 @@
 # Directory-based exclusions
-/RANCZO-TRANSKRYPCJE/
-/RANCZO-WIDEO/
 /.venv
-/new_venv
-/venv
 /.idea
-/DataModify
-/cache
-/__pycache__
 /bot/RANCZO-TRANSKRYPCJE/
 /bot/RANCZO-WIDEO/
 
 # Specific file-based exclusions
-/passwords.env
-/update_and_run.sh
 *.log
 *.mp4
 *.cutree
 *.pyc
 *.zip
 .env
-.db
 *.db
-/MOBILE_VIDEO_TESTS
-/m
-log.txt
-video_data_1
 *.session
-/bot/tests/e2e_tests/expected_files
-/bot/tests/expected
-/bot/tests/expected/expected_files
 *.session-journal
-Test Results - .html
 *.html
+bot/RANCZO-WIDEO
+/.claude
+/data
+/preprocessor/output_data
+/preprocessor/input_data
+
+# Python build artifacts
+*.py[cod]
+*$py.class
+*.so
+*.so.*
+*.egg-info/
+preprocessor/BENCHMARK_REPORT.md
 bot/tests/received_file.txt
 /bot/KIEPSCY-TRANSKRYPCJE
 /test_trans
@@ -42,9 +37,6 @@ elsticKIEP
 elsticRANCZO
 Preprocessing/DataExtractionFromWiki/EpisodeInfoKIEPSCY.json
 Preprocessing/DataExtractionFromWiki/EpisodeInfo.json
-bot/RANCZO-WIDEO
 cookies.txt
-/.claude
 /transcriptions
 test_episodes.json
-/preprocessor/output_data

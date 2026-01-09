@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+tests/
+test_*/
+*_test.py
+conftest.py
+pytest.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Logs
+*.log
+*.pot
+
+# Cache
+.cache/
+.huggingface/
+
+# Application data directories
+videos/
+transcoded_videos/
+transcriptions/
+embeddings/
+scene_timestamps/
+preprocessed/
+output_test/
+output_data/
+input_data/
+data/
+
+# Media files
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.png
+*.jpg
+*.jpeg
+
+# State and backup files
+*.json.backup
+.preprocessing_state.json
+.benchmarks/
+
+# Documentation (except main README)
+*.md
+!README.md
+
+# Docker and config
+Dockerfile
+docker-compose*.yml
+.dockerignore
+.env
+.env.*
+
+# Project-specific
+.claude/
+test_logging.py
+run-preprocessor.sh

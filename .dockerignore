@@ -1,22 +1,82 @@
-/RANCZO-TRANSKRYPCJE/
-/RANCZO-WIDEO/
-/bot/RANCZO-TRANSKRYPCJE/
-/bot/RANCZO-WIDEO/
-/bot/KIEPSCY-WIDEO/
-/bot/KIEPSCY-TRANSKRYPCJE/
-/OLD/
-/STARE RANCZ WIDEO/
-/passwords.env
-/.venv
-/new_venv
-/venv
-/.idea
-/update_and_run.sh
+# Python
+__pycache__/
+*$py.class
+.Python
+*.egg
+*.egg-info/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+preprocessor/.venv/
+preprocessor/venv/
+bot/.venv/
+bot/venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+tests/
+test_*/
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Logs
 *.log
-/DataModify
-/cache
-/__pycache__
+*.pot
+
+# Cache
+.cache/
+.huggingface/
+
+# Application data directories (paths relative to build context root)
+# Note: These are OUTPUT/DATA folders, not source code folders!
+preprocessor/output_data/
+preprocessor/input_data/
+bot/RANCZO-WIDEO/
+bot/RANCZO-TRANSKRYPCJE/
+bot/output_data/
+bot/input_data/
+
+# Media files
 *.mp4
+*.avi
+*.mkv
+*.mov
+*.png
+*.jpg
+*.jpeg
+
+# State and backup files
+*.json.backup
+.preprocessing_state.json
+.benchmarks/
+
+# Documentation (except main README)
+*.md
+!README.md
+!preprocessor/README.md
+!preprocessor/SEARCH_GUIDE.md
+
+# Docker and config
 *.cutree
 .env
 .env.*
@@ -24,7 +84,24 @@
 log.txt
 preprocessing_video.py
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
+.dockerignore
+preprocessor/.env
+preprocessor/.env.*
+bot/Dockerfile
+bot/docker-compose*.yml
+bot/.dockerignore
+bot/.env
+bot/.env.*
+
+# Project-specific
+.claude/
+preprocessor/.claude/
+preprocessor/test_logging.py
+preprocessor/run-preprocessor.sh
+preprocessor/.preprocessing_state.json
+bot/.claude/
+test_logging.py
 /Preprocessing
 /kapitan_bomba_trans
 /kb
@@ -32,10 +109,6 @@ docker-compose.yml
 *.db
 *.session
 *.session-journal
-.DS_Store
-.git
-.gitignore
-*.md
 .claude
 /test_trans
 /MOBILE_VIDEO_TESTS
@@ -44,6 +117,4 @@ docker-compose.yml
 cookies.txt
 /bot/tests/e2e_tests/expected_files
 /bot/tests/expected
-pytest.ini
 .pytest_cache
-*.pyc

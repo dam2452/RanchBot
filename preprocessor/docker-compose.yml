@@ -1,0 +1,41 @@
+services:
+  preprocessor:
+    build:
+      context: ..
+      dockerfile: preprocessor/Dockerfile
+    image: ranczo-preprocessor:latest
+    container_name: ranchbot-preprocessing-app
+    network_mode: host
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    env_file:
+      - .env
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - PULL_EXTRA_MODELS=true
+      - DOCKER_CONTAINER=true
+      - PYTHONUNBUFFERED=1
+      - HF_HOME=/models/huggingface
+      - TORCH_HOME=/models/torch
+      - WHISPER_CACHE=/models/whisper
+      - INSIGHTFACE_HOME=/models/insightface
+      - YOLO_CONFIG_DIR=/models/ultralytics
+
+    volumes:
+      - ./input_data:/input_data:ro
+      - ./output_data:/app/output_data
+      - ml_models:/models
+
+volumes:
+  ml_models:
+    name: ranchbot-ai-models
+    driver: local

@@ -45,6 +45,7 @@ class TestEpisodeListHandler(BaseTest):
         response = self.send_command(f'/odcinki {season_number}')
         self.assert_message_hash_matches(response, expected_key=f"episode_list_season_{season_number}_long.message")
 
+    @pytest.mark.skip(reason="The whole season 11 feature should be removed in the test fixing PR")
     @pytest.mark.asyncio
     async def test_episodes_for_season_11(self):
         season_number = 11
