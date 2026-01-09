@@ -150,8 +150,16 @@ class CharacterReferenceDownloader(BaseProcessor):
                 return None
 
             img_bytes = response.body()
+            if not img_bytes:
+                return None
+
             img_array = np.asarray(bytearray(img_bytes), dtype=np.uint8)
             img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+            if img is None or img.size == 0:
+                self.logger.debug(f"Failed to decode image from {img_url}")
+                return None
+
             return img
 
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -194,11 +202,19 @@ class CharacterReferenceDownloader(BaseProcessor):
                             if img is None:
                                 continue
 
+                            if not isinstance(img, np.ndarray) or img.size == 0:
+                                self.logger.debug(f"Invalid image array from {img_url}")
+                                continue
+
                             h, w = img.shape[:2]
                             if w < self.min_width or h < self.min_height:
                                 continue
 
-                            face_count = self._count_faces(img)
+                            try:
+                                face_count = self._count_faces(img)
+                            except Exception as face_err:  # pylint: disable=broad-exception-caught
+                                self.logger.debug(f"Face detection failed for {img_url}: {face_err}")
+                                continue
 
                             if face_count == 1:
                                 filename = f"{saved_count:02d}.jpg"

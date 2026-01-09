@@ -62,6 +62,21 @@ docker logs ranchbot-preprocessing-app -f
 
 ### Z gotową transkrypcją i transkodowaniem
 
+**Zalecane (używa run-all z skip flagami):**
+
+```bash
+./run-preprocessor.sh run-all /input_data/transcoded_videos \
+  --episodes-info-json /input_data/episodes.json \
+  --series-name ranczo \
+  --skip-transcode \
+  --skip-transcribe
+```
+
+**Alternatywnie (manualne CLI komendy):**
+
+> ⚠️ **UWAGA:** Character detection i object detection są dostępne tylko w `run-all`.
+> Poniższe komendy pomijają te kroki.
+
 ```bash
 ./run-preprocessor.sh detect-scenes /input_data/transcoded_videos
 
@@ -70,6 +85,12 @@ docker logs ranchbot-preprocessing-app -f
   --scene-timestamps-dir /app/output_data/scene_timestamps \
   --name ranczo
 
+./run-preprocessor.sh generate-embeddings \
+  --transcription-jsons /app/output_data/transcriptions \
+  --frames-dir /app/output_data/frames_480p \
+  --generate-text \
+  --no-video
+
 ./run-preprocessor.sh image-hashing \
   --frames-dir /app/output_data/frames_480p \
   --episodes-info-json /input_data/episodes.json \
@@ -77,7 +98,9 @@ docker logs ranchbot-preprocessing-app -f
 
 ./run-preprocessor.sh generate-embeddings \
   --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p
+  --frames-dir /app/output_data/frames_480p \
+  --no-text \
+  --generate-video
 
 ./run-preprocessor.sh generate-elastic-documents \
   --transcription-jsons /app/output_data/transcriptions \
@@ -104,15 +127,15 @@ docker logs ranchbot-preprocessing-app -f
 │  [0b/9] scrape characters →  [0c/9] download references                                                   │
 │         (Qwen + crawl4ai)       (DuckDuckGo + InsightFace)                                                │
 │                                                                                                            │
-│  [4/9] export frames  →  [5/9] frame processing (5 sub-kroków):                                           │
-│        (480p JPG)              [5a] image hashing (perceptual hash)                                       │
-│                                [5b] video embeddings (Qwen2-VL per-frame)                                 │
-│                                [5c] character detection (InsightFace)                                     │
-│                                [5d] object detection (D-FINE-X)                                           │
-│                                [5e] object visualization (annotated frames)                               │
+│  [4/9] export frames  →  [5/9] text embeddings  →  [6/9] frame processing (5 sub-kroków):                │
+│        (480p JPG)             (Qwen2-VL)                 [6a] image hashing (perceptual hash)             │
+│                                                          [6b] video embeddings (Qwen2-VL per-frame)       │
+│                                                          [6c] character detection (InsightFace)           │
+│                                                          [6d] object detection (D-FINE-X)                 │
+│                                                          [6e] object visualization (annotated frames)     │
 │                                                                                                            │
-│  [6/9] text embeddings  →  [7/9] generate elastic docs  →  [8/9] index                                   │
-│        (Qwen2-VL)              (JSON merging)                  (Elasticsearch)                            │
+│  [7/9] generate elastic docs  →  [8/9] index                                                              │
+│        (JSON merging)                  (Elasticsearch)                                                    │
 │                                                                                                            │
 │  Całkowicie SEKWENCYJNE przetwarzanie (pipeline + pliki w każdej fazie)                                   │
 │  Optymalizacja dla jednego GPU bez strat wydajności                                                       │
@@ -124,19 +147,19 @@ docker logs ranchbot-preprocessing-app -f
 
 | Faza                           | Czas (45 min odcinek) |
 |--------------------------------|----------------------|
-| Transcode (NVENC)              | ~2 min |
-| Transcribe (Whisper)           | ~5 min |
-| Scene detection (TransNetV2)   | ~3 min |
-| Export frames (480p)           | ~2 min |
-| Frame processing (5/9)         | ~12-15 min |
-| - Image hashing (5a)           | ~1 min |
-| - Video embeddings (5b)        | ~5-7 min |
-| - Character detection (5c)     | ~2 min |
-| - Object detection (5d)        | ~2-3 min |
-| - Object visualization (5e)    | ~1-2 min |
-| Text embeddings (6/9)          | ~3-5 min |
-| Generate elastic docs          | ~1 min |
-| Index (Elasticsearch)          | ~2 min |
+| Transcode (1/9)                | ~2 min |
+| Transcribe (2/9)               | ~5 min |
+| Scene detection (3/9)          | ~3 min |
+| Export frames (4/9)            | ~2 min |
+| Text embeddings (5/9)          | ~3-5 min |
+| Frame processing (6/9)         | ~12-15 min |
+| - Image hashing (6a)           | ~1 min |
+| - Video embeddings (6b)        | ~5-7 min |
+| - Character detection (6c)     | ~2 min |
+| - Object detection (6d)        | ~2-3 min |
+| - Object visualization (6e)    | ~1-2 min |
+| Generate elastic docs (7/9)    | ~1 min |
+| Index (8/9)                    | ~2 min |
 | **Łącznie**                    | **~28-32 min** |
 
 **Throughput:** ~2-3 odcinki (45 min każdy) na godzinę przetwarzania.
@@ -245,18 +268,19 @@ Pełny pipeline ze wszystkimi krokami (11 kroków: 0a-0c, 1-8).
 ```
 
 **Dostępne flagi skip:**
-- `--skip-transcode` - Krok 1: Transkodowanie
-- `--skip-transcribe` - Krok 2: Transkrypcja
-- `--skip-scenes` - Krok 3: Detekcja scen
-- `--skip-frame-export` - Krok 4: Eksport klatek
-- `--skip-image-hashing` - Krok 5a: Image hashing (sub-krok)
-- `--skip-video-embeddings` - Krok 5b: Video embeddings (sub-krok)
-- `--skip-character-detection` - Krok 5c: Character detection (sub-krok)
-- `--skip-object-detection` - Krok 5d: Object detection (sub-krok)
-- `--skip-object-visualization` - Krok 5e: Object visualization (sub-krok)
-- `--skip-embeddings` - Krok 6: Text embeddings
-- `--skip-elastic-documents` - Krok 7: Generowanie dokumentów Elasticsearch
-- `--skip-index` - Krok 8: Indeksowanie
+- `--skip-transcode` - Krok 1/9: Transkodowanie
+- `--skip-transcribe` - Krok 2/9: Transkrypcja
+- `--skip-scenes` - Krok 3/9: Detekcja scen
+- `--skip-frame-export` - Krok 4/9: Eksport klatek
+- `--skip-embeddings` - Krok 5/9: Text embeddings
+- `--skip-frame-processing` - Krok 6/9: Frame processing (wszystkie sub-kroki)
+- `--skip-image-hashing` - Krok 6a: Image hashing (sub-krok)
+- `--skip-video-embeddings` - Krok 6b: Video embeddings (sub-krok)
+- `--skip-character-detection` - Krok 6c: Character detection (sub-krok)
+- `--skip-object-detection` - Krok 6d: Object detection (sub-krok)
+- `--skip-object-visualization` - Krok 6e: Object visualization (sub-krok)
+- `--skip-elastic-documents` - Krok 7/9: Generowanie dokumentów Elasticsearch
+- `--skip-index` - Krok 8/9: Indeksowanie
 
 **Premium modes:**
 - `--parser-mode premium` - Gemini 2.5 Flash zamiast Qwen (scraping)
@@ -364,8 +388,10 @@ Generowanie perceptual hashes dla wyeksportowanych klatek.
 
 Generowanie embeddingów tekstowych i wideo (gme-Qwen2-VL-2B).
 
-**UWAGA:** Ta komenda generuje tylko **text embeddings** (domyślnie `--generate-text`).
-Video embeddings są generowane w kroku 5b (frame processing) podczas `run-all`.
+**UWAGA:** Domyślnie generuje **zarówno text jak i video embeddings**.
+W pipeline `run-all` są one rozdzielone:
+- Krok 5/9: text embeddings (szybkie, małe)
+- Krok 6b/9: video embeddings (długie, w ramach frame processing)
 
 **Text embedding chunking:**
 
@@ -521,30 +547,11 @@ docker-compose build
 ### 2. Z gotową transkrypcją i transkodowaniem
 
 ```bash
-./run-preprocessor.sh detect-scenes /input_data/transcoded_videos
-
-./run-preprocessor.sh export-frames /input_data/transcoded_videos \
+./run-preprocessor.sh run-all /input_data/transcoded_videos \
   --episodes-info-json /input_data/episodes.json \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --name ranczo
-
-./run-preprocessor.sh image-hashing \
-  --frames-dir /app/output_data/frames_480p \
-  --episodes-info-json /input_data/episodes.json \
-  --name ranczo
-
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p
-
-./run-preprocessor.sh generate-elastic-documents \
-  --transcription-jsons /app/output_data/transcriptions \
-  --embeddings-dir /app/output_data/embeddings \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --name ranczo
-
-./run-preprocessor.sh index --name ranczo \
-  --elastic-documents-dir /app/output_data/elastic_documents
+  --series-name ranczo \
+  --skip-transcode \
+  --skip-transcribe
 ```
 
 ### 3. Z gotowym episodes.json
