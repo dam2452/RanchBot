@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import logging
@@ -140,12 +139,7 @@ class BaseTest:
         return "\n".join(lines[n:])
 
     def expect_command_result_contains(self, command: str, expected: List[str], args: Optional[List[str]] = None) -> None:
-        response = self.send_command(command, args=args)
-        resolved_expected = []
-        for fragment in expected:
-            resolved_expected.append(fragment)
-        self.assert_response_contains(response, resolved_expected)
-
+        self.assert_response_contains(self.send_command(command, args=args), expected)
 
     @staticmethod
     def __compute_file_hash(file_path: Path, hash_function: str = 'sha256') -> str:
@@ -224,8 +218,6 @@ class BaseTest:
 
     @staticmethod
     async def remove_first_line(text: str) -> str:
-        if asyncio.iscoroutine(text):
-            text = await text
         return "\n".join(text.splitlines()[1:])
 
     async def expect_command_result_hash(
@@ -244,7 +236,5 @@ class BaseTest:
 
     @staticmethod
     async def get_season_info() -> Dict[str, int]:
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(
-            logger=logger,
-        )
+        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=logger)
         return season_info

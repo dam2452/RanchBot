@@ -7,7 +7,6 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
-from bot.settings import settings as main_settings
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -15,35 +14,15 @@ _test_lock = asyncio.Lock()
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def db_pool():
-    if DatabaseManager.pool is not None:
-        await DatabaseManager.pool.close()
-
-    async def init_connection(conn):
-        await conn.execute("SET statement_timeout = '120s'")
-
-    async def setup_connection(_):
-        pass
-
-    config = {
-        "host": s.TEST_POSTGRES_HOST,
-        "port": s.TEST_POSTGRES_PORT,
-        "database": s.TEST_POSTGRES_DB,
-        "user": s.TEST_POSTGRES_USER,
-        "password": s.TEST_POSTGRES_PASSWORD.get_secret_value(),
-        "server_settings": {"search_path": main_settings.POSTGRES_SCHEMA},
-        "min_size": 10,
-        "max_size": 50,
-        "command_timeout": 120,
-        "max_inactive_connection_lifetime": 300,
-        "statement_cache_size": 0,
-        "max_cached_statement_lifetime": 0,
-        "init": init_connection,
-        "setup": setup_connection,
-        "reset": None,  # Disable connection reset on release
-    }
-    DatabaseManager.pool = await asyncpg.create_pool(**config)
+    await DatabaseManager.init_pool(
+        host=s.TEST_POSTGRES_HOST,
+        port=s.TEST_POSTGRES_PORT,
+        database=s.TEST_POSTGRES_DB,
+        user=s.TEST_POSTGRES_USER,
+        password=s.TEST_POSTGRES_PASSWORD.get_secret_value(),
+        schema=s.POSTGRES_SCHEMA,
+    )
     await DatabaseManager.init_db()
-    DatabaseManager._db_fully_initialized = True
     yield
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
@@ -92,8 +71,6 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
         logger.info(f"Admin with user_id {admin_id} has been added.")
         i+=1
 
-    await asyncio.sleep(0.2)
-
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def auth_token(test_client, prepare_database):  # pylint: disable=redefined-outer-name,unused-argument
@@ -106,6 +83,6 @@ async def auth_token(test_client, prepare_database):  # pylint: disable=redefine
     )
     assert login_response.status_code == 200, f"Login failed: {login_response.text}"
     token_data = login_response.json()
-    logger.info("Authenticated as '0'")
+    logger.info("Authenticated as 'TestUser0'")
 
     return token_data["access_token"]

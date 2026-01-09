@@ -13,6 +13,7 @@ env_path = load_env_file()
 
 class Settings(BaseSettings):
     SESSION: str = Field("name")
+    POSTGRES_SCHEMA: str = Field("ranczo")
 
     SPECIALIZED_TABLE: str = Field(...)
 

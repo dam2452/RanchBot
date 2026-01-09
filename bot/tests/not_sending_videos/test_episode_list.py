@@ -46,9 +46,8 @@ class TestEpisodeListHandler(BaseTest):
         response = self.send_command(f'/odcinki {season_number}')
         self.assert_message_hash_matches(response, expected_key=f"episode_list_season_{season_number}_long.message")
 
-    @pytest.mark.skip(reason="TODO PNG HANDLING")
     @pytest.mark.asyncio
     async def test_episodes_for_season_11(self):
         season_number = 11
         response = self.send_command(f'/odcinki {season_number}')
-        self.assert_response_contains(response, [msg.get_season_11_petition_message()])
+        self.assert_command_result_file_matches(response, "abababa")

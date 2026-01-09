@@ -762,15 +762,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def __get_message_from_message_table(
         table: str, key: str, handler_name: str,
     ) -> Optional[str]:
-        if DatabaseManager.pool is None:
-            raise ConnectionError("Database pool not initialized")
-        query = f"""
-            SELECT message
-            FROM {table}
-            WHERE handler_name = $1 AND key = $2
-        """
-        row = await DatabaseManager.pool.fetchrow(query, handler_name, key)
-        return row["message"] if row else None
+        async with DatabaseManager.get_db_connection() as conn:
+            query = f"""
+                SELECT message
+                FROM {table}
+                WHERE handler_name = $1 AND key = $2
+            """
+            row = await conn.fetchrow(query, handler_name, key)
+            return row["message"] if row else None
 
     @staticmethod
     async def get_message_from_specialized_table(
