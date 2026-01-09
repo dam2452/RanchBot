@@ -51,7 +51,7 @@ class TestAdjustVideoClipHandler(BaseTest):
         self.assert_command_result_file_matches(self.send_command(f"/klip {video_name}"), "clip_geniusz.mp4")
 
         self.assert_command_result_file_matches(self.send_command(f"/d {adjust_params}"), adjusted_filename)
-        self.assert_command_result_file_matches(self.send_command(f"/ad {adjust_params}"), adjusted_filename)
+        self.assert_command_result_file_matches(self.send_command(f"/ad {adjust_params}"), "abs_" + adjusted_filename)
 
     @pytest.mark.asyncio
     async def test_consecutive_absolute_adjustments(self):
@@ -60,8 +60,8 @@ class TestAdjustVideoClipHandler(BaseTest):
         adjusted_filename = f"adjusted_{video_name}_{adjust_params}.mp4"
         self.assert_command_result_file_matches(self.send_command(f"/klip {video_name}"), "clip_geniusz.mp4")
 
-        self.assert_command_result_file_matches(self.send_command(f"/ad {adjust_params}"), adjusted_filename)
-        self.assert_command_result_file_matches(self.send_command(f"/ad {adjust_params}"), adjusted_filename)
+        self.assert_command_result_file_matches(self.send_command(f"/ad {adjust_params}"), "abs_" + adjusted_filename)
+        self.assert_command_result_file_matches(self.send_command(f"/ad {adjust_params}"), "abs_" + adjusted_filename)
 
     @pytest.mark.asyncio
     async def test_consecutive_relative_adjustments(self):
