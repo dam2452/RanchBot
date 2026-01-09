@@ -1,13 +1,10 @@
 # Python
 __pycache__/
-*.py[cod]
 *$py.class
-*.so
 .Python
 *.egg
 *.egg-info/
 dist/
-build/
 .eggs/
 
 # Virtual environments
@@ -27,10 +24,6 @@ htmlcov/
 .tox/
 tests/
 test_*/
-*_test.py
-conftest.py
-pytest.ini
-
 # IDEs
 .idea/
 .vscode/
@@ -93,11 +86,6 @@ preprocessing_video.py
 Dockerfile
 docker-compose*.yml
 .dockerignore
-.env
-.env.*
-preprocessor/Dockerfile
-preprocessor/docker-compose*.yml
-preprocessor/.dockerignore
 preprocessor/.env
 preprocessor/.env.*
 bot/Dockerfile
@@ -114,8 +102,6 @@ preprocessor/run-preprocessor.sh
 preprocessor/.preprocessing_state.json
 bot/.claude/
 test_logging.py
-run-preprocessor.sh
-docker-compose.yml
 /Preprocessing
 /kapitan_bomba_trans
 /kb
@@ -123,10 +109,6 @@ docker-compose.yml
 *.db
 *.session
 *.session-journal
-.DS_Store
-.git
-.gitignore
-*.md
 .claude
 /test_trans
 /MOBILE_VIDEO_TESTS
@@ -135,6 +117,4 @@ docker-compose.yml
 cookies.txt
 /bot/tests/e2e_tests/expected_files
 /bot/tests/expected
-pytest.ini
 .pytest_cache
-*.pyc
