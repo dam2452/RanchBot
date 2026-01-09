@@ -33,7 +33,7 @@ def load_model():
 
     _model = Qwen2VLForConditionalGeneration.from_pretrained(
         model_name,
-        torch_dtype=torch.bfloat16 if _device == "cuda" else torch.float32,
+        dtype=torch.bfloat16 if _device == "cuda" else torch.float32,
         device_map="auto" if _device == "cuda" else None,
     )
     _processor = AutoProcessor.from_pretrained(model_name)

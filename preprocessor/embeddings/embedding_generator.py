@@ -134,7 +134,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         try:
             self.model = Qwen3VLEmbedder(
                 model_name_or_path=self.model_name,
-                torch_dtype=torch.float16,
+                dtype=torch.float16,
             )
             console.print("[green]Qwen3-VL-Embedding model loaded successfully[/green]")
         except Exception as e:
