@@ -73,14 +73,6 @@ class GPUBatchProcessor:
             try:
                 sub_batch_start = time.time()
 
-                if total_images > self.progress_sub_batch_size:
-                    console.print(
-                        f"    [dim cyan]→ {sub_idx + 1}-{sub_end}/{total_images} "
-                        f"({sub_end / total_images * 100:.0f}%)...[/dim cyan]",
-                        end="",
-                        flush=True,
-                    )
-
                 inputs = [{"image": img} for img in batch_pil]
                 embeddings_tensor = self.model.process(inputs, normalize=True)
                 self._log_vram_usage()
@@ -93,7 +85,10 @@ class GPUBatchProcessor:
                 if total_images > self.progress_sub_batch_size:
                     elapsed = time.time() - sub_batch_start
                     rate = current_batch_size / elapsed if elapsed > 0 else 0
-                    console.print(f" done in {elapsed:.1f}s ({rate:.1f} img/s)")
+                    console.print(
+                        f"    [dim cyan]→ {sub_idx + 1}-{sub_end}/{total_images} "
+                        f"({sub_end / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.1f} img/s)[/dim cyan]",
+                    )
 
                     elapsed_total = time.time() - batch_start_time
                     if sub_end < total_images:
