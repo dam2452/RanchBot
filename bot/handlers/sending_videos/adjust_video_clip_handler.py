@@ -77,7 +77,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             float(content[-2])
             float(content[-1])
         except ValueError:
-            return await self.__reply_invalid_interval()
+            return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
 
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
