@@ -14,6 +14,7 @@ from typing import (
 )
 
 import asyncpg
+import bcrypt
 
 from bot.database.models import (
     ClipType,
@@ -119,9 +120,10 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def add_user(
-            user_id: int, username: Optional[str], full_name: Optional[str],
-            note: Optional[str], subscription_days: Optional[int] = None,
+            user_id: int, username: Optional[str] = None, full_name: Optional[str] = None,
+            note: Optional[str] = None, subscription_days: Optional[int] = None,
     ) -> None:
+
         async with DatabaseManager.get_db_connection() as conn:
             subscription_end = date.today() + timedelta(days=subscription_days) if subscription_days else None
             async with conn.transaction():
@@ -266,21 +268,35 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return result
 
     @staticmethod
-    async def set_default_admin(user_id: int, username: str, full_name: str) -> None:
+    async def set_default_admin(user_id: int, username: str, full_name: str, password: Optional[str] = None) -> None:
         async with DatabaseManager.get_db_connection() as conn:
-            await conn.execute(
-                "INSERT INTO user_profiles (user_id, username, full_name) "
-                "VALUES ($1, $2, $3) "
-                "ON CONFLICT (user_id) DO NOTHING",
-                user_id, username, full_name,
-            )
+            async with conn.transaction():
+                await conn.execute(
+                    "INSERT INTO user_profiles (user_id, username, full_name) "
+                    "VALUES ($1, $2, $3) "
+                    "ON CONFLICT (user_id) DO NOTHING",
+                    user_id, username, full_name,
+                )
 
-            await conn.execute(
-                "INSERT INTO user_roles (user_id, is_admin) "
-                "VALUES ($1, TRUE) "
-                "ON CONFLICT (user_id) DO NOTHING",
-                user_id,
-            )
+                await conn.execute(
+                    "INSERT INTO user_roles (user_id, is_admin) "
+                    "VALUES ($1, TRUE) "
+                    "ON CONFLICT (user_id) DO NOTHING",
+                    user_id,
+                )
+
+                if password:
+                    salt = bcrypt.gensalt()
+                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+                    await conn.execute(
+                        """
+                        INSERT INTO user_credentials (user_id, hashed_password)
+                        VALUES ($1, $2)
+                        ON CONFLICT (user_id) DO UPDATE SET hashed_password = EXCLUDED.hashed_password
+                        """,
+                        user_id, hashed_password,
+                    )
 
     @staticmethod
     def _row_to_video_clip(row: asyncpg.Record) -> VideoClip:

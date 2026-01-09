@@ -2,7 +2,6 @@ name: Deploy bot
 
 on:
   push:
-    branches: [ main ]
 
   workflow_dispatch:
 
@@ -51,9 +50,20 @@ jobs:
               exit 1
           fi
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Run E2E Tests
+        env:
+          SECRETS: ${{ secrets.BOT_TEST_ENV }}
         run: |
-          echo "Running E2E tests... Placeholder for later"
+          echo "$SECRETS" > .env
+          # shellcheck disable=SC2046
+          export $(grep -v '^#' .env | xargs)
+          python3 -m pip install -r requirements.txt
+          python3 -m pytest
 
   build_production:
     needs: build_and_test_staging

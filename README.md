@@ -74,7 +74,7 @@ Pełna lista komend znajduje się w [📚 Dokumentacji Komend](./COMMANDS.md).
 - **asyncpg**
 - **pydantic-settings**
 - **pydantic**
-- 
+-
 ## 🤝 Wkład w Projekt
 Wkład w projekt jest zawsze mile widziany! Jeśli chciałbyś pomóc w jego udoskonaleniu, śmiało współpracuj poprzez zgłaszanie pull requestów lub sugerowanie zmian.
 

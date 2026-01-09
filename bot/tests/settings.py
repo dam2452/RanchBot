@@ -13,11 +13,7 @@ env_path = load_env_file()
 
 class Settings(BaseSettings):
     SESSION: str = Field("name")
-    API_ID: int = Field(...)
-    API_HASH: SecretStr = Field(...)
-    BOT_USERNAME: str = Field(...)
-    PASSWORD: SecretStr = Field(...)
-    PHONE: str = Field(...)
+    POSTGRES_SCHEMA: str = Field("ranczo")
 
     SPECIALIZED_TABLE: str = Field(...)
 
@@ -27,11 +23,11 @@ class Settings(BaseSettings):
     TEST_POSTGRES_HOST: str = Field(...)
     TEST_POSTGRES_PORT: str = Field(...)
 
-    DEFAULT_ADMIN: int = Field(...)
-    ADMIN_USERNAME: str = Field("Admin")
-    ADMIN_FULL_NAME: str = Field("Admin")
+    TEST_ADMINS: str = Field(...)
+    TEST_PASSWORD: SecretStr = Field(...)
 
-    TESTER_USERNAME: str = Field("dam2452")
+    REST_API_HOST: str = Field("192.168.1.210")
+    REST_API_PORT: int = Field(8199)
 
     class Config:
         env_file = str(env_path)

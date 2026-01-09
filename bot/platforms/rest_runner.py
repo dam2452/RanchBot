@@ -55,7 +55,12 @@ logger = logging.getLogger(__name__)
 
 command_handlers = {}
 COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
-limiter = Limiter(key_func=get_remote_address)
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=not s.DISABLE_RATE_LIMITING,
+)
+
 security = HTTPBearer()
 
 class LoginRequest(BaseModel):
@@ -240,6 +245,8 @@ async def universal_handler(
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
+    logger.info(f"🚀 API Startup. Rate Limiting Disabled: {s.DISABLE_RATE_LIMITING}")
+
     app_instance.state.limiter = limiter
     app_instance.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
