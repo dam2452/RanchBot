@@ -35,7 +35,7 @@ repos:
     rev: v1.5.5
     hooks:
       - id: chmod
-        args: ["777"]
+        args: ["755"]
         files: (.*scripts\/.*.py$|\.sh$)
       - id: remove-tabs
         args: [--whitespaces-count, '4']
