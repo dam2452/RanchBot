@@ -22,6 +22,7 @@ def init_face_detection() -> FaceAnalysis:
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=UserWarning, module="onnxruntime")
+        warnings.filterwarnings("ignore", category=FutureWarning, message=".*estimate.*deprecated.*")
         face_app = FaceAnalysis(name=settings.face_recognition.model_name, root=model_root, providers=providers)
 
     face_app.prepare(ctx_id=0, det_size=settings.face_recognition.detection_size)

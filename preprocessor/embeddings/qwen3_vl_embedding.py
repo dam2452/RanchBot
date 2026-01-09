@@ -352,3 +352,7 @@ class Qwen3VLEmbedder():
             embeddings = F.normalize(embeddings, p=2, dim=-1)
 
         return embeddings
+
+    def get_text_embeddings(self, texts: List[str], normalize: bool = True) -> torch.Tensor:
+        inputs = [{"text": text} for text in texts]
+        return self.process(inputs, normalize=normalize)
