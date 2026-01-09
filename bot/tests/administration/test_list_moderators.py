@@ -9,9 +9,8 @@ from bot.responses.administration.list_moderators_handler_responses import (
 from bot.tests.base_test import BaseTest
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListModeratorsCommand(BaseTest):
-
     @pytest.mark.asyncio
     async def test_list_moderators_with_moderators(self):
         moderators = [
@@ -52,12 +51,12 @@ class TestListModeratorsCommand(BaseTest):
             for user in moderators
         ]
 
-        await self.expect_command_result_contains(
-            '/listmoderators', [format_moderators_list(user_profiles)],
+        self.expect_command_result_contains(
+            'listmoderators', [format_moderators_list(user_profiles)],
         )
 
     @pytest.mark.asyncio
     async def test_list_moderators_empty(self):
-        await self.expect_command_result_contains(
-            '/listmoderators', [get_no_moderators_found_message()],
+        self.expect_command_result_contains(
+            'listmoderators', [get_no_moderators_found_message()],
         )

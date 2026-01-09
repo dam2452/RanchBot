@@ -4,10 +4,10 @@ from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
 from bot.responses.administration.list_whitelist_handler_responses import create_whitelist_response
 from bot.tests.base_test import BaseTest
-from bot.tests.settings import settings as s
+from bot.tests.settings import settings
 
 
-@pytest.mark.usefixtures("db_pool", "telegram_client")
+@pytest.mark.usefixtures("db_pool", "test_client", "auth_token")
 class TestListWhitelistCommand(BaseTest):
     @pytest.mark.asyncio
     async def test_list_whitelist_with_users(self):
@@ -37,11 +37,20 @@ class TestListWhitelistCommand(BaseTest):
             subscription_days=None,
         )
 
+        user_ids = settings.TEST_ADMINS.split(",")
+
         users = [
             UserProfile(
-                user_id=s.DEFAULT_ADMIN,
-                username=s.ADMIN_USERNAME,
-                full_name=s.ADMIN_FULL_NAME,
+                user_id=user_ids[0],
+                username="TestUser0",
+                full_name="TestUser0",
+                subscription_end=None,
+                note=None,
+            ),
+            UserProfile(
+                user_id=user_ids[1],
+                username="TestUser1",
+                full_name="TestUser1",
                 subscription_end=None,
                 note=None,
             ),
@@ -60,4 +69,4 @@ class TestListWhitelistCommand(BaseTest):
                 note=None,
             ),
         ]
-        await self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])
+        self.expect_command_result_contains('/listwhitelist', [create_whitelist_response(users)])

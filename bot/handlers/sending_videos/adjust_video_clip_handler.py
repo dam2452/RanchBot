@@ -72,10 +72,17 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
         original_start_time = float(segment_info.get("start", 0))
         original_end_time = float(segment_info.get("end", 0))
+
+        try:
+            float(content[-2])
+            float(content[-1])
+        except ValueError:
+            return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
+
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
 
-        is_consecutive_adjustment = content[0][1:] in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
+        is_consecutive_adjustment = content[0].lstrip('/') in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
 
         if is_consecutive_adjustment:
             original_start_time = last_clip.adjusted_start_time or original_start_time
