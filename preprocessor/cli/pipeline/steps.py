@@ -378,7 +378,6 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
             batch_size=settings.embedding.batch_size,
             model_name=settings.embedding.model_name,
             model_revision=settings.embedding.model_revision,
-            resize_height=settings.embedding.resize_height,
         )
         processor.add_sub_processor(embedding_sub)
         sub_processors.append(embedding_sub)

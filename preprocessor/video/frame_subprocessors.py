@@ -126,13 +126,12 @@ class ImageHashSubProcessor(FrameSubProcessor):
 
 
 class VideoEmbeddingSubProcessor(FrameSubProcessor):
-    def __init__(self, device: str, batch_size: int, model_name: str, model_revision: str, resize_height: int):
+    def __init__(self, device: str, batch_size: int, model_name: str, model_revision: str):
         super().__init__("Video Embeddings")
         self.device = device
         self.batch_size = batch_size
         self.model_name = model_name
         self.model_revision = model_revision
-        self.resize_height = resize_height
         self.model = None
         self.gpu_processor: Optional[GPUBatchProcessor] = None
         self.logger = ErrorHandlingLogger("VideoEmbeddingSubProcessor", logging.DEBUG, 15)
@@ -184,6 +183,12 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
             return
 
+        embeddings_output_dir = Path(settings.embedding.default_output_dir)
+        season = episode_info.season
+        episode = episode_info.relative_episode
+        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        checkpoint_file = embeddings_episode_dir / "embeddings_video_checkpoint.json"
+
         image_hashes = load_image_hashes_for_episode(
             {"season": episode_info.season, "episode_number": episode_info.relative_episode},
             self.logger,
@@ -194,6 +199,9 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             self.gpu_processor,
             self.batch_size,
             image_hashes,
+            checkpoint_file=checkpoint_file,
+            checkpoint_interval=20,
+            prefetch_count=settings.embedding.prefetch_chunks,
         )
         self.__save_embeddings(episode_info, video_embeddings)
 
@@ -209,7 +217,6 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             processing_params={
                 "model_name": self.model_name,
                 "model_revision": self.model_revision,
-                "resize_height": self.resize_height,
                 "batch_size": self.batch_size,
                 "device": self.device,
             },

@@ -48,7 +48,6 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.model_name: str = self._args.get("model", settings.embedding.model_name)
         self.model_revision: str = self._args.get("model_revision", settings.embedding.model_revision)
         self.batch_size: int = self._args.get("batch_size", settings.embedding.batch_size)
-        self.resize_height: int = self._args.get("resize_height", settings.embedding.resize_height)
         self.device: str = "cuda"
 
         self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
@@ -332,6 +331,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         season = episode_info_dict.get("season")
         episode = episode_info_dict.get("episode_number")
         frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_output_dir = self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        checkpoint_file = episode_output_dir / "embeddings_video_checkpoint.json"
 
         image_hashes = self.__load_image_hashes(episode_info_dict)
         embeddings = compute_embeddings_in_batches(
@@ -340,6 +341,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             self.gpu_processor,
             self.batch_size,
             image_hashes,
+            checkpoint_file=checkpoint_file,
+            checkpoint_interval=20,
+            prefetch_count=settings.embedding.prefetch_chunks,
         )
         self._cleanup_memory()
         return embeddings
@@ -401,7 +405,6 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 processing_params={
                     "model_name": self.model_name,
                     "model_revision": self.model_revision,
-                    "resize_height": self.resize_height,
                     "batch_size": self.batch_size,
                     "device": self.device,
                 },
