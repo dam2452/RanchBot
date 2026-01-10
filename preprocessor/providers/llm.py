@@ -238,7 +238,7 @@ class LLMProvider:
                 model=self.model_name,
                 trust_remote_code=True,
                 max_model_len=131072,
-                gpu_memory_utilization=0.85,
+                gpu_memory_utilization=0.95,
                 tensor_parallel_size=1,
                 dtype="bfloat16",
                 enable_chunked_prefill=True,

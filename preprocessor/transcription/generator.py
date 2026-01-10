@@ -89,7 +89,8 @@ class TranscriptionGenerator(BaseProcessor):
             self.temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            self._init_workers(self._args)
+            missing_video_files = self._get_missing_video_files(missing_outputs)
+            self._init_workers(self._args, missing_video_files)
 
             self.logger.info("Step 1/3: Normalizing audio from videos...")
             self.audio_normalizer()
@@ -144,17 +145,44 @@ class TranscriptionGenerator(BaseProcessor):
         self.logger.info(f"All transcriptions already exist for {len(video_files)} video(s)")
         return True
 
-    def _init_workers(self, args: Dict[str, Any]) -> None:
+    def _get_missing_video_files(self, missing_outputs: List[OutputSpec]) -> List[Path]:
+        video_files = []
+        for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
+            video_files.extend(self.input_videos.rglob(f"*{ext}"))
+
+        missing_video_files = []
+        transcription_jsons = Path(self._args["transcription_jsons"])
+
+        for video_file in video_files:
+            episode_info = self.episode_manager.parse_filename(video_file)
+            if not episode_info:
+                continue
+
+            expected_file = self.episode_manager.build_output_path(
+                episode_info,
+                transcription_jsons / "json",
+                ".json",
+            )
+
+            if any(expected_file == output.path for output in missing_outputs):
+                missing_video_files.append(video_file)
+
+        return missing_video_files
+
+    def _init_workers(self, args: Dict[str, Any], video_files: List[Path]) -> None:
         temp_dir_path: Path = Path(self.temp_dir.name) / "transcription_generator"
         normalizer_output: Path = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"
 
         self.final_output_dir: Path = Path(args["transcription_jsons"])
 
+        audio_files = [normalizer_output / video.with_suffix(".wav").name for video in video_files]
+
         self.audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.input_videos,
             output_dir=normalizer_output,
             logger=self.logger,
+            video_files=video_files if video_files else None,
         )
 
         self.audio_processor: NormalizedAudioProcessor = NormalizedAudioProcessor(
@@ -164,6 +192,7 @@ class TranscriptionGenerator(BaseProcessor):
             language=args["language"],
             model=args["model"],
             device=args["device"],
+            audio_files=audio_files if audio_files else None,
         )
 
         self.multi_format_generator: MultiFormatGenerator = MultiFormatGenerator(

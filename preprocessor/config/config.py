@@ -36,7 +36,7 @@ class WhisperSettings:
 
 @dataclass
 class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
-    model_name: str = "Qwen/Qwen3-VL-Embedding-2B"
+    model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
     model_revision: str = "main"
     embedding_dimension: int = 2048
     default_output_dir: Path = Path("/app/output_data/embeddings")
@@ -54,9 +54,9 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     color_diff_threshold: float = 0.3
     scene_fps_default: float = 30.0
     keyframe_interval_multiplier: int = 5
-    gpu_memory_utilization: float = 0.85
+    gpu_memory_utilization: float = 0.95
     tensor_parallel_size: int = 1
-    max_model_len: int = 32768
+    max_model_len: int = 24576
     image_placeholder: str = "<|vision_start|><|image_pad|><|vision_end|>"
     enable_chunked_prefill: bool = True
     max_num_batched_tokens: int = 8192
