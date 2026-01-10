@@ -1,5 +1,10 @@
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 from PIL import Image
 import torch
@@ -38,8 +43,10 @@ class Qwen3VLEmbedder:
             max_model_len=self.max_length,
             gpu_memory_utilization=gpu_memory_utilization or settings.embedding.gpu_memory_utilization,
             tensor_parallel_size=tensor_parallel_size or settings.embedding.tensor_parallel_size,
+            enable_chunked_prefill=settings.embedding.enable_chunked_prefill,
+            max_num_batched_tokens=settings.embedding.max_num_batched_tokens,
+            enforce_eager=settings.embedding.enforce_eager,
             disable_log_stats=True,
-            disable_log_requests=True,
         )
 
         logger.info(f"vLLM Qwen3-VL-Embedding loaded: {model_name_or_path}")

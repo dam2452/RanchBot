@@ -47,7 +47,7 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     keyframe_strategy: str = "scene_changes"
     keyframe_interval: int = 1
     frames_per_scene: int = 1
-    batch_size: int = 64
+    batch_size: int = 128
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
     video_chunk_size: int = 2048
@@ -58,6 +58,9 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     tensor_parallel_size: int = 1
     max_model_len: int = 32768
     image_placeholder: str = "<|vision_start|><|image_pad|><|vision_end|>"
+    enable_chunked_prefill: bool = True
+    max_num_batched_tokens: int = 8192
+    enforce_eager: bool = True
 
 
 @dataclass

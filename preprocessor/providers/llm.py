@@ -13,8 +13,10 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-import torch
-from vllm import LLM, SamplingParams
+from vllm import (
+    LLM,
+    SamplingParams,
+)
 
 from preprocessor.config.config import settings
 from preprocessor.core.enums import ParserMode
@@ -239,10 +241,12 @@ class LLMProvider:
                 gpu_memory_utilization=0.85,
                 tensor_parallel_size=1,
                 dtype="bfloat16",
+                enable_chunked_prefill=True,
+                max_num_batched_tokens=16384,
+                enforce_eager=True,
                 disable_log_stats=True,
-                disable_log_requests=True,
             )
-            console.print(f"[green]✓ LLM loaded successfully (vLLM)[/green]")
+            console.print("[green]✓ LLM loaded successfully (vLLM)[/green]")
         except Exception as e:
             console.print(f"[red]Failed to load model: {e}[/red]")
             raise e

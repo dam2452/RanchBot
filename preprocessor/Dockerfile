@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.9.1-cuda12.6-cudnn9-devel
+FROM ghcr.io/pytorch/pytorch:2.9.1-cuda12.9-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -10,7 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     INSIGHTFACE_HOME=/models/insightface \
     YOLO_CONFIG_DIR=/models/ultralytics \
     CUBLAS_WORKSPACE_CONFIG=:4096:8 \
-    TOKENIZERS_PARALLELISM=false
+    TOKENIZERS_PARALLELISM=false \
+    VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git wget curl ca-certificates build-essential gnupg2 \
@@ -37,15 +38,10 @@ COPY preprocessor/requirements.txt /app/requirements.txt
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip \
-    && pip install \
-        torch~=2.9.1 \
-        torchvision~=0.24.1 \
-        accelerate \
-        nvidia-cublas-cu12 \
-        nvidia-cudnn-cu12 \
-    && pip install flash-attn~=2.8.0 --no-build-isolation \
-    && pip install -r /app/requirements.txt \
-    && pip install --force-reinstall onnxruntime-gpu~=1.21.0
+    && pip install numpy~=2.2.1 \
+    && pip install -r /app/requirements.txt --no-build-isolation \
+    && pip install --force-reinstall onnxruntime-gpu~=1.21.0 --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
+    && pip install --force-reinstall numpy~=2.2.1
 
 RUN patchright install chromium \
     && patchright install-deps chromium
@@ -59,7 +55,7 @@ RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightfa
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
-ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/onnxruntime/capi:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
 WORKDIR /app
 

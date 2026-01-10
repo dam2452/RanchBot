@@ -11,6 +11,9 @@ class ResourceScope:
         if "torch" in sys.modules:
             import torch  # pylint: disable=import-outside-toplevel
 
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
+            if torch.cuda.is_available() and torch.cuda.is_initialized():
+                try:
+                    torch.cuda.synchronize()
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
