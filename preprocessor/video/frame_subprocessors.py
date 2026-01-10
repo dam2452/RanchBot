@@ -21,7 +21,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import (
     compute_embeddings_in_batches,
     compute_hashes_in_batches,
@@ -142,7 +142,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             console.print(f"[cyan]Loading embedding model: {self.model_name}[/cyan]")
             self.model = Qwen3VLEmbedder(
                 model_name_or_path=self.model_name,
-                dtype=torch.float16,
+                torch_dtype=torch.bfloat16,
             )
             self.gpu_processor = GPUBatchProcessor(
                 self.model,

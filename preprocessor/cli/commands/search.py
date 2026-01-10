@@ -14,7 +14,7 @@ from transformers import (
     Qwen2VLForConditionalGeneration,
 )
 
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.hashing.image_hasher import PerceptualHasher
 
 _model = None
 _processor = None

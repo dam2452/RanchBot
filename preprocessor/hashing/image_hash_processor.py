@@ -18,7 +18,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
 from preprocessor.utils.metadata_utils import create_processing_metadata

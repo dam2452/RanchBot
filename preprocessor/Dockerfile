@@ -38,11 +38,13 @@ COPY preprocessor/requirements.txt /app/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip \
     && pip install \
-        torchvision \
+        torch~=2.9.1 \
+        torchvision~=0.24.1 \
         accelerate \
         nvidia-cublas-cu12 \
         nvidia-cudnn-cu12 \
-        -r /app/requirements.txt \
+    && pip install flash-attn~=2.8.0 --no-build-isolation \
+    && pip install -r /app/requirements.txt \
     && pip install --force-reinstall onnxruntime-gpu~=1.21.0
 
 RUN patchright install chromium \

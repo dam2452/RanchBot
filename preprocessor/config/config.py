@@ -47,13 +47,17 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     keyframe_strategy: str = "scene_changes"
     keyframe_interval: int = 1
     frames_per_scene: int = 1
-    batch_size: int = 350
+    batch_size: int = 64
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
     video_chunk_size: int = 2048
     color_diff_threshold: float = 0.3
     scene_fps_default: float = 30.0
     keyframe_interval_multiplier: int = 5
+    gpu_memory_utilization: float = 0.85
+    tensor_parallel_size: int = 1
+    max_model_len: int = 32768
+    image_placeholder: str = "<|vision_start|><|image_pad|><|vision_end|>"
 
 
 @dataclass
