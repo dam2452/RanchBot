@@ -1,1 +1,1 @@
-__all__ = ["ImageHashProcessor", "PerceptualHasher"]
+__all__ = ["ImageHashProcessor", "PerceptualHasher"] # pylint: disable=undefined-all-variable
