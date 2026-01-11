@@ -496,6 +496,9 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         if hasattr(self, 'logger'):
             self.logger.finalize()
 
+    def needs_ramdisk(self) -> bool:
+        return False
+
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
@@ -528,7 +531,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         episode_code = f"S{season:02d}E{episode:02d}"
 
         detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
-        frames_source_dir = Path(settings.frame_export.output_dir) / f"S{season:02d}" / f"E{episode:02d}"
+        frames_source_dir = ramdisk_frames_dir
 
         if not detection_file.exists():
             console.print(f"[yellow]No detections JSON found: {detection_file}[/yellow]")

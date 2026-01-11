@@ -16,14 +16,13 @@ from pydantic import SecretStr
 from preprocessor.utils.resolution import Resolution
 
 
+is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
+
+
 def get_output_path(relative_path: str) -> Path:
-    is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
     if is_docker:
         return Path(f"/app/output_data/{relative_path}")
     return Path(f"output_data/{relative_path}")
-
-
-is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
 BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("output_data")
 
 
