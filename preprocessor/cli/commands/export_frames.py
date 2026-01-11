@@ -31,7 +31,7 @@ from preprocessor.video.frame_exporter import FrameExporter
 @click.option(
     "--frame-height",
     type=int,
-    default=720,
+    default=1080,
     help="Height of exported frames in pixels",
 )
 @click.option("--name", required=True, help="Series name")
@@ -45,7 +45,7 @@ def export_frames(
     name: str,
     no_state: bool,
 ):
-    """Export keyframes at 720p resolution based on configured keyframe strategy."""
+    """Export keyframes at 1080p resolution based on configured keyframe strategy."""
     state_manager = create_state_manager(name, no_state)
 
     exporter = FrameExporter(
