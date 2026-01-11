@@ -115,16 +115,16 @@ docker-compose build
 
 ## Technologie
 
-| Komponent | Technologia |
-|-----------|-------------|
-| Transkodowanie | Jellyfin FFmpeg 7 + NVENC |
+| Komponent | Technologia                          |
+|-----------|--------------------------------------|
+| Transkodowanie | Jellyfin FFmpeg 7 + NVENC            |
 | Transkrypcja | Whisper large-v3-turbo (CTranslate2) |
-| Detekcja scen | TransNetV2 |
-| Embeddingi | Qwen3-VL-Embedding-2B |
-| Face recognition | InsightFace (buffalo_l) |
-| Object detection | D-FINE-X |
-| LLM scraping | Qwen2.5-Coder-7B-Instruct |
-| Search | Elasticsearch (kNN + HNSW) |
+| Detekcja scen | TransNetV2                           |
+| Embeddingi | Qwen3-VL-Embedding-8B                |
+| Face recognition | InsightFace (buffalo_l)              |
+| Object detection | D-FINE-X                             |
+| LLM scraping | Qwen2.5-Coder-7B-Instruct            |
+| Search | Elasticsearch (kNN + HNSW)           |
 
 ## Format plików wideo
 
