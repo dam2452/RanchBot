@@ -15,7 +15,6 @@ from pydantic import SecretStr
 
 from preprocessor.utils.resolution import Resolution
 
-
 is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
 
 
