@@ -33,7 +33,7 @@ class ColorDiffStrategy(BaseKeyframeStrategy):
         for frame_num, _, hist in iterate_frames_with_histogram(str(video_path)):
             if prev_hist is not None:
                 diff = np.sum(np.abs(hist - prev_hist))
-                if diff > settings.embedding.color_diff_threshold:
+                if diff > settings.keyframe_extraction.color_diff_threshold:
                     frame_requests.append(
                         self._create_request(frame_num, fps, FrameType.COLOR_CHANGE),
                     )

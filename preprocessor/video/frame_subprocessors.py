@@ -617,7 +617,8 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
 
         console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_episode_dir}[/green]")
 
-    def _generate_colors(self, num_colors: int = 80) -> Dict[int, tuple]:
+    @staticmethod
+    def _generate_colors(num_colors: int = 80) -> Dict[int, tuple]:
         np.random.seed(42)
         colors = {}
         for i in range(num_colors):

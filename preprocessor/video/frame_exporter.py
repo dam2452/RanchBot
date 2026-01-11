@@ -39,10 +39,10 @@ class FrameExporter(BaseVideoProcessor):
         self.scene_timestamps_dir: Path = Path(self._args.get("scene_timestamps_dir", settings.scene_detection.output_dir))
         self.resize_height: int = self._args.get("frame_height", settings.frame_export.frame_height)
 
-        keyframe_strategy_str = self._args.get("keyframe_strategy", settings.embedding.keyframe_strategy)
+        keyframe_strategy_str = self._args.get("keyframe_strategy", settings.keyframe_extraction.strategy)
         self.keyframe_strategy = KeyframeStrategy(keyframe_strategy_str)
-        self.keyframe_interval: int = self._args.get("keyframe_interval", settings.embedding.keyframe_interval)
-        self.frames_per_scene: int = self._args.get("frames_per_scene", settings.embedding.frames_per_scene)
+        self.keyframe_interval: int = self._args.get("keyframe_interval", settings.keyframe_extraction.interval)
+        self.frames_per_scene: int = self._args.get("frames_per_scene", settings.keyframe_extraction.frames_per_scene)
 
         self.strategy = KeyframeStrategyFactory.create(
             self.keyframe_strategy,

@@ -275,8 +275,8 @@ def run_embedding_step(device, state_manager, **kwargs):
             "frames_dir": frames_dir,
             "output_dir": settings.embedding.default_output_dir,
             "image_hashes_dir": settings.image_hash.output_dir,
-            "model": settings.embedding.model_name,
-            "segments_per_embedding": settings.embedding.segments_per_embedding,
+            "model": settings.embedding_model.model_name,
+            "segments_per_embedding": settings.text_chunking.segments_per_embedding,
             "generate_text": True,
             "generate_video": False,
             "device": device,
@@ -376,8 +376,8 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
         embedding_sub = VideoEmbeddingSubProcessor(
             device=device,
             batch_size=settings.embedding.batch_size,
-            model_name=settings.embedding.model_name,
-            model_revision=settings.embedding.model_revision,
+            model_name=settings.embedding_model.model_name,
+            model_revision=settings.embedding_model.model_revision,
         )
         processor.add_sub_processor(embedding_sub)
         sub_processors.append(embedding_sub)

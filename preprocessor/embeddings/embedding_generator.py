@@ -45,15 +45,15 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.frames_dir: Path = self._args.get("frames_dir", settings.frame_export.output_dir)
         self.output_dir: Path = self._args.get("output_dir", settings.embedding.default_output_dir)
 
-        self.model_name: str = self._args.get("model", settings.embedding.model_name)
-        self.model_revision: str = self._args.get("model_revision", settings.embedding.model_revision)
+        self.model_name: str = self._args.get("model", settings.embedding_model.model_name)
+        self.model_revision: str = self._args.get("model_revision", settings.embedding_model.model_revision)
         self.batch_size: int = self._args.get("batch_size", settings.embedding.batch_size)
         self.device: str = "cuda"
 
-        self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.embedding.segments_per_embedding)
-        self.use_sentence_based_chunking: bool = self._args.get("use_sentence_based_chunking", settings.embedding.use_sentence_based_chunking)
-        self.text_sentences_per_chunk: int = self._args.get("text_sentences_per_chunk", settings.embedding.text_sentences_per_chunk)
-        self.text_chunk_overlap: int = self._args.get("text_chunk_overlap", settings.embedding.text_chunk_overlap)
+        self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.text_chunking.segments_per_embedding)
+        self.use_sentence_based_chunking: bool = self._args.get("use_sentence_based_chunking", settings.text_chunking.use_sentence_based_chunking)
+        self.text_sentences_per_chunk: int = self._args.get("text_sentences_per_chunk", settings.text_chunking.text_sentences_per_chunk)
+        self.text_chunk_overlap: int = self._args.get("text_chunk_overlap", settings.text_chunking.text_chunk_overlap)
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
 
@@ -259,7 +259,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         return embeddings
 
-    def __split_into_sentences(self, text: str) -> List[str]:
+    @staticmethod
+    def __split_into_sentences(text: str) -> List[str]:
         normalized_text = re.sub(r'\.{2,}', '.', text)
         normalized_text = re.sub(r'!{2,}', '!', normalized_text)
         normalized_text = re.sub(r'\?{2,}', '?', normalized_text)
@@ -293,7 +294,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         return result
 
-    def __find_segment_at_position(self, segments: List[Dict[str, Any]], char_pos: int) -> int:
+    @staticmethod
+    def __find_segment_at_position(segments: List[Dict[str, Any]], char_pos: int) -> int:
         cumulative_length = 0
         for idx, seg in enumerate(segments):
             seg_text = seg.get("text", "")

@@ -35,13 +35,13 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
 )
 @click.option(
     "--model",
-    default=settings.embedding.model_name,
+    default=settings.embedding_model.model_name,
     help="Model name",
 )
 @click.option(
     "--segments-per-embedding",
     type=int,
-    default=settings.embedding.segments_per_embedding,
+    default=settings.text_chunking.segments_per_embedding,
     help="Segments to group for text embeddings",
 )
 @click.option(
@@ -68,19 +68,19 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
 )
 @click.option(
     "--sentence-chunking/--segment-chunking",
-    default=settings.embedding.use_sentence_based_chunking,
+    default=settings.text_chunking.use_sentence_based_chunking,
     help="Use sentence-based chunking (smart, with overlap) or segment-based chunking (simple)",
 )
 @click.option(
     "--sentences-per-chunk",
     type=int,
-    default=settings.embedding.text_sentences_per_chunk,
+    default=settings.text_chunking.text_sentences_per_chunk,
     help="Number of sentences per chunk (only for --sentence-chunking)",
 )
 @click.option(
     "--chunk-overlap",
     type=int,
-    default=settings.embedding.text_chunk_overlap,
+    default=settings.text_chunking.text_chunk_overlap,
     help="Number of overlapping sentences between chunks (only for --sentence-chunking)",
 )
 def generate_embeddings(  # pylint: disable=too-many-arguments

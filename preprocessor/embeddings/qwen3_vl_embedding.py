@@ -28,9 +28,9 @@ class Qwen3VLEmbedder:
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is required but not available. This pipeline requires GPU.")
 
-        self.max_length = max_length or settings.embedding.max_model_len
+        self.max_length = max_length or settings.embedding_model.max_model_len
         self.model_name_or_path = model_name_or_path
-        self.image_placeholder = settings.embedding.image_placeholder
+        self.image_placeholder = settings.embedding_model.image_placeholder
 
         dtype = kwargs.pop("torch_dtype", torch.bfloat16)
         dtype_str = "bfloat16" if dtype == torch.bfloat16 else "float16"
@@ -41,11 +41,11 @@ class Qwen3VLEmbedder:
             dtype=dtype_str,
             trust_remote_code=True,
             max_model_len=self.max_length,
-            gpu_memory_utilization=gpu_memory_utilization or settings.embedding.gpu_memory_utilization,
-            tensor_parallel_size=tensor_parallel_size or settings.embedding.tensor_parallel_size,
-            enable_chunked_prefill=settings.embedding.enable_chunked_prefill,
-            max_num_batched_tokens=settings.embedding.max_num_batched_tokens,
-            enforce_eager=settings.embedding.enforce_eager,
+            gpu_memory_utilization=gpu_memory_utilization or settings.embedding_model.gpu_memory_utilization,
+            tensor_parallel_size=tensor_parallel_size or settings.embedding_model.tensor_parallel_size,
+            enable_chunked_prefill=settings.embedding_model.enable_chunked_prefill,
+            max_num_batched_tokens=settings.embedding_model.max_num_batched_tokens,
+            enforce_eager=settings.embedding_model.enforce_eager,
             disable_log_stats=True,
         )
 

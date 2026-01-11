@@ -48,9 +48,9 @@ class CharacterReferenceDownloader(BaseProcessor):
             "images_per_character",
             settings.character.reference_images_per_character,
         )
-        self.max_results: int = settings.face_recognition.max_results_to_scrape
-        self.min_width: int = settings.face_recognition.min_image_width
-        self.min_height: int = settings.face_recognition.min_image_height
+        self.max_results: int = settings.image_scraper.max_results_to_scrape
+        self.min_width: int = settings.image_scraper.min_image_width
+        self.min_height: int = settings.image_scraper.min_image_height
         self.use_gpu: bool = settings.face_recognition.use_gpu
         self.search_mode: str = self._args.get("search_mode", "normal")
 
@@ -60,7 +60,7 @@ class CharacterReferenceDownloader(BaseProcessor):
 
     def _create_search_engine(self) -> BaseImageSearch:
         if self.search_mode == "premium":
-            serpapi_key = settings.face_recognition.serpapi_key
+            serpapi_key = settings.image_scraper.serpapi_key
             return GoogleImageSearch(api_key=serpapi_key, max_results=self.max_results)
         return DuckDuckGoImageSearch(max_results=self.max_results)
 
@@ -127,8 +127,8 @@ class CharacterReferenceDownloader(BaseProcessor):
 
                     if downloaded and i < len(characters) - 1:
                         delay = random.uniform(
-                            settings.face_recognition.request_delay_min,
-                            settings.face_recognition.request_delay_max,
+                            settings.image_scraper.request_delay_min,
+                            settings.image_scraper.request_delay_max,
                         )
                         time.sleep(delay)
 
@@ -161,7 +161,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         try:  # pylint: disable=too-many-try-statements
             response = page.goto(
                 img_url,
-                timeout=settings.face_recognition.page_navigation_timeout,
+                timeout=settings.image_scraper.page_navigation_timeout,
                 wait_until="domcontentloaded",
             )
             if not response or response.status != 200:
@@ -215,7 +215,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         saved_count = len(existing_images)
         processed = 0
 
-        for attempt in range(settings.face_recognition.retry_attempts):  # pylint: disable=too-many-nested-blocks
+        for attempt in range(settings.image_scraper.retry_attempts):  # pylint: disable=too-many-nested-blocks
             try:
                 results = self.search_engine.search(search_query)
 
@@ -276,8 +276,8 @@ class CharacterReferenceDownloader(BaseProcessor):
                 progress.console.print("\n[yellow]Download interrupted[/yellow]")
                 raise
             except Exception as e:  # pylint: disable=broad-exception-caught
-                if attempt < settings.face_recognition.retry_attempts - 1:
-                    delay = settings.face_recognition.retry_delay * (2 ** attempt)
+                if attempt < settings.image_scraper.retry_attempts - 1:
+                    delay = settings.image_scraper.retry_delay * (2 ** attempt)
                     self.logger.warning(
                         f"Attempt {attempt + 1} failed for {char_name}, retrying in {delay}s: {e}",
                     )

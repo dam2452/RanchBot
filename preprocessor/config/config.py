@@ -23,6 +23,10 @@ def get_output_path(relative_path: str) -> Path:
     return Path(f"output_data/{relative_path}")
 
 
+is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
+BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("output_data")
+
+
 @dataclass
 class WhisperSettings:
     model: str = "large-v3-turbo"
@@ -33,25 +37,17 @@ class WhisperSettings:
             model=os.getenv("WHISPER_MODEL", "large-v3-turbo"),
         )
 
-
 @dataclass
-class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
-    model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
-    model_revision: str = "main"
-    default_output_dir: Path = Path("/app/output_data/embeddings")
+class TextChunkingSettings:
     segments_per_embedding: int = 5
     use_sentence_based_chunking: bool = True
     text_sentences_per_chunk: int = 8
     text_chunk_overlap: int = 3
-    keyframe_strategy: str = "scene_changes"
-    keyframe_interval: int = 1
-    frames_per_scene: int = 1
-    batch_size: int = 32
-    progress_sub_batch_size: int = 100
-    prefetch_chunks: int = 2
-    color_diff_threshold: float = 0.3
-    scene_fps_default: float = 30.0
-    keyframe_interval_multiplier: int = 5
+
+@dataclass
+class EmbeddingModelSettings:
+    model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
+    model_revision: str = "main"
     gpu_memory_utilization: float = 0.85
     tensor_parallel_size: int = 1
     max_model_len: int = 8192
@@ -60,45 +56,54 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     max_num_batched_tokens: int = 8192
     enforce_eager: bool = True
 
+@dataclass
+class EmbeddingSettings:
+    default_output_dir: Path = BASE_OUTPUT_DIR / "embeddings"
+    batch_size: int = 32
+    progress_sub_batch_size: int = 100
+    prefetch_chunks: int = 2
 
 @dataclass
 class SceneDetectionSettings:
     threshold: float = 0.5
     min_scene_len: int = 10
-    output_dir: Path = Path("/app/output_data/scene_timestamps")
+    output_dir: Path = BASE_OUTPUT_DIR / "scene_timestamps"
 
+@dataclass
+class KeyframeExtractionSettings:
+    strategy: str = "scene_changes"
+    interval: int = 1
+    frames_per_scene: int = 1
+    color_diff_threshold: float = 0.3
+    scene_fps_default: float = 30.0
+    interval_multiplier: int = 5
 
 @dataclass
 class FrameExportSettings:
-    output_dir: Path = Path("/app/output_data/frames_1080p")
+    output_dir: Path = BASE_OUTPUT_DIR / "frames"
     frame_height: int = 1080
-
 
 @dataclass
 class ImageHashSettings:
-    output_dir: Path = Path("/app/output_data/image_hashes")
-
+    output_dir: Path = BASE_OUTPUT_DIR / "image_hashes"
 
 @dataclass
 class ScraperSettings:
-    output_dir: Path = Path("/app/output_data/scraped_pages")
-
+    output_dir: Path = BASE_OUTPUT_DIR / "scraped_pages"
 
 @dataclass
 class CharacterSettings:
-    output_dir: Path = Path("/app/output_data/characters")
+    output_dir: Path = BASE_OUTPUT_DIR / "characters"
     reference_images_per_character: int = 3
-    characters_list_file: Path = Path("/app/output_data/characters.json")
-    detections_dir: Path = Path("/app/output_data/character_detections")
-
+    characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
+    detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
 
 @dataclass
 class ObjectDetectionSettings:
     model_name: str = "ustc-community/dfine-xlarge-obj2coco"
     conf_threshold: float = 0.30
-    output_dir: Path = Path("/app/output_data/object_detections")
-    visualized_output_dir: Path = Path("/app/output_data/object_detection_frames")
-
+    output_dir: Path = BASE_OUTPUT_DIR / "object_detections"
+    visualized_output_dir: Path = BASE_OUTPUT_DIR / "object_detection_frames"
 
 @dataclass
 class FaceRecognitionSettings:
@@ -106,6 +111,9 @@ class FaceRecognitionSettings:
     detection_size: tuple = (640, 640)
     threshold: float = 0.55
     use_gpu: bool = True
+
+@dataclass
+class ImageScraperSettings:
     max_results_to_scrape: int = 50
     min_image_width: int = 800
     min_image_height: int = 600
@@ -117,7 +125,7 @@ class FaceRecognitionSettings:
     _serpapi_key: Optional[SecretStr] = None
 
     @classmethod
-    def from_env(cls) -> "FaceRecognitionSettings":
+    def from_env(cls) -> "ImageScraperSettings":
         api_key = None
         if os.getenv("SERPAPI_API_KEY"):
             api_key = SecretStr(os.getenv("SERPAPI_API_KEY", ""))
@@ -126,7 +134,6 @@ class FaceRecognitionSettings:
     @property
     def serpapi_key(self) -> Optional[str]:
         return self._serpapi_key.get_secret_value() if self._serpapi_key else None
-
 
 @dataclass
 class ElevenLabsSettings:
@@ -150,7 +157,6 @@ class ElevenLabsSettings:
     def api_key(self) -> Optional[str]:
         return self._api_key.get_secret_value() if self._api_key else None
 
-
 @dataclass
 class ElasticsearchSettings:
     host: str = ""
@@ -164,7 +170,6 @@ class ElasticsearchSettings:
             user=os.getenv("ES_USER", ""),
             password=os.getenv("ES_PASS", ""),
         )
-
 
 @dataclass
 class GeminiSettings:
@@ -181,35 +186,36 @@ class GeminiSettings:
     def api_key(self) -> Optional[str]:
         return self._api_key.get_secret_value() if self._api_key else None
 
-
 @dataclass
 class TranscodeDefaults:
-    output_dir: Path = Path("/app/output_data/transcoded_videos")
+    output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
     codec: str = "h264_nvenc"
     preset: str = "slow"
     crf: int = 31
     gop_size: float = 0.5
 
-
 @dataclass
 class TranscriptionDefaults:
-    output_dir: Path = Path("/app/output_data/transcriptions")
+    output_dir: Path = BASE_OUTPUT_DIR / "transcriptions"
     model: str = "large-v3-turbo"
     language: str = "Polish"
     device: str = "cuda"
 
-
 @dataclass
-class Settings:
+class Settings:  # pylint: disable=too-many-instance-attributes
     whisper: WhisperSettings
+    text_chunking: TextChunkingSettings
+    embedding_model: EmbeddingModelSettings
     embedding: EmbeddingSettings
     scene_detection: SceneDetectionSettings
+    keyframe_extraction: KeyframeExtractionSettings
     frame_export: FrameExportSettings
     image_hash: ImageHashSettings
     scraper: ScraperSettings
     character: CharacterSettings
     object_detection: ObjectDetectionSettings
     face_recognition: FaceRecognitionSettings
+    image_scraper: ImageScraperSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
     gemini: GeminiSettings
@@ -220,14 +226,18 @@ class Settings:
     def from_env(cls) -> "Settings":
         return cls(
             whisper=WhisperSettings.from_env(),
+            text_chunking=TextChunkingSettings(),
+            embedding_model=EmbeddingModelSettings(),
             embedding=EmbeddingSettings(),
             scene_detection=SceneDetectionSettings(),
+            keyframe_extraction=KeyframeExtractionSettings(),
             frame_export=FrameExportSettings(),
             image_hash=ImageHashSettings(),
             scraper=ScraperSettings(),
             character=CharacterSettings(),
             object_detection=ObjectDetectionSettings(),
-            face_recognition=FaceRecognitionSettings.from_env(),
+            face_recognition=FaceRecognitionSettings(),
+            image_scraper=ImageScraperSettings.from_env(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),
             gemini=GeminiSettings.from_env(),
@@ -235,9 +245,7 @@ class Settings:
             transcription=TranscriptionDefaults(),
         )
 
-
 settings = Settings.from_env()
-
 
 @dataclass
 class TranscodeConfig:
@@ -262,7 +270,6 @@ class TranscodeConfig:
             "episodes_info_json": self.episodes_info_json,
         }
 
-
 @dataclass
 class TranscriptionConfig:
     videos: Path
@@ -286,7 +293,6 @@ class TranscriptionConfig:
             "name": self.name,
         }
 
-
 @dataclass
 class IndexConfig:
     name: str
@@ -297,7 +303,7 @@ class IndexConfig:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "transcription_jsons": self.transcription_jsons,
+            "transcription_jsons": str(self.transcription_jsons),
             "dry_run": self.dry_run,
             "append": self.append,
         }
