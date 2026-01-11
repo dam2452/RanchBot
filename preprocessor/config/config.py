@@ -38,7 +38,6 @@ class WhisperSettings:
 class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
     model_revision: str = "main"
-    embedding_dimension: int = 2048
     default_output_dir: Path = Path("/app/output_data/embeddings")
     segments_per_embedding: int = 5
     use_sentence_based_chunking: bool = True
@@ -50,7 +49,6 @@ class EmbeddingSettings:  # pylint: disable=too-many-instance-attributes
     batch_size: int = 128
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
-    video_chunk_size: int = 2048
     color_diff_threshold: float = 0.3
     scene_fps_default: float = 30.0
     keyframe_interval_multiplier: int = 5
@@ -115,7 +113,6 @@ class FaceRecognitionSettings:
     request_delay_min: float = 3.0
     request_delay_max: float = 6.0
     page_navigation_timeout: int = 30000
-    image_search_mode: str = "normal"
     _serpapi_key: Optional[SecretStr] = None
 
     @classmethod
