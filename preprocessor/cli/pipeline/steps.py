@@ -229,7 +229,7 @@ def run_frame_export_step(state_manager, **kwargs):
             "transcoded_videos": transcoded_videos,
             "scene_timestamps_dir": scene_timestamps_dir,
             "output_frames": output_frames,
-            "frame_height": 480,
+            "frame_height": settings.frame_export.frame_height,
             "series_name": name,
             "episodes_info_json": episodes_info_json,
             "state_manager": state_manager,

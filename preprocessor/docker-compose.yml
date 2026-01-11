@@ -6,6 +6,7 @@ services:
     image: ranczo-preprocessor:latest
     container_name: ranchbot-preprocessing-app
     network_mode: host
+    shm_size: '4gb'
 
     deploy:
       resources:

@@ -37,7 +37,7 @@ class FrameExporter(BaseVideoProcessor):
         self.output_frames.mkdir(parents=True, exist_ok=True)
 
         self.scene_timestamps_dir: Path = Path(self._args.get("scene_timestamps_dir", settings.scene_detection.output_dir))
-        self.resize_height: int = self._args.get("frame_height", 480)
+        self.resize_height: int = self._args.get("frame_height", settings.frame_export.frame_height)
 
         keyframe_strategy_str = self._args.get("keyframe_strategy", settings.embedding.keyframe_strategy)
         self.keyframe_strategy = KeyframeStrategy(keyframe_strategy_str)
