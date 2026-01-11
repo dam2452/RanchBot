@@ -95,7 +95,7 @@ class CharacterSettings:
 @dataclass
 class ObjectDetectionSettings:
     model_name: str = "ustc-community/dfine-xlarge-obj2coco"
-    conf_threshold: float = 0.25
+    conf_threshold: float = 0.30
     output_dir: Path = Path("/app/output_data/object_detections")
     visualized_output_dir: Path = Path("/app/output_data/object_detection_frames")
 
