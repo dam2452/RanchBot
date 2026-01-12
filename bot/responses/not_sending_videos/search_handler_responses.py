@@ -1,12 +1,14 @@
-import json
-
 from bot.utils.functions import (
     convert_number_to_emoji,
     format_segment,
 )
 
 
-def format_search_response(unique_segments_count: int, segments, quote: str, season_info: json) -> str:
+def get_invalid_args_count_message() -> str:
+    return "🔍 Podaj cytat, który chcesz znaleźć. Przykład: /szukaj geniusz"
+
+
+def format_search_response(unique_segments_count: int, segments, quote: str) -> str:
     emoji_count = convert_number_to_emoji(unique_segments_count)
     response = (
         f"🔍 *Wyniki wyszukiwania* 🔍\n"
@@ -15,7 +17,7 @@ def format_search_response(unique_segments_count: int, segments, quote: str, sea
     segment_lines = []
 
     for i, segment in enumerate(segments[:5], start=1):
-        segment_info = format_segment(segment, season_info)
+        segment_info = format_segment(segment)
         line = (
             f"{convert_number_to_emoji(i)}  | 📺 {segment_info.episode_formatted} | 🕒 {segment_info.time_formatted}\n"
             f"   👉  {segment_info.episode_title}"

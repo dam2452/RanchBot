@@ -1,8 +1,10 @@
-def get_log_key_name_exists_message(key: str) -> str:
-    return f"Key name '{key}' already exists."
 
-def get_wrong_argument_message() -> str:
-    return "Invalid arguments. Usage: /addkey <days> <key>"
+def get_create_key_usage_message() -> str:
+    return "❌ Podaj liczbę dni i klucz. Przykład: /addkey 30 tajny_klucz ❌"
 
-def get_key_added_message(key: str, days: int) -> str:
-    return f"Key '{key}' added successfully for {days} days."
+
+def get_create_key_success_message(days: int, key: str) -> str:
+    return f"✅ Stworzono klucz: `{key}` na {days} dni. ✅"
+
+def get_key_already_exists_message(key: str) -> str:
+    return f"❌ Klucz `{key}` już istnieje. ❌"
