@@ -9,7 +9,7 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.not_sending_videos.delete_clip_handler_responses import (
     get_log_clip_deleted_message,
-    get_log_clip_name_not_found_message,
+    get_clip_not_exist_message,
     get_log_clip_not_exist_message,
     get_log_no_saved_clips_message,
 )
@@ -80,7 +80,7 @@ class DeleteClipHandler(BotMessageHandler):
         await self.reply_error(RK.CLIP_NAME_NOT_FOUND, args=[clip_name])
         await self._log_system_message(
             logging.INFO,
-            get_log_clip_name_not_found_message(clip_name, self._message.get_username()),
+            get_clip_not_exist_message(clip_name),
         )
 
     async def __reply_clip_deleted(self, clip_name: str) -> None:

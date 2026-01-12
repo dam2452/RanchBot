@@ -1,7 +1,13 @@
 from pathlib import Path
-from typing import List
+import re
+from typing import (
+    List,
+    Optional,
+)
 
+from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
+from bot.settings import settings as s
 
 
 def get_general_error_message() -> str:
@@ -66,3 +72,66 @@ def get_clip_size_exceed_message() -> str:
 
 def get_video_sent_log_message(file_path: Path) -> str:
     return f"Wysłano plik wideo: {file_path}"
+
+
+class CustomError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message
+
+
+class MessageNotFoundError(CustomError):
+    def __init__(self, key: str, handler_name: str, specialized_table: str):
+        message = (
+            f"Message not found. key='{key}', handler_name='{handler_name}', "
+            f"specialized_table='{specialized_table}'"
+        )
+        super().__init__(message)
+
+
+class MessageArgumentMismatchError(CustomError):
+    def __init__(self, key: str, handler_name: str, expected_count: int, actual_count: int, message_template: str):
+        message = (
+            f"Argument count mismatch for key='{key}', handler_name='{handler_name}'. "
+            f"Expected {expected_count}, got {actual_count}. Template: {message_template}"
+        )
+        super().__init__(message)
+
+
+class MessageFormattingError(CustomError):
+    def __init__(self, key: str, handler_name: str, message_template: str, args: List[str], error: Exception):
+        formatted_args = ', '.join(args) if args else "None"
+        message = (
+            f"Formatting error for key='{key}', handler_name='{handler_name}'. "
+            f"Template: {message_template}, Args: [{formatted_args}], Error: {error}"
+        )
+        super().__init__(message)
+
+
+async def get_response(
+    key: str,
+    handler_name: str,
+    args: Optional[List[str]] = None,
+) -> str:
+    message = await DatabaseManager.get_message_from_specialized_table(key, handler_name)
+    if not message:
+        message = await DatabaseManager.get_message_from_common_messages(key, handler_name)
+
+    if not message:
+        raise MessageNotFoundError(key, handler_name, s.SPECIALIZED_TABLE)
+
+    message = message.replace("\\u00A0", "\u00A0")
+
+    placeholder_count = len(re.findall(r"{}", message))
+    args = args or []
+
+    if len(args) != placeholder_count:
+        raise MessageArgumentMismatchError(key, handler_name, placeholder_count, len(args), message)
+
+    try:
+        return message.format(*args)
+    except IndexError as e:
+        raise MessageFormattingError(key, handler_name, message, args, e) from e

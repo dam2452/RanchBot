@@ -8,9 +8,9 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.administration.create_key_handler_responses import (
-    get_key_added_message,
-    get_log_key_name_exists_message,
-    get_wrong_argument_message,
+    get_create_key_success_message,
+    get_create_key_usage_message,
+    get_key_already_exists_message,
 )
 
 
@@ -40,7 +40,7 @@ class CreateKeyHandler(BotMessageHandler):
                 raise ValueError()
         except (IndexError, ValueError):
             await self.reply_error(RK.CREATE_KEY_USAGE)
-            await self._log_system_message(logging.INFO, get_wrong_argument_message())
+            await self._log_system_message(logging.INFO, get_create_key_usage_message())
             return False
         return True
 
@@ -49,7 +49,7 @@ class CreateKeyHandler(BotMessageHandler):
         key = " ".join(args[2:])
         if await DatabaseManager.get_subscription_days_by_key(key):
             await self.reply_error(RK.KEY_ALREADY_EXISTS, args=[key])
-            await self._log_system_message(logging.INFO, get_log_key_name_exists_message(key))
+            await self._log_system_message(logging.INFO, get_key_already_exists_message(key))
             return False
         return True
 
@@ -65,4 +65,4 @@ class CreateKeyHandler(BotMessageHandler):
             args=[key, str(days)],
             data={"days": days, "key": key},
         )
-        await self._log_system_message(logging.INFO, get_key_added_message(key, days))
+        await self._log_system_message(logging.INFO, get_create_key_success_message(days, key))
