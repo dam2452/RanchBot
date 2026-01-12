@@ -1,4 +1,4 @@
-FROM ghcr.io/pytorch/pytorch:2.9.1-cuda12.9-cudnn9-devel
+FROM pytorch/pytorch:2.9.0-cuda12.8-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -14,11 +14,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git wget curl ca-certificates build-essential gnupg2 \
+    git wget curl ca-certificates gnupg2 \
     libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
     libxdamage1 libxfixes3 libxrandr2 libgbm1 \
     libasound2 libxshmfence1 libglib2.0-0 libgomp1 \
+    ninja-build \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,14 +35,21 @@ RUN wget -q https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.3
 
 WORKDIR /app
 
-COPY preprocessor/requirements.txt /app/requirements.txt
+COPY preprocessor/requirements.txt /app/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip \
-    && pip install numpy~=2.2.1 \
-    && pip install -r /app/requirements.txt --no-build-isolation \
-    && pip install --force-reinstall onnxruntime-gpu~=1.21.0 --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
-    && pip install --force-reinstall numpy~=2.2.1
+    pip install --no-cache-dir --upgrade pip setuptools wheel
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
+    -r /app/requirements.txt \
+    --extra-index-url https://pypi.nvidia.com \
+    --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
+    vllm==0.13.0 \
+    onnxruntime-gpu==1.21.0
 
 RUN patchright install chromium \
     && patchright install-deps chromium
