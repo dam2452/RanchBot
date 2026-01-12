@@ -65,7 +65,10 @@ COPY preprocessor /app/preprocessor
 
 ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/onnxruntime/capi:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
+COPY preprocessor/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 WORKDIR /app
 
-ENTRYPOINT ["python", "-m", "preprocessor.cli"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["--help"]
