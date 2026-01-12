@@ -9,6 +9,7 @@ from typing import (
     Optional,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
@@ -27,9 +28,6 @@ class VideoTranscoder(BaseVideoProcessor):
         )
 
         self.resolution: Resolution = self._args["resolution"]
-        self.output_videos: Path = Path(self._args["transcoded_videos"])
-        self.output_videos.mkdir(parents=True, exist_ok=True)
-
         self.codec: str = str(self._args["codec"])
         self.preset: str = str(self._args["preset"])
         self.crf: int = int(self._args["crf"])
@@ -57,8 +55,12 @@ class VideoTranscoder(BaseVideoProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        output_path = self.episode_manager.build_output_path(episode_info, self.output_videos, ".mp4")
-
+        filename = f"{self.series_name}_{episode_info.episode_code()}.mp4"
+        output_path = self.episode_manager.build_episode_output_path(
+            episode_info,
+            settings.output_subdirs.video,
+            filename,
+        )
         return [OutputSpec(path=output_path, required=True)]
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:

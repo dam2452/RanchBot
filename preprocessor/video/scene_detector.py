@@ -72,10 +72,14 @@ class SceneDetector(BaseProcessor):
 
         if episode_info:
             output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
+            output_path = self.episode_manager.build_episode_output_path(
+                episode_info,
+                settings.output_subdirs.scenes,
+                output_filename,
+            )
         else:
             output_filename = f"{item.input_path.stem}_scenes.json"
-
-        output_path = self.output_dir / output_filename
+            output_path = self.episode_manager.get_episode_subdir(None, settings.output_subdirs.scenes) / output_filename
 
         return [OutputSpec(path=output_path, required=True)]
 

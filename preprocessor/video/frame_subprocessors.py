@@ -15,7 +15,10 @@ import torch
 
 from preprocessor.characters.face_detection_utils import load_character_references
 from preprocessor.characters.utils import init_face_detection
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    BASE_OUTPUT_DIR,
+    settings,
+)
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
@@ -62,10 +65,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        hash_output_dir = Path(settings.image_hash.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        hash_episode_dir = hash_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        hash_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.image_hashes / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         hash_output = hash_episode_dir / "image_hashes.json"
         return [OutputSpec(path=hash_output, required=True)]
 
@@ -91,10 +91,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
         self.__save_hashes(episode_info, hash_results)
 
     def __save_hashes(self, episode_info, hash_results: List[Dict[str, Any]]) -> None:
-        hash_output_dir = Path(settings.image_hash.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        hash_episode_dir = hash_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        hash_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.image_hashes / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         hash_episode_dir.mkdir(parents=True, exist_ok=True)
 
         hash_data = create_processing_metadata(
@@ -164,10 +161,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        embeddings_output_dir = Path(settings.embedding.default_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        embeddings_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.embeddings / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         video_output = embeddings_episode_dir / "embeddings_video.json"
         return [OutputSpec(path=video_output, required=True)]
 
@@ -189,10 +183,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
             return
 
-        embeddings_output_dir = Path(settings.embedding.default_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        embeddings_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.embeddings / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         checkpoint_file = embeddings_episode_dir / "embeddings_video_checkpoint.json"
 
         image_hashes = load_image_hashes_for_episode(
@@ -212,10 +203,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         self.__save_embeddings(episode_info, video_embeddings)
 
     def __save_embeddings(self, episode_info, video_embeddings: List[Dict[str, Any]]) -> None:
-        embeddings_output_dir = Path(settings.embedding.default_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        embeddings_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.embeddings / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         embeddings_episode_dir.mkdir(parents=True, exist_ok=True)
 
         video_data = create_processing_metadata(
@@ -275,10 +263,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        detections_output_dir = Path(settings.character.detections_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.character_detections / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         detections_output = episode_dir / "detections.json"
         return [OutputSpec(path=detections_output, required=True)]
 
@@ -351,10 +336,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        detections_output_dir = Path(settings.object_detection.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.object_detections / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         detections_output = episode_dir / "detections.json"
         return [OutputSpec(path=detections_output, required=True)]
 
@@ -447,10 +429,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         self.__save_detections(episode_info, detections_data)
 
     def __save_detections(self, episode_info, detections_data: Dict[str, Any]) -> None:
-        detections_output_dir = Path(settings.object_detection.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.object_detections / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         output_data = create_processing_metadata(
@@ -501,36 +480,37 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_code = f"S{season:02d}E{episode:02d}"
-        output_episode_dir = visualized_output_dir / episode_code
+        episode_code = f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}"
+        output_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.object_visualizations / episode_code
         marker_file = output_episode_dir / ".visualization_complete"
         return [OutputSpec(path=marker_file, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+        detection_file = (
+            BASE_OUTPUT_DIR / settings.output_subdirs.object_detections
+            / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
+            / "detections.json"
+        )
 
         if not detection_file.exists():
-            console.print(f"[yellow]No object detections found for {episode_info.episode_code}, skipping visualization[/yellow]")
+            console.print(f"[yellow]No object detections found for {episode_info.episode_code()}, skipping visualization[/yellow]")
             return False
 
         expected = self.get_expected_outputs(item)
         return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals,too-many-statements
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
         import cv2  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_code = f"S{season:02d}E{episode:02d}"
+        episode_code = f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}"
 
-        detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+        detection_file = (
+            BASE_OUTPUT_DIR / settings.output_subdirs.object_detections
+            / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
+            / "detections.json"
+        )
         frames_source_dir = ramdisk_frames_dir
 
         if not detection_file.exists():
@@ -551,8 +531,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames with detections for {episode_code}[/yellow]")
             return
 
-        visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
-        output_episode_dir = visualized_output_dir / episode_code
+        output_episode_dir = BASE_OUTPUT_DIR / settings.output_subdirs.object_visualizations / episode_code
         output_episode_dir.mkdir(parents=True, exist_ok=True)
 
         colors = self._generate_colors()

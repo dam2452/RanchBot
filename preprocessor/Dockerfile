@@ -58,7 +58,7 @@ RUN playwright install chromium \
     && playwright install-deps chromium
 
 RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface /models/ultralytics \
-    /app/output_data/{transcoded_videos,transcriptions,embeddings,scene_timestamps}
+    /app/output_data/{episodes,characters,scraped_pages,processing_metadata}
 
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor

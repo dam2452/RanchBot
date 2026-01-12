@@ -65,9 +65,7 @@ class FrameExporter(BaseVideoProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = self.output_frames / f"S{season:02d}" / f"E{episode:02d}"
+        episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.frames)
 
         metadata_file = episode_dir / "frame_metadata.json"
         return [OutputSpec(path=metadata_file, required=True)]
@@ -96,9 +94,7 @@ class FrameExporter(BaseVideoProcessor):
         console.print(f"[green]✓ Exported {len(frame_requests)} frames to {episode_dir}[/green]")
 
     def __get_episode_dir(self, episode_info) -> Path:
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        return self.output_frames / f"S{season:02d}" / f"E{episode:02d}"
+        return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.frames)
 
     def __prepare_data(self, episode_info) -> Dict[str, Any]:
         data = {}

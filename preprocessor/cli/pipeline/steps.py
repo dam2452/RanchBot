@@ -292,10 +292,13 @@ def run_embedding_step(device, state_manager, **kwargs):
 
 
 def run_elastic_documents_step(**kwargs):
-    from preprocessor.config.config import get_output_path  # pylint: disable=import-outside-toplevel
+    from preprocessor.config.config import (  # pylint: disable=import-outside-toplevel
+        BASE_OUTPUT_DIR,
+        get_output_path,
+    )
     from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
 
-    transcription_jsons = kwargs.get("transcription_jsons")
+    transcription_jsons = BASE_OUTPUT_DIR / "episodes"
     embeddings_dir = settings.embedding.default_output_dir
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
     character_detections_dir = settings.character.detections_dir

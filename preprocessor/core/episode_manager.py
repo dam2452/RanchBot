@@ -10,6 +10,7 @@ from typing import (
     Optional,
 )
 
+from preprocessor.config.config import BASE_OUTPUT_DIR
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class EpisodeInfo:
         return f"S{self.season:02d}E{self.relative_episode:02d}"
 
     def season_dir_name(self) -> str:
-        return "Specjalne" if self.season == 0 else f"Sezon {self.season}"
+        return "Specjalne" if self.season == 0 else f"S{self.season:02d}"
 
     def is_special(self) -> bool:
         return self.season == 0
@@ -101,6 +102,17 @@ class EpisodeManager:
         season_dir = base_dir / episode_info.season_dir_name()
         season_dir.mkdir(parents=True, exist_ok=True)
         return season_dir / filename
+
+    def get_episode_base_dir(self, episode_info: EpisodeInfo) -> Path:
+        return BASE_OUTPUT_DIR / "episodes" / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
+
+    def get_episode_subdir(self, episode_info: EpisodeInfo, subdir: str) -> Path:
+        return self.get_episode_base_dir(episode_info) / subdir
+
+    def build_episode_output_path(self, episode_info: EpisodeInfo, subdir: str, filename: str) -> Path:
+        path = self.get_episode_subdir(episode_info, subdir) / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     def build_video_path_for_elastic(self, episode_info: EpisodeInfo) -> str:
         filename = f"{self.series_name}_{episode_info.episode_code()}.mp4"

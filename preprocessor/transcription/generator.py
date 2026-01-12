@@ -7,6 +7,7 @@ from typing import (
     List,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
@@ -64,7 +65,6 @@ class TranscriptionGenerator(BaseProcessor):
         video_files = []
         for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
             video_files.extend(self.input_videos.rglob(f"*{ext}"))
-        transcription_jsons = Path(self._args["transcription_jsons"])
         outputs = []
 
         for video_file in video_files:
@@ -72,10 +72,11 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            expected_file = self.episode_manager.build_output_path(
+            filename = f"{self.series_name_lower}_{episode_info.episode_code()}.json"
+            expected_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                transcription_jsons / "json",
-                ".json",
+                settings.output_subdirs.transcriptions,
+                filename,
             )
             outputs.append(OutputSpec(path=expected_file, required=True))
 
@@ -122,17 +123,17 @@ class TranscriptionGenerator(BaseProcessor):
             self.logger.debug("No video files found to check")
             return False
 
-        transcription_jsons = Path(self._args["transcription_jsons"])
         missing_files = []
         for video_file in video_files:
             episode_info = self.episode_manager.parse_filename(video_file)
             if not episode_info:
                 continue
 
-            expected_file = self.episode_manager.build_output_path(
+            filename = f"{self.series_name_lower}_{episode_info.episode_code()}.json"
+            expected_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                transcription_jsons / "json",
-                ".json",
+                settings.output_subdirs.transcriptions,
+                filename,
             )
 
             if not expected_file.exists():
@@ -151,17 +152,17 @@ class TranscriptionGenerator(BaseProcessor):
             video_files.extend(self.input_videos.rglob(f"*{ext}"))
 
         missing_video_files = []
-        transcription_jsons = Path(self._args["transcription_jsons"])
 
         for video_file in video_files:
             episode_info = self.episode_manager.parse_filename(video_file)
             if not episode_info:
                 continue
 
-            expected_file = self.episode_manager.build_output_path(
+            filename = f"{self.series_name_lower}_{episode_info.episode_code()}.json"
+            expected_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                transcription_jsons / "json",
-                ".json",
+                settings.output_subdirs.transcriptions,
+                filename,
             )
 
             if any(expected_file == output.path for output in missing_outputs):

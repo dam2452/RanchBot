@@ -98,7 +98,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         outputs = []
-        episode_dir = self._get_episode_output_dir(item.input_path)
+        episode_info = self.episode_manager.parse_filename(item.input_path)
+        if not episode_info:
+            return outputs
+
+        episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
 
         if self.generate_text:
             text_output = episode_dir / "embeddings_text.json"
@@ -318,7 +322,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         if season is None or episode is None:
             return None
 
-        frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
+        episode_info_obj = self.episode_manager.get_episode_by_season_and_relative(season, episode)
+        if not episode_info_obj:
+            return None
+
+        frames_episode_dir = self.episode_manager.get_episode_subdir(episode_info_obj, settings.output_subdirs.frames)
         metadata_file = frames_episode_dir / "frame_metadata.json"
 
         if not metadata_file.exists():
@@ -338,8 +346,13 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         season = episode_info_dict.get("season")
         episode = episode_info_dict.get("episode_number")
-        frames_episode_dir = self.frames_dir / f"S{season:02d}" / f"E{episode:02d}"
-        episode_output_dir = self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+
+        episode_info_obj = self.episode_manager.get_episode_by_season_and_relative(season, episode)
+        if not episode_info_obj:
+            return []
+
+        frames_episode_dir = self.episode_manager.get_episode_subdir(episode_info_obj, settings.output_subdirs.frames)
+        episode_output_dir = self.episode_manager.get_episode_subdir(episode_info_obj, settings.output_subdirs.embeddings)
         checkpoint_file = episode_output_dir / "embeddings_video_checkpoint.json"
 
         image_hashes = self.__load_image_hashes(episode_info_dict)
@@ -359,10 +372,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
     def _get_episode_output_dir(self, transcription_file: Path) -> Path:
         episode_info_from_file = self.episode_manager.parse_filename(transcription_file)
         if episode_info_from_file:
-            season = episode_info_from_file.season
-            episode = episode_info_from_file.relative_episode
-            return self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        return self.output_dir / "unknown"
+            return self.episode_manager.get_episode_subdir(episode_info_from_file, settings.output_subdirs.embeddings)
+        return self.episode_manager.get_episode_subdir(None, settings.output_subdirs.embeddings)
 
     def __save_embeddings(
             self,

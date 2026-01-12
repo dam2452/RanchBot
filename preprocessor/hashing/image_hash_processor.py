@@ -66,7 +66,7 @@ class ImageHashProcessor(BaseProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = self._build_episode_output_dir(episode_info, self.output_dir)
+        episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
         hash_output = episode_dir / "image_hashes.json"
         return [OutputSpec(path=hash_output, required=True)]
     # pylint: enable=duplicate-code
@@ -100,9 +100,7 @@ class ImageHashProcessor(BaseProcessor):
         self._cleanup_memory()
 
     def __get_episode_output_dir(self, episode_info) -> Path:
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        return self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
 
     def __save_hashes(self, episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
         episode_dir.mkdir(parents=True, exist_ok=True)

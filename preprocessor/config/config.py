@@ -16,13 +16,25 @@ from pydantic import SecretStr
 from preprocessor.utils.resolution import Resolution
 
 is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
+BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("preprocessor/output_data")
 
 
 def get_output_path(relative_path: str) -> Path:
-    if is_docker:
-        return Path(f"/app/output_data/{relative_path}")
-    return Path(f"output_data/{relative_path}")
-BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("output_data")
+    return BASE_OUTPUT_DIR / relative_path
+
+
+@dataclass
+class OutputSubdirs:
+    video: str = "transcoded_videos"
+    transcriptions: str = "transcriptions"
+    scenes: str = "scene_timestamps"
+    frames: str = "exported_frames"
+    embeddings: str = "embeddings"
+    image_hashes: str = "image_hashes"
+    character_detections: str = "character_detections"
+    object_detections: str = "object_detections"
+    object_visualizations: str = "object_detections/visualizations"
+    elastic_documents: str = "elastic_documents"
 
 
 @dataclass
@@ -78,7 +90,7 @@ class KeyframeExtractionSettings:
 
 @dataclass
 class FrameExportSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "frames"
+    output_dir: Path = BASE_OUTPUT_DIR / "exported_frames"
     frame_height: int = 1080
 
 @dataclass
@@ -201,6 +213,7 @@ class TranscriptionDefaults:
 
 @dataclass
 class Settings:  # pylint: disable=too-many-instance-attributes
+    output_subdirs: OutputSubdirs
     whisper: WhisperSettings
     text_chunking: TextChunkingSettings
     embedding_model: EmbeddingModelSettings
@@ -223,6 +236,7 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
+            output_subdirs=OutputSubdirs(),
             whisper=WhisperSettings.from_env(),
             text_chunking=TextChunkingSettings(),
             embedding_model=EmbeddingModelSettings(),
