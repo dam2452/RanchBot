@@ -29,6 +29,7 @@ from preprocessor.utils.batch_processing_utils import (
     compute_embeddings_in_batches,
     compute_hashes_in_batches,
 )
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.console import console
 from preprocessor.utils.detection_io import (
     process_frames_for_detection,
@@ -110,8 +111,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
         )
 
         hash_output = hash_episode_dir / "image_hashes.json"
-        with open(hash_output, "w", encoding="utf-8") as f:
-            json.dump(hash_data, f, indent=2, ensure_ascii=False)
+        atomic_write_json(hash_output, hash_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved hashes to: {hash_output}[/green]")
 
@@ -224,8 +224,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         )
 
         video_output = embeddings_episode_dir / "embeddings_video.json"
-        with open(video_output, "w", encoding="utf-8") as f:
-            json.dump(video_data, f, indent=2, ensure_ascii=False)
+        atomic_write_json(video_output, video_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved embeddings to: {video_output}[/green]")
 
@@ -448,8 +447,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         )
 
         detections_output = episode_dir / "detections.json"
-        with open(detections_output, "w", encoding="utf-8") as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        atomic_write_json(detections_output, output_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved object detections to: {detections_output}[/green]")
 

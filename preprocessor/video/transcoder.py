@@ -63,15 +63,33 @@ class VideoTranscoder(BaseVideoProcessor):
         )
         return [OutputSpec(path=output_path, required=True)]
 
+    def _get_temp_files(self, item: ProcessingItem) -> List[str]:
+        expected_outputs = self._get_expected_outputs(item)
+        if not expected_outputs:
+            return []
+        temp_path = expected_outputs[0].path.with_suffix('.mp4.tmp')
+        return [str(temp_path)]
+
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         video_file = item.input_path
         output_path = missing_outputs[0].path
+        temp_path = output_path.with_suffix('.mp4.tmp')
 
         try:
-            self._transcode_video(video_file, output_path)
+            temp_path.parent.mkdir(parents=True, exist_ok=True)
+            self._transcode_video(video_file, temp_path)
+            temp_path.replace(output_path)
             self.logger.info(f"Processed: {video_file} -> {output_path}")
         except subprocess.CalledProcessError as e:
             self.logger.error(f"FFmpeg failed for {video_file}: {e}")
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error during transcoding {video_file}: {e}")
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
     def _transcode_video(self, input_video: Path, output_video: Path) -> None:
         fps = self._get_framerate(input_video)

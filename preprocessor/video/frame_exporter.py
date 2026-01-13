@@ -12,6 +12,7 @@ from PIL import Image
 import decord
 
 from preprocessor.config.config import settings
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
@@ -30,6 +31,7 @@ class FrameExporter(BaseVideoProcessor):
             class_name=self.__class__.__name__,
             error_exit_code=10,
             input_videos_key="transcoded_videos",
+            subdirectory_filter="transcoded_videos",
         )
         decord.bridge.set_bridge('native')
 
@@ -54,13 +56,9 @@ class FrameExporter(BaseVideoProcessor):
         if "transcoded_videos" not in args:
             raise ValueError("transcoded_videos path is required")
 
-        videos_path = Path(args["transcoded_videos"])
-        if not videos_path.is_dir():
-            raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
-
         if "scene_timestamps_dir" in args:
             scene_path = Path(args["scene_timestamps_dir"])
-            if not scene_path.exists():
+            if scene_path and not scene_path.exists():
                 console.print(f"[yellow]Warning: Scene timestamps directory does not exist: {scene_path}[/yellow]")
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
@@ -70,9 +68,24 @@ class FrameExporter(BaseVideoProcessor):
         metadata_file = episode_dir / "frame_metadata.json"
         return [OutputSpec(path=metadata_file, required=True)]
 
+    def _get_temp_files(self, item: ProcessingItem) -> List[str]:
+        expected_outputs = self._get_expected_outputs(item)
+        if not expected_outputs:
+            return []
+        temp_metadata = expected_outputs[0].path.with_suffix('.json.tmp')
+        return [str(temp_metadata)]
+
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         episode_info = item.metadata["episode_info"]
         episode_dir = self.__get_episode_dir(episode_info)
+
+        if episode_dir.exists():
+            metadata_file = episode_dir / "frame_metadata.json"
+            if not metadata_file.exists():
+                console.print(f"[yellow]Cleaning incomplete frames from previous run: {episode_dir}[/yellow]")
+                import shutil
+                shutil.rmtree(episode_dir, ignore_errors=True)
+
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         data = self.__prepare_data(episode_info)
@@ -86,12 +99,14 @@ class FrameExporter(BaseVideoProcessor):
 
         try:
             self.__extract_frames(item.input_path, frame_requests, episode_dir)
+            self.__write_metadata(episode_dir, frame_requests, episode_info, item.input_path)
+            console.print(f"[green]✓ Exported {len(frame_requests)} frames to {episode_dir}[/green]")
         except Exception as e:
             self.logger.error(f"Failed to extract frames from {item.input_path}: {e}")
+            console.print(f"[yellow]Cleaning incomplete frames due to error: {episode_dir}[/yellow]")
+            import shutil
+            shutil.rmtree(episode_dir, ignore_errors=True)
             raise
-
-        self.__write_metadata(episode_dir, frame_requests, episode_info, item.input_path)
-        console.print(f"[green]✓ Exported {len(frame_requests)} frames to {episode_dir}[/green]")
 
     def __get_episode_dir(self, episode_info) -> Path:
         return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.frames)
@@ -172,8 +187,7 @@ class FrameExporter(BaseVideoProcessor):
             "frames": frames_with_paths,
         }
         metadata_file = episode_dir / "frame_metadata.json"
-        with open(metadata_file, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        atomic_write_json(metadata_file, metadata, indent=2, ensure_ascii=False)
 
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
         if not self.scene_timestamps_dir or not self.scene_timestamps_dir.exists():

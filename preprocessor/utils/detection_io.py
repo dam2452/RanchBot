@@ -9,6 +9,7 @@ from typing import (
 from preprocessor.characters.face_detection_utils import detect_characters_in_frame
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_minimal_episode_info
 
 
@@ -25,8 +26,7 @@ def save_character_detections(episode_info, results: List[Dict[str, Any]]) -> No
     }
 
     detections_output = episode_dir / "detections.json"
-    with open(detections_output, "w", encoding="utf-8") as f:
-        json.dump(detections_data, f, indent=2, ensure_ascii=False)
+    atomic_write_json(detections_output, detections_data, indent=2, ensure_ascii=False)
 
     frames_with_chars = sum(1 for r in results if r["characters"])
     console.print(f"[green]✓ S{season:02d}E{episode:02d}: {len(results)} frames, {frames_with_chars} with characters[/green]")

@@ -56,16 +56,11 @@ class ElasticSearchIndexer(BaseProcessor):
         if not self.elastic_documents_dir.exists():
             return False
 
-        segments_dir = self.elastic_documents_dir / "segments"
-        text_emb_dir = self.elastic_documents_dir / "text_embeddings"
-        video_emb_dir = self.elastic_documents_dir / "video_embeddings"
-        episode_names_dir = self.elastic_documents_dir / "episode_names"
-
         return any([
-            segments_dir.exists() and any(segments_dir.rglob("*.jsonl")),
-            text_emb_dir.exists() and any(text_emb_dir.rglob("*.jsonl")),
-            video_emb_dir.exists() and any(video_emb_dir.rglob("*.jsonl")),
-            episode_names_dir.exists() and any(episode_names_dir.rglob("*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/segments/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/text_embeddings/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/video_embeddings/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/episode_names/*.jsonl")),
         ])
 
     async def _exec_async(self) -> None:
@@ -150,12 +145,13 @@ class ElasticSearchIndexer(BaseProcessor):
             raise
 
     async def _index_documents(self, doc_type: str, index_name: str) -> None:
-        doc_dir = self.elastic_documents_dir / doc_type
-        if not doc_dir.exists():
-            self.logger.info(f"No {doc_type} directory found. Skipping.")
+        jsonl_files = list(self.elastic_documents_dir.glob(f"**/elastic_documents/{doc_type}/*.jsonl"))
+
+        if not jsonl_files:
+            self.logger.info(f"No {doc_type} documents found. Skipping.")
             return
 
-        actions = self._load_jsonl_documents(doc_dir, index_name)
+        actions = self._load_jsonl_files(jsonl_files, index_name)
 
         if not actions:
             self.logger.info(f"No {doc_type} documents to index.")
@@ -178,6 +174,22 @@ class ElasticSearchIndexer(BaseProcessor):
                     self.logger.error(f"Failed document: {json.dumps(error, indent=2)}")
                 if len(e.errors) > 10:
                     self.logger.error(f"... and {len(e.errors) - 10} more errors")
+
+    def _load_jsonl_files(self, jsonl_files: List[Path], index_name: str) -> List[Dict[str, Any]]:
+        actions = []
+
+        for jsonl_file in jsonl_files:
+            self.logger.info(f"Loading {jsonl_file.name}")
+            with open(jsonl_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        doc = json.loads(line)
+                        actions.append({
+                            "_index": index_name,
+                            "_source": doc,
+                        })
+
+        return actions
 
     def _load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
         actions = []

@@ -169,7 +169,7 @@ class EpisodeManager:
             return None
 
         episode_code = episode_info.episode_code()
-        pattern = f"*{episode_code}*_scenes.json"
+        pattern = f"**/*{episode_code}*_scenes.json"
 
         for scene_file in search_dir.glob(pattern):
             return scene_file

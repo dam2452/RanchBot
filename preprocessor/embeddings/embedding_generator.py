@@ -25,6 +25,7 @@ from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
 from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batches
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
 
@@ -81,7 +82,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         console.print("[green]✓ Model unloaded[/green]")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        all_transcription_files = list(self.transcription_jsons.glob("**/*.json"))
+        all_transcription_files = list(self.transcription_jsons.glob("**/transcriptions/*.json"))
         items = []
 
         for trans_file in all_transcription_files:
@@ -116,6 +117,14 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             outputs.append(OutputSpec(path=video_output, required=True))
 
         return outputs
+
+    def _get_temp_files(self, item: ProcessingItem) -> List[str]:
+        temp_files = []
+        expected_outputs = self._get_expected_outputs(item)
+        for output in expected_outputs:
+            temp_path = output.path.with_suffix('.json.tmp')
+            temp_files.append(str(temp_path))
+        return temp_files
 
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
         console.print(f"[cyan]Loading model: {self.model_name}[/cyan]")
@@ -410,8 +419,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 results_key="text_embeddings",
                 results_data=text_embeddings,
             )
-            with open(text_output, "w", encoding="utf-8") as f:
-                json.dump(text_data, f, indent=2, ensure_ascii=False)
+            atomic_write_json(text_output, text_data, indent=2, ensure_ascii=False)
 
         if video_embeddings:
             video_data = create_processing_metadata(
@@ -435,8 +443,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 results_key="video_embeddings",
                 results_data=video_embeddings,
             )
-            with open(video_output, "w", encoding="utf-8") as f:
-                json.dump(video_data, f, indent=2, ensure_ascii=False)
+            atomic_write_json(video_output, video_data, indent=2, ensure_ascii=False)
 
     @staticmethod
     def _cleanup_memory() -> None:

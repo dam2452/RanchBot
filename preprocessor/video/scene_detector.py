@@ -22,6 +22,7 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 
 
 class SceneDetector(BaseProcessor):
@@ -127,8 +128,7 @@ class SceneDetector(BaseProcessor):
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+        atomic_write_json(output_file, result, indent=2, ensure_ascii=False)
 
         console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
 

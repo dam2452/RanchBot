@@ -12,6 +12,7 @@ import numpy as np
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 
 
 class EpisodeNameEmbedder:
@@ -101,8 +102,7 @@ class EpisodeNameEmbedder:
         output_file = self.output_dir / f"S{season:02d}" / f"E{episode:02d}" / "episode_name_embedding.json"
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(embedding_data, f, indent=2, ensure_ascii=False)
+        atomic_write_json(output_file, embedding_data, indent=2, ensure_ascii=False)
 
         return output_file
 

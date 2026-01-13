@@ -194,14 +194,14 @@ def run_transcribe_step(videos, episodes_info_json, name, model, language, devic
 def run_scene_step(device, **kwargs):
     from preprocessor.video.scene_detector import SceneDetector  # pylint: disable=import-outside-toplevel
 
-    transcoded_videos = kwargs.get("transcoded_videos")
+    videos = kwargs.get("videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
 
     detector = SceneDetector(
         {
-            "videos": transcoded_videos,
+            "videos": videos,
             "output_dir": scene_timestamps_dir,
             "threshold": settings.scene_detection.threshold,
             "min_scene_len": settings.scene_detection.min_scene_len,
@@ -326,7 +326,7 @@ def run_index_step(name, dry_run, state_manager, **kwargs):
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
 
     episodes_info_json = kwargs.get("episodes_info_json")
-    elastic_documents_dir = get_output_path("elastic_documents")
+    elastic_documents_dir = get_output_path("episodes")
 
     indexer = ElasticSearchIndexer({
         "name": name,

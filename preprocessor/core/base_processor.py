@@ -257,6 +257,7 @@ class BaseProcessor(ABC):
         extensions: List[str],
         episode_manager: "EpisodeManager",
         skip_unparseable: bool = True,
+        subdirectory_filter: Optional[str] = None,
     ) -> List[ProcessingItem]:
         from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
 
@@ -266,7 +267,11 @@ class BaseProcessor(ABC):
             video_files = [source_path]
         else:
             for ext in extensions:
-                video_files.extend(source_path.glob(f"**/{ext}"))
+                if subdirectory_filter:
+                    pattern = f"**/{subdirectory_filter}/{ext}"
+                else:
+                    pattern = f"**/{ext}"
+                video_files.extend(source_path.glob(pattern))
 
         items = []
         for video_file in sorted(video_files):

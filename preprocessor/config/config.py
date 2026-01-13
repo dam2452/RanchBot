@@ -68,7 +68,7 @@ class EmbeddingModelSettings:
 
 @dataclass
 class EmbeddingSettings:
-    default_output_dir: Path = BASE_OUTPUT_DIR / "embeddings"
+    default_output_dir: Path = BASE_OUTPUT_DIR / "episodes"
     batch_size: int = 32
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
@@ -77,7 +77,7 @@ class EmbeddingSettings:
 class SceneDetectionSettings:
     threshold: float = 0.5
     min_scene_len: int = 10
-    output_dir: Path = BASE_OUTPUT_DIR / "scene_timestamps"
+    output_dir: Path = BASE_OUTPUT_DIR / "episodes"
 
 @dataclass
 class KeyframeExtractionSettings:
@@ -90,12 +90,12 @@ class KeyframeExtractionSettings:
 
 @dataclass
 class FrameExportSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "exported_frames"
+    output_dir: Path = BASE_OUTPUT_DIR / "episodes"
     frame_height: int = 1080
 
 @dataclass
 class ImageHashSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "image_hashes"
+    output_dir: Path = BASE_OUTPUT_DIR / "episodes"
 
 @dataclass
 class ScraperSettings:
@@ -106,14 +106,14 @@ class CharacterSettings:
     output_dir: Path = BASE_OUTPUT_DIR / "characters"
     reference_images_per_character: int = 3
     characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
-    detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
+    detections_dir: Path = BASE_OUTPUT_DIR / "episodes"
 
 @dataclass
 class ObjectDetectionSettings:
     model_name: str = "ustc-community/dfine-xlarge-obj2coco"
     conf_threshold: float = 0.30
-    output_dir: Path = BASE_OUTPUT_DIR / "object_detections"
-    visualized_output_dir: Path = BASE_OUTPUT_DIR / "object_detection_frames"
+    output_dir: Path = BASE_OUTPUT_DIR / "episodes"
+    visualized_output_dir: Path = BASE_OUTPUT_DIR / "episodes"
 
 @dataclass
 class FaceRecognitionSettings:
@@ -198,7 +198,7 @@ class GeminiSettings:
 
 @dataclass
 class TranscodeDefaults:
-    output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
+    output_dir: Path = BASE_OUTPUT_DIR / "episodes"
     codec: str = "h264_nvenc"
     preset: str = "slow"
     crf: int = 31
@@ -206,7 +206,7 @@ class TranscodeDefaults:
 
 @dataclass
 class TranscriptionDefaults:
-    output_dir: Path = BASE_OUTPUT_DIR / "transcriptions"
+    output_dir: Path = BASE_OUTPUT_DIR / "episodes"
     model: str = "large-v3-turbo"
     language: str = "Polish"
     device: str = "cuda"
