@@ -12,7 +12,6 @@ from PIL import Image
 import decord
 
 from preprocessor.config.config import settings
-from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
@@ -21,6 +20,7 @@ from preprocessor.core.enums import KeyframeStrategy
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.video.base_video_processor import BaseVideoProcessor
 
 

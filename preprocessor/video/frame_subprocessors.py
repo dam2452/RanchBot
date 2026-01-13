@@ -29,13 +29,13 @@ from preprocessor.utils.batch_processing_utils import (
     compute_embeddings_in_batches,
     compute_hashes_in_batches,
 )
-from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.console import console
 from preprocessor.utils.detection_io import (
     process_frames_for_detection,
     save_character_detections,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
 from preprocessor.video.frame_processor import FrameSubProcessor
