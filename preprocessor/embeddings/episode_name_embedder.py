@@ -39,7 +39,9 @@ class EpisodeNameEmbedder:
         episode_number = episode_info_dict.get("episode_number")
 
         if season is None or episode_number is None:
-            self.logger.warning("Missing season or episode_number in transcription data")
+            self.logger.warning(
+                f"Missing season or episode_number in transcription data: episode_info={episode_info_dict}",
+            )
             return None
 
         episode_info = self.episode_manager.get_episode_by_season_and_relative(
@@ -47,18 +49,14 @@ class EpisodeNameEmbedder:
             episode_number,
         )
         if not episode_info:
-            self.logger.warning(
-                f"Cannot find episode info for S{season:02d}E{episode_number:02d}",
-            )
+            self.logger.warning(f"Cannot find episode info for S{season:02d}E{episode_number:02d}")
             return None
 
         metadata = self.episode_manager.get_metadata(episode_info)
         title = metadata.get("title")
 
         if not title:
-            self.logger.warning(
-                f"No title found for S{season:02d}E{episode_number:02d}",
-            )
+            self.logger.warning(f"No title found for S{season:02d}E{episode_number:02d}")
             return None
 
         embedding = self._generate_title_embedding(title)

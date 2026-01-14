@@ -14,8 +14,10 @@ from preprocessor.cli.pipeline.steps import (
     run_index_step,
     run_scene_step,
     run_scrape_step,
+    run_text_analysis_step,
     run_transcode_step,
     run_transcribe_step,
+    run_validation_step,
 )
 from preprocessor.cli.utils import create_state_manager
 from preprocessor.config.config import settings
@@ -108,16 +110,18 @@ from preprocessor.utils.console import console
 )
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
-@click.option("--skip-scenes", is_flag=True, help="Skip Step 3: Scene detection (use existing scene timestamps)")
-@click.option("--skip-frame-export", is_flag=True, help="Skip Step 4: Frame export (use existing frames)")
-@click.option("--skip-embeddings", is_flag=True, help="Skip Step 5: Text embedding generation (use existing text embeddings)")
-@click.option("--skip-image-hashing", is_flag=True, help="Skip Step 6a: Image hashing sub-step (use existing hashes)")
-@click.option("--skip-video-embeddings", is_flag=True, help="Skip Step 6b: Video embeddings sub-step (use existing)")
-@click.option("--skip-character-detection", is_flag=True, help="Skip Step 6c: Character detection sub-step (use existing)")
-@click.option("--skip-object-detection", is_flag=True, help="Skip Step 6d: Object detection sub-step (use existing)")
-@click.option("--skip-object-visualization", is_flag=True, help="Skip Step 6e: Object visualization sub-step (skip annotated frames)")
-@click.option("--skip-elastic-documents", is_flag=True, help="Skip Step 7: Generate Elasticsearch documents (use existing documents)")
-@click.option("--skip-index", is_flag=True, help="Skip Step 8: Elasticsearch indexing")
+@click.option("--skip-text-analysis", is_flag=True, help="Skip Step 3: Text analysis (use existing text statistics)")
+@click.option("--skip-scenes", is_flag=True, help="Skip Step 4: Scene detection (use existing scene timestamps)")
+@click.option("--skip-frame-export", is_flag=True, help="Skip Step 5: Frame export (use existing frames)")
+@click.option("--skip-embeddings", is_flag=True, help="Skip Step 6: Text embedding generation (use existing text embeddings)")
+@click.option("--skip-image-hashing", is_flag=True, help="Skip Step 7a: Image hashing sub-step (use existing hashes)")
+@click.option("--skip-video-embeddings", is_flag=True, help="Skip Step 7b: Video embeddings sub-step (use existing)")
+@click.option("--skip-character-detection", is_flag=True, help="Skip Step 7c: Character detection sub-step (use existing)")
+@click.option("--skip-object-detection", is_flag=True, help="Skip Step 7d: Object detection sub-step (use existing)")
+@click.option("--skip-object-visualization", is_flag=True, help="Skip Step 7e: Object visualization sub-step (skip annotated frames)")
+@click.option("--skip-elastic-documents", is_flag=True, help="Skip Step 8: Generate Elasticsearch documents (use existing documents)")
+@click.option("--skip-index", is_flag=True, help="Skip Step 9: Elasticsearch indexing")
+@click.option("--skip-validation", is_flag=True, help="Skip Step 10: Output validation")
 def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     videos: Path,
     episodes_info_json: Path,
@@ -140,6 +144,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     parser_mode: str,
     skip_transcode: bool,
     skip_transcribe: bool,
+    skip_text_analysis: bool,
     skip_scenes: bool,
     skip_frame_export: bool,
     skip_image_hashing: bool,
@@ -150,6 +155,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_embeddings: bool,
     skip_elastic_documents: bool,
     skip_index: bool,
+    skip_validation: bool,
 ):
     """Run complete video processing pipeline."""
     if transcoded_videos is None:  # pylint: disable=duplicate-code
@@ -214,17 +220,19 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     )
     skip_frame_processing = skip_image_hashing and skip_video_embeddings and skip_character_detection and skip_object_detection and skip_object_visualization
 
-    orchestrator.add_step("Scraping episode metadata", "0a/9", run_scrape_step, skip=False)
-    orchestrator.add_step("Scraping character metadata", "0b/9", run_character_scrape_step, skip=False)
-    orchestrator.add_step("Downloading character references", "0c/9", run_character_reference_download_step, skip=False)
-    orchestrator.add_step("Transcoding videos", "1/9", run_transcode_step, skip=skip_transcode)
-    orchestrator.add_step("Generating transcriptions", "2/9", run_transcribe_step, skip=skip_transcribe)
-    orchestrator.add_step("Detecting scenes", "3/9", run_scene_step, skip=skip_scenes)
-    orchestrator.add_step("Exporting frames (1080p)", "4/9", run_frame_export_step, skip=skip_frame_export)
-    orchestrator.add_step("Generating text embeddings", "5/9", run_embedding_step, skip=skip_embeddings)
-    orchestrator.add_step("Processing frames (hashing + video embeddings + faces + objects)", "6/9", run_frame_processing_step, skip=skip_frame_processing)
-    orchestrator.add_step("Generating Elasticsearch documents", "7/9", run_elastic_documents_step, skip=skip_elastic_documents)
-    orchestrator.add_step("Indexing in Elasticsearch", "8/9", run_index_step, skip=skip_index)
+    orchestrator.add_step("Scraping episode metadata", "0a/11", run_scrape_step, skip=False)
+    orchestrator.add_step("Scraping character metadata", "0b/11", run_character_scrape_step, skip=False)
+    orchestrator.add_step("Downloading character references", "0c/11", run_character_reference_download_step, skip=False)
+    orchestrator.add_step("Transcoding videos", "1/11", run_transcode_step, skip=skip_transcode)
+    orchestrator.add_step("Generating transcriptions", "2/11", run_transcribe_step, skip=skip_transcribe)
+    orchestrator.add_step("Analyzing transcription texts", "3/11", run_text_analysis_step, skip=skip_text_analysis)
+    orchestrator.add_step("Detecting scenes", "4/11", run_scene_step, skip=skip_scenes)
+    orchestrator.add_step("Exporting frames (1080p)", "5/11", run_frame_export_step, skip=skip_frame_export)
+    orchestrator.add_step("Generating text embeddings", "6/11", run_embedding_step, skip=skip_embeddings)
+    orchestrator.add_step("Processing frames (hashing + video embeddings + faces + objects)", "7/11", run_frame_processing_step, skip=skip_frame_processing)
+    orchestrator.add_step("Generating Elasticsearch documents", "8/11", run_elastic_documents_step, skip=skip_elastic_documents)
+    orchestrator.add_step("Indexing in Elasticsearch", "9/11", run_index_step, skip=skip_index)
+    orchestrator.add_step("Validating output data", "10/11", run_validation_step, skip=skip_validation)
 
     exit_code = orchestrator.execute(**params)
 

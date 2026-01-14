@@ -32,12 +32,12 @@ docker-compose build
 ## Architektura pipeline (11 kroków)
 
 ```
-[0a] scrape episodes → [1] transcode → [2] transcribe → [3] detect scenes
+[0a] scrape episodes → [1] transcode → [2] transcribe → [3] analyze text
 [0b] scrape characters → [0c] download references
-[4] export frames → [5] text embeddings → [6] frame processing:
-    [6a] image hashing | [6b] video embeddings | [6c] character detection
-    [6d] object detection | [6e] object visualization
-[7] generate elastic docs → [8] index
+[4] detect scenes → [5] export frames → [6] text embeddings → [7] frame processing:
+    [7a] image hashing | [7b] video embeddings | [7c] character detection
+    [7d] object detection | [7e] object visualization
+[8] generate elastic docs → [9] index → [10] validate
 ```
 
 **Czas:** ~28-32 min na 45-min odcinek | **Throughput:** ~2-3 odcinki/godz
@@ -46,19 +46,21 @@ docker-compose build
 
 | Flaga | Krok |
 |-------|------|
-| `--skip-transcode` | 1/9: Transkodowanie |
-| `--skip-transcribe` | 2/9: Transkrypcja |
-| `--skip-scenes` | 3/9: Detekcja scen |
-| `--skip-frame-export` | 4/9: Eksport klatek |
-| `--skip-embeddings` | 5/9: Text embeddings |
-| `--skip-frame-processing` | 6/9: Wszystkie sub-kroki |
-| `--skip-image-hashing` | 6a: Image hashing |
-| `--skip-video-embeddings` | 6b: Video embeddings |
-| `--skip-character-detection` | 6c: Character detection |
-| `--skip-object-detection` | 6d: Object detection |
-| `--skip-object-visualization` | 6e: Object visualization |
-| `--skip-elastic-documents` | 7/9: Generowanie dokumentów |
-| `--skip-index` | 8/9: Indeksowanie |
+| `--skip-transcode` | 1/11: Transkodowanie |
+| `--skip-transcribe` | 2/11: Transkrypcja |
+| `--skip-text-analysis` | 3/11: Analiza tekstowa |
+| `--skip-scenes` | 4/11: Detekcja scen |
+| `--skip-frame-export` | 5/11: Eksport klatek |
+| `--skip-embeddings` | 6/11: Text embeddings |
+| `--skip-frame-processing` | 7/11: Wszystkie sub-kroki |
+| `--skip-image-hashing` | 7a: Image hashing |
+| `--skip-video-embeddings` | 7b: Video embeddings |
+| `--skip-character-detection` | 7c: Character detection |
+| `--skip-object-detection` | 7d: Object detection |
+| `--skip-object-visualization` | 7e: Object visualization |
+| `--skip-elastic-documents` | 8/11: Generowanie dokumentów |
+| `--skip-index` | 9/11: Indeksowanie |
+| `--skip-validation` | 10/11: Walidacja outputu |
 
 **Premium modes:** `--parser-mode premium` (Gemini), `--transcription-mode premium` (ElevenLabs), `--search-mode premium` (Google Images)
 
@@ -74,6 +76,10 @@ docker-compose build
 # Transkrypcja
 ./run-preprocessor.sh transcribe /input_data/videos --name series_name --model large-v3-turbo
 
+# Analiza tekstowa transkrypcji (generuje text_stats.json + elastic text_statistics.jsonl)
+./run-preprocessor.sh analyze-text --season S10 --language pl
+# Statystyki: zdania, slowa, unikalne slowa, bigramy, trigramy, czestotliwosc slow
+
 # Detekcja scen
 ./run-preprocessor.sh detect-scenes /input_data/videos --threshold 0.5
 
@@ -82,6 +88,10 @@ docker-compose build
 
 # Embeddingi (domyślnie sentence-based: 8 zdań + 3 overlap)
 ./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions --frames-dir /app/output_data/frames_1080p
+
+# Generowanie dokumentow Elasticsearch
+./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/episodes
+# Typy: segments, text_embeddings, video_embeddings, episode_names, text_statistics
 
 # Indeksowanie
 ./run-preprocessor.sh index --name series_name --elastic-documents-dir /app/output_data/elastic_documents

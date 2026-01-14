@@ -71,14 +71,15 @@ class ImageHashProcessor(BaseProcessor):
         return [OutputSpec(path=hash_output, required=True)]
     # pylint: enable=duplicate-code
 
-    def _execute_processing(self, items: List[ProcessingItem]) -> None:
-        console.print(f"[cyan]Device: {self.device}[/cyan]")
-        console.print(f"[cyan]Batch size: {self.batch_size}[/cyan]")
+    def _get_processing_info(self) -> List[str]:
+        return [
+            f"[cyan]Device: {self.device}[/cyan]",
+            f"[cyan]Batch size: {self.batch_size}[/cyan]",
+        ]
 
+    def _load_resources(self) -> bool:
         self.hasher = PerceptualHasher(device=self.device, hash_size=8)
-
-        super()._execute_processing(items)
-        console.print("[green]Image hashing completed[/green]")
+        return True
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         metadata_file = item.input_path

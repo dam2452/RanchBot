@@ -86,7 +86,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         items = []
 
         for trans_file in all_transcription_files:
-            if "_simple.json" in trans_file.name:
+            if "_simple.json" in trans_file.name or "_text_stats.json" in trans_file.name:
                 continue
             if not trans_file.name.endswith("_segmented.json"):
                 segmented_version = trans_file.parent / f"{trans_file.stem}_segmented.json"
@@ -126,11 +126,14 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             temp_files.append(str(temp_path))
         return temp_files
 
-    def _execute_processing(self, items: List[ProcessingItem]) -> None:
-        console.print(f"[cyan]Loading model: {self.model_name}[/cyan]")
-        console.print(f"[cyan]Device: {self.device}[/cyan]")
-        console.print(f"[cyan]Batch size: {self.batch_size}[/cyan]")
+    def _get_processing_info(self) -> List[str]:
+        return [
+            f"[cyan]Loading model: {self.model_name}[/cyan]",
+            f"[cyan]Device: {self.device}[/cyan]",
+            f"[cyan]Batch size: {self.batch_size}[/cyan]",
+        ]
 
+    def _load_resources(self) -> bool:
         self._load_model()
         self.gpu_processor = GPUBatchProcessor(
             self.model,
@@ -145,9 +148,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             series_name=self.series_name,
             logger=self.logger,
         )
-
-        super()._execute_processing(items)
-        console.print("[green]Embedding generation completed[/green]")
+        return True
 
     def _load_model(self) -> None:
         try:

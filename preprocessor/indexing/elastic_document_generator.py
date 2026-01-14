@@ -106,6 +106,16 @@ class ElasticDocumentGenerator(BaseProcessor):
                 )
                 outputs.append(OutputSpec(path=episode_name_file, required=True))
 
+            trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
+            text_stats_file = trans_dir / f"{base_name}_text_stats.json"
+            if text_stats_file.exists():
+                text_stats_elastic_file = self.episode_manager.build_episode_output_path(
+                    episode_info,
+                    f"{settings.output_subdirs.elastic_documents}/text_statistics",
+                    f"{base_name}_text_statistics.jsonl",
+                )
+                outputs.append(OutputSpec(path=text_stats_elastic_file, required=True))
+
         return outputs
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None: # pylint: disable=too-many-locals
@@ -183,6 +193,18 @@ class ElasticDocumentGenerator(BaseProcessor):
         if episode_name_emb and any("_episode_name.jsonl" in str(o.path) for o in missing_outputs):
             self.__generate_episode_name_document(
                 episode_name_emb,
+                episode_id,
+                episode_metadata,
+                video_path,
+                episode_info,
+                base_name,
+            )
+
+        trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
+        text_stats_file = trans_dir / f"{base_name}_text_stats.json"
+        if text_stats_file.exists() and any("_text_statistics.jsonl" in str(o.path) for o in missing_outputs):
+            self.__generate_text_statistics_document(
+                text_stats_file,
                 episode_id,
                 episode_metadata,
                 video_path,
@@ -508,3 +530,46 @@ class ElasticDocumentGenerator(BaseProcessor):
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
         console.print(f"[green]Generated episode name document → {output_file.name}[/green]")
+
+    def __generate_text_statistics_document(
+        self,
+        text_stats_file: Path,
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        episode_info,
+        base_name: str,
+    ) -> None:
+        with open(text_stats_file, "r", encoding="utf-8") as f:
+            stats_data = json.load(f)
+
+        basic_stats = stats_data.get("basic_statistics", {})
+        advanced_stats = stats_data.get("advanced_statistics", {})
+
+        if not basic_stats:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/text_statistics",
+            f"{base_name}_text_statistics.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        doc = {
+            "episode_id": episode_id,
+            "episode_metadata": episode_metadata,
+            "video_path": video_path,
+            "language": stats_data.get("metadata", {}).get("language", "pl"),
+            "analyzed_at": stats_data.get("metadata", {}).get("analyzed_at"),
+            "basic_statistics": basic_stats,
+            "advanced_statistics": advanced_stats,
+            "word_frequency": stats_data.get("word_frequency", [])[:20],
+            "bigrams": stats_data.get("bigrams", [])[:10],
+            "trigrams": stats_data.get("trigrams", [])[:10],
+        }
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated text statistics document → {output_file.name}[/green]")

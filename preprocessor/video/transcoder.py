@@ -116,6 +116,7 @@ class VideoTranscoder(BaseVideoProcessor):
             "-ac", "2",
             "-vf", vf_filter,
             "-movflags", "+faststart",
+            "-f", "mp4",
             str(output_video),
         ]
 

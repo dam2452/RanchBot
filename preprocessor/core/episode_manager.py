@@ -103,14 +103,13 @@ class EpisodeManager:
         season_dir.mkdir(parents=True, exist_ok=True)
         return season_dir / filename
 
-    def get_episode_base_dir(self, episode_info: EpisodeInfo) -> Path:
-        return BASE_OUTPUT_DIR / "episodes" / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
+    @staticmethod
+    def get_episode_subdir(episode_info: EpisodeInfo, subdir: str) -> Path:
+        return BASE_OUTPUT_DIR / subdir / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
 
-    def get_episode_subdir(self, episode_info: EpisodeInfo, subdir: str) -> Path:
-        return self.get_episode_base_dir(episode_info) / subdir
-
-    def build_episode_output_path(self, episode_info: EpisodeInfo, subdir: str, filename: str) -> Path:
-        path = self.get_episode_subdir(episode_info, subdir) / filename
+    @staticmethod
+    def build_episode_output_path(episode_info: EpisodeInfo, subdir: str, filename: str) -> Path:
+        path = EpisodeManager.get_episode_subdir(episode_info, subdir) / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 

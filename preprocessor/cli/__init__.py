@@ -1,6 +1,7 @@
 import click
 
 from preprocessor.cli.commands import (
+    analyze_text,
     detect_scenes,
     export_frames,
     generate_elastic_documents,
@@ -14,6 +15,7 @@ from preprocessor.cli.commands import (
     transcode,
     transcribe,
     transcribe_elevenlabs,
+    validate,
 )
 
 
@@ -49,6 +51,10 @@ cli.add_command(generate_elastic_documents)
 cli.add_command(search)
 # noinspection PyTypeChecker
 cli.add_command(run_all)
+# noinspection PyTypeChecker
+cli.add_command(validate)
+# noinspection PyTypeChecker
+cli.add_command(analyze_text)
 
 
 __all__ = ["cli"]

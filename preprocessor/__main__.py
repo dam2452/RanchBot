@@ -1,10 +1,10 @@
 import logging
 import sys
 
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
-
 from preprocessor.cli import cli
 from preprocessor.utils.console import console
+
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 if __name__ == "__main__":
     try:

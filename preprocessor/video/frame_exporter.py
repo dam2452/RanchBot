@@ -1,6 +1,6 @@
 from datetime import datetime
-import json
 from pathlib import Path
+import shutil
 from typing import (
     Any,
     Dict,
@@ -83,7 +83,6 @@ class FrameExporter(BaseVideoProcessor):
             metadata_file = episode_dir / "frame_metadata.json"
             if not metadata_file.exists():
                 console.print(f"[yellow]Cleaning incomplete frames from previous run: {episode_dir}[/yellow]")
-                import shutil
                 shutil.rmtree(episode_dir, ignore_errors=True)
 
         episode_dir.mkdir(parents=True, exist_ok=True)
@@ -104,7 +103,6 @@ class FrameExporter(BaseVideoProcessor):
         except Exception as e:
             self.logger.error(f"Failed to extract frames from {item.input_path}: {e}")
             console.print(f"[yellow]Cleaning incomplete frames due to error: {episode_dir}[/yellow]")
-            import shutil
             shutil.rmtree(episode_dir, ignore_errors=True)
             raise
 

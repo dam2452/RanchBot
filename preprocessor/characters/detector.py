@@ -41,9 +41,7 @@ class CharacterDetector(BaseProcessor):
 
         self.frames_dir: Path = self._args["frames_dir"]
         self.characters_dir: Path = self._args.get("characters_dir", settings.character.output_dir)
-        self.output_dir: Path = self._args.get("output_dir", settings.character.detections_dir)
         self.threshold: float = settings.face_recognition.threshold
-        self.use_gpu: bool = settings.face_recognition.use_gpu
 
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
@@ -65,25 +63,24 @@ class CharacterDetector(BaseProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = self._build_episode_output_dir(episode_info, self.output_dir)
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
         detections_output = episode_dir / "detections.json"
         return [OutputSpec(path=detections_output, required=True)]
     # pylint: enable=duplicate-code
 
-    def _execute_processing(self, items: List[ProcessingItem]) -> None:
+    def _load_resources(self) -> bool:
         if not self.characters_dir.exists():
             console.print(f"[red]Characters directory not found: {self.characters_dir}[/red]")
-            return
+            return False
 
         self.face_app = init_face_detection()
         self.character_vectors = load_character_references(self.characters_dir, self.face_app)
 
         if not self.character_vectors:
             console.print("[yellow]No character references loaded[/yellow]")
-            return
+            return False
 
-        super()._execute_processing(items)
-        console.print("[green]Character detection completed[/green]")
+        return True
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         metadata_file = item.input_path

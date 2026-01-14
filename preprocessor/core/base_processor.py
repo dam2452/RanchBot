@@ -74,13 +74,23 @@ class BaseProcessor(ABC):
             self._execute()
         except KeyboardInterrupt:
             console.print("\n[yellow]Process interrupted by user[/yellow]")
+            self.cleanup()
+            self.logger.finalize()
             return 130
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"{self.__class__.__name__} failed: {e}")
+
+        self.cleanup()
         return self.logger.finalize()
 
     def cleanup(self) -> None:
         pass
+
+    def _load_resources(self) -> bool:
+        return True
+
+    def _get_processing_info(self) -> List[str]:
+        return []
 
     @staticmethod
     def _get_episode_processing_items_from_metadata(
@@ -107,12 +117,6 @@ class BaseProcessor(ABC):
             )
 
         return items
-
-    @staticmethod
-    def _build_episode_output_dir(episode_info, base_output_dir: Path) -> Path:
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        return base_output_dir / f"S{season:02d}" / f"E{episode:02d}"
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         raise NotImplementedError(
@@ -211,6 +215,16 @@ class BaseProcessor(ABC):
         self._execute_processing(items_to_process)
 
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
+        if not items:
+            console.print("[yellow]No items to process, skipping resource loading[/yellow]")
+            return
+
+        for info_line in self._get_processing_info():
+            console.print(info_line)
+
+        if not self._load_resources():
+            return
+
         step_name = self._get_step_name()
 
         try:
@@ -244,8 +258,7 @@ class BaseProcessor(ABC):
             console.print("\n[yellow]Processing interrupted[/yellow]")
             raise
 
-    @staticmethod
-    def _get_temp_files(_item: ProcessingItem) -> List[str]:
+    def _get_temp_files(self, item: ProcessingItem) -> List[str]:  # pylint: disable=unused-argument
         return []
 
     def _get_progress_description(self) -> str:

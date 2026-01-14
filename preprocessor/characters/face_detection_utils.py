@@ -1,3 +1,13 @@
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*estimate.*is deprecated.*",
+    category=FutureWarning,
+    module="insightface",
+)
+
+# pylint: disable=wrong-import-position
 from pathlib import Path
 from typing import (
     Any,
@@ -12,6 +22,8 @@ import numpy as np
 from numpy.linalg import norm
 
 from preprocessor.utils.console import console
+
+# pylint: enable=wrong-import-position
 
 
 def load_character_references(

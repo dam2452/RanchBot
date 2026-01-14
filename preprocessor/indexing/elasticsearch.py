@@ -46,6 +46,22 @@ class ElasticSearchIndexer(BaseProcessor):
         if "name" not in args:
             raise ValueError("index name is required")
 
+    @staticmethod
+    def _sanitize_error_for_logging(error: Dict[str, Any]) -> Dict[str, Any]:
+        vector_keys = {"text_embedding", "video_embedding", "title_embedding", "embedding"}
+
+        def truncate_vectors(obj):
+            if isinstance(obj, dict):
+                return {
+                    k: f"[vector dim={len(v)}]" if k in vector_keys and isinstance(v, list) else truncate_vectors(v)
+                    for k, v in obj.items()
+                }
+            if isinstance(obj, list) and len(obj) > 10:
+                return obj[:3] + ["..."]
+            return obj
+
+        return truncate_vectors(error)
+
     def __call__(self) -> None:
         asyncio.run(self._exec_async())
 
@@ -170,8 +186,9 @@ class ElasticSearchIndexer(BaseProcessor):
                 console.print(f"[green]✓ Indexed {len(actions)} {doc_type} documents → {index_name}[/green]")
             except BulkIndexError as e:
                 self.logger.error(f"Bulk indexing failed: {len(e.errors)} errors.")
-                for error in e.errors[:10]:
-                    self.logger.error(f"Failed document: {json.dumps(error, indent=2)}")
+                for error in e.errors[:3]:
+                    sanitized = self._sanitize_error_for_logging(error)
+                    self.logger.error(f"Failed document: {json.dumps(sanitized, indent=2)}")
                 if len(e.errors) > 10:
                     self.logger.error(f"... and {len(e.errors) - 10} more errors")
 

@@ -298,11 +298,11 @@ def run_elastic_documents_step(**kwargs):
     )
     from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
 
-    transcription_jsons = BASE_OUTPUT_DIR / "episodes"
-    embeddings_dir = settings.embedding.default_output_dir
-    scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
-    character_detections_dir = settings.character.detections_dir
-    object_detections_dir = settings.object_detection.output_dir
+    transcription_jsons = BASE_OUTPUT_DIR / settings.output_subdirs.transcriptions
+    embeddings_dir = BASE_OUTPUT_DIR / settings.output_subdirs.embeddings
+    scene_timestamps_dir = kwargs.get("scene_timestamps_dir") or (BASE_OUTPUT_DIR / settings.output_subdirs.scenes)
+    character_detections_dir = BASE_OUTPUT_DIR / settings.output_subdirs.character_detections
+    object_detections_dir = BASE_OUTPUT_DIR / settings.output_subdirs.object_detections
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
 
@@ -413,3 +413,54 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
         for sub in sub_processors:
             sub.cleanup()
         processor.cleanup()
+
+
+def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=unused-argument
+    from preprocessor.config.config import BASE_OUTPUT_DIR  # pylint: disable=import-outside-toplevel
+    from preprocessor.validation.validator import Validator  # pylint: disable=import-outside-toplevel
+
+    transcriptions_path = BASE_OUTPUT_DIR / settings.output_subdirs.transcriptions
+    if not transcriptions_path.exists():
+        console.print("[yellow]No transcriptions directory found, skipping validation[/yellow]")
+        return 0
+
+    seasons = sorted([d for d in transcriptions_path.iterdir() if d.is_dir() and d.name.startswith("S")])
+    if not seasons:
+        console.print("[yellow]No seasons found in episodes directory, skipping validation[/yellow]")
+        return 0
+
+    for season_dir in seasons:
+        season = season_dir.name
+        console.print(f"[cyan]Validating season {season}...[/cyan]")
+
+        validator = Validator(
+            season=season,
+            series_name=name,
+            anomaly_threshold=20.0,
+            base_output_dir=BASE_OUTPUT_DIR,
+            episodes_info_json=episodes_info_json,
+        )
+
+        report_path = BASE_OUTPUT_DIR / f"validation_{season}.json"
+        exit_code = validator.validate(report_path)
+
+        if exit_code != 0:
+            console.print(f"[red]Validation failed for season {season}[/red]")
+            return exit_code
+
+    console.print("[green]All seasons validated successfully[/green]")
+    return 0
+
+
+def run_text_analysis_step(name, episodes_info_json, language, state_manager, **kwargs):  # pylint: disable=unused-argument
+    from preprocessor.text_analysis.text_analyzer import TextAnalyzer  # pylint: disable=import-outside-toplevel
+
+    analyzer = TextAnalyzer(
+        {
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
+            "language": language,
+            "state_manager": state_manager,
+        },
+    )
+    return analyzer.work()

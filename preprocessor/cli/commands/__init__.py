@@ -1,3 +1,4 @@
+from preprocessor.cli.commands.analyze_text import analyze_text
 from preprocessor.cli.commands.detect_scenes import detect_scenes
 from preprocessor.cli.commands.export_frames import export_frames
 from preprocessor.cli.commands.generate_elastic_documents import generate_elastic_documents
@@ -11,8 +12,10 @@ from preprocessor.cli.commands.search import search
 from preprocessor.cli.commands.transcode import transcode
 from preprocessor.cli.commands.transcribe import transcribe
 from preprocessor.cli.commands.transcribe_elevenlabs import transcribe_elevenlabs
+from preprocessor.cli.commands.validate import validate
 
 __all__ = [
+    "analyze_text",
     "detect_scenes",
     "export_frames",
     "generate_elastic_documents",
@@ -26,4 +29,5 @@ __all__ = [
     "transcode",
     "transcribe",
     "transcribe_elevenlabs",
+    "validate",
 ]
