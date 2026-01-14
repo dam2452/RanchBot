@@ -426,7 +426,7 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
 
     seasons = sorted([d for d in transcriptions_path.iterdir() if d.is_dir() and d.name.startswith("S")])
     if not seasons:
-        console.print("[yellow]No seasons found in episodes directory, skipping validation[/yellow]")
+        console.print("[yellow]No seasons found in transcriptions directory, skipping validation[/yellow]")
         return 0
 
     for season_dir in seasons:

@@ -90,7 +90,7 @@ docker-compose build
 ./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions --frames-dir /app/output_data/frames_1080p
 
 # Generowanie dokumentow Elasticsearch
-./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/episodes
+./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
 # Typy: segments, text_embeddings, video_embeddings, episode_names, text_statistics
 
 # Indeksowanie

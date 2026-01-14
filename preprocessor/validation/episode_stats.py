@@ -1,13 +1,24 @@
+from dataclasses import (
+    dataclass,
+    field,
+)
 import json
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, List, Optional
+from typing import (
+    Dict,
+    List,
+    Optional,
+)
 
 from preprocessor.config.config import settings
-from preprocessor.core.constants import OUTPUT_FILE_NAMES, OUTPUT_FILE_PATTERNS
-from preprocessor.core.episode_manager import EpisodeInfo
+from preprocessor.core.constants import (
+    OUTPUT_FILE_NAMES,
+    OUTPUT_FILE_PATTERNS,
+)
+from preprocessor.core.episode_manager import (
+    EpisodeInfo,
+    EpisodeManager,
+)
 from preprocessor.validation.file_validators import (
-    ValidationResult,
     validate_image_file,
     validate_json_file,
     validate_jsonl_file,
@@ -16,9 +27,8 @@ from preprocessor.validation.file_validators import (
 
 
 @dataclass
-class EpisodeStats:
+class EpisodeStats:  # pylint: disable=too-many-instance-attributes
     episode_info: EpisodeInfo
-    episode_path: Path
     series_name: str
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -47,7 +57,7 @@ class EpisodeStats:
         self._validate_other_files()
 
     def _validate_transcription(self):
-        transcriptions_dir = self.episode_path / settings.output_subdirs.transcriptions
+        transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
         transcription_file = transcriptions_dir / f"{self.series_name}_{self.episode_info.episode_code()}.json"
         if not transcription_file.exists():
             self.errors.append(f"Missing transcription file: {transcription_file}")
@@ -70,11 +80,11 @@ class EpisodeStats:
             if words:
                 last_word = words[-1]
                 self.transcription_duration = last_word.get("end", 0.0)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading transcription: {e}")
 
     def _validate_exported_frames(self):
-        frames_dir = self.episode_path / settings.output_subdirs.frames
+        frames_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.frames)
         if not frames_dir.exists():
             self.errors.append(f"Missing {settings.output_subdirs.frames} directory: {frames_dir}")
             return
@@ -109,7 +119,7 @@ class EpisodeStats:
             self.exported_frames_avg_resolution = most_common_res
 
     def _validate_video(self):
-        videos_dir = self.episode_path / settings.output_subdirs.video
+        videos_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.video)
         video_file = videos_dir / f"{self.series_name}_{self.episode_info.episode_code()}.mp4"
         if not video_file.exists():
             self.errors.append(f"Missing video file: {video_file}")
@@ -126,7 +136,7 @@ class EpisodeStats:
         self.video_resolution = (result.metadata["width"], result.metadata["height"])
 
     def _validate_scenes(self):
-        scenes_dir = self.episode_path / settings.output_subdirs.scenes
+        scenes_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.scenes)
         scenes_file = scenes_dir / f"{self.series_name}_{self.episode_info.episode_code()}{OUTPUT_FILE_PATTERNS['scenes_suffix']}"
         if not scenes_file.exists():
             self.errors.append(f"Missing scenes file: {scenes_file}")
@@ -146,23 +156,18 @@ class EpisodeStats:
             if scenes:
                 durations = [scene.get("duration", 0) for scene in scenes]
                 self.scenes_avg_duration = round(sum(durations) / len(durations), 2)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading scenes: {e}")
 
     def _validate_other_files(self):
-        detections_file = self.episode_path / OUTPUT_FILE_NAMES["detections"]
+        char_detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_detections)
+        detections_file = char_detections_dir / OUTPUT_FILE_NAMES["detections"]
         if detections_file.exists():
             result = validate_json_file(detections_file)
             if not result.is_valid:
                 self.errors.append(f"Invalid {OUTPUT_FILE_NAMES['detections']}: {result.error_message}")
 
-        episode_embedding_file = self.episode_path / OUTPUT_FILE_NAMES["episode_embedding"]
-        if episode_embedding_file.exists():
-            result = validate_json_file(episode_embedding_file)
-            if not result.is_valid:
-                self.errors.append(f"Invalid {OUTPUT_FILE_NAMES['episode_embedding']}: {result.error_message}")
-
-        embeddings_dir = self.episode_path / settings.output_subdirs.embeddings
+        embeddings_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.embeddings)
         if embeddings_dir.exists():
             embeddings_file = embeddings_dir / OUTPUT_FILE_NAMES["embeddings_text"]
             if embeddings_file.exists():
@@ -170,16 +175,24 @@ class EpisodeStats:
                 if not result.is_valid:
                     self.errors.append(f"Invalid {OUTPUT_FILE_NAMES['embeddings_text']}: {result.error_message}")
 
-        elastic_docs_dir = self.episode_path / settings.output_subdirs.elastic_documents
-        if elastic_docs_dir.exists():
-            for jsonl_file in elastic_docs_dir.rglob("*.jsonl"):
-                result = validate_jsonl_file(jsonl_file)
-                if not result.is_valid:
-                    self.errors.append(f"Invalid JSONL {jsonl_file.name}: {result.error_message}")
-        else:
+        elastic_subdirs = ["segments", "text_embeddings", "video_embeddings", "episode_names", "text_statistics"]
+        found_elastic_docs = False
+        for subdir in elastic_subdirs:
+            elastic_docs_dir = EpisodeManager.get_episode_subdir(
+                self.episode_info,
+                f"{settings.output_subdirs.elastic_documents}/{subdir}",
+            )
+            if elastic_docs_dir.exists():
+                found_elastic_docs = True
+                for jsonl_file in elastic_docs_dir.glob("*.jsonl"):
+                    result = validate_jsonl_file(jsonl_file)
+                    if not result.is_valid:
+                        self.errors.append(f"Invalid JSONL {jsonl_file.name}: {result.error_message}")
+
+        if not found_elastic_docs:
             self.warnings.append(f"Missing {settings.output_subdirs.elastic_documents} directory")
 
-        transcriptions_dir = self.episode_path / settings.output_subdirs.transcriptions
+        transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
         if transcriptions_dir.exists():
             text_stats_file = transcriptions_dir / f"{self.series_name}_{self.episode_info.episode_code()}_text_stats.json"
             if text_stats_file.exists():

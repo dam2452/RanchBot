@@ -1,12 +1,17 @@
+from datetime import datetime
+import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import (
+    Dict,
+    Optional,
+)
 
 from rich.console import Console
 from rich.progress import track
 
 from preprocessor.config.config import BASE_OUTPUT_DIR
 from preprocessor.core.constants import OUTPUT_FILE_NAMES
-from preprocessor.core.episode_manager import EpisodeInfo, EpisodeManager
+from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.validation.episode_stats import EpisodeStats
 from preprocessor.validation.report_generator import ReportGenerator
 from preprocessor.validation.season_comparator import SeasonComparison
@@ -27,20 +32,20 @@ class Validator:
         self.series_name = series_name
         self.anomaly_threshold = anomaly_threshold
         self.base_output_dir = base_output_dir
-        self.season_path = base_output_dir / "episodes" / season
         self.episode_manager = EpisodeManager(episodes_info_json, series_name)
 
     def validate(self, output_report_path: Path) -> int:
-        if not self.season_path.exists():
-            console.print(f"[red]Season directory not found: {self.season_path}[/red]")
+        transcriptions_season_path = self.base_output_dir / "transcriptions" / self.season
+        if not transcriptions_season_path.exists():
+            console.print(f"[red]Season directory not found: {transcriptions_season_path}[/red]")
             return 1
 
         console.print(f"[bold cyan]Validating season {self.season}...[/bold cyan]")
 
-        episodes_stats = self._collect_episodes_stats()
+        episodes_stats = self._collect_episodes_stats(transcriptions_season_path)
 
         if not episodes_stats:
-            console.print(f"[red]No episodes found in {self.season_path}[/red]")
+            console.print(f"[red]No episodes found in {transcriptions_season_path}[/red]")
             return 1
 
         self._generate_episode_reports(episodes_stats)
@@ -55,17 +60,17 @@ class Validator:
             season=self.season,
             anomaly_threshold=self.anomaly_threshold,
         )
-        report = report_generator.generate_report(episodes_stats, season_comparison, output_report_path)
+        report_generator.generate_report(episodes_stats, season_comparison, output_report_path)
 
         self._print_summary(episodes_stats, season_comparison)
 
         console.print(f"\n[green]Season validation report saved to: {output_report_path}[/green]")
-        console.print(f"[green]Individual episode reports saved in each episode directory[/green]")
+        console.print("[green]Individual episode reports saved in each episode directory[/green]")
 
         return 0
 
-    def _collect_episodes_stats(self) -> Dict[str, EpisodeStats]:
-        episode_dirs = sorted([d for d in self.season_path.iterdir() if d.is_dir() and d.name.startswith("E")])
+    def _collect_episodes_stats(self, transcriptions_season_path: Path) -> Dict[str, EpisodeStats]:
+        episode_dirs = sorted([d for d in transcriptions_season_path.iterdir() if d.is_dir() and d.name.startswith("E")])
 
         episodes_stats = {}
         for episode_dir in track(episode_dirs, description="Collecting episode stats"):
@@ -80,7 +85,6 @@ class Validator:
             episode_id = episode_info.episode_code()
             stats = EpisodeStats(
                 episode_info=episode_info,
-                episode_path=episode_dir,
                 series_name=self.series_name,
             )
             stats.collect_stats()
@@ -89,9 +93,6 @@ class Validator:
         return episodes_stats
 
     def _generate_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]):
-        import json
-        from datetime import datetime
-
         for stats in episodes_stats.values():
             episode_report = {
                 "validation_timestamp": datetime.now().isoformat(),
@@ -103,7 +104,8 @@ class Validator:
                 "stats": stats.to_dict()["stats"],
             }
 
-            report_path = stats.episode_path / OUTPUT_FILE_NAMES["validation_report"]
+            report_dir = EpisodeManager.get_episode_subdir(stats.episode_info, "transcriptions")
+            report_path = report_dir / OUTPUT_FILE_NAMES["validation_report"]
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(episode_report, f, indent=2, ensure_ascii=False)
 
@@ -126,7 +128,7 @@ class Validator:
                 console.print(
                     f"  [{color}]{anomaly.episode}[/{color}]: "
                     f"{anomaly.metric} = {anomaly.value} "
-                    f"(avg: {anomaly.avg}, deviation: {anomaly.deviation_percent:.1f}%)"
+                    f"(avg: {anomaly.avg}, deviation: {anomaly.deviation_percent:.1f}%)",
                 )
             if len(season_comparison.anomalies) > 5:
                 console.print(f"  ... and {len(season_comparison.anomalies) - 5} more")
@@ -138,3 +140,10 @@ class Validator:
                     console.print(f"  - {error}")
                 if len(stats.errors) > 3:
                     console.print(f"  ... and {len(stats.errors) - 3} more")
+
+            if stats.warnings:
+                console.print(f"\n[yellow]Warnings in {episode_id}:[/yellow]")
+                for warning in stats.warnings[:3]:
+                    console.print(f"  - {warning}")
+                if len(stats.warnings) > 3:
+                    console.print(f"  ... and {len(stats.warnings) - 3} more")

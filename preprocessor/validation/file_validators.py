@@ -1,7 +1,7 @@
-import json
-import subprocess
 from dataclasses import dataclass
+import json
 from pathlib import Path
+import subprocess
 from typing import Optional
 
 from PIL import Image
@@ -24,7 +24,7 @@ def validate_json_file(path: Path) -> ValidationResult:
         return ValidationResult(is_valid=True, metadata={"size_bytes": path.stat().st_size})
     except json.JSONDecodeError as e:
         return ValidationResult(is_valid=False, error_message=f"Invalid JSON: {e}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return ValidationResult(is_valid=False, error_message=f"Error reading file: {e}")
 
 
@@ -51,7 +51,7 @@ def validate_jsonl_file(path: Path) -> ValidationResult:
             is_valid=True,
             metadata={"size_bytes": path.stat().st_size, "line_count": line_count},
         )
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return ValidationResult(is_valid=False, error_message=f"Error reading file: {e}")
 
 
@@ -76,7 +76,7 @@ def validate_image_file(path: Path) -> ValidationResult:
                 "size_mb": round(size_mb, 2),
             },
         )
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return ValidationResult(is_valid=False, error_message=f"Invalid image: {e}")
 
 
@@ -125,5 +125,5 @@ def validate_video_file(path: Path) -> ValidationResult:
         )
     except subprocess.CalledProcessError as e:
         return ValidationResult(is_valid=False, error_message=f"ffprobe error: {e.stderr}")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return ValidationResult(is_valid=False, error_message=f"Error validating video: {e}")

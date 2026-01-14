@@ -537,7 +537,8 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             self._draw_detections_on_frame(img, frame_data['detections'], colors, conf_threshold)
             cv2.imwrite(str(output_path), img)
 
-        (output_dir / ".visualization_complete").touch()
+        marker_file = output_dir / ".visualization_complete"
+        marker_file.write_text(f"completed: {len(frames_with_detections)} frames")
         console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
 
     @staticmethod

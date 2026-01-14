@@ -1,5 +1,12 @@
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import (
+    dataclass,
+    field,
+)
+from typing import (
+    Dict,
+    List,
+    Optional,
+)
 
 from preprocessor.validation.episode_stats import EpisodeStats
 
@@ -91,7 +98,7 @@ class SeasonComparison:
                         avg=round(avg_val, 2),
                         deviation_percent=round(deviation_percent, 2),
                         severity=severity,
-                    )
+                    ),
                 )
 
     def to_dict(self) -> Dict:
