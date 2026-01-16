@@ -326,7 +326,7 @@ def run_index_step(name, dry_run, state_manager, **kwargs):
     from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
 
     episodes_info_json = kwargs.get("episodes_info_json")
-    elastic_documents_dir = get_output_path("episodes")
+    elastic_documents_dir = get_output_path(settings.output_subdirs.elastic_documents)
 
     indexer = ElasticSearchIndexer({
         "name": name,
@@ -415,7 +415,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
         processor.cleanup()
 
 
-def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=unused-argument
+def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=too-many-locals
     from preprocessor.config.config import BASE_OUTPUT_DIR  # pylint: disable=import-outside-toplevel
     from preprocessor.validation.global_validator import GlobalValidator  # pylint: disable=import-outside-toplevel
     from preprocessor.validation.validator import Validator  # pylint: disable=import-outside-toplevel
@@ -438,18 +438,41 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
     if global_result.warnings:
         console.print(f"[yellow]Global validation warnings: {len(global_result.warnings)}[/yellow]")
 
-    transcoded_videos_path = BASE_OUTPUT_DIR / settings.output_subdirs.video
-    if not transcoded_videos_path.exists():
-        console.print("[yellow]No transcoded_videos directory found, skipping episode validation[/yellow]")
+    input_videos_path = kwargs.get("videos")
+    if not input_videos_path or not input_videos_path.exists():
+        console.print("[yellow]No input videos directory found, skipping episode validation[/yellow]")
         return 0
 
-    seasons = sorted([d for d in transcoded_videos_path.iterdir() if d.is_dir() and d.name.startswith("S")])
+    seasons = sorted([d for d in input_videos_path.iterdir() if d.is_dir() and d.name.startswith("S")])
     if not seasons:
-        console.print("[yellow]No seasons found in transcoded_videos directory, skipping episode validation[/yellow]")
+        console.print("[yellow]No seasons found in input videos directory, skipping episode validation[/yellow]")
         return 0
 
+    seasons_with_videos = []
     for season_dir in seasons:
-        season = season_dir.name
+        video_files = []
+        for ext in (".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm"):
+            video_files.extend(list(season_dir.glob(f"**/*{ext}")))
+        if video_files:
+            seasons_with_videos.append(season_dir)
+            console.print(f"[cyan]Found {len(video_files)} video file(s) in {season_dir.name}[/cyan]")
+        else:
+            console.print(f"[yellow]Skipping {season_dir.name}: no video files found[/yellow]")
+
+    if not seasons_with_videos:
+        console.print("[yellow]No seasons with video files found, skipping episode validation[/yellow]")
+        return 0
+
+    for season_dir in seasons_with_videos:
+        import re  # pylint: disable=import-outside-toplevel
+
+        season_name = season_dir.name
+        match = re.search(r'(\d+)', season_name)
+        if match:
+            season_number = int(match.group(1))
+            season = f"S{season_number:02d}"
+        else:
+            season = season_name
 
         validator = Validator(
             season=season,
@@ -459,6 +482,7 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
             episodes_info_json=episodes_info_json,
         )
 
+        console.print(f"[cyan]Validating season {season} (from folder: {season_name})...[/cyan]")
         exit_code = validator.validate()
 
         if exit_code != 0:
@@ -481,3 +505,26 @@ def run_text_analysis_step(name, episodes_info_json, language, state_manager, **
         },
     )
     return analyzer.work()
+
+
+def run_archive_generation_step(**kwargs):
+    from preprocessor.config.config import (  # pylint: disable=import-outside-toplevel
+        BASE_OUTPUT_DIR,
+        get_output_path,
+    )
+    from preprocessor.indexing.archive_generator import ArchiveGenerator  # pylint: disable=import-outside-toplevel
+
+    elastic_documents_dir = get_output_path(settings.output_subdirs.elastic_documents)
+    output_dir = BASE_OUTPUT_DIR / settings.output_subdirs.archives
+    name = kwargs.get("name")
+    episodes_info_json = kwargs.get("episodes_info_json")
+
+    generator = ArchiveGenerator(
+        {
+            "elastic_documents_dir": elastic_documents_dir,
+            "output_dir": output_dir,
+            "series_name": name,
+            "episodes_info_json": episodes_info_json,
+        },
+    )
+    return generator.work()

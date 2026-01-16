@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import subprocess
 from typing import Optional
+import zipfile
 
 from PIL import Image
 
@@ -127,3 +128,40 @@ def validate_video_file(path: Path) -> ValidationResult:
         return ValidationResult(is_valid=False, error_message=f"ffprobe error: {e.stderr}")
     except Exception as e:  # pylint: disable=broad-exception-caught
         return ValidationResult(is_valid=False, error_message=f"Error validating video: {e}")
+
+
+def validate_archive_file(path: Path) -> ValidationResult:
+    if not path.exists():
+        return ValidationResult(is_valid=False, error_message=f"File does not exist: {path}")
+
+    try:
+        with zipfile.ZipFile(path, "r") as zip_ref:
+            bad_file = zip_ref.testzip()
+            if bad_file:
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"Corrupt file in archive: {bad_file}",
+                )
+
+            file_count = len(zip_ref.namelist())
+            compressed_size = sum(info.compress_size for info in zip_ref.infolist())
+            uncompressed_size = sum(info.file_size for info in zip_ref.infolist())
+
+            compression_ratio = 0
+            if uncompressed_size > 0:
+                compression_ratio = (1 - compressed_size / uncompressed_size) * 100
+
+            return ValidationResult(
+                is_valid=True,
+                metadata={
+                    "size_mb": round(path.stat().st_size / (1024 * 1024), 2),
+                    "file_count": file_count,
+                    "compressed_size_mb": round(compressed_size / (1024 * 1024), 2),
+                    "uncompressed_size_mb": round(uncompressed_size / (1024 * 1024), 2),
+                    "compression_ratio": round(compression_ratio, 2),
+                },
+            )
+    except zipfile.BadZipFile as e:
+        return ValidationResult(is_valid=False, error_message=f"Invalid ZIP file: {e}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return ValidationResult(is_valid=False, error_message=f"Error validating archive: {e}")

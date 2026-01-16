@@ -1,6 +1,7 @@
 from preprocessor.cli.commands.analyze_text import analyze_text
 from preprocessor.cli.commands.detect_scenes import detect_scenes
 from preprocessor.cli.commands.export_frames import export_frames
+from preprocessor.cli.commands.generate_archives import generate_archives
 from preprocessor.cli.commands.generate_elastic_documents import generate_elastic_documents
 from preprocessor.cli.commands.generate_embeddings import generate_embeddings
 from preprocessor.cli.commands.image_hashing import image_hashing
@@ -18,6 +19,7 @@ __all__ = [
     "analyze_text",
     "detect_scenes",
     "export_frames",
+    "generate_archives",
     "generate_elastic_documents",
     "generate_embeddings",
     "image_hashing",

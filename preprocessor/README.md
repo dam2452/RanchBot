@@ -29,7 +29,7 @@ docker-compose build
   --skip-transcode --skip-transcribe
 ```
 
-## Architektura pipeline (11 kroków)
+## Architektura pipeline (12 kroków)
 
 ```
 [0a] scrape episodes → [1] transcode → [2] transcribe → [3] analyze text
@@ -37,7 +37,7 @@ docker-compose build
 [4] detect scenes → [5] export frames → [6] text embeddings → [7] frame processing:
     [7a] image hashing | [7b] video embeddings | [7c] character detection
     [7d] object detection | [7e] object visualization
-[8] generate elastic docs → [9] index → [10] validate
+[8] generate elastic docs → [9] archive zips → [10] index → [11] validate
 ```
 
 **Czas:** ~28-32 min na 45-min odcinek | **Throughput:** ~2-3 odcinki/godz
@@ -46,21 +46,24 @@ docker-compose build
 
 | Flaga | Krok |
 |-------|------|
-| `--skip-transcode` | 1/11: Transkodowanie |
-| `--skip-transcribe` | 2/11: Transkrypcja |
-| `--skip-text-analysis` | 3/11: Analiza tekstowa |
-| `--skip-scenes` | 4/11: Detekcja scen |
-| `--skip-frame-export` | 5/11: Eksport klatek |
-| `--skip-embeddings` | 6/11: Text embeddings |
-| `--skip-frame-processing` | 7/11: Wszystkie sub-kroki |
+| `--skip-transcode` | 1/12: Transkodowanie |
+| `--skip-transcribe` | 2/12: Transkrypcja |
+| `--skip-text-analysis` | 3/12: Analiza tekstowa |
+| `--skip-scenes` | 4/12: Detekcja scen |
+| `--skip-frame-export` | 5/12: Eksport klatek |
+| `--skip-embeddings` | 6/12: Text embeddings |
+| `--skip-frame-processing` | 7/12: Wszystkie sub-kroki |
 | `--skip-image-hashing` | 7a: Image hashing |
 | `--skip-video-embeddings` | 7b: Video embeddings |
 | `--skip-character-detection` | 7c: Character detection |
 | `--skip-object-detection` | 7d: Object detection |
 | `--skip-object-visualization` | 7e: Object visualization |
-| `--skip-elastic-documents` | 8/11: Generowanie dokumentów |
-| `--skip-index` | 9/11: Indeksowanie |
-| `--skip-validation` | 10/11: Walidacja outputu |
+| `--skip-elastic-documents` | 8/12: Generowanie dokumentów |
+| `--skip-archives` | 9/12: Archiwizacja ZIP |
+| `--skip-index` | 10/12: Indeksowanie |
+| `--skip-validation` | 11/12: Walidacja outputu |
+
+**Uwaga:** Walidacja (krok 11/12) działa tylko dla sezonów, które mają pliki wideo w katalogu wejściowym (`input_data/videos`). Puste foldery sezonów są skipowane automatycznie. Nazwy folderów są normalizowane do formatu SXX (np. "Sezon 10" → "S10", "season 3" → "S03").
 
 **Premium modes:** `--parser-mode premium` (Gemini), `--transcription-mode premium` (ElevenLabs), `--search-mode premium` (Google Images)
 
@@ -93,6 +96,15 @@ docker-compose build
 ./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
 # Typy: segments, text_embeddings, video_embeddings, episode_names, text_statistics
 
+# Archiwizacja dokumentow Elasticsearch (ZIP per odcinek)
+./run-preprocessor.sh generate-archives --series-name ranczo
+# Generuje: output_data/archives/S01/E01/ranczo_S01E01_elastic_documents.zip
+# Zawiera: segments, text_embeddings, video_embeddings, episode_name, text_statistics
+# UWAGA: Domyslnie tworzy ZIP tylko gdy wszystkie 5 plikow jest gotowych!
+./run-preprocessor.sh generate-archives --season 1 --episode 1  # tylko jeden odcinek
+./run-preprocessor.sh generate-archives --force-regenerate  # nadpisz istniejace
+./run-preprocessor.sh generate-archives --allow-partial  # tworz ZIP nawet jesli brakuje plikow
+
 # Indeksowanie
 ./run-preprocessor.sh index --name series_name --elastic-documents-dir /app/output_data/elastic_documents
 
@@ -114,6 +126,29 @@ docker-compose build
 | InsightFace | ~1GB |
 | LLM scraping (Qwen 8-bit) | ~8GB |
 | **Peak łącznie** | **~12GB** |
+
+## Struktura output_data
+
+```
+output_data/
+├── transcoded_videos/     # MP4 h264_nvenc
+├── transcriptions/        # JSON segmented + text_stats.json
+├── scene_timestamps/      # JSON ze scenami
+├── exported_frames/       # JPG 1080p
+├── embeddings/            # embeddings_text.json, embeddings_video.json
+├── image_hashes/          # perceptual hashes klatek
+├── character_detections/  # detections.json (InsightFace)
+├── object_detections/     # detections.json (D-FINE) + visualizations/
+├── elastic_documents/     # JSONL dla każdego typu i odcinka
+│   ├── segments/
+│   ├── text_embeddings/
+│   ├── video_embeddings/
+│   ├── episode_names/
+│   └── text_statistics/
+├── archives/              # ZIP (wszystkie JSONL per odcinek)
+│   └── S01/E01/ranczo_S01E01_elastic_documents.zip
+└── validation_reports/    # JSON z raportami walidacji
+```
 
 ## Wolumeny Docker
 
@@ -140,7 +175,8 @@ docker-compose build
 
 **Wejście:** `.mp4`, `.avi`, `.mkv`, `.mov`, `.flv`, `.wmv`, `.webm`
 **Wyjście:** `.mp4` (h264_nvenc)
-**Nazewnictwo:** `S01E01` lub `s01e12` (case-insensitive)
+**Nazewnictwo plików:** `S01E01` lub `s01e12` (case-insensitive)
+**Nazewnictwo folderów:** `S01`, `S10` (lub `Sezon 1`, `Season 10` - automatycznie normalizowane)
 
 ## Instalacja
 

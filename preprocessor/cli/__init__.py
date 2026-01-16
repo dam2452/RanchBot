@@ -4,6 +4,7 @@ from preprocessor.cli.commands import (
     analyze_text,
     detect_scenes,
     export_frames,
+    generate_archives,
     generate_elastic_documents,
     generate_embeddings,
     image_hashing,
@@ -47,6 +48,8 @@ cli.add_command(image_hashing)
 cli.add_command(generate_embeddings)
 # noinspection PyTypeChecker
 cli.add_command(generate_elastic_documents)
+# noinspection PyTypeChecker
+cli.add_command(generate_archives)
 # noinspection PyTypeChecker
 cli.add_command(search)
 # noinspection PyTypeChecker

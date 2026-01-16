@@ -73,10 +73,10 @@ class ElasticSearchIndexer(BaseProcessor):
             return False
 
         return any([
-            any(self.elastic_documents_dir.glob("**/elastic_documents/segments/*.jsonl")),
-            any(self.elastic_documents_dir.glob("**/elastic_documents/text_embeddings/*.jsonl")),
-            any(self.elastic_documents_dir.glob("**/elastic_documents/video_embeddings/*.jsonl")),
-            any(self.elastic_documents_dir.glob("**/elastic_documents/episode_names/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/segments/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/text_embeddings/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/video_embeddings/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob("**/elastic_documents/episode_names/**/*.jsonl")),
         ])
 
     async def _exec_async(self) -> None:
@@ -161,7 +161,7 @@ class ElasticSearchIndexer(BaseProcessor):
             raise
 
     async def _index_documents(self, doc_type: str, index_name: str) -> None:
-        jsonl_files = list(self.elastic_documents_dir.glob(f"**/elastic_documents/{doc_type}/*.jsonl"))
+        jsonl_files = list(self.elastic_documents_dir.glob(f"**/elastic_documents/{doc_type}/**/*.jsonl"))
 
         if not jsonl_files:
             self.logger.info(f"No {doc_type} documents found. Skipping.")

@@ -97,6 +97,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
                 episode_info.season,
                 episode_info.relative_episode,
+                output_dir=self.embeddings_dir,
             )
             if episode_name_emb:
                 episode_name_file = self.episode_manager.build_episode_output_path(
@@ -189,7 +190,11 @@ class ElasticDocumentGenerator(BaseProcessor):
                     base_name,
                 )
 
-        episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(season, episode_number)
+        episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
+            season,
+            episode_number,
+            output_dir=self.embeddings_dir,
+        )
         if episode_name_emb and any("_episode_name.jsonl" in str(o.path) for o in missing_outputs):
             self.__generate_episode_name_document(
                 episode_name_emb,
