@@ -218,7 +218,7 @@ def run_scene_step(device, **kwargs):
 def run_frame_export_step(state_manager, **kwargs):
     from preprocessor.video.frame_exporter import FrameExporter  # pylint: disable=import-outside-toplevel
 
-    transcoded_videos = kwargs.get("transcoded_videos")
+    videos = kwargs.get("videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
@@ -226,7 +226,7 @@ def run_frame_export_step(state_manager, **kwargs):
 
     exporter = FrameExporter(
         {
-            "transcoded_videos": transcoded_videos,
+            "videos": videos,
             "scene_timestamps_dir": scene_timestamps_dir,
             "output_frames": output_frames,
             "frame_height": settings.frame_export.frame_height,
@@ -417,21 +417,39 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
 
 def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=unused-argument
     from preprocessor.config.config import BASE_OUTPUT_DIR  # pylint: disable=import-outside-toplevel
+    from preprocessor.validation.global_validator import GlobalValidator  # pylint: disable=import-outside-toplevel
     from preprocessor.validation.validator import Validator  # pylint: disable=import-outside-toplevel
 
-    transcriptions_path = BASE_OUTPUT_DIR / settings.output_subdirs.transcriptions
-    if not transcriptions_path.exists():
-        console.print("[yellow]No transcriptions directory found, skipping validation[/yellow]")
+    console.print("[bold cyan]Running global validation...[/bold cyan]")
+    global_validator = GlobalValidator(series_name=name, base_output_dir=BASE_OUTPUT_DIR)
+    global_result = global_validator.validate()
+
+    validation_reports_dir = BASE_OUTPUT_DIR / settings.output_subdirs.validation_reports
+    validation_reports_dir.mkdir(parents=True, exist_ok=True)
+
+    from preprocessor.utils.file_utils import atomic_write_json  # pylint: disable=import-outside-toplevel
+    global_report_path = validation_reports_dir / f"{name}_global.json"
+    atomic_write_json(global_report_path, global_result.to_dict())
+
+    if global_result.errors:
+        console.print(f"[red]Global validation errors: {len(global_result.errors)}[/red]")
+        for error in global_result.errors[:5]:
+            console.print(f"  - {error}")
+    if global_result.warnings:
+        console.print(f"[yellow]Global validation warnings: {len(global_result.warnings)}[/yellow]")
+
+    transcoded_videos_path = BASE_OUTPUT_DIR / settings.output_subdirs.video
+    if not transcoded_videos_path.exists():
+        console.print("[yellow]No transcoded_videos directory found, skipping episode validation[/yellow]")
         return 0
 
-    seasons = sorted([d for d in transcriptions_path.iterdir() if d.is_dir() and d.name.startswith("S")])
+    seasons = sorted([d for d in transcoded_videos_path.iterdir() if d.is_dir() and d.name.startswith("S")])
     if not seasons:
-        console.print("[yellow]No seasons found in transcriptions directory, skipping validation[/yellow]")
+        console.print("[yellow]No seasons found in transcoded_videos directory, skipping episode validation[/yellow]")
         return 0
 
     for season_dir in seasons:
         season = season_dir.name
-        console.print(f"[cyan]Validating season {season}...[/cyan]")
 
         validator = Validator(
             season=season,
@@ -441,14 +459,13 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
             episodes_info_json=episodes_info_json,
         )
 
-        report_path = BASE_OUTPUT_DIR / f"validation_{season}.json"
-        exit_code = validator.validate(report_path)
+        exit_code = validator.validate()
 
         if exit_code != 0:
             console.print(f"[red]Validation failed for season {season}[/red]")
             return exit_code
 
-    console.print("[green]All seasons validated successfully[/green]")
+    console.print("[green]All validations completed successfully[/green]")
     return 0
 
 

@@ -35,6 +35,7 @@ class OutputSubdirs:
     object_detections: str = "object_detections"
     object_visualizations: str = "object_detections/visualizations"
     elastic_documents: str = "elastic_documents"
+    validation_reports: str = "validation_reports"
 
 
 @dataclass

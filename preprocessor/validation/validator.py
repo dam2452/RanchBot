@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import (
     Dict,
@@ -9,9 +8,12 @@ from typing import (
 from rich.console import Console
 from rich.progress import track
 
-from preprocessor.config.config import BASE_OUTPUT_DIR
-from preprocessor.core.constants import OUTPUT_FILE_NAMES
+from preprocessor.config.config import (
+    BASE_OUTPUT_DIR,
+    settings,
+)
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.validation.episode_stats import EpisodeStats
 from preprocessor.validation.report_generator import ReportGenerator
 from preprocessor.validation.season_comparator import SeasonComparison
@@ -33,8 +35,9 @@ class Validator:
         self.anomaly_threshold = anomaly_threshold
         self.base_output_dir = base_output_dir
         self.episode_manager = EpisodeManager(episodes_info_json, series_name)
+        self.validation_reports_dir = base_output_dir / settings.output_subdirs.validation_reports
 
-    def validate(self, output_report_path: Path) -> int:
+    def validate(self) -> int:
         transcriptions_season_path = self.base_output_dir / "transcriptions" / self.season
         if not transcriptions_season_path.exists():
             console.print(f"[red]Season directory not found: {transcriptions_season_path}[/red]")
@@ -48,6 +51,8 @@ class Validator:
             console.print(f"[red]No episodes found in {transcriptions_season_path}[/red]")
             return 1
 
+        self.validation_reports_dir.mkdir(parents=True, exist_ok=True)
+
         self._generate_episode_reports(episodes_stats)
 
         season_comparison = SeasonComparison(
@@ -60,12 +65,12 @@ class Validator:
             season=self.season,
             anomaly_threshold=self.anomaly_threshold,
         )
-        report_generator.generate_report(episodes_stats, season_comparison, output_report_path)
+        season_report_path = self.validation_reports_dir / f"{self.series_name}_{self.season}_season.json"
+        report_generator.generate_report(episodes_stats, season_comparison, season_report_path)
 
         self._print_summary(episodes_stats, season_comparison)
 
-        console.print(f"\n[green]Season validation report saved to: {output_report_path}[/green]")
-        console.print("[green]Individual episode reports saved in each episode directory[/green]")
+        console.print(f"\n[green]Validation reports saved to: {self.validation_reports_dir}[/green]")
 
         return 0
 
@@ -104,10 +109,9 @@ class Validator:
                 "stats": stats.to_dict()["stats"],
             }
 
-            report_dir = EpisodeManager.get_episode_subdir(stats.episode_info, "transcriptions")
-            report_path = report_dir / OUTPUT_FILE_NAMES["validation_report"]
-            with open(report_path, "w", encoding="utf-8") as f:
-                json.dump(episode_report, f, indent=2, ensure_ascii=False)
+            episode_code = stats.episode_info.episode_code()
+            report_path = self.validation_reports_dir / f"{self.series_name}_{episode_code}.json"
+            atomic_write_json(report_path, episode_report)
 
     def _print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison):
         console.print(f"\n[bold]Validation Summary for {self.season}[/bold]")

@@ -14,12 +14,6 @@ from preprocessor.validation.validator import Validator
     help="Season to validate (e.g., S10)",
 )
 @click.option(
-    "--output-report",
-    type=click.Path(path_type=Path),
-    default="validation_report.json",
-    help="Output JSON report path",
-)
-@click.option(
     "--anomaly-threshold",
     type=float,
     default=20.0,
@@ -38,7 +32,6 @@ from preprocessor.validation.validator import Validator
 )
 def validate(
     season: str,
-    output_report: Path,
     anomaly_threshold: float,
     series_name: str,
     episodes_info_json: Path,
@@ -51,5 +44,5 @@ def validate(
         episodes_info_json=episodes_info_json,
     )
 
-    exit_code = validator.validate(output_report)
+    exit_code = validator.validate()
     sys.exit(exit_code)

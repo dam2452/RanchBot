@@ -30,8 +30,7 @@ class FrameExporter(BaseVideoProcessor):
             args=args,
             class_name=self.__class__.__name__,
             error_exit_code=10,
-            input_videos_key="transcoded_videos",
-            subdirectory_filter="transcoded_videos",
+            input_videos_key="videos",
         )
         decord.bridge.set_bridge('native')
 
@@ -53,8 +52,8 @@ class FrameExporter(BaseVideoProcessor):
         )
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
-        if "transcoded_videos" not in args:
-            raise ValueError("transcoded_videos path is required")
+        if "videos" not in args:
+            raise ValueError("videos path is required")
 
         if "scene_timestamps_dir" in args:
             scene_path = Path(args["scene_timestamps_dir"])

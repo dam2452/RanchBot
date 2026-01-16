@@ -82,7 +82,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         console.print("[green]✓ Model unloaded[/green]")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        all_transcription_files = list(self.transcription_jsons.glob("**/transcriptions/*.json"))
+        all_transcription_files = list(self.transcription_jsons.glob("**/*.json"))
         items = []
 
         for trans_file in all_transcription_files:

@@ -18,6 +18,7 @@ from preprocessor.core.episode_manager import (
     EpisodeInfo,
     EpisodeManager,
 )
+from preprocessor.validation.base_result import ValidationStatusMixin
 from preprocessor.validation.file_validators import (
     validate_image_file,
     validate_json_file,
@@ -27,7 +28,7 @@ from preprocessor.validation.file_validators import (
 
 
 @dataclass
-class EpisodeStats:  # pylint: disable=too-many-instance-attributes
+class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-attributes
     episode_info: EpisodeInfo
     series_name: str
     errors: List[str] = field(default_factory=list)
@@ -49,11 +50,18 @@ class EpisodeStats:  # pylint: disable=too-many-instance-attributes
     scenes_count: Optional[int] = None
     scenes_avg_duration: Optional[float] = None
 
+    image_hashes_count: Optional[int] = None
+    object_detections_count: Optional[int] = None
+    object_visualizations_count: Optional[int] = None
+
     def collect_stats(self):
         self._validate_transcription()
         self._validate_exported_frames()
         self._validate_video()
         self._validate_scenes()
+        self._validate_image_hashes()
+        self._validate_object_detections()
+        self._validate_object_visualizations()
         self._validate_other_files()
 
     def _validate_transcription(self):
@@ -159,6 +167,89 @@ class EpisodeStats:  # pylint: disable=too-many-instance-attributes
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading scenes: {e}")
 
+    def _validate_image_hashes(self):
+        hashes_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.image_hashes)
+        if not hashes_dir.exists():
+            self.warnings.append(f"Missing {settings.output_subdirs.image_hashes} directory")
+            return
+
+        json_files = list(hashes_dir.glob("*.json"))
+        if not json_files:
+            self.warnings.append(f"No JSON files in {settings.output_subdirs.image_hashes}/")
+            return
+
+        self.image_hashes_count = len(json_files)
+        sizes = []
+
+        for json_file in json_files:
+            result = validate_json_file(json_file)
+            if not result.is_valid:
+                self.errors.append(f"Invalid image hash JSON {json_file.name}: {result.error_message}")
+            else:
+                sizes.append(json_file.stat().st_size)
+
+        self._check_size_anomalies(sizes, "image_hashes")
+
+    def _validate_object_detections(self):
+        detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_detections)
+        if not detections_dir.exists():
+            self.warnings.append(f"Missing {settings.output_subdirs.object_detections} directory")
+            return
+
+        json_files = [f for f in detections_dir.glob("*.json") if "visualizations" not in str(f)]
+        if not json_files:
+            self.warnings.append(f"No JSON files in {settings.output_subdirs.object_detections}/")
+            return
+
+        self.object_detections_count = len(json_files)
+        sizes = []
+
+        for json_file in json_files:
+            result = validate_json_file(json_file)
+            if not result.is_valid:
+                self.errors.append(f"Invalid object detection JSON {json_file.name}: {result.error_message}")
+            else:
+                sizes.append(json_file.stat().st_size)
+
+        self._check_size_anomalies(sizes, "object_detections")
+
+    def _validate_object_visualizations(self):
+        viz_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_visualizations)
+        if not viz_dir.exists():
+            return
+
+        image_files = list(viz_dir.glob("*.jpg")) + list(viz_dir.glob("*.png"))
+        if not image_files:
+            self.warnings.append(f"No visualization images in {settings.output_subdirs.object_visualizations}/")
+            return
+
+        self.object_visualizations_count = len(image_files)
+        invalid_count = 0
+
+        for img_file in image_files:
+            result = validate_image_file(img_file)
+            if not result.is_valid:
+                invalid_count += 1
+                self.errors.append(f"Invalid visualization {img_file.name}: {result.error_message}")
+
+        if invalid_count > 0:
+            self.warnings.append(f"{invalid_count} invalid visualization images found")
+
+    def _check_size_anomalies(self, sizes: List[int], folder_name: str, threshold: float = 0.2):
+        if len(sizes) < 2:
+            return
+
+        avg_size = sum(sizes) / len(sizes)
+        if avg_size == 0:
+            return
+
+        for i, size in enumerate(sizes):
+            deviation = abs(size - avg_size) / avg_size
+            if deviation > threshold:
+                self.warnings.append(
+                    f"{folder_name} file #{i+1} size deviation: {deviation*100:.1f}% from average",
+                )
+
     def _validate_other_files(self):
         char_detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_detections)
         detections_file = char_detections_dir / OUTPUT_FILE_NAMES["detections"]
@@ -202,14 +293,6 @@ class EpisodeStats:  # pylint: disable=too-many-instance-attributes
             else:
                 self.warnings.append(f"Missing text statistics file: {text_stats_file.name}")
 
-    @property
-    def status(self) -> str:
-        if self.errors:
-            return "FAIL"
-        if self.warnings:
-            return "WARNING"
-        return "PASS"
-
     def to_dict(self) -> Dict:
         return {
             "status": self.status,
@@ -228,5 +311,8 @@ class EpisodeStats:  # pylint: disable=too-many-instance-attributes
                 "video_resolution": self.video_resolution,
                 "scenes_count": self.scenes_count,
                 "scenes_avg_duration": self.scenes_avg_duration,
+                "image_hashes_count": self.image_hashes_count,
+                "object_detections_count": self.object_detections_count,
+                "object_visualizations_count": self.object_visualizations_count,
             },
         }
