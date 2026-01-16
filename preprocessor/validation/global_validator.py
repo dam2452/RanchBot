@@ -86,7 +86,7 @@ class GlobalValidator:
                 if not result.is_valid:
                     invalid_images += 1
                     self.result.errors.append(
-                        f"Invalid character image {char_folder.name}/{img_file.name}: {result.error_message}"
+                        f"Invalid character image {char_folder.name}/{img_file.name}: {result.error_message}",
                     )
 
         self.result.stats["character_images_count"] = total_images
@@ -94,7 +94,7 @@ class GlobalValidator:
 
         if characters_without_images:
             self.result.warnings.append(
-                f"{len(characters_without_images)} characters without reference images"
+                f"{len(characters_without_images)} characters without reference images",
             )
 
     def _validate_processing_metadata(self):
@@ -114,5 +114,5 @@ class GlobalValidator:
             result = validate_json_file(json_file)
             if not result.is_valid:
                 self.result.errors.append(
-                    f"Invalid processing metadata {json_file.name}: {result.error_message}"
+                    f"Invalid processing metadata {json_file.name}: {result.error_message}",
                 )
