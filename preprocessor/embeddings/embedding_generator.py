@@ -249,7 +249,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             return []
 
         embeddings = []
-        text_batch_size = 16
+        text_batch_size = settings.embedding.text_batch_size
 
         with self.progress.track_operation(
             f"Text embeddings ({len(text_chunks)} chunks)",

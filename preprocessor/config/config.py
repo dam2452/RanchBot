@@ -65,12 +65,13 @@ class EmbeddingModelSettings:
     image_placeholder: str = "<|vision_start|><|image_pad|><|vision_end|>"
     enable_chunked_prefill: bool = True
     max_num_batched_tokens: int = 8192
-    enforce_eager: bool = True
+    enforce_eager: bool = False
 
 @dataclass
 class EmbeddingSettings:
     default_output_dir: Path = BASE_OUTPUT_DIR / "embeddings"
     batch_size: int = 32
+    text_batch_size: int = 64
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
 

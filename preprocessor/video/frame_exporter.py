@@ -116,7 +116,7 @@ class FrameExporter(BaseVideoProcessor):
         return data
 
     def __extract_frames(self, video_file: Path, frame_requests: List[Dict[str, Any]], episode_dir: Path) -> None:
-        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+        vr = decord.VideoReader(str(video_file), ctx=decord.gpu(0))
         frame_numbers = [req["frame_number"] for req in frame_requests]
 
         with self.progress.track_operation(f"Keyframes ({len(frame_numbers)} frames)", len(frame_numbers)) as tracker:

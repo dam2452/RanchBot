@@ -366,9 +366,13 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             "frames": [],
         }
 
-        for frame_path in frame_files:
-            image = Image.open(frame_path)
-            inputs = self.image_processor(images=image, return_tensors="pt")
+        batch_size = 8
+        for batch_start in range(0, len(frame_files), batch_size):
+            batch_paths = frame_files[batch_start:batch_start + batch_size]
+            batch_images = [Image.open(fp) for fp in batch_paths]
+            target_sizes = [(img.height, img.width) for img in batch_images]
+
+            inputs = self.image_processor(images=batch_images, return_tensors="pt")
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
 
             with torch.no_grad():
@@ -376,16 +380,16 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
             results = self.image_processor.post_process_object_detection(
                 outputs,
-                target_sizes=[(image.height, image.width)],
+                target_sizes=target_sizes,
                 threshold=self.conf_threshold,
             )
 
-            frame_result = {
-                "frame_name": frame_path.name,
-                "detections": [],
-            }
+            for frame_path, result in zip(batch_paths, results):
+                frame_result = {
+                    "frame_name": frame_path.name,
+                    "detections": [],
+                }
 
-            for result in results:
                 for score, label_id, box in zip(result["scores"], result["labels"], result["boxes"]):
                     score_value = score.item()
                     label = label_id.item()
@@ -404,8 +408,11 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
                     }
                     frame_result["detections"].append(detection)
 
-            frame_result["detection_count"] = len(frame_result["detections"])
-            detections_data["frames"].append(frame_result)
+                frame_result["detection_count"] = len(frame_result["detections"])
+                detections_data["frames"].append(frame_result)
+
+            for img in batch_images:
+                img.close()
 
         total_detections = sum(f['detection_count'] for f in detections_data['frames'])
         frames_with_detections = len([f for f in detections_data['frames'] if f['detection_count'] > 0])
