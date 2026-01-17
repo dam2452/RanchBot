@@ -190,7 +190,12 @@ class ElasticSearchIndexer(BaseProcessor):
                 self.logger.info(f"Sample document:\n{sample}...")
         else:
             try:
-                await async_bulk(self.client, actions, chunk_size=500)
+                await async_bulk(
+                    self.client,
+                    actions,
+                    chunk_size=50,
+                    max_chunk_bytes=5 * 1024 * 1024,
+                )
                 console.print(f"[green]✓ Indexed {len(actions)} {doc_type} documents → {index_name}[/green]")
             except BulkIndexError as e:
                 self.logger.error(f"Bulk indexing failed: {len(e.errors)} errors.")
