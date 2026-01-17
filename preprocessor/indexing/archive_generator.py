@@ -7,6 +7,7 @@ from typing import (
 )
 import zipfile
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
@@ -15,14 +16,16 @@ from preprocessor.core.base_processor import (
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
 
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
+
 
 class ArchiveGenerator(BaseProcessor):
-    DOCUMENT_TYPES = {
-        "segments": "segments",
-        "text_embeddings": "text_embeddings",
-        "video_embeddings": "video_embeddings",
-        "episode_names": "episode_name",
-        "text_statistics": "text_statistics",
+    FOLDER_TO_FILE_SUFFIX = {
+        ELASTIC_SUBDIRS.segments: "segments",
+        ELASTIC_SUBDIRS.text_embeddings: "text_embeddings",
+        ELASTIC_SUBDIRS.video_embeddings: "video_embeddings",
+        ELASTIC_SUBDIRS.episode_names: "episode_name",
+        ELASTIC_SUBDIRS.text_statistics: "text_statistics",
     }
 
     def __init__(self, args: Dict[str, Any]):
@@ -45,7 +48,7 @@ class ArchiveGenerator(BaseProcessor):
             raise ValueError("elastic_documents_dir is required")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        segments_dir = self.elastic_documents_dir / "segments"
+        segments_dir = self.elastic_documents_dir / ELASTIC_SUBDIRS.segments
         if not segments_dir.exists():
             console.print(f"[yellow]Segments directory not found: {segments_dir}[/yellow]")
             return []
@@ -99,7 +102,7 @@ class ArchiveGenerator(BaseProcessor):
             self.logger.warning(f"No files found for {item.episode_id}")
             return
 
-        expected_count = len(self.DOCUMENT_TYPES)
+        expected_count = len(self.FOLDER_TO_FILE_SUFFIX)
         found_count = len(episode_files)
 
         if found_count < expected_count and not self.allow_partial:
@@ -117,7 +120,7 @@ class ArchiveGenerator(BaseProcessor):
     def _collect_episode_files(self, episode_info, base_name: str) -> Dict[str, Path]:
         collected_files = {}
 
-        for folder_name, file_suffix in self.DOCUMENT_TYPES.items():
+        for folder_name, file_suffix in self.FOLDER_TO_FILE_SUFFIX.items():
             file_name = f"{base_name}_{file_suffix}.jsonl"
             file_path = (
                 self.elastic_documents_dir

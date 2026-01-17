@@ -18,6 +18,8 @@ from preprocessor.core.processing_metadata import ProcessingMetadata
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
 
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
+
 
 @dataclass
 class PipelineStep:
@@ -143,13 +145,13 @@ class PipelineOrchestrator:
 
             elastic_docs_dir = get_output_path("elastic_documents")
             if elastic_docs_dir.exists():
-                segment_files = list((elastic_docs_dir / "segments").rglob("*.jsonl"))
-                text_emb_files = list((elastic_docs_dir / "text_embeddings").rglob("*.jsonl"))
-                video_emb_files = list((elastic_docs_dir / "video_embeddings").rglob("*.jsonl"))
+                segment_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.segments).rglob("*.jsonl"))
+                text_emb_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.text_embeddings).rglob("*.jsonl"))
+                video_emb_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.video_embeddings).rglob("*.jsonl"))
                 stats["elastic_documents"] = {
-                    "segments": len(segment_files),
-                    "text_embeddings": len(text_emb_files),
-                    "video_embeddings": len(video_emb_files),
+                    ELASTIC_SUBDIRS.segments: len(segment_files),
+                    ELASTIC_SUBDIRS.text_embeddings: len(text_emb_files),
+                    ELASTIC_SUBDIRS.video_embeddings: len(video_emb_files),
                 }
 
         except Exception: # pylint: disable=broad-exception-caught

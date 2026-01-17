@@ -22,6 +22,8 @@ from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.search.elastic_manager import ElasticSearchManager
 from preprocessor.utils.console import console
 
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
+
 
 class ElasticSearchIndexer(BaseProcessor):
     def __init__(self, args: Dict[str, Any]) -> None:
@@ -73,10 +75,10 @@ class ElasticSearchIndexer(BaseProcessor):
             return False
 
         return any([
-            any(self.elastic_documents_dir.glob("**/elastic_documents/segments/**/*.jsonl")),
-            any(self.elastic_documents_dir.glob("**/elastic_documents/text_embeddings/**/*.jsonl")),
-            any(self.elastic_documents_dir.glob("**/elastic_documents/video_embeddings/**/*.jsonl")),
-            any(self.elastic_documents_dir.glob("**/elastic_documents/episode_names/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.segments}/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.text_embeddings}/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.video_embeddings}/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.episode_names}/**/*.jsonl")),
         ])
 
     async def _exec_async(self) -> None:
@@ -84,19 +86,25 @@ class ElasticSearchIndexer(BaseProcessor):
             self.logger.info("No elastic documents found to index.")
             return
 
-        self.client = await ElasticSearchManager.connect_to_elasticsearch(
-            settings.elasticsearch.host,
-            settings.elasticsearch.user,
-            settings.elasticsearch.password,
-            self.logger,
-        )
+        try:
+            self.client = await ElasticSearchManager.connect_to_elasticsearch(
+                settings.elasticsearch.host,
+                settings.elasticsearch.user,
+                settings.elasticsearch.password,
+                self.logger,
+            )
+        except es_exceptions.ConnectionError:
+            console.print("[red]✗ Failed to connect to Elasticsearch[/red]")
+            console.print(f"[yellow]Make sure Elasticsearch is running at: {settings.elasticsearch.host}[/yellow]")
+            console.print("[yellow]Run: docker-compose -f docker-compose.test.yml up -d[/yellow]")
+            return
 
         try:
             indices = {
-                "segments": f"{self.name}_segments",
-                "text_embeddings": f"{self.name}_text_embeddings",
-                "video_embeddings": f"{self.name}_video_embeddings",
-                "episode_names": f"{self.name}_episode_names",
+                ELASTIC_SUBDIRS.segments: f"{self.name}_segments",
+                ELASTIC_SUBDIRS.text_embeddings: f"{self.name}_text_embeddings",
+                ELASTIC_SUBDIRS.video_embeddings: f"{self.name}_video_embeddings",
+                ELASTIC_SUBDIRS.episode_names: f"{self.name}_episode_names",
             }
 
             for doc_type, index_name in indices.items():
@@ -122,10 +130,10 @@ class ElasticSearchIndexer(BaseProcessor):
 
     async def _create_index(self, index_name: str, doc_type: str) -> None:
         mappings = {
-            "segments": ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
-            "text_embeddings": ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
-            "video_embeddings": ElasticSearchManager.VIDEO_EMBEDDINGS_INDEX_MAPPING,
-            "episode_names": ElasticSearchManager.EPISODE_NAMES_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.segments: ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.text_embeddings: ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.video_embeddings: ElasticSearchManager.VIDEO_EMBEDDINGS_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.episode_names: ElasticSearchManager.EPISODE_NAMES_INDEX_MAPPING,
         }
 
         async def operation():
@@ -161,7 +169,7 @@ class ElasticSearchIndexer(BaseProcessor):
             raise
 
     async def _index_documents(self, doc_type: str, index_name: str) -> None:
-        jsonl_files = list(self.elastic_documents_dir.glob(f"**/elastic_documents/{doc_type}/**/*.jsonl"))
+        jsonl_files = list(self.elastic_documents_dir.glob(f"{doc_type}/**/*.jsonl"))
 
         if not jsonl_files:
             self.logger.info(f"No {doc_type} documents found. Skipping.")

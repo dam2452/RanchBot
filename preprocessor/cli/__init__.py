@@ -4,6 +4,7 @@ from preprocessor.cli.commands import (
     analyze_text,
     detect_scenes,
     export_frames,
+    fix_unicode,
     generate_archives,
     generate_elastic_documents,
     generate_embeddings,
@@ -58,6 +59,8 @@ cli.add_command(run_all)
 cli.add_command(validate)
 # noinspection PyTypeChecker
 cli.add_command(analyze_text)
+# noinspection PyTypeChecker
+cli.add_command(fix_unicode)
 
 
 __all__ = ["cli"]

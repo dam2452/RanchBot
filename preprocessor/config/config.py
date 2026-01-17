@@ -24,6 +24,14 @@ def get_output_path(relative_path: str) -> Path:
 
 
 @dataclass
+class ElasticDocumentSubdirs:
+    segments: str = "segments"
+    text_embeddings: str = "text_embeddings"
+    video_embeddings: str = "video_embeddings"
+    episode_names: str = "episode_names"
+    text_statistics: str = "text_statistics"
+
+@dataclass
 class OutputSubdirs:
     video: str = "transcoded_videos"
     transcriptions: str = "transcriptions"
@@ -37,6 +45,7 @@ class OutputSubdirs:
     elastic_documents: str = "elastic_documents"
     archives: str = "archives"
     validation_reports: str = "validation_reports"
+    elastic_document_subdirs: ElasticDocumentSubdirs = field(default_factory=ElasticDocumentSubdirs)
 
 
 @dataclass
@@ -60,6 +69,7 @@ class TextChunkingSettings:
 class EmbeddingModelSettings:
     model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
     model_revision: str = "main"
+    embedding_dim: int = 4096
     gpu_memory_utilization: float = 0.85
     tensor_parallel_size: int = 1
     max_model_len: int = 8192

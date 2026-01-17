@@ -17,6 +17,7 @@ from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcription.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcription.processors.normalized_audio_processor import NormalizedAudioProcessor
+from preprocessor.transcription.processors.unicode_fixer import TranscriptionUnicodeFixer
 
 
 class TranscriptionGenerator(BaseProcessor):
@@ -37,6 +38,7 @@ class TranscriptionGenerator(BaseProcessor):
         self.audio_normalizer = None
         self.audio_processor = None
         self.multi_format_generator = None
+        self.unicode_fixer = None
         self.final_output_dir = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
@@ -102,8 +104,11 @@ class TranscriptionGenerator(BaseProcessor):
             self.logger.info("Cleaning up Whisper model...")
             self.audio_processor.cleanup()
 
-            self.logger.info("Step 3/3: Generating multi-format output...")
+            self.logger.info("Step 3/4: Generating multi-format output...")
             self.multi_format_generator()
+
+            self.logger.info("Step 4/4: Fixing unicode escapes in transcriptions...")
+            self.unicode_fixer()
 
         except (RuntimeError, OSError, ValueError) as e:
             self.logger.error(f"Error generating transcriptions: {e}")
@@ -203,3 +208,9 @@ class TranscriptionGenerator(BaseProcessor):
             logger=self.logger,
             series_name=args["name"],
         )
+
+        self.unicode_fixer: TranscriptionUnicodeFixer = TranscriptionUnicodeFixer({
+            "transcription_jsons": self.final_output_dir,
+            "episodes_info_json": self.episodes_info_json,
+            "name": args["name"],
+        })

@@ -18,6 +18,8 @@ from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.utils.console import console
 
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
+
 
 class ElasticDocumentGenerator(BaseProcessor):
     def __init__(self, args: Dict[str, Any]):
@@ -60,7 +62,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         if episode_info:
             segments_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                f"{settings.output_subdirs.elastic_documents}/segments",
+                f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.segments}",
                 f"{base_name}_segments.jsonl",
             )
             outputs.append(OutputSpec(path=segments_file, required=True))
@@ -68,7 +70,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             season_dir = item.input_path.parent.name
             outputs.append(
                 OutputSpec(
-                    path=self.output_dir / "segments" / season_dir / f"{base_name}_segments.jsonl",
+                    path=self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}_segments.jsonl",
                     required=True,
                 ),
             )
@@ -81,7 +83,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             if text_emb_file.exists():
                 text_embeddings_file = self.episode_manager.build_episode_output_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/text_embeddings",
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_embeddings}",
                     f"{base_name}_text_embeddings.jsonl",
                 )
                 outputs.append(OutputSpec(path=text_embeddings_file, required=True))
@@ -89,7 +91,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             if video_emb_file.exists():
                 video_embeddings_file = self.episode_manager.build_episode_output_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/video_embeddings",
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_embeddings}",
                     f"{base_name}_video_embeddings.jsonl",
                 )
                 outputs.append(OutputSpec(path=video_embeddings_file, required=True))
@@ -102,7 +104,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             if episode_name_emb:
                 episode_name_file = self.episode_manager.build_episode_output_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/episode_names",
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.episode_names}",
                     f"{base_name}_episode_name.jsonl",
                 )
                 outputs.append(OutputSpec(path=episode_name_file, required=True))
@@ -112,7 +114,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             if text_stats_file.exists():
                 text_stats_elastic_file = self.episode_manager.build_episode_output_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/text_statistics",
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_statistics}",
                     f"{base_name}_text_statistics.jsonl",
                 )
                 outputs.append(OutputSpec(path=text_stats_elastic_file, required=True))
@@ -339,11 +341,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         if episode_info:
             output_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                f"{settings.output_subdirs.elastic_documents}/segments",
+                f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.segments}",
                 f"{base_name}_segments.jsonl",
             )
         else:
-            output_file = self.output_dir / "segments" / season_dir / f"{base_name}_segments.jsonl"
+            output_file = self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}_segments.jsonl"
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -398,7 +400,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            f"{settings.output_subdirs.elastic_documents}/text_embeddings",
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_embeddings}",
             f"{base_name}_text_embeddings.jsonl",
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -447,7 +449,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            f"{settings.output_subdirs.elastic_documents}/video_embeddings",
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_embeddings}",
             f"{base_name}_video_embeddings.jsonl",
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -514,7 +516,7 @@ class ElasticDocumentGenerator(BaseProcessor):
     ) -> None:
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            f"{settings.output_subdirs.elastic_documents}/episode_names",
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.episode_names}",
             f"{base_name}_episode_name.jsonl",
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -556,7 +558,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            f"{settings.output_subdirs.elastic_documents}/text_statistics",
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_statistics}",
             f"{base_name}_text_statistics.jsonl",
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)

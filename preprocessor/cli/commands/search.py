@@ -505,8 +505,10 @@ def search(
 
         try:
             await es_client.ping()
-        except ConnectionError as e:
-            click.echo(f"Blad polaczenia z Elasticsearch: {e}", err=True)
+        except Exception:  # pylint: disable=broad-exception-caught
+            click.echo(f"✗ Cannot connect to Elasticsearch at {host}", err=True)
+            click.echo("Make sure Elasticsearch is running:", err=True)
+            click.echo("  docker-compose -f docker-compose.test.yml up -d", err=True)
             sys.exit(1)
 
         try:

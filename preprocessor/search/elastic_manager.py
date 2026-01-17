@@ -6,6 +6,8 @@ from elasticsearch import (
 )
 import urllib3
 
+from preprocessor.config.config import settings
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # pylint: disable=duplicate-code
@@ -161,7 +163,7 @@ class ElasticSearchManager:
                 "text": {"type": "text"},
                 "text_embedding": {
                     "type": "dense_vector",
-                    "dims": 2048,
+                    "dims": settings.embedding_model.embedding_dim,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -189,7 +191,7 @@ class ElasticSearchManager:
                 "scene_number": {"type": "integer"},
                 "video_embedding": {
                     "type": "dense_vector",
-                    "dims": 2048,
+                    "dims": settings.embedding_model.embedding_dim,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -239,7 +241,7 @@ class ElasticSearchManager:
                 },
                 "title_embedding": {
                     "type": "dense_vector",
-                    "dims": 2048,
+                    "dims": settings.embedding_model.embedding_dim,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -266,10 +268,14 @@ class ElasticSearchManager:
         es = AsyncElasticsearch(**es_config)
         try:
             if not await es.ping():
-                raise es_exceptions.ConnectionError("Failed to connect to Elasticsearch.")
-            logger.info("Connected to Elasticsearch.")
+                raise es_exceptions.ConnectionError("Failed to connect to Elasticsearch")
+            logger.info(f"Connected to Elasticsearch at {es_host}")
             return es
-        except es_exceptions.ConnectionError as e:
-            logger.info(f"Connection error: {str(e)}")
-            raise
+        except (es_exceptions.ConnectionError, Exception) as e:
+            error_msg = f"Cannot connect to Elasticsearch at {es_host}"
+            if "Connection refused" in str(e) or "Failed to establish" in str(e):
+                logger.error(f"{error_msg} - is Elasticsearch running?")
+            else:
+                logger.error(f"{error_msg}: {str(e)}")
+            raise es_exceptions.ConnectionError(error_msg) from e
 # pylint: enable=duplicate-code

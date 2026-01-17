@@ -26,6 +26,8 @@ from preprocessor.validation.file_validators import (
     validate_video_file,
 )
 
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
+
 
 @dataclass
 class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-attributes
@@ -235,6 +237,38 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if invalid_count > 0:
             self.warnings.append(f"{invalid_count} invalid visualization images found")
 
+    def _validate_embedding_dimensions(self, jsonl_file, subdir: str):
+        embedding_fields = {
+            ELASTIC_SUBDIRS.text_embeddings: "text_embedding",
+            ELASTIC_SUBDIRS.video_embeddings: "video_embedding",
+            ELASTIC_SUBDIRS.episode_names: "title_embedding",
+        }
+
+        if subdir not in embedding_fields:
+            return
+
+        embedding_field = embedding_fields[subdir]
+        expected_dim = settings.embedding_model.embedding_dim
+
+        try:
+            with open(jsonl_file, "r", encoding="utf-8") as f:
+                for line_num, line in enumerate(f, 1):
+                    if not line.strip():
+                        continue
+                    doc = json.loads(line)
+                    if embedding_field in doc:
+                        embedding = doc[embedding_field]
+                        if isinstance(embedding, list):
+                            actual_dim = len(embedding)
+                            if actual_dim != expected_dim:
+                                self.errors.append(
+                                    f"{jsonl_file.name} line {line_num}: "
+                                    f"{embedding_field} has {actual_dim} dimensions, expected {expected_dim}",
+                                )
+                                return
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.errors.append(f"Error validating embeddings in {jsonl_file.name}: {e}")
+
     def _check_size_anomalies(self, sizes: List[int], folder_name: str, threshold: float = 0.2):
         if len(sizes) < 2:
             return
@@ -266,7 +300,13 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                 if not result.is_valid:
                     self.errors.append(f"Invalid {OUTPUT_FILE_NAMES['embeddings_text']}: {result.error_message}")
 
-        elastic_subdirs = ["segments", "text_embeddings", "video_embeddings", "episode_names", "text_statistics"]
+        elastic_subdirs = [
+            ELASTIC_SUBDIRS.segments,
+            ELASTIC_SUBDIRS.text_embeddings,
+            ELASTIC_SUBDIRS.video_embeddings,
+            ELASTIC_SUBDIRS.episode_names,
+            ELASTIC_SUBDIRS.text_statistics,
+        ]
         found_elastic_docs = False
         for subdir in elastic_subdirs:
             elastic_docs_dir = EpisodeManager.get_episode_subdir(
@@ -279,6 +319,8 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                     result = validate_jsonl_file(jsonl_file)
                     if not result.is_valid:
                         self.errors.append(f"Invalid JSONL {jsonl_file.name}: {result.error_message}")
+                    else:
+                        self._validate_embedding_dimensions(jsonl_file, subdir)
 
         if not found_elastic_docs:
             self.warnings.append(f"Missing {settings.output_subdirs.elastic_documents} directory")

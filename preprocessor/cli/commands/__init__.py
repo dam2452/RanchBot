@@ -1,6 +1,7 @@
 from preprocessor.cli.commands.analyze_text import analyze_text
 from preprocessor.cli.commands.detect_scenes import detect_scenes
 from preprocessor.cli.commands.export_frames import export_frames
+from preprocessor.cli.commands.fix_unicode import fix_unicode
 from preprocessor.cli.commands.generate_archives import generate_archives
 from preprocessor.cli.commands.generate_elastic_documents import generate_elastic_documents
 from preprocessor.cli.commands.generate_embeddings import generate_embeddings
@@ -19,6 +20,7 @@ __all__ = [
     "analyze_text",
     "detect_scenes",
     "export_frames",
+    "fix_unicode",
     "generate_archives",
     "generate_elastic_documents",
     "generate_embeddings",
