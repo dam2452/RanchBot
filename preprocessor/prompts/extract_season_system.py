@@ -6,7 +6,7 @@ For each episode extract:
 - episode_in_season: The episode number within its season (1, 2, 3... resets each season)
 - overall_episode_number: The absolute episode number across all seasons (continues counting)
 - title: string (clean title without markdown formatting)
-- premiere_date: string (date format as found on page)
+- premiere_date: string (date format as found on page; if multiple dates separated by "/" like "31.12.2008 / 1.03.2009", extract ONLY the FIRST date: "31.12.2008")
 - viewership: string (remove spaces from numbers like "4 396 564" -> "4396564", use null if not available)
 
 The season number should be determined from the page content or URL.

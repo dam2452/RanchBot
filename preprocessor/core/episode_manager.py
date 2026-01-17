@@ -44,16 +44,6 @@ class EpisodeManager:
             with open(episodes_info_json, "r", encoding="utf-8") as f:
                 self.episodes_data = json.load(f)
 
-    @staticmethod
-    def _normalize_premiere_date(premiere_date: Optional[str]) -> Optional[str]:
-        if not premiere_date:
-            return premiere_date
-
-        if "/" in premiere_date:
-            return premiere_date.split("/")[0].strip()
-
-        return premiere_date
-
     def parse_filename(self, file_path: Path) -> Optional[EpisodeInfo]:
         full_path_str = str(file_path)
 
@@ -90,7 +80,7 @@ class EpisodeManager:
                         season=season,
                         relative_episode=relative_episode,
                         title=ep_data.get("title", f"S{season:02d}E{relative_episode:02d}"),
-                        premiere_date=self._normalize_premiere_date(ep_data.get("premiere_date")),
+                        premiere_date=ep_data.get("premiere_date"),
                         viewership=ep_data.get("viewership"),
                     )
 
@@ -234,7 +224,7 @@ class EpisodeManager:
                         season=season_num,
                         relative_episode=idx + 1,
                         title=ep_data.get("title", f"S{season_num:02d}E{idx + 1:02d}"),
-                        premiere_date=self._normalize_premiere_date(ep_data.get("premiere_date")),
+                        premiere_date=ep_data.get("premiere_date"),
                         viewership=ep_data.get("viewership"),
                     ),
                 )

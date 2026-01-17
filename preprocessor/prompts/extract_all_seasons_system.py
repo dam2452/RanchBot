@@ -9,9 +9,10 @@ Nr | Tytuł | Premiera | Oglądalność
 CRITICAL RULES:
 1. Extract EXACT titles from the table - do NOT make up generic titles like "Odcinek 1"
 2. Extract EXACT premiere dates as shown - do NOT invent dates
-3. Extract EXACT viewership numbers - remove spaces: "4 396 564" -> 4396564
-4. If episode number is in format like "E12" or "S01E12", extract just the number: 12
-5. Do NOT hallucinate or make up any data - only extract what you see
+3. If premiere date contains multiple dates separated by "/" (e.g., "31.12.2008 / 1.03.2009"), extract ONLY the FIRST date: "31.12.2008"
+4. Extract EXACT viewership numbers - remove spaces: "4 396 564" -> 4396564
+5. If episode number is in format like "E12" or "S01E12", extract just the number: 12
+6. Do NOT hallucinate or make up any data - only extract what you see
 
 IMPORTANT: Each episode must have TWO numbers:
 - episode_in_season: The episode number within its season (resets to 1 for each season)
