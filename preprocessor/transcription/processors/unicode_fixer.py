@@ -1,8 +1,16 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import (
+    Any,
+    Dict,
+    List,
+)
 
 from preprocessor.config.config import settings
-from preprocessor.core.base_processor import BaseProcessor, OutputSpec, ProcessingItem
+from preprocessor.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.transcription_utils import fix_transcription_file_unicode
 
