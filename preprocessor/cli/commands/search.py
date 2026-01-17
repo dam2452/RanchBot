@@ -14,6 +14,7 @@ from transformers import (
     Qwen2VLForConditionalGeneration,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.hashing.image_hasher import PerceptualHasher
 
 _model = None
@@ -31,7 +32,7 @@ def load_model():
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required but not available. This pipeline requires GPU.")
 
-    model_name = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
+    model_name = settings.embedding_model.model_name
     _device = "cuda"
 
     _model = Qwen2VLForConditionalGeneration.from_pretrained(
