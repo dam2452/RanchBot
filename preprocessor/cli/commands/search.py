@@ -10,8 +10,8 @@ from elasticsearch import AsyncElasticsearch
 from qwen_vl_utils import process_vision_info
 import torch
 from transformers import (
+    AutoModelForVision2Seq,
     AutoProcessor,
-    Qwen2VLForConditionalGeneration,
 )
 
 from preprocessor.config.config import settings
@@ -35,7 +35,7 @@ def load_model():
     model_name = settings.embedding_model.model_name
     _device = "cuda"
 
-    _model = Qwen2VLForConditionalGeneration.from_pretrained(
+    _model = AutoModelForVision2Seq.from_pretrained(
         model_name,
         dtype=torch.bfloat16,
         device_map="auto",
