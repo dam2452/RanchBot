@@ -36,6 +36,10 @@ def get_message_sent_log_message(username: str) -> str:
     return f"Admin help message sent to user '{username}'."
 
 
+def get_shortcuts_sent_log_message(username: str) -> str:
+    return f"Admin shortcuts message sent to user '{username}'."
+
+
 def get_admin_shortcuts_message() -> str:
     return """```🛠\u00A0Skróty\u00A0Komend\u00A0Admina\u00A0🛠
 ═════════════════════

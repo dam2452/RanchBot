@@ -2,12 +2,16 @@ import logging
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.administration.add_whitelist_handler_responses import get_log_user_added_message
+from bot.responses.administration.add_whitelist_handler_responses import (
+    get_log_user_added_message,
+    get_no_user_id_provided_message,
+    get_no_username_provided_message,
+    get_user_added_message,
+)
 
 
 class AddWhitelistHandler(BotMessageHandler):
@@ -22,7 +26,7 @@ class AddWhitelistHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         if not await self._validate_argument_count(
-            self._message, 1, await self.get_response(RK.NO_USERNAME_PROVIDED),
+            self._message, 1, get_no_username_provided_message(),
         ):
             await self.__reply_user_not_found()
             return False
@@ -47,19 +51,9 @@ class AddWhitelistHandler(BotMessageHandler):
         await self.__reply_user_added(user_input)
 
     async def __reply_user_added(self, user_input: str) -> None:
-        await self.reply(
-            RK.USER_ADDED,
-            args=[user_input],
-            data={"user_id": int(user_input)},
-        )
-        await self._log_system_message(
-            logging.INFO,
-            get_log_user_added_message(user_input, self._message.get_username()),
-        )
+        await self.reply(get_user_added_message(user_input), data={"user_id": int(user_input)})
+        await self._log_system_message(logging.INFO, get_log_user_added_message(user_input, self._message.get_username()))
 
     async def __reply_user_not_found(self) -> None:
-        await self.reply_error(RK.NO_USER_ID_PROVIDED)
-        await self._log_system_message(
-            logging.INFO,
-            await self.get_response(RK.NO_USER_ID_PROVIDED),
-        )
+        await self.reply(get_no_user_id_provided_message())
+        await self._log_system_message(logging.INFO, get_no_user_id_provided_message())

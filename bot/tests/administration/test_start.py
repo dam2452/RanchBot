@@ -1,6 +1,5 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
 from bot.tests.base_test import BaseTest
 
 

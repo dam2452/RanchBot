@@ -2,7 +2,6 @@ import logging
 import math
 from typing import List
 
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,

@@ -1,10 +1,14 @@
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
+)
+from bot.responses.administration.remove_key_handler_responses import (
+    get_remove_key_failure_message,
+    get_remove_key_success_message,
+    get_remove_key_usage_message,
 )
 
 
@@ -18,7 +22,7 @@ class RemoveKeyHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, await self.get_response(RK.REMOVE_KEY_USAGE))
+        return await self._validate_argument_count(self._message, 1, get_remove_key_usage_message())
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split(maxsplit=1)
@@ -26,6 +30,6 @@ class RemoveKeyHandler(BotMessageHandler):
         success = await DatabaseManager.remove_subscription_key(key)
 
         if success:
-            await self.reply(RK.REMOVE_KEY_SUCCESS, args=[key])
+            await self.reply(get_remove_key_success_message(key))
         else:
-            await self.reply_error(RK.REMOVE_KEY_FAILURE, args=[key])
+            await self.reply_error(get_remove_key_failure_message(key))
