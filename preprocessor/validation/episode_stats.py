@@ -242,7 +242,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.face_clusters_count = len(clusters)
 
             total_faces = 0
-            for cluster_id, cluster_info in clusters.items():
+            for _, cluster_info in clusters.items():
                 total_faces += cluster_info.get("face_count", 0)
 
             noise_info = data.get("noise", {})
@@ -251,7 +251,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
             self.face_clusters_total_faces = total_faces
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading face clustering metadata: {e}")
 
     def _validate_object_detections(self):
