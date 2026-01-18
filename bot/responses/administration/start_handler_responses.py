@@ -51,8 +51,16 @@ def get_all_message() -> str:
 ════════════════════
 ✂️ Edycja klipów ✂️
 ════════════════════
-📏 /dostosuj <przedłużenie_przed> <przedłużenie_po> - Dostosowuje wybrany klip. Przykład: /dostosuj -5.5 1.2.
-📏 /dostosuj <numer_klipu> <przedłużenie_przed> <przedłużenie_po> - Dostosowuje klip z wybranego zakresu. Przykład: /dostosuj 1 10.0 -3.
+📏 /dostosuj [numer_klipu] <przed> <po> - Dostosowuje klip RELATYWNIE.
+   -> Działa względem *ostatniego stanu* klipu, uwzględniając poprzednie cięcia.
+   Przykład 1: /dostosuj -1.5 2.0 (dla wybranego klipu)
+   Przykład 2: /dostosuj 3 0.5 -0.2 (dla klipu nr 3 z listy)
+
+📏 /adostosuj [numer_klipu] <przed> <po> - Dostosowuje klip ABSOLUTNIE.
+   -> Działa *zawsze* względem *pierwotnej, oryginalnej wersji* klipu.
+   Przykład 1: /adostosuj -5.5 1.2 (dla wybranego klipu)
+   Przykład 2: /adostosuj 1 10.0 -3 (dla klipu nr 1 z listy)
+
 🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.
 🎞️ /kompiluj <zakres> - Tworzy kompilację z zakresu klipów. Przykład: /kompiluj 1-4.
 🎞️ /kompiluj <numer_klipu1> <numer_klipu2> ... - Tworzy kompilację z wybranych klipów. Przykład: /kompiluj 1 5 7.
@@ -98,11 +106,19 @@ def get_edit_message() -> str:
 ════════════════════
 ✂️ Edycja klipów ✂️
 ════════════════════
-📏 /dostosuj <przedłużenie_przed> <przedłużenie_po> - Dostosowuje wybrany klip. Przykład: /dostosuj -5.5 1.2.\n
-📏 /dostosuj <numer_klipu> <przedłużenie_przed> <przedłużenie_po> - Dostosowuje klip z wybranego zakresu. Przykład: /dostosuj 1 10.0 -3.\n
-🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.\n
-🎞️ /kompiluj <zakres> - Tworzy kompilację z zakresu klipów. Przykład: /kompiluj 1-4.\n
-🎞️ /kompiluj <numer_klipu1> <numer_klipu2> ... - Tworzy kompilację z wybranych klipów. Przykład: /kompiluj 1 5 7.\n
+📏 /dostosuj [numer_klipu] <przed> <po> - Dostosowuje klip RELATYWNIE.
+   -> Działa względem *ostatniego stanu* klipu, uwzględniając poprzednie cięcia.
+   Przykład 1: /dostosuj -1.5 2.0 (dla wybranego klipu)
+   Przykład 2: /dostosuj 3 0.5 -0.2 (dla klipu nr 3 z listy)
+
+📏 /adostosuj [numer_klipu] <przed> <po> - Dostosowuje klip ABSOLUTNIE.
+   -> Działa *zawsze* względem *pierwotnej, oryginalnej wersji* klipu.
+   Przykład 1: /adostosuj -5.5 1.2 (dla wybranego klipu)
+   Przykład 2: /adostosuj 1 10.0 -3 (dla klipu nr 1 z listy)
+
+🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.
+🎞️ /kompiluj <zakres> - Tworzy kompilację z zakresu klipów. Przykład: /kompiluj 1-4.
+🎞️ /kompiluj <numer_klipu1> <numer_klipu2> ... - Tworzy kompilację z wybranych klipów. Przykład: /kompiluj 1 5 7.
 ```"""
 
 
@@ -148,7 +164,8 @@ def get_shortcuts_message() -> str:
 📋 /l, /lista - Wyświetla wszystkie klipy znalezione przez /szukaj.\n
 ✅ /w, /wybierz - Wybiera klip z listy uzyskanej przez /szukaj.\n
 📺 /o, /odcinki - Wyświetla listę odcinków dla podanego sezonu.\n
-✂️ /d, /dostosuj - Dostosowuje wybrany klip.\n
+✂️ /d, /dostosuj - Dostosowuje wybrany klip (relatywnie).\n
+✂️ /ad, /adostosuj - Dostosowuje wybrany klip (absolutnie).\n
 🎞️ /kom, /kompiluj - Tworzy kompilację klipów.\n
 🔗 /pk, /polaczklipy - Łączy zapisane klipy w jeden.\n
 🗑️ /uk, /usunklip - Usuwa zapisany klip.\n

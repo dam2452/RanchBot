@@ -1,5 +1,5 @@
 def get_invalid_args_count_message() -> str:
-    return "🔄 Proszę podać indeksy cytatów do skompilowania, zakres lub 'wszystko' do kompilacji wszystkich segmentów."
+    return "🔄 Proszę podać indeksy cytatów do skompilowania, zakres lub \"wszystko\" do kompilacji wszystkich segmentów."
 
 def get_invalid_range_message(index: str) -> str:
     return f"⚠️ Podano nieprawidłowy zakres cytatów: {index} ⚠️"

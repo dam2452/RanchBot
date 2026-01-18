@@ -35,7 +35,7 @@ def get_clip_name_not_provided_message():
 
 
 def get_clip_name_numeric_provided_message():
-    return "❌ Nazwa klipu nie może zawierać jedynie cyfr."
+    return "❌ Nazwa klipu nie może składać się wyłącznie z cyfr. ❌"
 
 
 def get_clip_name_length_exceeded_message():

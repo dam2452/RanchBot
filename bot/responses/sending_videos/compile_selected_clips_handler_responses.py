@@ -3,7 +3,7 @@ def get_invalid_args_count_message() -> str:
 
 
 def get_no_matching_clips_found_message() -> str:
-    return "❌ Nie znaleziono pasujących klipów do kompilacji."
+    return "❌ Nie znaleziono pasujących klipów do kompilacji.❌"
 
 
 def get_clip_not_found_message(clip_number: int) -> str:
