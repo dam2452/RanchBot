@@ -146,7 +146,6 @@ class FaceClusteringSettings:
     min_samples: int = 3
     save_noise: bool = True
     save_full_frames: bool = True
-    use_gpu: bool = True
 
 @dataclass
 class ImageScraperSettings:

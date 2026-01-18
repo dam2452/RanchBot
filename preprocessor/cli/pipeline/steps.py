@@ -410,7 +410,6 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
             min_samples=settings.face_clustering.min_samples,
             save_noise=settings.face_clustering.save_noise,
             save_full_frames=settings.face_clustering.save_full_frames,
-            use_gpu=settings.face_clustering.use_gpu,
         )
         processor.add_sub_processor(face_clustering_sub)
         sub_processors.append(face_clustering_sub)

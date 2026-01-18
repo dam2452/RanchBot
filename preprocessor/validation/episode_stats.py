@@ -55,6 +55,9 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
     image_hashes_count: Optional[int] = None
     object_detections_count: Optional[int] = None
     object_visualizations_count: Optional[int] = None
+    character_visualizations_count: Optional[int] = None
+    face_clusters_count: Optional[int] = None
+    face_clusters_total_faces: Optional[int] = None
 
     def collect_stats(self):
         self._validate_transcription()
@@ -62,6 +65,8 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self._validate_video()
         self._validate_scenes()
         self._validate_image_hashes()
+        self._validate_character_visualizations()
+        self._validate_face_clusters()
         self._validate_object_detections()
         self._validate_object_visualizations()
         self._validate_other_files()
@@ -192,6 +197,63 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
         self._check_size_anomalies(sizes, "image_hashes")
 
+    def _validate_character_visualizations(self):
+        viz_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_visualizations)
+        if not viz_dir.exists():
+            return
+
+        image_files = list(viz_dir.glob("*.jpg")) + list(viz_dir.glob("*.png"))
+        if not image_files:
+            self.warnings.append(f"No visualization images in {settings.output_subdirs.character_visualizations}/")
+            return
+
+        self.character_visualizations_count = len(image_files)
+        invalid_count = 0
+
+        for img_file in image_files:
+            result = validate_image_file(img_file)
+            if not result.is_valid:
+                invalid_count += 1
+                self.errors.append(f"Invalid character visualization {img_file.name}: {result.error_message}")
+
+        if invalid_count > 0:
+            self.warnings.append(f"{invalid_count} invalid character visualization images found")
+
+    def _validate_face_clusters(self):
+        clusters_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.face_clusters)
+        if not clusters_dir.exists():
+            return
+
+        metadata_file = clusters_dir / "cluster_metadata.json"
+        if not metadata_file.exists():
+            self.warnings.append(f"Missing face clustering metadata file: {metadata_file.name}")
+            return
+
+        result = validate_json_file(metadata_file)
+        if not result.is_valid:
+            self.errors.append(f"Invalid face clustering metadata: {result.error_message}")
+            return
+
+        try:
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            clusters = data.get("clusters", {})
+            self.face_clusters_count = len(clusters)
+
+            total_faces = 0
+            for cluster_id, cluster_info in clusters.items():
+                total_faces += cluster_info.get("face_count", 0)
+
+            noise_info = data.get("noise", {})
+            if noise_info:
+                total_faces += noise_info.get("face_count", 0)
+
+            self.face_clusters_total_faces = total_faces
+
+        except Exception as e:
+            self.errors.append(f"Error reading face clustering metadata: {e}")
+
     def _validate_object_detections(self):
         detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_detections)
         if not detections_dir.exists():
@@ -242,6 +304,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             ELASTIC_SUBDIRS.text_embeddings: "text_embedding",
             ELASTIC_SUBDIRS.video_embeddings: "video_embedding",
             ELASTIC_SUBDIRS.episode_names: "title_embedding",
+            ELASTIC_SUBDIRS.full_episode_embeddings: "full_episode_embedding",
         }
 
         if subdir not in embedding_fields:
@@ -306,6 +369,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             ELASTIC_SUBDIRS.video_embeddings,
             ELASTIC_SUBDIRS.episode_names,
             ELASTIC_SUBDIRS.text_statistics,
+            ELASTIC_SUBDIRS.full_episode_embeddings,
         ]
         found_elastic_docs = False
         for subdir in elastic_subdirs:
@@ -354,6 +418,9 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                 "scenes_count": self.scenes_count,
                 "scenes_avg_duration": self.scenes_avg_duration,
                 "image_hashes_count": self.image_hashes_count,
+                "character_visualizations_count": self.character_visualizations_count,
+                "face_clusters_count": self.face_clusters_count,
+                "face_clusters_total_faces": self.face_clusters_total_faces,
                 "object_detections_count": self.object_detections_count,
                 "object_visualizations_count": self.object_visualizations_count,
             },

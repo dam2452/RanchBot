@@ -9,22 +9,12 @@ from typing import (
     Optional,
 )
 
+from cuml.cluster import HDBSCAN as cuHDBSCAN
+import cupy as cp
 import cv2
 from insightface.app import FaceAnalysis
 import numpy as np
 import torch
-
-try:
-    from cuml.cluster import HDBSCAN as cuHDBSCAN
-    import cupy as cp
-    GPU_CLUSTERING_AVAILABLE = True
-except ImportError:
-    GPU_CLUSTERING_AVAILABLE = False
-
-try:
-    import hdbscan
-except ImportError:
-    hdbscan = None
 
 from preprocessor.characters.utils import init_face_detection
 from preprocessor.config.config import settings
@@ -47,14 +37,12 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         min_samples: int,
         save_noise: bool,
         save_full_frames: bool,
-        use_gpu: bool = True,
     ):
         super().__init__("Face Clustering")
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
         self.save_noise = save_noise
         self.save_full_frames = save_full_frames
-        self.use_gpu = use_gpu
         self.face_app: Optional[FaceAnalysis] = None
         self.logger = ErrorHandlingLogger("FaceClusteringSubProcessor", logging.DEBUG, 15)
 
@@ -154,29 +142,17 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
     def _cluster_faces(self, face_data: List[Dict[str, Any]]) -> np.ndarray:
         embeddings = np.array([fd['embedding'] for fd in face_data])
 
-        if GPU_CLUSTERING_AVAILABLE and self.use_gpu:
-            console.print(f"[cyan]Clustering with GPU HDBSCAN (min_cluster_size={self.min_cluster_size}, min_samples={self.min_samples})[/cyan]")
-            embeddings_gpu = cp.asarray(embeddings)
+        console.print(f"[cyan]Clustering with GPU HDBSCAN (min_cluster_size={self.min_cluster_size}, min_samples={self.min_samples})[/cyan]")
+        embeddings_gpu = cp.asarray(embeddings)
 
-            clusterer = cuHDBSCAN(
-                min_cluster_size=self.min_cluster_size,
-                min_samples=self.min_samples,
-                metric='euclidean',
-                cluster_selection_method='eom',
-            )
-            labels = clusterer.fit_predict(embeddings_gpu)
-            labels = cp.asnumpy(labels)
-        else:
-            console.print(f"[cyan]Clustering with CPU HDBSCAN (min_cluster_size={self.min_cluster_size}, min_samples={self.min_samples})[/cyan]")
-
-            clusterer = hdbscan.HDBSCAN(
-                min_cluster_size=self.min_cluster_size,
-                min_samples=self.min_samples,
-                metric='euclidean',
-                cluster_selection_method='eom',
-                prediction_data=True,
-            )
-            labels = clusterer.fit_predict(embeddings)
+        clusterer = cuHDBSCAN(
+            min_cluster_size=self.min_cluster_size,
+            min_samples=self.min_samples,
+            metric='euclidean',
+            cluster_selection_method='eom',
+        )
+        labels = clusterer.fit_predict(embeddings_gpu)
+        labels = cp.asnumpy(labels)
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         n_noise = list(labels).count(-1)

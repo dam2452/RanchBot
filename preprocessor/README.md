@@ -1,6 +1,6 @@
 # Video Preprocessing Pipeline
 
-Docker app do przetwarzania wideo z GPU (NVIDIA): transkodowanie, transkrypcja (Whisper/ElevenLabs), detekcja scen, eksport klatek, wykrywanie postaci, embeddingi i indeksowanie w Elasticsearch.
+Docker app do przetwarzania wideo z GPU (NVIDIA): transkodowanie, transkrypcja (Whisper/ElevenLabs), detekcja scen, eksport klatek, wykrywanie postaci, klasteryzacja twarzy, embeddingi i indeksowanie w Elasticsearch.
 
 ## Wymagania sprzętowe
 
@@ -36,7 +36,8 @@ docker-compose build
 [0b] scrape characters → [0c] download references
 [4] detect scenes → [5] export frames → [6] text embeddings → [7] frame processing:
     [7a] image hashing | [7b] video embeddings | [7c] character detection
-    [7d] object detection | [7e] object visualization
+    [7d] character visualization | [7e] face clustering | [7f] object detection
+    [7g] object visualization
 [8] generate elastic docs → [9] archive zips → [10] index → [11] validate
 ```
 
@@ -56,8 +57,10 @@ docker-compose build
 | `--skip-image-hashing` | 7a: Image hashing |
 | `--skip-video-embeddings` | 7b: Video embeddings |
 | `--skip-character-detection` | 7c: Character detection |
-| `--skip-object-detection` | 7d: Object detection |
-| `--skip-object-visualization` | 7e: Object visualization |
+| `--skip-character-visualization` | 7d: Character visualization |
+| `--skip-face-clustering` | 7e: Face clustering |
+| `--skip-object-detection` | 7f: Object detection |
+| `--skip-object-visualization` | 7g: Object visualization |
 | `--skip-elastic-documents` | 8/12: Generowanie dokumentów |
 | `--skip-archives` | 9/12: Archiwizacja ZIP |
 | `--skip-index` | 10/12: Indeksowanie |
@@ -89,18 +92,20 @@ docker-compose build
 # Eksport klatek
 ./run-preprocessor.sh export-frames /input_data/videos --scene-timestamps-dir /app/output_data/scene_timestamps
 
-# Embeddingi (domyślnie sentence-based: 8 zdań + 3 overlap)
+# Embeddingi (domyślnie sentence-based: 8 zdań + 3 overlap + full episode)
 ./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions --frames-dir /app/output_data/frames_1080p
+# Generuje 3 pliki: embeddings_text.json, embeddings_video.json, embeddings_full_episode.json
+# Full episode embedding używa sliding window (6000 chars, 4500 overlap) dla długich transkryptów
 
 # Generowanie dokumentow Elasticsearch
 ./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
-# Typy: segments, text_embeddings, video_embeddings, episode_names, text_statistics
+# Typy: segments, text_embeddings, video_embeddings, episode_names, text_statistics, full_episode_embeddings
 
 # Archiwizacja dokumentow Elasticsearch (ZIP per odcinek)
 ./run-preprocessor.sh generate-archives --series-name ranczo
 # Generuje: output_data/archives/S01/E01/ranczo_S01E01_elastic_documents.zip
-# Zawiera: segments, text_embeddings, video_embeddings, episode_name, text_statistics
-# UWAGA: Domyslnie tworzy ZIP tylko gdy wszystkie 5 plikow jest gotowych!
+# Zawiera: segments, text_embeddings, video_embeddings, episode_name, text_statistics, full_episode_embeddings
+# UWAGA: Domyslnie tworzy ZIP tylko gdy wszystkie 6 plikow jest gotowych!
 ./run-preprocessor.sh generate-archives --season 1 --episode 1  # tylko jeden odcinek
 ./run-preprocessor.sh generate-archives --force-regenerate  # nadpisz istniejace
 ./run-preprocessor.sh generate-archives --allow-partial  # tworz ZIP nawet jesli brakuje plikow
@@ -135,16 +140,18 @@ output_data/
 ├── transcriptions/        # JSON segmented + text_stats.json
 ├── scene_timestamps/      # JSON ze scenami
 ├── exported_frames/       # JPG 1080p
-├── embeddings/            # embeddings_text.json, embeddings_video.json
+├── embeddings/            # embeddings_text.json, embeddings_video.json, embeddings_full_episode.json
 ├── image_hashes/          # perceptual hashes klatek
-├── character_detections/  # detections.json (InsightFace)
+├── character_detections/  # detections.json (InsightFace) + visualizations/
+├── face_clusters/         # klastry twarzy (HDBSCAN)
 ├── object_detections/     # detections.json (D-FINE) + visualizations/
 ├── elastic_documents/     # JSONL dla każdego typu i odcinka
 │   ├── segments/
 │   ├── text_embeddings/
 │   ├── video_embeddings/
 │   ├── episode_names/
-│   └── text_statistics/
+│   ├── text_statistics/
+│   └── full_episode_embeddings/
 ├── archives/              # ZIP (wszystkie JSONL per odcinek)
 │   └── S01/E01/ranczo_S01E01_elastic_documents.zip
 └── validation_reports/    # JSON z raportami walidacji
@@ -167,9 +174,32 @@ output_data/
 | Detekcja scen | TransNetV2                           |
 | Embeddingi | Qwen3-VL-Embedding-8B                |
 | Face recognition | InsightFace (buffalo_l)              |
+| Face clustering | HDBSCAN (cuML GPU)                   |
 | Object detection | D-FINE-X                             |
 | LLM scraping | Qwen2.5-Coder-7B-Instruct            |
 | Search | Elasticsearch (kNN + HNSW)           |
+
+## Nowe funkcje
+
+### Face Clustering (7e)
+Automatyczna klasteryzacja wykrytych twarzy za pomocą HDBSCAN:
+- **GPU-only:** cuML HDBSCAN (wymaga CUDA)
+- **Parametry:** `min_cluster_size=5`, `min_samples=3` (konfigurowalne w settings)
+- **Output:** face_clusters/{season}/{episode}/ z plikami JSON i opcjonalnie pełnymi klatkami
+- **Skip flag:** `--skip-face-clustering`
+
+### Character Detection Visualization (7d)
+Wizualizacja wykrytych postaci na klatkach:
+- **Output:** character_detections/visualizations/ z adnotowanymi klatkami
+- **Skip flag:** `--skip-character-visualization`
+
+### Full Episode Embedding (6)
+Generowanie embeddingi dla całego transkryptu odcinka:
+- **Sliding window:** 6000 chars per chunk, 4500 chars overlap dla długich transkryptów
+- **Weighted averaging:** chunks ważone długością
+- **Normalizacja:** L2 normalization finalnego embeddingu
+- **Output:** embeddings_full_episode.json + elastic document w full_episode_embeddings/
+- **Config:** `settings.embedding.generate_full_episode_embedding = True` (domyślnie)
 
 ## Format plików wideo
 
