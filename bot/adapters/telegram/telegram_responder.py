@@ -40,12 +40,14 @@ class TelegramResponder(AbstractResponder):
         if delete_after_send:
             file_path.unlink()
 
-    async def send_document(self, file_path: Path, caption: str) -> None:
+    async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True) -> None:
         await self._message.answer_document(
             document=FSInputFile(file_path),
             caption=caption,
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )
+        if delete_after_send:
+            file_path.unlink()
     async def send_json(self, data: json) -> None:
         raise NotImplementedError("JSON mode not supported for TelegramResponder")

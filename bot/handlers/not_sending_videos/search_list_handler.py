@@ -67,7 +67,6 @@ class SearchListHandler(BotMessageHandler):
                 file.write(response)
 
             await self._responder.send_document(file_path, caption="📄 Wszystkie znalezione cytaty 📄")
-            file_path.unlink()
 
         return await self._log_system_message(
             logging.INFO,
