@@ -4,7 +4,10 @@ from pydantic import (
     Field,
     SecretStr,
 )
-from pydantic_settings import BaseSettings
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
 
 from bot.utils.config_loader import load_env_file
 
@@ -29,10 +32,10 @@ class Settings(BaseSettings):
     REST_API_HOST: str = Field("192.168.1.210")
     REST_API_PORT: int = Field(8199)
 
-    class Config:
-        env_file = str(env_path)
-        env_prefix = ""
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=str(env_path),
+        env_prefix="",
+        extra="ignore"
+    )
 
-logger.info(f"Loading settings from {Settings.Config.env_file}")
 settings = Settings()
