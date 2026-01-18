@@ -42,11 +42,3 @@ def get_log_episode_list_sent_message(season: int, username: str) -> str:
 
 def get_invalid_args_count_message() -> str:
     return "📋 Podaj poprawną komendę w formacie: /odcinki <sezon>. Przykład: /odcinki 2"
-
-
-def get_season_11_petition_message() -> str:
-    return (
-        "📢 Sezon 11 nie jest jeszcze dostępny. "
-        "Podpisz petycję, aby pomóc go zrealizować! "
-        "[Link do petycji](https://www.petycjeonline.com/zgoda_na_realizacj_scenariusza_i_wydanie_ksiki_ranczo_zemsta_wiedm#form)"
-    )

@@ -6,8 +6,16 @@ def get_clip_not_exist_message(clip_number: str) -> str:
     return f"🚫 Klip o nazwie '{clip_number}' nie istnieje.🚫"
 
 
+def get_clip_id_not_exist_message(clip_id: int) -> str:
+    return f"🚫 Klip o id '{clip_id}' nie istnieje.🚫"
+
+
 def get_clip_deleted_message(clip_name: str) -> str:
     return f"✅ Klip o nazwie '{clip_name}' został usunięty.✅"
+
+
+def get_no_saved_clips_message() -> str:
+    return "❌ Nie masz zapisanych klipów.❌"
 
 
 def get_log_clip_not_exist_message(clip_number: int, username: str) -> str:

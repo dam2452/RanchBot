@@ -10,6 +10,7 @@ from bot.responses.not_sending_videos.my_clips_handler_responses import (
     format_myclips_response,
     get_log_no_saved_clips_message,
     get_log_saved_clips_sent_message,
+    get_no_saved_clips_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
 
@@ -30,22 +31,18 @@ class MyClipsHandler(BotMessageHandler):
             logger=self._logger,
         )
 
-        if self._message.should_reply_json():
-            await self.reply(
-                "",
-                data={
-                    "clips": [clip.to_dict() for clip in clips],
-                    "season_info": season_info,
-                },
-            )
-        else:
-            markdown = await format_myclips_response(
+        await self.reply(
+            format_myclips_response(
                 clips=clips,
                 username=self._message.get_username(),
                 full_name=self._message.get_full_name(),
                 season_info=season_info,
-            )
-            await self._answer_markdown(markdown)
+            ),
+            data={
+                "clips": [clip.to_dict() for clip in clips],
+                "season_info": season_info,
+            },
+        )
 
         return await self._log_system_message(
             logging.INFO,
@@ -53,12 +50,6 @@ class MyClipsHandler(BotMessageHandler):
         )
 
     async def __reply_no_saved_clips(self) -> None:
-        if self._message.should_reply_json():
-            await self.reply("", data={"clips": []})
-        else:
-            await self._answer(await self.get_response(RK.NO_SAVED_CLIPS))
+        await self.reply(get_no_saved_clips_message(), data={"clips": []})
 
-        await self._log_system_message(
-            logging.INFO,
-            get_log_no_saved_clips_message(self._message.get_username()),
-        )
+        await self._log_system_message(logging.INFO, get_log_no_saved_clips_message(self._message.get_username()))

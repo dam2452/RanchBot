@@ -1,13 +1,7 @@
 from pathlib import Path
-import re
-from typing import (
-    List,
-    Optional,
-)
+from typing import List
 
-from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
-from bot.settings import settings as s
 
 
 def get_general_error_message() -> str:
@@ -109,29 +103,3 @@ class MessageFormattingError(CustomError):
             f"Template: {message_template}, Args: [{formatted_args}], Error: {error}"
         )
         super().__init__(message)
-
-
-async def get_response(
-    key: str,
-    handler_name: str,
-    args: Optional[List[str]] = None,
-) -> str:
-    message = await DatabaseManager.get_message_from_specialized_table(key, handler_name)
-    if not message:
-        message = await DatabaseManager.get_message_from_common_messages(key, handler_name)
-
-    if not message:
-        raise MessageNotFoundError(key, handler_name, s.SPECIALIZED_TABLE)
-
-    message = message.replace("\\u00A0", "\u00A0")
-
-    placeholder_count = len(re.findall(r"{}", message))
-    args = args or []
-
-    if len(args) != placeholder_count:
-        raise MessageArgumentMismatchError(key, handler_name, placeholder_count, len(args), message)
-
-    try:
-        return message.format(*args)
-    except IndexError as e:
-        raise MessageFormattingError(key, handler_name, message, args, e) from e
