@@ -2,9 +2,11 @@ from pathlib import Path
 
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
+from preprocessor.video.face_clustering_subprocessor import FaceClusteringSubProcessor
 from preprocessor.video.frame_processor import FrameProcessor
 from preprocessor.video.frame_subprocessors import (
     CharacterDetectionSubProcessor,
+    CharacterDetectionVisualizationSubProcessor,
     ImageHashSubProcessor,
     ObjectDetectionSubProcessor,
     ObjectDetectionVisualizationSubProcessor,
@@ -279,6 +281,7 @@ def run_embedding_step(device, state_manager, **kwargs):
             "segments_per_embedding": settings.text_chunking.segments_per_embedding,
             "generate_text": True,
             "generate_video": False,
+            "generate_full_episode": settings.embedding.generate_full_episode_embedding,
             "device": device,
             "batch_size": settings.embedding.batch_size,
             "series_name": name,
@@ -347,6 +350,8 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
     skip_image_hashing,
     skip_video_embeddings,
     skip_character_detection,
+    skip_character_visualization,
+    skip_face_clustering,
     skip_object_detection,
     skip_object_visualization,
     **kwargs,
@@ -393,6 +398,22 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
         )
         processor.add_sub_processor(char_detection_sub)
         sub_processors.append(char_detection_sub)
+
+    if not skip_character_visualization:
+        char_viz_sub = CharacterDetectionVisualizationSubProcessor()
+        processor.add_sub_processor(char_viz_sub)
+        sub_processors.append(char_viz_sub)
+
+    if not skip_face_clustering:
+        face_clustering_sub = FaceClusteringSubProcessor(
+            min_cluster_size=settings.face_clustering.min_cluster_size,
+            min_samples=settings.face_clustering.min_samples,
+            save_noise=settings.face_clustering.save_noise,
+            save_full_frames=settings.face_clustering.save_full_frames,
+            use_gpu=settings.face_clustering.use_gpu,
+        )
+        processor.add_sub_processor(face_clustering_sub)
+        sub_processors.append(face_clustering_sub)
 
     if not skip_object_detection:
         object_detection_sub = ObjectDetectionSubProcessor(

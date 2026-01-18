@@ -118,8 +118,10 @@ from preprocessor.utils.console import console
 @click.option("--skip-image-hashing", is_flag=True, help="Skip Step 7a: Image hashing sub-step (use existing hashes)")
 @click.option("--skip-video-embeddings", is_flag=True, help="Skip Step 7b: Video embeddings sub-step (use existing)")
 @click.option("--skip-character-detection", is_flag=True, help="Skip Step 7c: Character detection sub-step (use existing)")
-@click.option("--skip-object-detection", is_flag=True, help="Skip Step 7d: Object detection sub-step (use existing)")
-@click.option("--skip-object-visualization", is_flag=True, help="Skip Step 7e: Object visualization sub-step (skip annotated frames)")
+@click.option("--skip-character-visualization", is_flag=True, help="Skip Step 7d: Character visualization sub-step (skip annotated frames)")
+@click.option("--skip-face-clustering", is_flag=True, help="Skip Step 7e: Face clustering sub-step (use existing)")
+@click.option("--skip-object-detection", is_flag=True, help="Skip Step 7f: Object detection sub-step (use existing)")
+@click.option("--skip-object-visualization", is_flag=True, help="Skip Step 7g: Object visualization sub-step (skip annotated frames)")
 @click.option("--skip-elastic-documents", is_flag=True, help="Skip Step 8: Generate Elasticsearch documents (use existing documents)")
 @click.option("--skip-archives", is_flag=True, help="Skip Step 9: Archive generation (use existing archives)")
 @click.option("--skip-index", is_flag=True, help="Skip Step 10: Elasticsearch indexing")
@@ -152,6 +154,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_image_hashing: bool,
     skip_video_embeddings: bool,
     skip_character_detection: bool,
+    skip_character_visualization: bool,
+    skip_face_clustering: bool,
     skip_object_detection: bool,
     skip_object_visualization: bool,
     skip_embeddings: bool,
@@ -210,6 +214,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "skip_image_hashing": skip_image_hashing,
         "skip_video_embeddings": skip_video_embeddings,
         "skip_character_detection": skip_character_detection,
+        "skip_character_visualization": skip_character_visualization,
+        "skip_face_clustering": skip_face_clustering,
         "skip_object_detection": skip_object_detection,
         "skip_object_visualization": skip_object_visualization,
     }
@@ -221,7 +227,11 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         series_name=series_name,
         metadata_output_dir=metadata_output_dir,
     )
-    skip_frame_processing = skip_image_hashing and skip_video_embeddings and skip_character_detection and skip_object_detection and skip_object_visualization
+    skip_frame_processing = (
+        skip_image_hashing and skip_video_embeddings and skip_character_detection
+        and skip_character_visualization and skip_face_clustering
+        and skip_object_detection and skip_object_visualization
+    )
 
     orchestrator.add_step("Scraping episode metadata", "0a/12", run_scrape_step, skip=False)
     orchestrator.add_step("Scraping character metadata", "0b/12", run_character_scrape_step, skip=False)
@@ -232,7 +242,12 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     orchestrator.add_step("Detecting scenes", "4/12", run_scene_step, skip=skip_scenes)
     orchestrator.add_step("Exporting frames (1080p)", "5/12", run_frame_export_step, skip=skip_frame_export)
     orchestrator.add_step("Generating text embeddings", "6/12", run_embedding_step, skip=skip_embeddings)
-    orchestrator.add_step("Processing frames (hashing + video embeddings + faces + objects)", "7/12", run_frame_processing_step, skip=skip_frame_processing)
+    orchestrator.add_step(
+        "Processing frames (hashing + embeddings + characters + clustering + objects)",
+        "7/12",
+        run_frame_processing_step,
+        skip=skip_frame_processing,
+    )
     orchestrator.add_step("Generating Elasticsearch documents", "8/12", run_elastic_documents_step, skip=skip_elastic_documents)
     orchestrator.add_step("Archiving Elasticsearch documents", "9/12", run_archive_generation_step, skip=skip_archives)
     orchestrator.add_step("Indexing in Elasticsearch", "10/12", run_index_step, skip=skip_index)

@@ -57,6 +57,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.text_chunk_overlap: int = self._args.get("text_chunk_overlap", settings.text_chunking.text_chunk_overlap)
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
+        self.generate_full_episode: bool = self._args.get("generate_full_episode", settings.embedding.generate_full_episode_embedding)
 
         self.image_hashes_dir: Path = Path(self._args.get("image_hashes_dir", settings.image_hash.output_dir))
 
@@ -116,6 +117,10 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             video_output = episode_dir / "embeddings_video.json"
             outputs.append(OutputSpec(path=video_output, required=True))
 
+        if self.generate_full_episode:
+            full_episode_output = episode_dir / "embeddings_full_episode.json"
+            outputs.append(OutputSpec(path=full_episode_output, required=True))
+
         return outputs
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:
@@ -161,7 +166,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             self.logger.error(f"Failed to load model: {e}")
             raise
 
-    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:  # pylint: disable=too-many-locals
         trans_file = item.input_path
 
         with open(trans_file, "r", encoding="utf-8") as f:
@@ -176,6 +181,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         need_text = any("embeddings_text.json" in str(o.path) for o in missing_outputs)
         need_video = any("embeddings_video.json" in str(o.path) for o in missing_outputs)
         need_episode_name = any("episode_name_embedding.json" in str(o.path) for o in missing_outputs)
+        need_full_episode = any("embeddings_full_episode.json" in str(o.path) for o in missing_outputs)
 
         text_embeddings = []
         if need_text:
@@ -191,10 +197,15 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         if need_episode_name and self.episode_name_embedder:
             self.episode_name_embedder.generate_and_save_for_transcription(data)
 
+        full_episode_embedding = None
+        if need_full_episode:
+            full_episode_embedding = self.__generate_full_episode_embedding(trans_file, data)
+
         episode_dir = self._get_episode_output_dir(trans_file)
         text_output = episode_dir / "embeddings_text.json"
         video_output = episode_dir / "embeddings_video.json"
-        self.__save_embeddings(data, text_embeddings, video_embeddings, text_output, video_output)
+        full_episode_output = episode_dir / "embeddings_full_episode.json"
+        self.__save_embeddings(data, text_embeddings, video_embeddings, full_episode_embedding, text_output, video_output, full_episode_output)
         self._cleanup_memory()
 
     def __generate_text_embeddings(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
@@ -326,6 +337,87 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         del embeddings_tensor
         return embeddings
 
+    def __generate_full_episode_embedding(self, trans_file: Path, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:  # pylint: disable=unused-argument,too-many-locals
+        txt_file = trans_file.parent / trans_file.name.replace("_segmented.json", ".txt").replace(".json", ".txt")
+
+        if not txt_file.exists():
+            self.logger.warning(f"Transcript file not found: {txt_file}")
+            return None
+
+        try: # pylint: disable=too-many-try-statements
+            with open(txt_file, "r", encoding="utf-8") as f:
+                full_text = f.read().strip()
+
+            if not full_text:
+                self.logger.warning(f"Empty transcript file: {txt_file}")
+                return None
+
+            console.print(f"[cyan]Generating full episode embedding ({len(full_text)} chars)...[/cyan]")
+
+            max_chars_per_chunk = 6000
+            overlap_chars = 4500
+
+            if len(full_text) > max_chars_per_chunk:
+                console.print(
+                    f"[yellow]Text too long ({len(full_text)} chars), "
+                    f"using sliding window (chunk={max_chars_per_chunk}, overlap={overlap_chars})...[/yellow]",
+                )
+
+                chunks = []
+                step_size = max_chars_per_chunk - overlap_chars
+
+                for i in range(0, len(full_text), step_size):
+                    chunk_end = min(i + max_chars_per_chunk, len(full_text))
+                    chunk = full_text[i:chunk_end]
+
+                    if len(chunk.strip()) < 100:
+                        continue
+
+                    chunks.append(chunk)
+
+                    if chunk_end >= len(full_text):
+                        break
+
+                console.print(f"[cyan]Processing {len(chunks)} overlapping chunks...[/cyan]")
+                chunk_embeddings = []
+                chunk_weights = []
+
+                for idx, chunk in enumerate(chunks):
+                    inputs = [{"text": chunk}]
+                    embeddings_tensor = self.model.process(inputs, normalize=True)
+                    chunk_embedding = embeddings_tensor[0].cpu().numpy()
+                    chunk_embeddings.append(chunk_embedding)
+                    del embeddings_tensor
+
+                    weight = len(chunk) / max_chars_per_chunk
+                    chunk_weights.append(weight)
+
+                    if (idx + 1) % 5 == 0 or idx == len(chunks) - 1:
+                        console.print(f"[cyan]Processed chunk {idx + 1}/{len(chunks)}[/cyan]")
+
+                chunk_weights_array = np.array(chunk_weights)
+                chunk_weights_normalized = chunk_weights_array / chunk_weights_array.sum()
+
+                embedding = np.average(chunk_embeddings, axis=0, weights=chunk_weights_normalized)
+                embedding = embedding / np.linalg.norm(embedding)
+
+                console.print(f"[green]✓ Weighted-averaged {len(chunks)} overlapping chunks[/green]")
+            else:
+                inputs = [{"text": full_text}]
+                embeddings_tensor = self.model.process(inputs, normalize=True)
+                embedding = embeddings_tensor[0].cpu().numpy()
+                del embeddings_tensor
+
+            return {
+                "text": full_text,
+                "embedding": embedding.tolist(),
+                "transcript_length": len(full_text),
+            }
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error(f"Failed to generate full episode embedding: {e}")
+            return None
+
     def __load_frame_metadata(self, episode_info_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         season = episode_info_dict.get("season")
         episode = episode_info_dict.get("episode_number")
@@ -390,8 +482,10 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             data,
         text_embeddings,
         video_embeddings,
+        full_episode_embedding,
         text_output,
         video_output,
+        full_episode_output,
     ):
         episode_info = data.get("episode_info", {})
         text_output.parent.mkdir(parents=True, exist_ok=True)
@@ -445,6 +539,29 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 results_data=video_embeddings,
             )
             atomic_write_json(video_output, video_data, indent=2, ensure_ascii=False)
+
+        if full_episode_embedding:
+            full_episode_data = create_processing_metadata(
+                episode_info=type(
+                    'obj', (object,), {
+                        'season': episode_info.get("season"),
+                        'relative_episode': episode_info.get("episode_number"),
+                    },
+                )(),
+                processing_params={
+                    "model_name": self.model_name,
+                    "model_revision": self.model_revision,
+                    "device": self.device,
+                },
+                statistics={
+                    "transcript_length": full_episode_embedding.get("transcript_length", 0),
+                    "embedding_dimension": len(full_episode_embedding["embedding"]) if "embedding" in full_episode_embedding else 0,
+                },
+                results_key="full_episode_embedding",
+                results_data=full_episode_embedding,
+            )
+            atomic_write_json(full_episode_output, full_episode_data, indent=2, ensure_ascii=False)
+            console.print(f"[green]✓ Saved full episode embedding to: {full_episode_output}[/green]")
 
     @staticmethod
     def _cleanup_memory() -> None:

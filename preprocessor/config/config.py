@@ -30,6 +30,7 @@ class ElasticDocumentSubdirs:
     video_embeddings: str = "video_embeddings"
     episode_names: str = "episode_names"
     text_statistics: str = "text_statistics"
+    full_episode_embeddings: str = "full_episode_embeddings"
 
 @dataclass
 class OutputSubdirs:
@@ -40,6 +41,8 @@ class OutputSubdirs:
     embeddings: str = "embeddings"
     image_hashes: str = "image_hashes"
     character_detections: str = "character_detections"
+    character_visualizations: str = "character_detections/visualizations"
+    face_clusters: str = "face_clusters"
     object_detections: str = "object_detections"
     object_visualizations: str = "object_detections/visualizations"
     elastic_documents: str = "elastic_documents"
@@ -85,6 +88,7 @@ class EmbeddingSettings:
     text_batch_size: int = 64
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
+    generate_full_episode_embedding: bool = True
 
 @dataclass
 class SceneDetectionSettings:
@@ -133,6 +137,15 @@ class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
     detection_size: tuple = (640, 640)
     threshold: float = 0.55
+    use_gpu: bool = True
+
+@dataclass
+class FaceClusteringSettings:
+    output_dir: Path = BASE_OUTPUT_DIR / "face_clusters"
+    min_cluster_size: int = 5
+    min_samples: int = 3
+    save_noise: bool = True
+    save_full_frames: bool = True
     use_gpu: bool = True
 
 @dataclass
@@ -239,6 +252,7 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     character: CharacterSettings
     object_detection: ObjectDetectionSettings
     face_recognition: FaceRecognitionSettings
+    face_clustering: FaceClusteringSettings
     image_scraper: ImageScraperSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
@@ -262,6 +276,7 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             character=CharacterSettings(),
             object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings(),
+            face_clustering=FaceClusteringSettings(),
             image_scraper=ImageScraperSettings.from_env(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),

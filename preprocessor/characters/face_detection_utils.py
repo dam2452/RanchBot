@@ -90,15 +90,29 @@ def detect_characters_in_frame(
 
     for face in faces:
         face_embedding = face.normed_embedding
+        bbox = face.bbox.astype(int)
+
+        best_match = None
+        best_similarity = threshold
 
         for char_name, char_vector in character_vectors.items():
             similarity = np.dot(face_embedding, char_vector)
 
-            if similarity > threshold:
-                detected.append({
-                    "name": char_name,
-                    "confidence": float(similarity),
-                })
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = char_name
+
+        if best_match is not None:
+            detected.append({
+                "name": best_match,
+                "confidence": float(best_similarity),
+                "bbox": {
+                    "x1": int(bbox[0]),
+                    "y1": int(bbox[1]),
+                    "x2": int(bbox[2]),
+                    "y2": int(bbox[3]),
+                },
+            })
 
     detected.sort(key=lambda x: x["confidence"], reverse=True)
     return detected

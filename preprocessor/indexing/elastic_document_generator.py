@@ -119,6 +119,15 @@ class ElasticDocumentGenerator(BaseProcessor):
                 )
                 outputs.append(OutputSpec(path=text_stats_elastic_file, required=True))
 
+            full_episode_emb_file = episode_emb_dir / "embeddings_full_episode.json"
+            if full_episode_emb_file.exists():
+                full_episode_elastic_file = self.episode_manager.build_episode_output_path(
+                    episode_info,
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.full_episode_embeddings}",
+                    f"{base_name}_full_episode_embedding.jsonl",
+                )
+                outputs.append(OutputSpec(path=full_episode_elastic_file, required=True))
+
         return outputs
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None: # pylint: disable=too-many-locals
@@ -218,6 +227,20 @@ class ElasticDocumentGenerator(BaseProcessor):
                 episode_info,
                 base_name,
             )
+
+        if self.embeddings_dir:
+            episode_emb_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+            full_episode_emb_file = episode_emb_dir / "embeddings_full_episode.json"
+
+            if full_episode_emb_file.exists() and any("_full_episode_embedding.jsonl" in str(o.path) for o in missing_outputs):
+                self.__generate_full_episode_embedding_document(
+                    full_episode_emb_file,
+                    episode_id,
+                    episode_metadata,
+                    video_path,
+                    episode_info,
+                    base_name,
+                )
 
         console.print(f"[green]Completed: {trans_file.name}[/green]")
 
@@ -580,3 +603,40 @@ class ElasticDocumentGenerator(BaseProcessor):
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
         console.print(f"[green]Generated text statistics document → {output_file.name}[/green]")
+
+    def __generate_full_episode_embedding_document(
+        self,
+        full_episode_emb_file: Path,
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        episode_info,
+        base_name: str,
+    ) -> None:
+        with open(full_episode_emb_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        full_episode_embedding_data = data.get("full_episode_embedding", {})
+        if not full_episode_embedding_data or "embedding" not in full_episode_embedding_data:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.full_episode_embeddings}",
+            f"{base_name}_full_episode_embedding.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        doc = {
+            "episode_id": episode_id,
+            "episode_metadata": episode_metadata,
+            "full_transcript": full_episode_embedding_data.get("text", ""),
+            "transcript_length": full_episode_embedding_data.get("transcript_length", 0),
+            "full_episode_embedding": full_episode_embedding_data.get("embedding", []),
+            "video_path": video_path,
+        }
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated full episode embedding document → {output_file.name}[/green]")

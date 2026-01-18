@@ -26,6 +26,7 @@ class ArchiveGenerator(BaseProcessor):
         ELASTIC_SUBDIRS.video_embeddings: "video_embeddings",
         ELASTIC_SUBDIRS.episode_names: "episode_name",
         ELASTIC_SUBDIRS.text_statistics: "text_statistics",
+        ELASTIC_SUBDIRS.full_episode_embeddings: "full_episode_embedding",
     }
 
     def __init__(self, args: Dict[str, Any]):
