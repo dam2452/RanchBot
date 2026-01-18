@@ -40,3 +40,7 @@ def get_clip_name_length_exceeded_message():
 
 def get_clip_limit_exceeded_message() -> str:
     return "❌ Przekroczono limit zapisanych klipów. Usuń kilka starych, aby móc zapisać nowy. ❌"
+
+
+def get_log_clip_name_numeric_message(clip_name: str, username: str) -> str:
+    return f"Clip name '{clip_name}' consists only of digits for user '{username}'. Not allowed."

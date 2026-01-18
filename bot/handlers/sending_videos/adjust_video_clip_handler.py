@@ -117,8 +117,8 @@ class AdjustVideoClipHandler(BotMessageHandler):
             )
         except ValueError:
             return await self.__reply_invalid_interval()
-        except FFMpegException:
-            return await self.__reply_extraction_failure()
+        except FFMpegException as e:
+            return await self.__reply_extraction_failure(e)
 
         await self._log_system_message(logging.INFO, get_updated_segment_info_log(msg.get_chat_id()))
         return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
@@ -139,9 +139,9 @@ class AdjustVideoClipHandler(BotMessageHandler):
         await self._answer(await self.get_response(RK.INVALID_SEGMENT_INDEX))
         await self._log_system_message(logging.INFO, get_invalid_segment_log())
 
-    async def __reply_extraction_failure(self) -> None:
+    async def __reply_extraction_failure(self, e: Exception) -> None:
         await self._answer(await self.get_response(RK.EXTRACTION_FAILURE, as_parent=True))
-        await self._log_system_message(logging.ERROR, get_extraction_failure_log())
+        await self._log_system_message(logging.ERROR, get_extraction_failure_log(e))
 
     async def __is_adjustment_exceeding_limits(self, additional_start_offset: float, additional_end_offset: float) -> bool:
         return (

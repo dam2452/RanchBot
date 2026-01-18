@@ -8,8 +8,8 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.not_sending_videos.delete_clip_handler_responses import (
-    get_log_clip_deleted_message,
     get_clip_not_exist_message,
+    get_log_clip_deleted_message,
     get_log_clip_not_exist_message,
     get_log_no_saved_clips_message,
 )
