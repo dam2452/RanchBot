@@ -13,10 +13,17 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_extraction_failure_log,
+    get_extraction_failure_message,
+    get_invalid_args_count_message,
     get_invalid_interval_log,
+    get_invalid_interval_message,
+    get_invalid_segment_index_message,
     get_invalid_segment_log,
+    get_max_extension_limit_message,
     get_no_previous_searches_log,
+    get_no_previous_searches_message,
     get_no_quotes_selected_log,
+    get_no_quotes_selected_message,
     get_successful_adjustment_message,
     get_updated_segment_info_log,
 )
@@ -40,7 +47,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, await self.get_response(RK.INVALID_ARGS_COUNT), 3)
+        return await self._validate_argument_count(self._message, 2, get_invalid_args_count_message(), 3)
 
     async def _do_handle(self) -> None:
         msg = self._message
@@ -76,7 +83,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             float(content[-2])
             float(content[-1])
         except ValueError:
-            return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
+            return await self._reply_invalid_args_count(get_invalid_args_count_message())
 
         additional_start_offset = float(content[-2])
         additional_end_offset = float(content[-1])
@@ -89,7 +96,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             await self._log_system_message(logging.INFO, f"Relative adjustment. Last clip: {last_clip}")
 
         if await self.__is_adjustment_exceeding_limits(additional_start_offset, additional_end_offset):
-            return await self._answer(await self.get_response(RK.MAX_EXTENSION_LIMIT))
+            return await self.reply_error(get_max_extension_limit_message())
 
         # prevent adding extra padding in sequential adjustments while keeping the minimum clip length for the first use
         extend_before = 0 if is_consecutive_adjustment else settings.EXTEND_BEFORE
@@ -123,23 +130,23 @@ class AdjustVideoClipHandler(BotMessageHandler):
         return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
 
     async def __reply_no_previous_searches(self) -> None:
-        await self._answer(await self.get_response(RK.NO_PREVIOUS_SEARCHES))
+        await self.reply_error(get_no_previous_searches_message())
         await self._log_system_message(logging.INFO, get_no_previous_searches_log())
 
     async def __reply_no_quotes_selected(self) -> None:
-        await self._answer(await self.get_response(RK.NO_QUOTES_SELECTED))
+        await self.reply_error(get_no_quotes_selected_message())
         await self._log_system_message(logging.INFO, get_no_quotes_selected_log())
 
     async def __reply_invalid_interval(self) -> None:
-        await self._answer(await self.get_response(RK.INVALID_INTERVAL))
+        await self.reply_error(get_invalid_interval_message())
         await self._log_system_message(logging.INFO, get_invalid_interval_log())
 
     async def __reply_invalid_segment_index(self) -> None:
-        await self._answer(await self.get_response(RK.INVALID_SEGMENT_INDEX))
+        await self.reply_error(get_invalid_segment_index_message())
         await self._log_system_message(logging.INFO, get_invalid_segment_log())
 
     async def __reply_extraction_failure(self, e: Exception) -> None:
-        await self._answer(await self.get_response(RK.EXTRACTION_FAILURE, as_parent=True))
+        await self.reply_error(get_extraction_failure_message(e))
         await self._log_system_message(logging.ERROR, get_extraction_failure_log(e))
 
     async def __is_adjustment_exceeding_limits(self, additional_start_offset: float, additional_end_offset: float) -> bool:

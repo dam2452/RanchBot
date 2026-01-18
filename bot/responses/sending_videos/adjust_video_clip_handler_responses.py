@@ -18,10 +18,6 @@ def get_invalid_args_count_message() -> str:
     return "📝 Podaj czas w formacie `<float> <float>` lub `<index> <float> <float>`. Przykład: /dostosuj 10.5 -15.2 lub /dostosuj 1 10.5 -15.2"
 
 
-def get_invalid_args_count_log() -> str:
-    return "Invalid number of arguments provided by user."
-
-
 def get_invalid_interval_message() -> str:
     return "⚠️ Czas zakończenia musi być późniejszy niż czas rozpoczęcia.⚠️"
 

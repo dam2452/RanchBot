@@ -13,6 +13,10 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.send_clip_handler_responses import (
+    get_clip_not_found_message,
+    get_empty_clip_file_message,
+    get_empty_file_error_message,
+    get_give_clip_name_message,
     get_log_clip_not_found_message,
     get_log_clip_sent_message,
     get_log_empty_clip_file_message,
@@ -31,12 +35,7 @@ class SendClipHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            1,
-            await self.get_response(RK.GIVE_CLIP_NAME),
-            math.inf,
-        )
+        return await self._validate_argument_count(self._message,1, get_give_clip_name_message(), math.inf)
 
     async def __check_clip_existence(self) -> bool:
         content = self._message.get_text().split()
@@ -92,25 +91,21 @@ class SendClipHandler(BotMessageHandler):
         )
 
     async def __reply_clip_not_found(self, clip_number: Optional[int]) -> None:
-        if clip_number:
-            response = await self.get_response(RK.CLIP_NOT_FOUND_NUMBER, [str(clip_number)])
-        else:
-            response = await self.get_response(RK.CLIP_NOT_FOUND_NAME)
-        await self._responder.send_text(response)
+        await self.reply_error(get_clip_not_found_message(clip_number))
         await self._log_system_message(
             logging.INFO,
             get_log_clip_not_found_message(clip_number, self._message.get_username()),
         )
 
     async def __reply_empty_clip_file(self, clip_name: str) -> None:
-        await self._responder.send_text(await self.get_response(RK.EMPTY_CLIP_FILE))
+        await self.reply_error(get_empty_clip_file_message())
         await self._log_system_message(
             logging.WARNING,
             get_log_empty_clip_file_message(clip_name, self._message.get_username()),
         )
 
     async def __reply_empty_file_error(self, clip_name: str) -> None:
-        await self._responder.send_text(await self.get_response(RK.EMPTY_FILE_ERROR))
+        await self.reply_error(get_empty_file_error_message())
         await self._log_system_message(
             logging.ERROR,
             get_log_empty_file_error_message(clip_name, self._message.get_username()),

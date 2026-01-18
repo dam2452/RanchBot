@@ -11,7 +11,9 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.compile_selected_clips_handler_responses import (
     get_compiled_clip_sent_message,
+    get_invalid_args_count_message,
     get_log_no_matching_clips_found_message,
+    get_no_matching_clips_found_message,
 )
 from bot.video.clips_compiler import (
     ClipsCompiler,
@@ -35,12 +37,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            2,
-            await self.get_response(RK.INVALID_ARGS_COUNT),
-            math.inf,
-        )
+        return await self._validate_argument_count(self._message, 2, get_invalid_args_count_message(), math.inf)
 
     async def __check_user_has_clips(self) -> bool:
         user_clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
@@ -55,7 +52,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         try:
             clip_numbers = [int(clip) for clip in content[1:]]
         except ValueError:
-            return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
+            return await self._reply_invalid_args_count(get_invalid_args_count_message())
 
         user_clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
 
@@ -64,7 +61,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             if 1 <= clip_number <= len(user_clips):
                 selected_clips.append(user_clips[clip_number - 1])
             else:
-                return await self._reply_invalid_args_count(await self.get_response(RK.INVALID_ARGS_COUNT))
+                return await self._reply_invalid_args_count(get_invalid_args_count_message())
 
         if not selected_clips:
             return await self.__reply_no_matching_clips_found()
@@ -95,5 +92,5 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         )
 
     async def __reply_no_matching_clips_found(self) -> None:
-        await self._responder.send_text(await self.get_response(RK.NO_MATCHING_CLIPS_FOUND))
+        await self.reply_error(get_no_matching_clips_found_message())
         await self._log_system_message(logging.INFO, get_log_no_matching_clips_found_message())
