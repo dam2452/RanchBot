@@ -1,5 +1,6 @@
 import pytest
 
+import bot.responses.not_sending_videos.episode_list_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -18,12 +19,7 @@ class TestEpisodeListHandler(BaseTest):
         response = self.send_command(f'/odcinki {season_number}')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                RK.NO_EPISODES_FOUND,
-                args=[str(season_number)],
-                ),
-            ],
+            [msg.get_no_episodes_found_message(season_number)],
         )
 
     @pytest.mark.asyncio
@@ -31,11 +27,7 @@ class TestEpisodeListHandler(BaseTest):
         response = self.send_command('/odcinki')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                    RK.INVALID_ARGS_COUNT,
-                ),
-            ],
+            [msg.get_invalid_args_count_message()],
         )
 
     @pytest.mark.asyncio

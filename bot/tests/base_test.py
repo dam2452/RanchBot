@@ -15,7 +15,6 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
-from bot.responses.bot_message_handler_responses import get_response
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.tests.settings import settings as s
 
@@ -41,13 +40,6 @@ class BaseTest:
 
     def get_tested_handler_name(self) -> str:
         return self.__class__.__name__[4:]
-
-    async def get_response(self, key: str, args: Optional[List[str]] = None) -> str:
-        return await get_response(
-            key=key,
-            handler_name=self.get_tested_handler_name() ,
-            args=args,
-        )
 
     @staticmethod
     def remove_until_first_space(text: str) -> str:

@@ -1,5 +1,6 @@
 import pytest
 
+import bot.responses.not_sending_videos.delete_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -12,12 +13,7 @@ class TestDeleteClipHandler(BaseTest):
         self.send_command('/zapisz test_clip')
         self.expect_command_result_contains(
             '/usunklip 1',
-            [
-                await self.get_response(
-                    RK.CLIP_DELETED,
-                    args=["test_clip"],
-                ),
-            ],
+            [msg.get_clip_deleted_message("test_clip")],
         )
 
     @pytest.mark.asyncio
@@ -28,12 +24,7 @@ class TestDeleteClipHandler(BaseTest):
         response = self.send_command(f'/usunklip {clip_id}')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                    RK.CLIP_NOT_EXIST,
-                    args=[str(clip_id)],
-                ),
-            ],
+            [msg.get_clip_id_not_exist_message(clip_id)],
         )
 
     @pytest.mark.asyncio
@@ -41,11 +32,7 @@ class TestDeleteClipHandler(BaseTest):
         response = self.send_command('/usunklip')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                    RK.INVALID_ARGS_COUNT,
-                ),
-            ],
+            [msg.get_invalid_args_count_message()],
         )
 
     @pytest.mark.asyncio
@@ -57,12 +44,7 @@ class TestDeleteClipHandler(BaseTest):
         for clip_name in ("geniusz", "kozioł"):
             self.expect_command_result_contains(
                 "/usunklip 1",
-                [
-                    await self.get_response(
-                        RK.CLIP_DELETED,
-                        args=[clip_name],
-                    ),
-                ],
+                [msg.get_clip_deleted_message(clip_name)],
             )
 
     @pytest.mark.asyncio
@@ -73,12 +55,7 @@ class TestDeleteClipHandler(BaseTest):
 
         self.expect_command_result_contains(
             '/usunklip 1',
-            [
-                await self.get_response(
-                    RK.CLIP_DELETED,
-                    args=[special_clip_name],
-                ),
-            ],
+            [msg.get_clip_deleted_message(special_clip_name)],
         )
 
     @pytest.mark.asyncio
@@ -89,10 +66,5 @@ class TestDeleteClipHandler(BaseTest):
         response = self.send_command(f'/usunklip {clip_id}')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                    RK.CLIP_NOT_EXIST,
-                    args=[str(clip_id)],
-                ),
-            ],
+            [msg.get_clip_id_not_exist_message(clip_id)],
         )

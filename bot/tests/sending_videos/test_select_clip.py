@@ -1,5 +1,6 @@
 import pytest
 
+import bot.responses.sending_videos.select_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -20,7 +21,7 @@ class TestSelectClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_select_no_previous_search(self):
         response = self.send_command('/wybierz 1')
-        self.assert_response_contains(response, [await self.get_response(RK.NO_PREVIOUS_SEARCH)])
+        self.assert_response_contains(response, [msg.get_no_previous_search_message()])
 
     @pytest.mark.asyncio
     async def test_select_invalid_segment_number(self):
@@ -31,4 +32,4 @@ class TestSelectClipHandler(BaseTest):
         )
 
         response = self.send_command('/wybierz 999')
-        self.assert_response_contains(response, [await self.get_response(RK.INVALID_SEGMENT_NUMBER)])
+        self.assert_response_contains(response, [msg.get_invalid_segment_number_message()])

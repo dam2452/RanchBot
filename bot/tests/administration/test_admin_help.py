@@ -1,5 +1,6 @@
 import pytest
 
+import bot.responses.administration.admin_help_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -9,14 +10,14 @@ class TestAdminHelpHandler(BaseTest):
     async def test_admin_help(self):
         self.expect_command_result_contains(
             'admin',
-            [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
+            [self.remove_n_lines(msg.get_admin_help_message(), 1)],
         )
 
     @pytest.mark.asyncio
     async def test_admin_shortcuts(self):
         self.expect_command_result_contains(
             'admin',
-            [await self.remove_first_line(await self.get_response(RK.ADMIN_SHORTCUTS))],
+            [self.remove_n_lines(msg.get_admin_shortcuts_message(), 1)],
             args=['skroty'],
         )
 
@@ -24,6 +25,6 @@ class TestAdminHelpHandler(BaseTest):
     async def test_admin_invalid_command(self):
         self.expect_command_result_contains(
             'admin',
-            [await self.remove_first_line(await self.get_response(RK.ADMIN_HELP))],
+            [self.remove_n_lines(msg.get_admin_help_message(), 1)],
             args=['nieistniejace_polecenie'],
         )

@@ -1,5 +1,6 @@
 import pytest
 
+import bot.responses.not_sending_videos.transcription_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -19,7 +20,7 @@ class TestTranscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_transcription_no_arguments(self):
         response = self.send_command('/transkrypcja')
-        self.assert_response_contains(response, [await self.get_response(RK.NO_QUOTE_PROVIDED)])
+        self.assert_response_contains(response, [msg.get_no_quote_provided_message()])
 
     @pytest.mark.asyncio
     async def test_transcription_valid_with_context(self):

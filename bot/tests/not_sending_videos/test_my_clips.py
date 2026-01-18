@@ -10,7 +10,7 @@ class TestMyClipsHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_myclips_no_clips(self):
         response = self.send_command('mojeklipy')
-        self.assert_response_contains(response, [await self.get_response(RK.NO_SAVED_CLIPS)])
+        self.assert_response_contains(response, [msg.get_no_saved_clips_message()])
 
     @pytest.mark.asyncio
     async def test_myclips_with_regular_clips(self):
@@ -18,7 +18,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command('zapisz pierwszy_klip')
 
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
-        response = self.remove_n_lines(await msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
+        response = self.remove_n_lines(msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
     @pytest.mark.asyncio
@@ -30,7 +30,7 @@ class TestMyClipsHandler(BaseTest):
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
         for clip in clips:
             clip.is_compilation = True
-        response = self.remove_n_lines(await msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
+        response = self.remove_n_lines(msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
     @pytest.mark.asyncio
@@ -40,7 +40,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command(f'zapisz {long_name}')
 
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
-        response = self.remove_n_lines(await msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
+        response = self.remove_n_lines(msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
     @pytest.mark.asyncio
@@ -50,7 +50,7 @@ class TestMyClipsHandler(BaseTest):
         self.send_command(f'zapisz {special_name}')
 
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
-        response = self.remove_n_lines(await msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
+        response = self.remove_n_lines(msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)
         self.expect_command_result_contains('mojeklipy', [response])
 
     @pytest.mark.asyncio
@@ -61,5 +61,5 @@ class TestMyClipsHandler(BaseTest):
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
         for clip in clips:
             clip.duration = None
-        response = self.remove_n_lines(await msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 5)
+        response = self.remove_n_lines(msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 5)
         self.expect_command_result_contains('mojeklipy', [response])
