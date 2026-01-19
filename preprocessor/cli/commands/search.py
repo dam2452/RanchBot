@@ -503,14 +503,17 @@ def print_results(result, result_type="text"):
 @click.option("--stats", is_flag=True, help="Pokaz statystyki indeksow")
 @click.option("--json-output", is_flag=True, help="Output w formacie JSON")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
-def search(
+def search(  # pylint: disable=too-many-locals
     text, text_semantic, text_to_video, image, phash, character, emotion, object_query, episode_name,
     episode_name_semantic, list_chars_flag, season, episode, limit,
     stats, json_output, host,
 ):
     """Search tool - comprehensive Elasticsearch search"""
 
-    if not any([text, text_semantic, text_to_video, image, phash, character, emotion, object_query, episode_name, episode_name_semantic, list_chars_flag, stats]):
+    if not any([
+        text, text_semantic, text_to_video, image, phash, character, emotion,
+        object_query, episode_name, episode_name_semantic, list_chars_flag, stats,
+    ]):
         click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
         sys.exit(1)
 

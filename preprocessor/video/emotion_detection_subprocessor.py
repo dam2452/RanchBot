@@ -2,8 +2,6 @@ import json
 import logging
 from pathlib import Path
 from typing import (
-    Any,
-    Dict,
     List,
     Optional,
 )
@@ -72,7 +70,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
         return True
 
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
         self.initialize()
 
         episode_info = item.metadata["episode_info"]
@@ -134,7 +132,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
                     processed += 1
 
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error(f"Emotion detection failed for {frame_file}: {e}")
                     continue
 

@@ -141,5 +141,5 @@ def crop_face_from_frame(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np
 
         return face_crop
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         return None
