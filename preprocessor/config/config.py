@@ -27,7 +27,7 @@ def get_output_path(relative_path: str) -> Path:
 class ElasticDocumentSubdirs:
     segments: str = "segments"
     text_embeddings: str = "text_embeddings"
-    video_embeddings: str = "video_embeddings"
+    video_frames: str = "video_frames"
     episode_names: str = "episode_names"
     text_statistics: str = "text_statistics"
     full_episode_embeddings: str = "full_episode_embeddings"

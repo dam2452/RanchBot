@@ -58,7 +58,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
         if not detections_file.exists():
             console.print(
-                f"[yellow]No character detections found for emotion analysis: {detections_file}[/yellow]"
+                f"[yellow]No character detections found for emotion analysis: {detections_file}[/yellow]",
             )
             return False
 
@@ -123,7 +123,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
                 try:
                     dominant_emotion, confidence, emotion_scores = detect_emotion(
                         face_crop,
-                        self.session
+                        self.session,
                     )
 
                     char["emotion"] = {
@@ -144,5 +144,5 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
         atomic_write_json(detections_file, detections_data, indent=2, ensure_ascii=False)
 
         console.print(
-            f"[green]✓ Emotion analysis complete: {processed}/{total_characters} characters processed[/green]"
+            f"[green]✓ Emotion analysis complete: {processed}/{total_characters} characters processed[/green]",
         )

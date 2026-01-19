@@ -20,7 +20,7 @@ EMOTION_LABELS = [
     'anger',
     'disgust',
     'fear',
-    'contempt'
+    'contempt',
 ]
 
 
@@ -49,7 +49,7 @@ def init_emotion_model(model_path: Optional[Path] = None) -> ort.InferenceSessio
             raise RuntimeError(
                 "CUDA/GPU not available for ONNX Runtime. "
                 "Emotion detection requires GPU. "
-                f"Available providers: {available_providers}"
+                f"Available providers: {available_providers}",
             )
 
     if model_path is None:
@@ -61,7 +61,7 @@ def init_emotion_model(model_path: Optional[Path] = None) -> ort.InferenceSessio
 
     session = ort.InferenceSession(
         str(model_path),
-        providers=['CUDAExecutionProvider']
+        providers=['CUDAExecutionProvider'],
     )
 
     console.print("[green]✓ FER+ emotion model loaded on GPU[/green]")
@@ -93,7 +93,7 @@ def preprocess_face_for_ferplus(face_image: np.ndarray) -> np.ndarray:
 
 def detect_emotion(
     face_image: np.ndarray,
-    session: ort.InferenceSession
+    session: ort.InferenceSession,
 ) -> Tuple[str, float, Dict[str, float]]:
     try:
         img_input = preprocess_face_for_ferplus(face_image)

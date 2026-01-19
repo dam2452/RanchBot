@@ -23,7 +23,7 @@ class ArchiveGenerator(BaseProcessor):
     FOLDER_TO_FILE_SUFFIX = {
         ELASTIC_SUBDIRS.segments: "segments",
         ELASTIC_SUBDIRS.text_embeddings: "text_embeddings",
-        ELASTIC_SUBDIRS.video_embeddings: "video_embeddings",
+        ELASTIC_SUBDIRS.video_frames: "video_frames",
         ELASTIC_SUBDIRS.episode_names: "episode_name",
         ELASTIC_SUBDIRS.text_statistics: "text_statistics",
         ELASTIC_SUBDIRS.full_episode_embeddings: "full_episode_embedding",

@@ -51,6 +51,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     vllm==0.13.0 \
     onnxruntime-gpu==1.21.0
 
+RUN pip uninstall -y nvidia-nccl-cu11 && \
+    pip install --no-cache-dir --force-reinstall --no-deps nvidia-nccl-cu12
+
 RUN patchright install chromium \
     && patchright install-deps chromium
 
@@ -63,7 +66,7 @@ RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightfa
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
 
-ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/onnxruntime/capi:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/nvidia/nccl/lib:/opt/conda/lib/python3.11/site-packages/onnxruntime/capi:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
 
 COPY preprocessor/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

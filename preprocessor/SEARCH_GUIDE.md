@@ -10,15 +10,16 @@ CLI do przeszukiwania danych w Elasticsearch.
 |------|-------|--------|------|
 | Full-text | `--text` | segments | BM25, dokładne słowa |
 | Semantic text | `--text-semantic` | text_embeddings | Kontekst/znaczenie |
-| Cross-modal | `--text-to-video` | video_embeddings | Tekst → klatki wideo |
-| Image search | `--image` | video_embeddings | Podobne sceny wizualnie |
-| Character | `--character` | video_embeddings | Po postaci (case-sensitive!) |
-| Object | `--object` | video_embeddings | Po obiektach (80 klas COCO) |
+| Cross-modal | `--text-to-video` | video_frames | Tekst → klatki wideo |
+| Image search | `--image` | video_frames | Podobne sceny wizualnie |
+| Character | `--character` | video_frames | Po postaci (case-sensitive!) |
+| Emotion | `--emotion` | video_frames | Po emocjach postaci (8 emocji) |
+| Object | `--object` | video_frames | Po obiektach (80 klas COCO) |
 | Episode fuzzy | `--episode-name` | episode_names | BM25 po tytułach |
 | Episode semantic | `--episode-name-semantic` | episode_names | Semantic po tytułach |
-| Hash | `--hash` | video_embeddings | Duplikaty klatek |
+| Hash | `--hash` | video_frames | Duplikaty klatek |
 | Stats | `--stats` | wszystkie | Liczba dokumentów |
-| Characters list | `--list-characters` | video_embeddings | Lista postaci |
+| Characters list | `--list-characters` | video_frames | Lista postaci |
 
 ## Quick Start
 
@@ -44,6 +45,11 @@ CLI do przeszukiwania danych w Elasticsearch.
 # Character search (CASE-SENSITIVE!)
 ./run-preprocessor.sh search --character "Lucy Wilska" --season 10
 
+# Emotion search (8 emocji FER+)
+./run-preprocessor.sh search --emotion "happiness"
+./run-preprocessor.sh search --emotion "sadness" --season 10
+./run-preprocessor.sh search --emotion "anger" --character "Lucy Wilska"
+
 # Object search (80 klas COCO)
 ./run-preprocessor.sh search --object "dog"
 ./run-preprocessor.sh search --object "person:5+"      # 5+ osób
@@ -65,9 +71,9 @@ CLI do przeszukiwania danych w Elasticsearch.
 
 | Filtr | Dostępne dla |
 |-------|--------------|
-| `--season N` | text, text-semantic, text-to-video, image, character, object, episode-name |
-| `--episode N` | text, text-semantic, text-to-video, image, character, object |
-| `--character NAME` | text-to-video, image, object |
+| `--season N` | text, text-semantic, text-to-video, image, character, emotion, object, episode-name |
+| `--episode N` | text, text-semantic, text-to-video, image, character, emotion, object |
+| `--character NAME` | text-to-video, image, emotion, object |
 | `--limit N` | wszystkie (default: 20) |
 | `--json-output` | wszystkie |
 | `--host URL` | wszystkie (default: localhost:9200) |
@@ -78,6 +84,19 @@ CLI do przeszukiwania danych w Elasticsearch.
 |-----|--------|---------------|
 | BM25 (text) | 0-∞ | Wyższy = lepsze dopasowanie |
 | Semantic | 0-2 | >1.5 bardzo podobne, >1.0 umiarkowanie |
+
+## Emotion search - emocje FER+ (8)
+
+**Dostępne emocje:** neutral, happiness, surprise, sadness, anger, disgust, fear, contempt
+
+**Przykłady:**
+- `--emotion happiness` - sceny z wesołymi postaciami
+- `--emotion sadness --season 10` - smutne sceny z sezonu 10
+- `--emotion anger --character "Lucy Wilska"` - sceny gdzie Lucy jest zła
+
+**Kombinacje:**
+- Można łączyć z filtrami `--season`, `--episode`, `--character`
+- W wynikach pokazuje postać z emocją i confidence: `Lucy Wilska (happiness 0.85)`
 
 ## Object search - klasy COCO (80)
 
@@ -118,10 +137,11 @@ cp ~/screenshot.jpg preprocessor/input_data/
 | Sytuacja | Tryb |
 |----------|------|
 | Pamiętam dokładne słowa | `--text` |
-| Pamiętam temat/emocję | `--text-semantic` |
+| Pamiętam temat/emocję (w dialogach) | `--text-semantic` |
 | Mam screenshot | `--image` |
 | Szukam wizualnie po opisie | `--text-to-video` |
 | Szukam scen z postacią | `--character` |
+| Szukam po emocjach/humorze postaci | `--emotion` |
 | Szukam obiektów (samochód, pies) | `--object` |
 | Szukam duplikatów klatek | `--hash` |
 | Pamiętam tytuł odcinka | `--episode-name` |

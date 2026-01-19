@@ -100,12 +100,12 @@ docker-compose build
 
 # Generowanie dokumentow Elasticsearch
 ./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
-# Typy: segments, text_embeddings, video_embeddings, episode_names, text_statistics, full_episode_embeddings
+# Typy: segments, text_embeddings, video_frames, episode_names, text_statistics, full_episode_embeddings
 
 # Archiwizacja dokumentow Elasticsearch (ZIP per odcinek)
 ./run-preprocessor.sh generate-archives --series-name ranczo
 # Generuje: output_data/archives/S01/E01/ranczo_S01E01_elastic_documents.zip
-# Zawiera: segments, text_embeddings, video_embeddings, episode_name, text_statistics, full_episode_embeddings
+# Zawiera: segments, text_embeddings, video_frames, episode_name, text_statistics, full_episode_embeddings
 # UWAGA: Domyslnie tworzy ZIP tylko gdy wszystkie 6 plikow jest gotowych!
 ./run-preprocessor.sh generate-archives --season 1 --episode 1  # tylko jeden odcinek
 ./run-preprocessor.sh generate-archives --force-regenerate  # nadpisz istniejace
@@ -118,6 +118,8 @@ docker-compose build
 ./run-preprocessor.sh search --text "query" --limit 5
 ./run-preprocessor.sh search --text-semantic "query"
 ./run-preprocessor.sh search --image /path/to/image.jpg
+./run-preprocessor.sh search --character "Lucy Wilska"
+./run-preprocessor.sh search --emotion "happiness"
 ./run-preprocessor.sh search --stats
 ```
 
@@ -149,7 +151,7 @@ output_data/
 ├── elastic_documents/     # JSONL dla każdego typu i odcinka
 │   ├── segments/
 │   ├── text_embeddings/
-│   ├── video_embeddings/
+│   ├── video_frames/
 │   ├── episode_names/
 │   ├── text_statistics/
 │   └── full_episode_embeddings/

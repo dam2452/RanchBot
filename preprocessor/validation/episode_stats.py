@@ -302,7 +302,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
     def _validate_embedding_dimensions(self, jsonl_file, subdir: str):
         embedding_fields = {
             ELASTIC_SUBDIRS.text_embeddings: "text_embedding",
-            ELASTIC_SUBDIRS.video_embeddings: "video_embedding",
+            ELASTIC_SUBDIRS.video_frames: "video_embedding",
             ELASTIC_SUBDIRS.episode_names: "title_embedding",
             ELASTIC_SUBDIRS.full_episode_embeddings: "full_episode_embedding",
         }
@@ -366,7 +366,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         elastic_subdirs = [
             ELASTIC_SUBDIRS.segments,
             ELASTIC_SUBDIRS.text_embeddings,
-            ELASTIC_SUBDIRS.video_embeddings,
+            ELASTIC_SUBDIRS.video_frames,
             ELASTIC_SUBDIRS.episode_names,
             ELASTIC_SUBDIRS.text_statistics,
             ELASTIC_SUBDIRS.full_episode_embeddings,

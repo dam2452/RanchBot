@@ -89,12 +89,12 @@ class ElasticDocumentGenerator(BaseProcessor):
                 outputs.append(OutputSpec(path=text_embeddings_file, required=True))
 
             if video_emb_file.exists():
-                video_embeddings_file = self.episode_manager.build_episode_output_path(
+                video_frames_file = self.episode_manager.build_episode_output_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_embeddings}",
-                    f"{base_name}_video_embeddings.jsonl",
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_frames}",
+                    f"{base_name}_video_frames.jsonl",
                 )
-                outputs.append(OutputSpec(path=video_embeddings_file, required=True))
+                outputs.append(OutputSpec(path=video_frames_file, required=True))
 
             episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
                 episode_info.season,
@@ -188,8 +188,8 @@ class ElasticDocumentGenerator(BaseProcessor):
 
             video_emb_file = episode_emb_dir / "embeddings_video.json"
 
-            if video_emb_file.exists() and any("_video_embeddings.jsonl" in str(o.path) for o in missing_outputs):
-                self.__generate_video_embeddings(
+            if video_emb_file.exists() and any("_video_frames.jsonl" in str(o.path) for o in missing_outputs):
+                self.__generate_video_frames(
                     video_emb_file,
                     episode_id,
                     episode_metadata,
@@ -474,7 +474,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated {len(text_embeddings)} text embedding documents → {output_file.name}[/green]")
 
-    def __generate_video_embeddings( # pylint: disable=too-many-locals
+    def __generate_video_frames( # pylint: disable=too-many-locals
         self,
         video_emb_file: Path,
         episode_id: str,
@@ -495,8 +495,8 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_embeddings}",
-            f"{base_name}_video_embeddings.jsonl",
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_frames}",
+            f"{base_name}_video_frames.jsonl",
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -550,7 +550,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
-        console.print(f"[green]Generated {len(video_embeddings)} video embedding documents → {output_file.name}[/green]")
+        console.print(f"[green]Generated {len(video_embeddings)} video frame documents → {output_file.name}[/green]")
 
     def __generate_episode_name_document(
         self,

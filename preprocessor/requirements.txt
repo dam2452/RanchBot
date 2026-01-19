@@ -1,9 +1,9 @@
 accelerate~=1.5.0
 click~=8.3.0
 crawl4ai~=0.7.8
-cuda-python~=12.6.0
-cuml-cu12~=24.12.0
-cupy-cuda12x~=13.3.0
+cuda-python~=12.9.5
+cuml-cu12~=25.12.0
+cupy-cuda12x~=13.6.0
 ddgs~=9.10.0
 decord~=0.6.0
 
