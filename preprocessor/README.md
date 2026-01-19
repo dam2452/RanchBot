@@ -36,8 +36,8 @@ docker-compose build
 [0b] scrape characters → [0c] download references
 [4] detect scenes → [5] export frames → [6] text embeddings → [7] frame processing:
     [7a] image hashing | [7b] video embeddings | [7c] character detection
-    [7d] character visualization | [7e] face clustering | [7f] object detection
-    [7g] object visualization
+    [7d] character visualization | [7e] emotion detection | [7f] face clustering
+    [7g] object detection | [7h] object visualization
 [8] generate elastic docs → [9] archive zips → [10] index → [11] validate
 ```
 
@@ -58,9 +58,10 @@ docker-compose build
 | `--skip-video-embeddings` | 7b: Video embeddings |
 | `--skip-character-detection` | 7c: Character detection |
 | `--skip-character-visualization` | 7d: Character visualization |
-| `--skip-face-clustering` | 7e: Face clustering |
-| `--skip-object-detection` | 7f: Object detection |
-| `--skip-object-visualization` | 7g: Object visualization |
+| `--skip-emotion-detection` | 7e: Emotion detection |
+| `--skip-face-clustering` | 7f: Face clustering |
+| `--skip-object-detection` | 7g: Object detection |
+| `--skip-object-visualization` | 7h: Object visualization |
 | `--skip-elastic-documents` | 8/12: Generowanie dokumentów |
 | `--skip-archives` | 9/12: Archiwizacja ZIP |
 | `--skip-index` | 10/12: Indeksowanie |
@@ -142,8 +143,8 @@ output_data/
 ├── exported_frames/       # JPG 1080p
 ├── embeddings/            # embeddings_text.json, embeddings_video.json, embeddings_full_episode.json
 ├── image_hashes/          # perceptual hashes klatek
-├── character_detections/  # detections.json (InsightFace) + visualizations/
-├── face_clusters/         # klastry twarzy (HDBSCAN)
+├── character_detections/  # detections.json (InsightFace + FER+ emotions) + visualizations/
+├── face_clusters/         # klastry twarzy (HDBSCAN, dev-only)
 ├── object_detections/     # detections.json (D-FINE) + visualizations/
 ├── elastic_documents/     # JSONL dla każdego typu i odcinka
 │   ├── segments/
@@ -174,6 +175,7 @@ output_data/
 | Detekcja scen | TransNetV2                           |
 | Embeddingi | Qwen3-VL-Embedding-8B                |
 | Face recognition | InsightFace (buffalo_l)              |
+| Emotion detection | FER+ ONNX (8 emotions)               |
 | Face clustering | HDBSCAN (cuML GPU)                   |
 | Object detection | D-FINE-X                             |
 | LLM scraping | Qwen2.5-Coder-7B-Instruct            |
@@ -181,7 +183,15 @@ output_data/
 
 ## Nowe funkcje
 
-### Face Clustering (7e)
+### Emotion Detection (7e)
+Detekcja emocji na wykrytych twarzach postaci za pomocą FER+ ONNX:
+- **GPU-only:** ONNX Runtime z CUDAExecutionProvider (wymaga CUDA)
+- **Model:** FER+ (8 emocji: neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)
+- **Dokładność:** 93% (AAAI 2025 QCS benchmark)
+- **Output:** Dodaje pole `emotion` do detections.json oraz elastic documents
+- **Skip flag:** `--skip-emotion-detection`
+
+### Face Clustering (7f)
 Automatyczna klasteryzacja wykrytych twarzy za pomocą HDBSCAN:
 - **GPU-only:** cuML HDBSCAN (wymaga CUDA)
 - **Parametry:** `min_cluster_size=5`, `min_samples=3` (konfigurowalne w settings)
@@ -189,8 +199,9 @@ Automatyczna klasteryzacja wykrytych twarzy za pomocą HDBSCAN:
 - **Skip flag:** `--skip-face-clustering`
 
 ### Character Detection Visualization (7d)
-Wizualizacja wykrytych postaci na klatkach:
+Wizualizacja wykrytych postaci na klatkach z emocjami:
 - **Output:** character_detections/visualizations/ z adnotowanymi klatkami
+- **Format:** `Nazwa 0.95 | happiness 0.85` (nazwa postaci + emocja)
 - **Skip flag:** `--skip-character-visualization`
 
 ### Full Episode Embedding (6)

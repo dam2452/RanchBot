@@ -1,8 +1,10 @@
 from pathlib import Path
+import re
 from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 from preprocessor.characters.face_detection_utils import detect_characters_in_frame
@@ -12,7 +14,18 @@ from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_minimal_episode_info
 
 
-def save_character_detections(episode_info, results: List[Dict[str, Any]]) -> None:
+def parse_frame_number(frame_filename: str) -> Optional[int]:
+    match = re.search(r'frame_(\d+)', frame_filename)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def save_character_detections(
+    episode_info,
+    results: List[Dict[str, Any]],
+    fps: float = 25.0,
+) -> None:
     detections_output_dir = Path(settings.character.detections_dir)
     season = episode_info.season
     episode = episode_info.relative_episode
@@ -21,6 +34,9 @@ def save_character_detections(episode_info, results: List[Dict[str, Any]]) -> No
 
     detections_data = {
         "episode_info": create_minimal_episode_info(episode_info),
+        "video_metadata": {
+            "fps": fps,
+        },
         "detections": results,
     }
 
@@ -36,6 +52,7 @@ def process_frames_for_detection(
     face_app,
     character_vectors: Dict[str, Any],
     threshold: float,
+    fps: float = 25.0,
 ) -> List[Dict[str, Any]]:
     results = []
     for idx, frame_path in enumerate(frame_files):
@@ -45,10 +62,18 @@ def process_frames_for_detection(
             character_vectors,
             threshold,
         )
-        results.append({
-            "frame": frame_path.name,
+
+        frame_number = parse_frame_number(frame_path.name)
+        timestamp = frame_number / fps if frame_number is not None else None
+
+        frame_result = {
+            "frame_number": frame_number,
+            "timestamp": timestamp,
+            "frame_file": frame_path.name,
             "characters": detected_chars,
-        })
+        }
+
+        results.append(frame_result)
 
         if (idx + 1) % 100 == 0:
             console.print(f"  Processed {idx + 1}/{len(frame_files)} frames")

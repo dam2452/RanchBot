@@ -2,6 +2,7 @@ from pathlib import Path
 
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
+from preprocessor.video.emotion_detection_subprocessor import EmotionDetectionSubProcessor
 from preprocessor.video.face_clustering_subprocessor import FaceClusteringSubProcessor
 from preprocessor.video.frame_processor import FrameProcessor
 from preprocessor.video.frame_subprocessors import (
@@ -343,13 +344,14 @@ def run_index_step(name, dry_run, state_manager, **kwargs):
     return indexer.work()
 
 
-def run_frame_processing_step(  # pylint: disable=too-many-locals
+def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-arguments
     device,
     state_manager,
     ramdisk_path,
     skip_image_hashing,
     skip_video_embeddings,
     skip_character_detection,
+    skip_emotion_detection,
     skip_character_visualization,
     skip_face_clustering,
     skip_object_detection,
@@ -398,6 +400,11 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals
         )
         processor.add_sub_processor(char_detection_sub)
         sub_processors.append(char_detection_sub)
+
+    if not skip_emotion_detection:
+        emotion_detection_sub = EmotionDetectionSubProcessor()
+        processor.add_sub_processor(emotion_detection_sub)
+        sub_processors.append(emotion_detection_sub)
 
     if not skip_character_visualization:
         char_viz_sub = CharacterDetectionVisualizationSubProcessor()

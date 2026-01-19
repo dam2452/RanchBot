@@ -258,7 +258,7 @@ class ElasticDocumentGenerator(BaseProcessor):
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-    def __load_character_detections(self, episode_info) -> Dict[str, List[Dict[str, Any]]]:
+    def __load_character_detections(self, episode_info) -> Dict[int, List[Dict[str, Any]]]:
         if not self.character_detections_dir:
             return {}
 
@@ -273,8 +273,12 @@ class ElasticDocumentGenerator(BaseProcessor):
 
             detections_dict = {}
             for detection in data.get("detections", []):
-                frame_path = detection["frame"]
-                detections_dict[frame_path] = detection["characters"]
+                frame_number = detection.get("frame_number")
+                if frame_number is not None:
+                    detections_dict[frame_number] = detection.get("characters", [])
+                elif "frame" in detection:
+                    frame_file = detection["frame"]
+                    detections_dict[frame_file] = detection.get("characters", [])
 
             return detections_dict
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -305,9 +309,28 @@ class ElasticDocumentGenerator(BaseProcessor):
             return {}
 
     @staticmethod
-    def __get_characters_for_frame(frame_path: str, character_detections: Dict[str, List[Dict[str, Any]]]) -> List[str]:
-        characters = character_detections.get(frame_path, [])
-        return [char["name"] for char in characters]
+    def __get_characters_for_frame(
+        frame_identifier,
+        character_detections: Dict,
+    ) -> List[Dict[str, Any]]:
+        characters = character_detections.get(frame_identifier, [])
+
+        character_list = []
+        for char in characters:
+            char_data = {
+                "name": char["name"],
+                "confidence": char.get("confidence"),
+            }
+
+            if "emotion" in char:
+                char_data["emotion"] = {
+                    "label": char["emotion"]["label"],
+                    "confidence": char["emotion"]["confidence"],
+                }
+
+            character_list.append(char_data)
+
+        return character_list
 
     @staticmethod
     def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -501,11 +524,12 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "video_embedding": embedding,
                 }
 
-                if frame_path:
-                    characters = self.__get_characters_for_frame(frame_path, character_detections)
+                if frame_number is not None:
+                    characters = self.__get_characters_for_frame(frame_number, character_detections)
                     if characters:
                         doc["character_appearances"] = characters
 
+                if frame_path:
                     frame_name = Path(frame_path).name if isinstance(frame_path, str) else frame_path
                     objects = self.__get_objects_for_frame(frame_name, object_detections)
                     if objects:

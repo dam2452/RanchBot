@@ -92,10 +92,13 @@ class CharacterDetector(BaseProcessor):
             if f.is_file() and f.name.startswith("frame_")
         ])
 
+        fps = 25.0
+
         results = process_frames_for_detection(
             frame_files,
             self.face_app,
             self.character_vectors,
             self.threshold,
+            fps=fps,
         )
-        save_character_detections(episode_info, results)
+        save_character_detections(episode_info, results, fps=fps)

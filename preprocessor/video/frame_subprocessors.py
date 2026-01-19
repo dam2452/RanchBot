@@ -288,13 +288,16 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
         console.print(f"[cyan]Detecting characters in {len(frame_files)} frames[/cyan]")
 
+        fps = 25.0
+
         results = process_frames_for_detection(
             frame_files,
             self.face_app,
             self.character_vectors,
             self.threshold,
+            fps=fps,
         )
-        save_character_detections(episode_info, results)
+        save_character_detections(episode_info, results, fps=fps)
 
 
 class ObjectDetectionSubProcessor(FrameSubProcessor):
@@ -650,7 +653,10 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
         console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames with characters for {episode_info.episode_code()}[/cyan]")
 
         for frame_data in frames_with_detections:
-            frame_name = frame_data['frame']
+            frame_name = frame_data.get('frame_file') or frame_data.get('frame')
+            if not frame_name:
+                continue
+
             output_path = output_dir / frame_name
             if output_path.exists():
                 continue
@@ -686,6 +692,11 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
 
             label = f"{name} {confidence:.2f}"
+            if "emotion" in character:
+                emotion_label = character["emotion"]["label"]
+                emotion_conf = character["emotion"]["confidence"]
+                label += f" | {emotion_label} {emotion_conf:.2f}"
+
             label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
             label_y1 = max(y1 - 10, label_size[1])
 
