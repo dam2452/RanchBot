@@ -118,11 +118,10 @@ from preprocessor.utils.console import console
 @click.option("--skip-image-hashing", is_flag=True, help="Skip Step 7a: Image hashing sub-step (use existing hashes)")
 @click.option("--skip-video-embeddings", is_flag=True, help="Skip Step 7b: Video embeddings sub-step (use existing)")
 @click.option("--skip-character-detection", is_flag=True, help="Skip Step 7c: Character detection sub-step (use existing)")
-@click.option("--skip-character-visualization", is_flag=True, help="Skip Step 7d: Character visualization sub-step (skip annotated frames)")
-@click.option("--skip-emotion-detection", is_flag=True, help="Skip Step 7e: Emotion detection sub-step (use existing)")
-@click.option("--skip-face-clustering", is_flag=True, help="Skip Step 7f: Face clustering sub-step (use existing)")
-@click.option("--skip-object-detection", is_flag=True, help="Skip Step 7g: Object detection sub-step (use existing)")
-@click.option("--skip-object-visualization", is_flag=True, help="Skip Step 7h: Object visualization sub-step (skip annotated frames)")
+@click.option("--skip-emotion-detection", is_flag=True, help="Skip Step 7d: Emotion detection sub-step (use existing)")
+@click.option("--skip-face-clustering", is_flag=True, help="Skip Step 7e: Face clustering sub-step (use existing)")
+@click.option("--skip-object-detection", is_flag=True, help="Skip Step 7f: Object detection sub-step (use existing)")
+@click.option("--debug-visualizations", is_flag=True, help="Enable debug visualizations for character and object detections (disabled by default)")
 @click.option("--skip-elastic-documents", is_flag=True, help="Skip Step 8: Generate Elasticsearch documents (use existing documents)")
 @click.option("--skip-archives", is_flag=True, help="Skip Step 9: Archive generation (use existing archives)")
 @click.option("--skip-index", is_flag=True, help="Skip Step 10: Elasticsearch indexing")
@@ -155,11 +154,10 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_image_hashing: bool,
     skip_video_embeddings: bool,
     skip_character_detection: bool,
-    skip_character_visualization: bool,
     skip_emotion_detection: bool,
     skip_face_clustering: bool,
     skip_object_detection: bool,
-    skip_object_visualization: bool,
+    debug_visualizations: bool,
     skip_embeddings: bool,
     skip_elastic_documents: bool,
     skip_archives: bool,
@@ -216,11 +214,11 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "skip_image_hashing": skip_image_hashing,
         "skip_video_embeddings": skip_video_embeddings,
         "skip_character_detection": skip_character_detection,
-        "skip_character_visualization": skip_character_visualization,
+        "skip_character_visualization": not debug_visualizations,
         "skip_emotion_detection": skip_emotion_detection,
         "skip_face_clustering": skip_face_clustering,
         "skip_object_detection": skip_object_detection,
-        "skip_object_visualization": skip_object_visualization,
+        "skip_object_visualization": not debug_visualizations,
     }
 
     metadata_output_dir = Path("/app/output_data/processing_metadata")
@@ -230,6 +228,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         series_name=series_name,
         metadata_output_dir=metadata_output_dir,
     )
+    skip_character_visualization = not debug_visualizations
+    skip_object_visualization = not debug_visualizations
     skip_frame_processing = (
         skip_image_hashing and skip_video_embeddings and skip_character_detection
         and skip_character_visualization and skip_emotion_detection and skip_face_clustering
