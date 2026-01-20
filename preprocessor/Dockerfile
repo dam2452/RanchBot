@@ -9,6 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WHISPER_CACHE=/models/whisper \
     INSIGHTFACE_HOME=/models/insightface \
     YOLO_CONFIG_DIR=/models/ultralytics \
+    EMOTION_MODEL_HOME=/models/emotion_model \
     CUBLAS_WORKSPACE_CONFIG=:4096:8 \
     TOKENIZERS_PARALLELISM=false \
     VLLM_WORKER_MULTIPROC_METHOD=spawn
@@ -60,7 +61,7 @@ RUN patchright install chromium \
 RUN playwright install chromium \
     && playwright install-deps chromium
 
-RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface /models/ultralytics \
+RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface /models/ultralytics /models/emotion_model \
     /app/output_data/{characters,scraped_pages,processing_metadata}
 
 COPY bot /app/bot

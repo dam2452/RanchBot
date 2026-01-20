@@ -135,7 +135,7 @@ class ObjectDetectionSettings:
 @dataclass
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
-    detection_size: tuple = (640, 640)
+    detection_size: tuple = (1280, 1280)
     threshold: float = 0.55
     use_gpu: bool = True
 

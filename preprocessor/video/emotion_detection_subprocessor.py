@@ -18,7 +18,7 @@ from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
 from preprocessor.utils.emotion_utils import (
     crop_face_from_frame,
-    detect_emotion,
+    detect_emotions_batch,
     init_emotion_model,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -70,7 +70,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
         return True
 
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         self.initialize()
 
         episode_info = item.metadata["episode_info"]
@@ -90,10 +90,12 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
         detections = detections_data.get("detections", [])
 
         total_characters = sum(len(d.get("characters", [])) for d in detections)
-        console.print(f"[cyan]Analyzing emotions for {total_characters} character detections[/cyan]")
+        console.print(f"[cyan]Collecting {total_characters} faces for batch emotion analysis[/cyan]")
 
-        processed = 0
-        for detection in detections:
+        face_crops = []
+        face_metadata = []
+
+        for detection_idx, detection in enumerate(detections):
             frame_file = detection.get("frame_file")
             if not frame_file:
                 continue
@@ -109,7 +111,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
             characters = detection.get("characters", [])
 
-            for char in characters:
+            for char_idx, char in enumerate(characters):
                 bbox = char.get("bbox")
                 if not bbox:
                     continue
@@ -118,26 +120,36 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
                 if face_crop is None:
                     continue
 
-                try:
-                    dominant_emotion, confidence, emotion_scores = detect_emotion(
-                        face_crop,
-                        self.session,
-                    )
+                face_crops.append(face_crop)
+                face_metadata.append({
+                    "detection_idx": detection_idx,
+                    "char_idx": char_idx,
+                })
 
-                    char["emotion"] = {
-                        "label": dominant_emotion,
-                        "confidence": confidence,
-                        "scores": emotion_scores,
-                    }
+        if not face_crops:
+            console.print("[yellow]No valid face crops found[/yellow]")
+            return
 
-                    processed += 1
+        console.print(f"[cyan]Processing {len(face_crops)} faces with optimized ONNX inference[/cyan]")
 
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.logger.error(f"Emotion detection failed for {frame_file}: {e}")
-                    continue
+        emotion_results = detect_emotions_batch(face_crops, self.session)
 
-            if (processed % 50) == 0 and processed > 0:
-                console.print(f"  Processed emotions for {processed}/{total_characters} characters")
+        processed = 0
+        for result, metadata in zip(emotion_results, face_metadata):
+            if result is None:
+                continue
+
+            dominant_emotion, confidence, emotion_scores = result
+            detection_idx = metadata["detection_idx"]
+            char_idx = metadata["char_idx"]
+
+            char = detections[detection_idx]["characters"][char_idx]
+            char["emotion"] = {
+                "label": dominant_emotion,
+                "confidence": confidence,
+                "scores": emotion_scores,
+            }
+            processed += 1
 
         atomic_write_json(detections_file, detections_data, indent=2, ensure_ascii=False)
 

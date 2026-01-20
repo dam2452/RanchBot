@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 from typing import (
     Dict,
+    List,
     Optional,
     Tuple,
 )
@@ -53,18 +55,30 @@ def init_emotion_model(model_path: Optional[Path] = None) -> ort.InferenceSessio
             )
 
     if model_path is None:
-        from preprocessor.config.config import settings  # pylint: disable=import-outside-toplevel
-        cache_dir = Path(settings.character.output_dir).parent / "emotion_model"
+        cache_dir = Path(os.getenv("EMOTION_MODEL_HOME", "/models/emotion_model"))
         model_path = download_ferplus_model(cache_dir)
 
     console.print(f"[cyan]Loading FER+ emotion model from {model_path}...[/cyan]")
 
+    session_options = ort.SessionOptions()
+    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    session_options.intra_op_num_threads = 4
+    session_options.inter_op_num_threads = 4
+
+    provider_options = {
+        'device_id': 0,
+        'arena_extend_strategy': 'kSameAsRequested',
+        'gpu_mem_limit': 20 * 1024 * 1024 * 1024,
+        'cudnn_conv_algo_search': 'EXHAUSTIVE',
+    }
+
     session = ort.InferenceSession(
         str(model_path),
-        providers=['CUDAExecutionProvider'],
+        sess_options=session_options,
+        providers=[('CUDAExecutionProvider', provider_options)],
     )
 
-    console.print("[green]✓ FER+ emotion model loaded on GPU[/green]")
+    console.print("[green]✓ FER+ emotion model loaded on GPU (optimized)[/green]")
     return session
 
 
@@ -143,3 +157,33 @@ def crop_face_from_frame(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np
 
     except Exception:  # pylint: disable=broad-exception-caught
         return None
+
+
+def detect_emotions_batch(
+    face_images: List[np.ndarray],
+    session: ort.InferenceSession,
+) -> List[Tuple[str, float, Dict[str, float]]]:
+    results = []
+    input_name = session.get_inputs()[0].name
+
+    for face_img in face_images:
+        try:
+            img_input = preprocess_face_for_ferplus(face_img)
+            outputs = session.run(None, {input_name: img_input})
+            logits = outputs[0][0]
+
+            probs = softmax(logits)
+            emotion_scores = {
+                EMOTION_LABELS[j]: float(probs[j])
+                for j in range(len(EMOTION_LABELS))
+            }
+            dominant_idx = np.argmax(probs)
+            dominant_emotion = EMOTION_LABELS[dominant_idx]
+            confidence = float(probs[dominant_idx])
+
+            results.append((dominant_emotion, confidence, emotion_scores))
+
+        except Exception:  # pylint: disable=broad-exception-caught
+            results.append(None)
+
+    return results

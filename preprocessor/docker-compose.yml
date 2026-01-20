@@ -30,6 +30,7 @@ services:
       - WHISPER_CACHE=/models/whisper
       - INSIGHTFACE_HOME=/models/insightface
       - YOLO_CONFIG_DIR=/models/ultralytics
+      - EMOTION_MODEL_HOME=/models/emotion_model
 
     volumes:
       - ./input_data:/input_data:ro
