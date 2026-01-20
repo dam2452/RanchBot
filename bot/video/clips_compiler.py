@@ -31,7 +31,8 @@ class ClipsCompiler:
 
             command = [
                 "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file_path),
-                "-c", "copy", "-movflags", "+faststart", "-fflags", "+genpts",
+                "-c", "copy", "-bsf:v", "h264_metadata=sample_aspect_ratio=1/1",
+                "-movflags", "+faststart", "-fflags", "+genpts",
                 "-avoid_negative_ts", "1", str(output_file),
             ]
 
