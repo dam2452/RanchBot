@@ -57,8 +57,9 @@ class RestResponder(AbstractResponder):
         self,
         file_path: Path,
         caption: str,
-        background: Optional[BackgroundTask] = None,
+        delete_after_send: bool = True,
     ) -> None:
+        background = BackgroundTask(file_path.unlink) if delete_after_send else None
         self.__set_response(
             FileResponse(
                 path=str(file_path),
