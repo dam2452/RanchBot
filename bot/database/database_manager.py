@@ -780,14 +780,6 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    async def get_message_from_common_messages(
-        key: str, handler_name: str,
-    ) -> Optional[str]:
-        return await DatabaseManager.__get_message_from_message_table(
-            "common_messages", key, handler_name,
-        )
-
-    @staticmethod
     async def get_user_by_username(username: str) -> Optional[tuple[UserProfile, UserCredentials]]:
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(

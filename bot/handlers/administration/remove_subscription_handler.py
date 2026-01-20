@@ -2,12 +2,15 @@ import logging
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.administration.remove_subscription_handler_responses import get_log_subscription_removed_message
+from bot.responses.administration.remove_subscription_handler_responses import (
+    get_log_subscription_removed_message,
+    get_no_user_id_provided_message,
+    get_subscription_removed_message,
+)
 
 
 class RemoveSubscriptionHandler(BotMessageHandler):
@@ -21,16 +24,12 @@ class RemoveSubscriptionHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            1,
-            await self.get_response(RK.NO_USER_ID_PROVIDED),
-        )
+        return await self._validate_argument_count(self._message, 1, get_no_user_id_provided_message())
 
     async def __check_user_id_is_digit(self) -> bool:
         user_input = self._message.get_text().split()[1]
         if not user_input.isdigit():
-            await self.reply_error(RK.NO_USER_ID_PROVIDED)
+            await self.reply_error(get_no_user_id_provided_message())
             return False
         return True
 
@@ -38,8 +37,6 @@ class RemoveSubscriptionHandler(BotMessageHandler):
         user_id = int(self._message.get_text().split()[1])
 
         await DatabaseManager.remove_subscription(user_id)
-        await self.reply(RK.SUBSCRIPTION_REMOVED, args=[str(user_id)])
-        await self._log_system_message(
-            logging.INFO,
-            get_log_subscription_removed_message(str(user_id), self._message.get_username()),
-        )
+
+        await self.reply(get_subscription_removed_message(str(user_id)))
+        await self._log_system_message(logging.INFO, get_log_subscription_removed_message(str(user_id), self._message.get_username()))

@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.sending_videos.compile_clips_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -33,7 +33,7 @@ class TestCompileClipsHandler(BaseTest):
         self.assert_message_hash_matches(message, expected_key="search_kozioł_results.message")
 
         response = self.send_command('/kompiluj 5-3')
-        self.assert_response_contains(response, [await self.get_response(RK.INVALID_RANGE, ["5-3"])])
+        self.assert_response_contains(response, [msg.get_invalid_range_message("5-3")])
 
     @pytest.mark.asyncio
     async def test_compile_invalid_index(self):
@@ -41,7 +41,7 @@ class TestCompileClipsHandler(BaseTest):
         self.assert_message_hash_matches(message, expected_key="search_kozioł_results.message")
 
         response = self.send_command('/kompiluj abc')
-        self.assert_response_contains(response, [await self.get_response(RK.INVALID_INDEX, ["abc"])])
+        self.assert_response_contains(response, [msg.get_invalid_index_message("abc")])
 
     @pytest.mark.asyncio
     async def test_compile_all_clips(self):
@@ -54,7 +54,7 @@ class TestCompileClipsHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_no_previous_search_results(self):
         response = self.send_command('/kompiluj wszystko')
-        self.assert_response_contains(response, [await self.get_response(RK.NO_PREVIOUS_SEARCH_RESULTS)])
+        self.assert_response_contains(response, [msg.get_no_previous_search_results_message()])
 
     @pytest.mark.asyncio
     async def test_no_matching_segments_found(self):
@@ -62,7 +62,7 @@ class TestCompileClipsHandler(BaseTest):
         self.assert_message_hash_matches(message, expected_key="search_no_clips_results.message")
 
         response = self.send_command('/kompiluj 1-5')
-        self.assert_response_contains(response, [await self.get_response(RK.NO_PREVIOUS_SEARCH_RESULTS)])
+        self.assert_response_contains(response, [msg.get_no_previous_search_results_message()])
 
     @pytest.mark.asyncio
     async def test_compile_exceeding_max_clips(self):
@@ -71,7 +71,7 @@ class TestCompileClipsHandler(BaseTest):
         self.assert_message_hash_matches(message, expected_key="search_anglii_results.message")
 
         response = self.send_command('/kompiluj 1-1000')
-        self.assert_response_contains(response, [await self.get_response(RK.MAX_CLIPS_EXCEEDED)])
+        self.assert_response_contains(response, [msg.get_max_clips_exceeded_message()])
 
 
     @pytest.mark.asyncio
@@ -81,4 +81,4 @@ class TestCompileClipsHandler(BaseTest):
         self.assert_message_hash_matches(message, expected_key="search_geniusz_results.message")
 
         response = self.send_command('/kompiluj 1-25')
-        self.assert_response_contains(response, [await self.get_response(RK.CLIP_TIME_EXCEEDED)])
+        self.assert_response_contains(response, [msg.get_clip_time_message()])

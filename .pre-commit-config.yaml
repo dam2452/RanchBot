@@ -20,19 +20,19 @@ repos:
       - id: end-of-file-fixer
       - id: detect-private-key
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.8
+    rev: v1.7.10
     hooks:
       - id: actionlint
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.29.0
+    rev: v8.30.0
     hooks:
       - id: gitleaks
   - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.91.0
+    rev: v3.92.5
     hooks:
       - id: trufflehog
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    rev: v1.5.6
     hooks:
       - id: chmod
         args: ["755"]
@@ -45,7 +45,7 @@ repos:
       - id: isort
         args: ["--trailing-comma", "--multi-line=3", "--force-grid-wrap=2", "--combine-as", "--use-parentheses",  "--force-sort-within-sections", "--line-length=140"]
   - repo: https://github.com/PyCQA/pylint
-    rev: v4.0.3
+    rev: v4.0.4
     hooks:
       - id: pylint
         args: ["--rcfile=./pylintrc"]

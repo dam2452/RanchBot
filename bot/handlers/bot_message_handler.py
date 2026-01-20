@@ -14,18 +14,18 @@ from typing import (
 
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
     get_clip_size_exceed_log_message,
+    get_clip_size_exceed_message,
     get_clip_size_log_message,
     get_general_error_message,
     get_invalid_args_count_message,
     get_log_clip_duration_exceeded_message,
-    get_response,
     get_video_sent_log_message,
 )
+from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
 from bot.settings import settings
 from bot.utils.log import (
     log_system_message,
@@ -75,10 +75,6 @@ class BotMessageHandler(ABC):
     def get_parent_class_name(self) -> str:
         return self.__class__.__bases__[0].__name__
 
-    async def get_response(self, key: str, args: Optional[List[str]] = None, as_parent: Optional[bool] = False) -> str:
-        name = self.get_parent_class_name() if as_parent else self.get_action_name()
-        return await get_response(key=key, handler_name=name, args=args)
-
     @abstractmethod
     def get_commands(self) -> List[str]:
         pass
@@ -102,7 +98,7 @@ class BotMessageHandler(ABC):
 
         if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
             await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
-            await self._answer(await self.get_response(RK.CLIP_SIZE_EXCEEDED, as_parent=True))
+            await self._answer(get_clip_size_exceed_message())
         else:
             await self._responder.send_video(file_path)
             await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
@@ -117,7 +113,7 @@ class BotMessageHandler(ABC):
 
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: float) -> bool:
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
-            await self._answer_markdown(await self.get_response(RK.LIMIT_EXCEEDED_CLIP_DURATION, as_parent=True))
+            await self._answer_markdown(get_limit_exceeded_clip_duration_message())
             await self._log_system_message(logging.INFO, get_log_clip_duration_exceeded_message(self._message.get_user_id()))
             return True
         return False
@@ -140,18 +136,13 @@ class BotMessageHandler(ABC):
 
     async def reply(
             self,
-            key: str,
-            args: Optional[List[str]] = None,
+            message: str,
             data: Optional[dict] = None,
             status: RS = RS.SUCCESS,
-            as_parent: bool = False,
     ) -> None:
-        message = await self.get_response(key, args, as_parent) if key else ""
-
         if self._message.should_reply_json():
             response_data = {
                 "status": status,
-                "code": key,
                 "message": message,
             }
             if data:
@@ -160,8 +151,8 @@ class BotMessageHandler(ABC):
         else:
             await self._responder.send_markdown(await self.escape_markdown(message))
 
-    async def reply_error(self, key: str, args: Optional[List[str]] = None, data: Optional[dict] = None, as_parent: bool = False):
-        await self.reply(key, args=args, data=data, status=RS.ERROR, as_parent=as_parent)
+    async def reply_error(self, message: str, data: Optional[dict] = None):
+        await self.reply(message, data, RS.ERROR)
 
     @staticmethod
     async def escape_markdown(text: str) -> str:

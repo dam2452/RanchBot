@@ -6,16 +6,21 @@ from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.bot_message_handler_responses import get_log_extraction_failure_message
+from bot.responses.bot_message_handler_responses import (
+    get_extraction_failure_message,
+    get_log_extraction_failure_message,
+)
 from bot.responses.sending_videos.select_clip_handler_responses import (
+    get_invalid_args_count_message,
+    get_invalid_segment_number_message,
     get_log_invalid_segment_number_message,
     get_log_no_previous_search_message,
     get_log_segment_selected_message,
+    get_no_previous_search_message,
 )
 from bot.settings import settings
 from bot.video.clips_extractor import ClipsExtractor
@@ -32,11 +37,7 @@ class SelectClipHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            1,
-            await self.get_response(RK.INVALID_ARGS_COUNT),
-        )
+        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message())
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
@@ -69,10 +70,7 @@ class SelectClipHandler(BotMessageHandler):
         temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
         output_filename.replace(temp_file_path)
 
-        if self._message.should_reply_json():
-            await self._responder.send_video(temp_file_path)
-        else:
-            await self._responder.send_video(temp_file_path)
+        await self._responder.send_video(temp_file_path)
 
         await DatabaseManager.insert_last_clip(
             chat_id=self._message.get_chat_id(),
@@ -90,13 +88,13 @@ class SelectClipHandler(BotMessageHandler):
         )
 
     async def __reply_no_previous_search(self) -> None:
-        await self._responder.send_text(await self.get_response(RK.NO_PREVIOUS_SEARCH))
+        await self.reply_error(get_no_previous_search_message())
         await self._log_system_message(logging.INFO, get_log_no_previous_search_message())
 
     async def __reply_extraction_failure(self, exception: FFMpegException) -> None:
-        await self._responder.send_text(await self.get_response(RK.EXTRACTION_FAILURE, as_parent=True))
+        await self.reply_error(get_extraction_failure_message())
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
     async def __reply_invalid_segment_number(self, segment_number: int) -> None:
-        await self._responder.send_text(await self.get_response(RK.INVALID_SEGMENT_NUMBER))
+        await self.reply_error(get_invalid_segment_number_message())
         await self._log_system_message(logging.WARNING, get_log_invalid_segment_number_message(segment_number))

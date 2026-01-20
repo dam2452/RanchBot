@@ -3,12 +3,16 @@ import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.administration.report_issue_handler_responses import get_log_report_received_message
+from bot.responses.administration.report_issue_handler_responses import (
+    get_limit_exceeded_report_length_message,
+    get_log_report_received_message,
+    get_no_report_content_message,
+    get_report_received_message,
+)
 from bot.settings import settings
 
 
@@ -23,17 +27,12 @@ class ReportIssueHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            1,
-            await self.get_response(RK.NO_REPORT_CONTENT),
-            math.inf,
-        )
+        return await self._validate_argument_count(self._message, 1, get_no_report_content_message(), math.inf)
 
     async def __check_report_length(self) -> bool:
         report_content = self._message.get_text().split(maxsplit=1)[1]
         if len(report_content) > settings.MAX_REPORT_LENGTH:
-            await self.reply_error(RK.LIMIT_EXCEEDED_REPORT_LENGTH)
+            await self.reply_error(get_limit_exceeded_report_length_message())
             return False
         return True
 
@@ -43,7 +42,7 @@ class ReportIssueHandler(BotMessageHandler):
 
     async def __handle_user_report_submission(self, report: str) -> None:
         await DatabaseManager.add_report(self._message.get_user_id(), report)
-        await self.reply(RK.REPORT_RECEIVED)
+        await self.reply(get_report_received_message())
         await self._log_system_message(
             logging.INFO,
             get_log_report_received_message(self._message.get_username(), report),

@@ -1,12 +1,16 @@
 import logging
 from typing import List
 
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.administration.admin_help_handler_responses import get_message_sent_log_message
+from bot.responses.administration.admin_help_handler_responses import (
+    get_admin_help_message,
+    get_admin_shortcuts_message,
+    get_message_sent_log_message,
+    get_shortcuts_sent_log_message,
+)
 
 
 class AdminHelpHandler(BotMessageHandler):
@@ -24,25 +28,10 @@ class AdminHelpHandler(BotMessageHandler):
             await self.__reply_admin_help()
 
     async def __reply_admin_help(self) -> None:
-        response = await self.get_response(RK.ADMIN_HELP)
-        if self._message.should_reply_json():
-            await self.reply(RK.ADMIN_HELP, data={"markdown": response})
-        else:
-            await self._responder.send_markdown(response)
+        await self.reply(get_admin_help_message(), data={"markdown": get_admin_help_message()})
 
-        await self._log_system_message(
-            logging.INFO,
-            get_message_sent_log_message(self._message.get_username()),
-        )
+        await self._log_system_message(logging.INFO, get_message_sent_log_message(self._message.get_username()))
 
     async def __reply_admin_shortcuts(self) -> None:
-        response = await self.get_response(RK.ADMIN_SHORTCUTS)
-        if self._message.should_reply_json():
-            await self.reply(RK.ADMIN_SHORTCUTS, data={"markdown": response})
-        else:
-            await self._responder.send_markdown(response)
-
-        await self._log_system_message(
-            logging.INFO,
-            f"Admin shortcuts sent to {self._message.get_username()}",
-        )
+        await self.reply(get_admin_shortcuts_message(), data={"markdown": get_admin_shortcuts_message()})
+        await self._log_system_message(logging.INFO, get_shortcuts_sent_log_message(self._message.get_username()))

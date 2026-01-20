@@ -5,7 +5,6 @@ import tempfile
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -14,6 +13,7 @@ from bot.responses.not_sending_videos.search_list_handler_responses import (
     format_search_list_response,
     get_log_no_previous_search_results_message,
     get_log_search_results_sent_message,
+    get_no_previous_search_results_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings as s
@@ -50,18 +50,17 @@ class SearchListHandler(BotMessageHandler):
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
 
         if self._message.should_reply_json():
-            await self.reply(
-                key="",
-                data={
-                    "query": search_term,
-                    "segments": segments,
-                    "season_info": season_info,
-                },
-            )
+            await self._responder.send_json({
+                "query": search_term,
+                "segments": segments,
+                "season_info": season_info,
+            })
         else:
             response = format_search_list_response(search_term, segments, season_info)
             sanitized_search_term = self.__sanitize_search_term(search_term)
-            file_path = Path(tempfile.gettempdir()) / self.FILE_NAME_TEMPLATE.format(sanitized_search_term=sanitized_search_term)
+            file_path = Path(tempfile.gettempdir()) / self.FILE_NAME_TEMPLATE.format(
+                sanitized_search_term=sanitized_search_term,
+            )
 
             with file_path.open("w", encoding="utf-8") as file:
                 file.write(response)
@@ -74,7 +73,7 @@ class SearchListHandler(BotMessageHandler):
         )
 
     async def __reply_no_previous_search_results(self) -> None:
-        await self.reply_error(RK.NO_PREVIOUS_SEARCH_RESULTS)
+        await self.reply_error(get_no_previous_search_results_message())
         await self._log_system_message(
             logging.INFO,
             get_log_no_previous_search_results_message(self._message.get_chat_id()),
