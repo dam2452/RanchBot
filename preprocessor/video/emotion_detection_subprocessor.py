@@ -70,6 +70,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
         return True
 
+    # pylint: disable=too-many-locals
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         self.initialize()
 
