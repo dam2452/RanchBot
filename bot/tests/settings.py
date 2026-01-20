@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     TEST_ADMINS: str = Field(...)
     TEST_PASSWORD: SecretStr = Field(...)
 
-    REST_API_HOST: str = Field("192.168.1.210")
-    REST_API_PORT: int = Field(8199)
+    REST_API_HOST: str = Field(...)
+    REST_API_PORT: int = Field(...)
 
     model_config = SettingsConfigDict(
         env_file=str(env_path),
