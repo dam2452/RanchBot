@@ -12,7 +12,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     EMOTION_MODEL_HOME=/models/emotion_model \
     CUBLAS_WORKSPACE_CONFIG=:4096:8 \
     TOKENIZERS_PARALLELISM=false \
-    VLLM_WORKER_MULTIPROC_METHOD=spawn
+    VLLM_WORKER_MULTIPROC_METHOD=spawn \
+    DECORD_DEVICE_TYPE=cpu
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git wget curl ca-certificates gnupg2 \
@@ -21,13 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxdamage1 libxfixes3 libxrandr2 libgbm1 \
     libasound2 libxshmfence1 libglib2.0-0 libgomp1 \
     ninja-build \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN wget -q https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.3-1/jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ./jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
+    && wget -q https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.3-1/jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
+    && apt-get install -y --no-install-recommends ./jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
     && rm jellyfin-ffmpeg7_7.1.3-1-jammy_amd64.deb \
     && ln -sf /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
     && ln -sf /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe \
@@ -39,38 +35,39 @@ WORKDIR /app
 COPY preprocessor/requirements.txt /app/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --upgrade pip setuptools wheel
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir \
-    -r /app/requirements.txt \
-    --extra-index-url https://pypi.nvidia.com \
-    --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir \
-    vllm==0.13.0 \
-    onnxruntime-gpu==1.21.0
-
-RUN pip uninstall -y nvidia-nccl-cu11 && \
-    pip install --no-cache-dir --force-reinstall --no-deps nvidia-nccl-cu12
+    pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir \
+        -r /app/requirements.txt \
+        vllm==0.13.0 \
+        onnxruntime-gpu==1.21.0 \
+        --extra-index-url https://pypi.nvidia.com \
+        --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
+    && pip uninstall -y nvidia-nccl-cu11 || true \
+    && pip install --no-cache-dir --force-reinstall --no-deps nvidia-nccl-cu12
 
 RUN patchright install chromium \
-    && patchright install-deps chromium
-
-RUN playwright install chromium \
+    && patchright install-deps chromium \
+    && playwright install chromium \
     && playwright install-deps chromium
 
-RUN mkdir -p /models/huggingface /models/torch /models/whisper /models/insightface /models/ultralytics /models/emotion_model \
-    /app/output_data/{characters,scraped_pages,processing_metadata}
+RUN mkdir -p \
+    /models/huggingface \
+    /models/torch \
+    /models/whisper \
+    /models/insightface \
+    /models/ultralytics \
+    /models/emotion_model \
+    /app/output_data/characters \
+    /app/output_data/scraped_pages \
+    /app/output_data/processing_metadata
 
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
+COPY preprocessor/entrypoint.sh /app/entrypoint.sh
+
+RUN chmod +x /app/entrypoint.sh
 
 ENV LD_LIBRARY_PATH=/usr/lib/jellyfin-ffmpeg/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cublas/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cudnn/lib:/opt/conda/lib/python3.11/site-packages/nvidia/nccl/lib:/opt/conda/lib/python3.11/site-packages/onnxruntime/capi:/opt/conda/lib/python3.11/site-packages/ctranslate2.libs:${LD_LIBRARY_PATH}
-
-COPY preprocessor/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app
 

@@ -148,6 +148,22 @@ class FaceClusteringSettings:
     save_full_frames: bool = True
 
 @dataclass
+class EmotionDetectionSettings:
+    model_url: str = "https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx"
+    model_cache_dir: Path = Path("/models/emotion_model") if is_docker else BASE_OUTPUT_DIR / "models" / "emotion_model"
+    target_size: tuple = (64, 64)
+    intra_op_threads: int = 4
+    inter_op_threads: int = 4
+    gpu_mem_limit_gb: int = 20
+
+    @classmethod
+    def from_env(cls) -> "EmotionDetectionSettings":
+        cache_dir = os.getenv("EMOTION_MODEL_HOME")
+        if cache_dir:
+            return cls(model_cache_dir=Path(cache_dir))
+        return cls()
+
+@dataclass
 class ImageScraperSettings:
     max_results_to_scrape: int = 50
     min_image_width: int = 800
@@ -252,6 +268,7 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     object_detection: ObjectDetectionSettings
     face_recognition: FaceRecognitionSettings
     face_clustering: FaceClusteringSettings
+    emotion_detection: EmotionDetectionSettings
     image_scraper: ImageScraperSettings
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
@@ -276,6 +293,7 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings(),
             face_clustering=FaceClusteringSettings(),
+            emotion_detection=EmotionDetectionSettings.from_env(),
             image_scraper=ImageScraperSettings.from_env(),
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),

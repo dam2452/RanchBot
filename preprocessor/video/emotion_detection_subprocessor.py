@@ -27,15 +27,14 @@ from preprocessor.video.frame_processor import FrameSubProcessor
 
 
 class EmotionDetectionSubProcessor(FrameSubProcessor):
-    def __init__(self, model_path: Optional[Path] = None):
+    def __init__(self):
         super().__init__("Emotion Detection")
-        self.model_path = model_path
         self.session: Optional[ort.InferenceSession] = None
         self.logger = ErrorHandlingLogger("EmotionDetectionSubProcessor", logging.DEBUG, 15)
 
     def initialize(self) -> None:
         if self.session is None:
-            self.session = init_emotion_model(self.model_path)
+            self.session = init_emotion_model()
 
     def cleanup(self) -> None:
         self.session = None
@@ -45,7 +44,10 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
             self.logger.finalize()
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
-        return []
+        episode_info = item.metadata["episode_info"]
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        marker_file = episode_dir / ".emotion_complete"
+        return [OutputSpec(path=marker_file, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
@@ -60,18 +62,10 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
             )
             return False
 
-        with open(detections_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        expected = self.get_expected_outputs(item)
+        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
-        for detection in data.get("detections", []):
-            for char in detection.get("characters", []):
-                if "emotion" in char:
-                    return False
-
-        return True
-
-    # pylint: disable=too-many-locals
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None: # pylint: disable=too-many-locals
         self.initialize()
 
         episode_info = item.metadata["episode_info"]
@@ -153,6 +147,9 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
             processed += 1
 
         atomic_write_json(detections_file, detections_data, indent=2, ensure_ascii=False)
+
+        marker_file = detections_file.parent / ".emotion_complete"
+        marker_file.touch()
 
         console.print(
             f"[green]✓ Emotion analysis complete: {processed}/{total_characters} characters processed[/green]",

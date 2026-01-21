@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import (
     Dict,
@@ -12,6 +11,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
+from preprocessor.config.config import settings
 from preprocessor.utils.console import console
 
 EMOTION_LABELS = [
@@ -26,14 +26,15 @@ EMOTION_LABELS = [
 ]
 
 
-def download_ferplus_model(cache_dir: Path) -> Path:
+def download_ferplus_model() -> Path:
+    cache_dir = settings.emotion_detection.model_cache_dir
     cache_dir.mkdir(parents=True, exist_ok=True)
     model_path = cache_dir / "emotion_ferplus.onnx"
 
     if model_path.exists():
         return model_path
 
-    url = 'https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx'
+    url = settings.emotion_detection.model_url
 
     console.print("[cyan]Downloading FER+ emotion model...[/cyan]")
     try:
@@ -44,7 +45,7 @@ def download_ferplus_model(cache_dir: Path) -> Path:
         raise RuntimeError(f"Failed to download FER+ model: {e}") from e
 
 
-def init_emotion_model(model_path: Optional[Path] = None) -> ort.InferenceSession:
+def init_emotion_model() -> ort.InferenceSession:
     if not ort.get_device() == 'GPU':
         available_providers = ort.get_available_providers()
         if 'CUDAExecutionProvider' not in available_providers:
@@ -54,21 +55,19 @@ def init_emotion_model(model_path: Optional[Path] = None) -> ort.InferenceSessio
                 f"Available providers: {available_providers}",
             )
 
-    if model_path is None:
-        cache_dir = Path(os.getenv("EMOTION_MODEL_HOME", "/models/emotion_model"))
-        model_path = download_ferplus_model(cache_dir)
+    model_path = download_ferplus_model()
 
     console.print(f"[cyan]Loading FER+ emotion model from {model_path}...[/cyan]")
 
     session_options = ort.SessionOptions()
     session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    session_options.intra_op_num_threads = 4
-    session_options.inter_op_num_threads = 4
+    session_options.intra_op_num_threads = settings.emotion_detection.intra_op_threads
+    session_options.inter_op_num_threads = settings.emotion_detection.inter_op_threads
 
     provider_options = {
         'device_id': 0,
         'arena_extend_strategy': 'kSameAsRequested',
-        'gpu_mem_limit': 20 * 1024 * 1024 * 1024,
+        'gpu_mem_limit': settings.emotion_detection.gpu_mem_limit_gb * 1024 * 1024 * 1024,
         'cudnn_conv_algo_search': 'EXHAUSTIVE',
     }
 
@@ -96,7 +95,7 @@ def preprocess_face_for_ferplus(face_image: np.ndarray) -> np.ndarray:
     else:
         img_gray = face_image
 
-    img_resized = cv2.resize(img_gray, (64, 64))
+    img_resized = cv2.resize(img_gray, settings.emotion_detection.target_size)
 
     img_input = img_resized.astype(np.float32)
 
