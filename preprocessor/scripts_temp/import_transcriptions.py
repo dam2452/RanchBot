@@ -17,7 +17,7 @@ def parse_filename(filename: str) -> tuple[int, int] | None:
 
 
 def convert_file(source_file: Path, season: int, episode: int) -> bool:
-    episode_dir = OUTPUT_DIR / f"season_{season:02d}" / f"episode_{episode:02d}"
+    episode_dir = OUTPUT_DIR / f"S{season:02d}" / f"E{episode:02d}"
     episode_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -44,7 +44,7 @@ def convert_file(source_file: Path, season: int, episode: int) -> bool:
         "words": data.get("words", []),
     }
 
-    output_filename = f"{SERIES_NAME}_s{season:02d}e{episode:02d}.json"
+    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}.json"
     output_file = episode_dir / output_filename
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(full_json, f, indent=2, ensure_ascii=False)
@@ -82,7 +82,7 @@ def generate_segmented(data: dict, episode_dir: Path, season: int, episode: int,
         "segments": segments,
     }
 
-    output_filename = f"{SERIES_NAME}_s{season:02d}e{episode:02d}_segmented.json"
+    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}_segmented.json"
     output_file = episode_dir / output_filename
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(segmented_json, f, indent=2, ensure_ascii=False)
@@ -115,7 +115,7 @@ def generate_simple(data: dict, episode_dir: Path, season: int, episode: int, ep
         "segments": segments,
     }
 
-    output_filename = f"{SERIES_NAME}_s{season:02d}e{episode:02d}_simple.json"
+    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}_simple.json"
     output_file = episode_dir / output_filename
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(simple_json, f, indent=2, ensure_ascii=False)
@@ -167,7 +167,7 @@ def generate_srt(data: dict, episode_dir: Path, season: int, episode: int) -> No
         srt_lines.append(text)
         srt_lines.append("")
 
-    output_filename = f"{SERIES_NAME}_s{season:02d}e{episode:02d}.srt"
+    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}.srt"
     output_file = episode_dir / output_filename
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("\n".join(srt_lines))
@@ -177,7 +177,7 @@ def generate_srt(data: dict, episode_dir: Path, season: int, episode: int) -> No
 def generate_txt(data: dict, episode_dir: Path, season: int, episode: int) -> None:
     text = data.get("text", "")
 
-    output_filename = f"{SERIES_NAME}_s{season:02d}e{episode:02d}.txt"
+    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}.txt"
     output_file = episode_dir / output_filename
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(text)
@@ -191,10 +191,14 @@ def main() -> None:
     for season_dir in sorted(SOURCE_DIR.iterdir()):
         if not season_dir.is_dir():
             continue
-        if "Ranczo Wilkowyje" in season_dir.name:
-            continue
 
         print(f"\nProcessing: {season_dir.name}")
+
+        if "Ranczo Wilkowyje" in season_dir.name:
+            for json_file in sorted(season_dir.glob("*.json")):
+                print(f"  {json_file.name} -> S00E01 (special)")
+                convert_file(json_file, 0, 1)
+            continue
 
         for json_file in sorted(season_dir.glob("*.json")):
             parsed = parse_filename(json_file.name)
