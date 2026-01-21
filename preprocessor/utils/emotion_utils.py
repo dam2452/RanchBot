@@ -1,131 +1,55 @@
-from pathlib import Path
 from typing import (
     Dict,
     List,
     Optional,
     Tuple,
 )
-import urllib.request
 
-import cv2
+from hsemotion_onnx.facial_emotions import HSEmotionRecognizer
 import numpy as np
-import onnxruntime as ort
 
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
 
 EMOTION_LABELS = [
-    'neutral',
-    'happiness',
-    'surprise',
-    'sadness',
     'anger',
+    'contempt',
     'disgust',
     'fear',
-    'contempt',
+    'happiness',
+    'neutral',
+    'sadness',
+    'surprise',
 ]
 
 
-def download_ferplus_model() -> Path:
-    cache_dir = settings.emotion_detection.model_cache_dir
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    model_path = cache_dir / "emotion_ferplus.onnx"
+def init_emotion_model() -> HSEmotionRecognizer:
+    model_name = settings.emotion_detection.model_name
 
-    if model_path.exists():
-        return model_path
+    console.print(f"[cyan]Loading HSEmotion model: {model_name}...[/cyan]")
 
-    url = settings.emotion_detection.model_url
-
-    console.print("[cyan]Downloading FER+ emotion model...[/cyan]")
     try:
-        urllib.request.urlretrieve(url, str(model_path))
-        console.print(f"[green]✓ Model downloaded to {model_path}[/green]")
-        return model_path
+        fer = HSEmotionRecognizer(model_name=model_name)
+        console.print(f"[green]✓ HSEmotion model loaded: {model_name}[/green]")
+        return fer
     except Exception as e:
-        raise RuntimeError(f"Failed to download FER+ model: {e}") from e
-
-
-def init_emotion_model() -> ort.InferenceSession:
-    if not ort.get_device() == 'GPU':
-        available_providers = ort.get_available_providers()
-        if 'CUDAExecutionProvider' not in available_providers:
-            raise RuntimeError(
-                "CUDA/GPU not available for ONNX Runtime. "
-                "Emotion detection requires GPU. "
-                f"Available providers: {available_providers}",
-            )
-
-    model_path = download_ferplus_model()
-
-    console.print(f"[cyan]Loading FER+ emotion model from {model_path}...[/cyan]")
-
-    session_options = ort.SessionOptions()
-    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    session_options.intra_op_num_threads = settings.emotion_detection.intra_op_threads
-    session_options.inter_op_num_threads = settings.emotion_detection.inter_op_threads
-
-    provider_options = {
-        'device_id': 0,
-        'arena_extend_strategy': 'kSameAsRequested',
-        'gpu_mem_limit': settings.emotion_detection.gpu_mem_limit_gb * 1024 * 1024 * 1024,
-        'cudnn_conv_algo_search': 'EXHAUSTIVE',
-    }
-
-    session = ort.InferenceSession(
-        str(model_path),
-        sess_options=session_options,
-        providers=[('CUDAExecutionProvider', provider_options)],
-    )
-
-    console.print("[green]✓ FER+ emotion model loaded on GPU (optimized)[/green]")
-    return session
-
-
-def softmax(x: np.ndarray) -> np.ndarray:
-    exp_x = np.exp(x - np.max(x))
-    return exp_x / exp_x.sum()
-
-
-def preprocess_face_for_ferplus(face_image: np.ndarray) -> np.ndarray:
-    if face_image is None or face_image.size == 0:
-        raise ValueError("Empty face image")
-
-    if len(face_image.shape) == 3:
-        img_gray = cv2.cvtColor(face_image, cv2.COLOR_BGR2GRAY)
-    else:
-        img_gray = face_image
-
-    img_resized = cv2.resize(img_gray, settings.emotion_detection.target_size)
-
-    img_input = img_resized.astype(np.float32)
-
-    img_input = np.expand_dims(np.expand_dims(img_input, axis=0), axis=0)
-
-    return img_input
+        raise RuntimeError(f"Failed to load HSEmotion model {model_name}: {e}") from e
 
 
 def detect_emotion(
     face_image: np.ndarray,
-    session: ort.InferenceSession,
+    model: HSEmotionRecognizer,
 ) -> Tuple[str, float, Dict[str, float]]:
     try:
-        img_input = preprocess_face_for_ferplus(face_image)
-
-        input_name = session.get_inputs()[0].name
-        outputs = session.run(None, {input_name: img_input})
-
-        logits = outputs[0][0]
-
-        probs = softmax(logits)
+        emotion, scores = model.predict_emotions(face_image, logits=False)
 
         emotion_scores = {
-            EMOTION_LABELS[i]: float(probs[i])
+            EMOTION_LABELS[i]: float(scores[i])
             for i in range(len(EMOTION_LABELS))
         }
 
-        dominant_idx = np.argmax(probs)
-        dominant_emotion = EMOTION_LABELS[dominant_idx]
-        confidence = float(probs[dominant_idx])
+        confidence = float(max(scores))
+        dominant_emotion = emotion.lower()
 
         return dominant_emotion, confidence, emotion_scores
 
@@ -154,35 +78,41 @@ def crop_face_from_frame(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np
 
         return face_crop
 
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception: # pylint: disable=broad-exception-caught
         return None
 
 
 def detect_emotions_batch(
     face_images: List[np.ndarray],
-    session: ort.InferenceSession,
+    model: HSEmotionRecognizer,
 ) -> List[Tuple[str, float, Dict[str, float]]]:
     results = []
-    input_name = session.get_inputs()[0].name
 
-    for face_img in face_images:
-        try:
-            img_input = preprocess_face_for_ferplus(face_img)
-            outputs = session.run(None, {input_name: img_input})
-            logits = outputs[0][0]
+    try:
+        batch_results = model.predict_multi_emotions(face_images, logits=False)
 
-            probs = softmax(logits)
+        for emotion, scores in batch_results:
             emotion_scores = {
-                EMOTION_LABELS[j]: float(probs[j])
-                for j in range(len(EMOTION_LABELS))
+                EMOTION_LABELS[i]: float(scores[i])
+                for i in range(len(EMOTION_LABELS))
             }
-            dominant_idx = np.argmax(probs)
-            dominant_emotion = EMOTION_LABELS[dominant_idx]
-            confidence = float(probs[dominant_idx])
+            confidence = float(max(scores))
+            dominant_emotion = emotion.lower()
 
             results.append((dominant_emotion, confidence, emotion_scores))
 
-        except Exception:  # pylint: disable=broad-exception-caught
-            results.append(None)
+    except Exception: # pylint: disable=broad-exception-caught
+        for face_img in face_images:
+            try:
+                emotion, scores = model.predict_emotions(face_img, logits=False)
+                emotion_scores = {
+                    EMOTION_LABELS[i]: float(scores[i])
+                    for i in range(len(EMOTION_LABELS))
+                }
+                confidence = float(max(scores))
+                dominant_emotion = emotion.lower()
+                results.append((dominant_emotion, confidence, emotion_scores))
+            except Exception: # pylint: disable=broad-exception-caught
+                results.append(None)
 
     return results

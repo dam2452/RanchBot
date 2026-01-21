@@ -7,7 +7,7 @@ from typing import (
 )
 
 import cv2
-import onnxruntime as ort
+from hsemotion_onnx.facial_emotions import HSEmotionRecognizer
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -29,15 +29,15 @@ from preprocessor.video.frame_processor import FrameSubProcessor
 class EmotionDetectionSubProcessor(FrameSubProcessor):
     def __init__(self):
         super().__init__("Emotion Detection")
-        self.session: Optional[ort.InferenceSession] = None
+        self.model: Optional[HSEmotionRecognizer] = None
         self.logger = ErrorHandlingLogger("EmotionDetectionSubProcessor", logging.DEBUG, 15)
 
     def initialize(self) -> None:
-        if self.session is None:
-            self.session = init_emotion_model()
+        if self.model is None:
+            self.model = init_emotion_model()
 
     def cleanup(self) -> None:
-        self.session = None
+        self.model = None
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -125,9 +125,9 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
             console.print("[yellow]No valid face crops found[/yellow]")
             return
 
-        console.print(f"[cyan]Processing {len(face_crops)} faces with optimized ONNX inference[/cyan]")
+        console.print(f"[cyan]Processing {len(face_crops)} faces with HSEmotion model[/cyan]")
 
-        emotion_results = detect_emotions_batch(face_crops, self.session)
+        emotion_results = detect_emotions_batch(face_crops, self.model)
 
         processed = 0
         for result, metadata in zip(emotion_results, face_metadata):

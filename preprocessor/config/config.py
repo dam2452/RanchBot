@@ -149,19 +149,14 @@ class FaceClusteringSettings:
 
 @dataclass
 class EmotionDetectionSettings:
-    model_url: str = "https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx"
-    model_cache_dir: Path = Path("/models/emotion_model") if is_docker else BASE_OUTPUT_DIR / "models" / "emotion_model"
-    target_size: tuple = (64, 64)
-    intra_op_threads: int = 4
-    inter_op_threads: int = 4
-    gpu_mem_limit_gb: int = 20
+    model_name: str = "enet_b2_8"
+    use_gpu: bool = True
 
     @classmethod
     def from_env(cls) -> "EmotionDetectionSettings":
-        cache_dir = os.getenv("EMOTION_MODEL_HOME")
-        if cache_dir:
-            return cls(model_cache_dir=Path(cache_dir))
-        return cls()
+        model_name = os.getenv("EMOTION_MODEL_NAME", "enet_b2_8")
+        use_gpu = os.getenv("EMOTION_USE_GPU", "true").lower() == "true"
+        return cls(model_name=model_name, use_gpu=use_gpu)
 
 @dataclass
 class ImageScraperSettings:
