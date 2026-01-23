@@ -45,7 +45,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             raise ValueError("transcription_jsons is required")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        all_transcription_files = list(self.transcription_jsons.glob("**/*_segmented.json"))
+        all_transcription_files = list(self.transcription_jsons.glob("**/raw/*_segmented.json"))
         items = []
 
         for trans_file in all_transcription_files:
@@ -68,7 +68,8 @@ class ElasticDocumentGenerator(BaseProcessor):
             outputs.append(OutputSpec(path=segments_file, required=True))
 
             trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
-            sound_events_json = trans_dir / f"{base_name}_sound_events.json"
+            sound_events_dir = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
+            sound_events_json = sound_events_dir / f"{base_name}_sound_events.json"
             if sound_events_json.exists():
                 sound_events_file = self.episode_manager.build_episode_output_path(
                     episode_info,
@@ -156,7 +157,11 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[cyan]Processing: {trans_file.name}[/cyan]")
 
-        clean_transcription_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_clean_transcription.json")
+        episode_dir = trans_file.parent.parent
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+        base_name_for_clean = trans_file.stem.replace("_segmented", "")
+        clean_transcription_file = clean_dir / f"{base_name_for_clean}_clean_transcription.json"
+
         if not clean_transcription_file.exists():
             self.logger.warning(f"Clean transcription not found: {clean_transcription_file}, skipping")
             return
@@ -198,7 +203,8 @@ class ElasticDocumentGenerator(BaseProcessor):
             )
 
         trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
-        sound_events_json = trans_dir / f"{base_name}_sound_events.json"
+        sound_events_dir = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
+        sound_events_json = sound_events_dir / f"{base_name}_sound_events.json"
         if sound_events_json.exists() and any("_sound_events.jsonl" in str(o.path) for o in missing_outputs):
             with open(sound_events_json, "r", encoding="utf-8") as f:
                 sound_events_data = json.load(f)

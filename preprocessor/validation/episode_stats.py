@@ -74,7 +74,12 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
     def _validate_transcription(self):
         transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
         base_name = f"{self.series_name}_{self.episode_info.episode_code()}"
-        transcription_file = transcriptions_dir / f"{base_name}.json"
+
+        raw_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.raw
+        clean_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.clean
+        sound_events_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.sound_events
+
+        transcription_file = raw_dir / f"{base_name}.json"
         if not transcription_file.exists():
             self.errors.append(f"Missing transcription file: {transcription_file}")
             return
@@ -84,7 +89,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.errors.append(f"Invalid transcription JSON: {result.error_message}")
             return
 
-        clean_transcription_file = transcriptions_dir / f"{base_name}_clean_transcription.json"
+        clean_transcription_file = clean_dir / f"{base_name}_clean_transcription.json"
         if not clean_transcription_file.exists():
             self.warnings.append(f"Missing clean transcription file: {clean_transcription_file.name}")
         else:
@@ -92,11 +97,11 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             if not result.is_valid:
                 self.warnings.append(f"Invalid clean transcription JSON: {result.error_message}")
 
-        clean_txt_file = transcriptions_dir / f"{base_name}_clean_transcription.txt"
+        clean_txt_file = clean_dir / f"{base_name}_clean_transcription.txt"
         if not clean_txt_file.exists():
             self.warnings.append(f"Missing clean transcription txt: {clean_txt_file.name}")
 
-        sound_events_file = transcriptions_dir / f"{base_name}_sound_events.json"
+        sound_events_file = sound_events_dir / f"{base_name}_sound_events.json"
         if not sound_events_file.exists():
             self.warnings.append(f"Missing sound events file: {sound_events_file.name}")
         else:
@@ -326,6 +331,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             ELASTIC_SUBDIRS.video_frames: "video_embedding",
             ELASTIC_SUBDIRS.episode_names: "title_embedding",
             ELASTIC_SUBDIRS.full_episode_embeddings: "full_episode_embedding",
+            ELASTIC_SUBDIRS.sound_event_embeddings: "sound_event_embedding",
         }
 
         if subdir not in embedding_fields:
@@ -391,6 +397,8 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             ELASTIC_SUBDIRS.episode_names,
             ELASTIC_SUBDIRS.text_statistics,
             ELASTIC_SUBDIRS.full_episode_embeddings,
+            ELASTIC_SUBDIRS.sound_events,
+            ELASTIC_SUBDIRS.sound_event_embeddings,
         ]
         found_elastic_docs = False
         for subdir in elastic_subdirs:
@@ -412,7 +420,8 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
         transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
         if transcriptions_dir.exists():
-            text_stats_file = transcriptions_dir / f"{self.series_name}_{self.episode_info.episode_code()}_text_stats.json"
+            clean_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.clean
+            text_stats_file = clean_dir / f"{self.series_name}_{self.episode_info.episode_code()}_text_stats.json"
             if text_stats_file.exists():
                 result = validate_json_file(text_stats_file)
                 if not result.is_valid:

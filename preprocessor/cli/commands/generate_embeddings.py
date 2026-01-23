@@ -55,6 +55,21 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     help="Generate video embeddings",
 )
 @click.option(
+    "--generate-episode-names/--no-episode-names",
+    default=True,
+    help="Generate episode name embeddings",
+)
+@click.option(
+    "--generate-full-episode/--no-full-episode",
+    default=True,
+    help="Generate full episode embeddings",
+)
+@click.option(
+    "--generate-sound-events/--no-sound-events",
+    default=True,
+    help="Generate sound event embeddings",
+)
+@click.option(
     "--device",
     type=click.Choice(["cuda"]),
     default="cuda",
@@ -83,7 +98,7 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     default=settings.text_chunking.text_chunk_overlap,
     help="Number of overlapping sentences between chunks (only for --sentence-chunking)",
 )
-def generate_embeddings(  # pylint: disable=too-many-arguments
+def generate_embeddings(  # pylint: disable=too-many-arguments,too-many-locals
     transcription_jsons: Path,
     frames_dir: Path,
     output_dir: Path,
@@ -92,6 +107,9 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
     segments_per_embedding: int,
     generate_text: bool,
     generate_video: bool,
+    generate_episode_names: bool,
+    generate_full_episode: bool,
+    generate_sound_events: bool,
     device: str,
     batch_size: int,
     sentence_chunking: bool,
@@ -110,6 +128,9 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
                 "segments_per_embedding": segments_per_embedding,
                 "generate_text": generate_text,
                 "generate_video": generate_video,
+                "generate_episode_names": generate_episode_names,
+                "generate_full_episode": generate_full_episode,
+                "generate_sound_events": generate_sound_events,
                 "device": device,
                 "batch_size": batch_size,
                 "use_sentence_based_chunking": sentence_chunking,

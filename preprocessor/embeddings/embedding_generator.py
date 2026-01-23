@@ -57,6 +57,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.text_chunk_overlap: int = self._args.get("text_chunk_overlap", settings.text_chunking.text_chunk_overlap)
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
+        self.generate_episode_names: bool = self._args.get("generate_episode_names", True)
         self.generate_full_episode: bool = self._args.get("generate_full_episode", settings.embedding.generate_full_episode_embedding)
         self.generate_sound_events: bool = self._args.get("generate_sound_events", True)
 
@@ -111,6 +112,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             text_output = episode_dir / "embeddings_text.json"
             outputs.append(OutputSpec(path=text_output, required=True))
 
+        if self.generate_episode_names:
             episode_name_output = episode_dir / "episode_name_embedding.json"
             outputs.append(OutputSpec(path=episode_name_output, required=True))
 
@@ -174,7 +176,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:  # pylint: disable=too-many-locals
         trans_file = item.input_path
 
-        clean_transcription_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_clean_transcription.json")
+        episode_dir = trans_file.parent.parent if "raw" in str(trans_file.parent) else trans_file.parent
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+        base_name = trans_file.stem.replace("_segmented", "")
+        clean_transcription_file = clean_dir / f"{base_name}_clean_transcription.json"
+
         if not clean_transcription_file.exists():
             self.logger.warning(f"Clean transcription not found: {clean_transcription_file}, skipping text embeddings")
             return
@@ -312,7 +318,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         return embeddings
 
     def __generate_sound_event_embeddings(self, trans_file: Path) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-statements
-        sound_events_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_sound_events.json")
+        episode_dir = trans_file.parent.parent if "raw" in str(trans_file.parent) else trans_file.parent
+        sound_events_dir = episode_dir / settings.output_subdirs.transcription_subdirs.sound_events
+        base_name = trans_file.stem.replace("_segmented", "")
+        sound_events_file = sound_events_dir / f"{base_name}_sound_events.json"
+
         if not sound_events_file.exists():
             return []
 
@@ -474,11 +484,16 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         return embeddings
 
     def __generate_full_episode_embedding(self, trans_file: Path) -> Optional[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-statements
-        clean_txt_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_clean_transcription.txt")
+        episode_dir = trans_file.parent.parent if "raw" in str(trans_file.parent) else trans_file.parent
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+        base_name = trans_file.stem.replace("_segmented", "")
+        clean_txt_file = clean_dir / f"{base_name}_clean_transcription.txt"
+
         if clean_txt_file.exists():
             txt_file = clean_txt_file
         else:
-            txt_file = trans_file.parent / trans_file.name.replace("_segmented.json", ".txt").replace(".json", ".txt")
+            raw_dir = episode_dir / settings.output_subdirs.transcription_subdirs.raw
+            txt_file = raw_dir / f"{base_name}.txt"
 
         if not txt_file.exists():
             self.logger.warning(f"Transcript file not found: {txt_file}")

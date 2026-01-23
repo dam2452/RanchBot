@@ -48,15 +48,14 @@ class MultiFormatGenerator:
                 self.logger.error(f"Cannot extract episode info from {transcription_file.name}")
                 return
 
-            output_filename = f"{self.series_name}_{episode_info.episode_code()}.json"
             main_output_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                settings.output_subdirs.transcriptions,
-                output_filename,
+                f"{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}",
+                f"{self.series_name}_{episode_info.episode_code()}.json",
             )
 
             if main_output_file.exists():
-                self.logger.info(f"Skipping (already exists): {output_filename}")
+                self.logger.info(f"Skipping (already exists): {episode_info.episode_code()}")
                 return
 
             episode_metadata = EpisodeManager.get_metadata(episode_info)
@@ -78,7 +77,7 @@ class MultiFormatGenerator:
         filename = f"{self.series_name}_{episode_info.episode_code()}.json"
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            settings.output_subdirs.transcriptions,
+            f"{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}",
             filename,
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +95,7 @@ class MultiFormatGenerator:
         filename = f"{self.series_name}_{episode_info.episode_code()}_segmented.json"
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            settings.output_subdirs.transcriptions,
+            f"{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}",
             filename,
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -118,7 +117,7 @@ class MultiFormatGenerator:
         filename = f"{self.series_name}_{episode_info.episode_code()}_simple.json"
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            settings.output_subdirs.transcriptions,
+            f"{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}",
             filename,
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -140,7 +139,7 @@ class MultiFormatGenerator:
         filename = f"{self.series_name}_{episode_info.episode_code()}.srt"
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            settings.output_subdirs.transcriptions,
+            f"{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}",
             filename,
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -157,7 +156,7 @@ class MultiFormatGenerator:
         filename = f"{self.series_name}_{episode_info.episode_code()}.txt"
         output_file = self.episode_manager.build_episode_output_path(
             episode_info,
-            settings.output_subdirs.transcriptions,
+            f"{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}",
             filename,
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)

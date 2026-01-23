@@ -35,9 +35,16 @@ class ElasticDocumentSubdirs:
     sound_event_embeddings: str = "sound_event_embeddings"
 
 @dataclass
+class TranscriptionSubdirs:
+    raw: str = "raw"
+    clean: str = "clean"
+    sound_events: str = "sound_events"
+
+@dataclass
 class OutputSubdirs:
     video: str = "transcoded_videos"
     transcriptions: str = "transcriptions"
+    transcription_subdirs: TranscriptionSubdirs = field(default_factory=TranscriptionSubdirs)
     scenes: str = "scene_timestamps"
     frames: str = "exported_frames"
     embeddings: str = "embeddings"

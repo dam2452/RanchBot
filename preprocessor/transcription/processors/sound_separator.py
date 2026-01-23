@@ -35,7 +35,7 @@ class SoundEventSeparator(BaseProcessor):
         pass
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        segmented_files = list(self.transcription_dir.rglob("*_segmented.json"))
+        segmented_files = list(self.transcription_dir.rglob("**/raw/*_segmented.json"))
 
         items = []
         for trans_file in segmented_files:
@@ -57,15 +57,17 @@ class SoundEventSeparator(BaseProcessor):
         return items
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
-        base_path = item.input_path.parent / item.input_path.stem
-        base_name = base_path.name.replace("_segmented", "")
+        base_name = item.input_path.stem.replace("_segmented", "")
+        episode_dir = item.input_path.parent.parent
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+        sound_dir = episode_dir / settings.output_subdirs.transcription_subdirs.sound_events
 
-        clean_json = base_path.parent / f"{base_name}_clean_transcription.json"
-        sound_json = base_path.parent / f"{base_name}_sound_events.json"
-        clean_txt = base_path.parent / f"{base_name}_clean_transcription.txt"
-        sound_txt = base_path.parent / f"{base_name}_sound_events.txt"
-        clean_srt = base_path.parent / f"{base_name}_clean_transcription.srt"
-        sound_srt = base_path.parent / f"{base_name}_sound_events.srt"
+        clean_json = clean_dir / f"{base_name}_clean_transcription.json"
+        sound_json = sound_dir / f"{base_name}_sound_events.json"
+        clean_txt = clean_dir / f"{base_name}_clean_transcription.txt"
+        sound_txt = sound_dir / f"{base_name}_sound_events.txt"
+        clean_srt = clean_dir / f"{base_name}_clean_transcription.srt"
+        sound_srt = sound_dir / f"{base_name}_sound_events.srt"
 
         return [
             OutputSpec(path=clean_json, required=True),
@@ -101,15 +103,22 @@ class SoundEventSeparator(BaseProcessor):
         dialogue_segments = self._renumber_segments(dialogue_segments)
         sound_event_segments = self._renumber_segments(sound_event_segments)
 
-        base_path = item.input_path.parent / item.input_path.stem
-        base_name = base_path.name.replace("_segmented", "")
+        base_name = item.input_path.stem.replace("_segmented", "")
+        episode_dir = item.input_path.parent.parent
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+        sound_dir = episode_dir / settings.output_subdirs.transcription_subdirs.sound_events
 
-        clean_json = base_path.parent / f"{base_name}_clean_transcription.json"
-        sound_json = base_path.parent / f"{base_name}_sound_events.json"
-        clean_txt = base_path.parent / f"{base_name}_clean_transcription.txt"
-        sound_txt = base_path.parent / f"{base_name}_sound_events.txt"
-        clean_srt = base_path.parent / f"{base_name}_clean_transcription.srt"
-        sound_srt = base_path.parent / f"{base_name}_sound_events.srt"
+        clean_dir.mkdir(parents=True, exist_ok=True)
+        sound_dir.mkdir(parents=True, exist_ok=True)
+
+        clean_json = clean_dir / f"{base_name}_clean_transcription.json"
+        sound_json = sound_dir / f"{base_name}_sound_events.json"
+        clean_txt = clean_dir / f"{base_name}_clean_transcription.txt"
+        sound_txt = sound_dir / f"{base_name}_sound_events.txt"
+        clean_srt = clean_dir / f"{base_name}_clean_transcription.srt"
+        sound_srt = sound_dir / f"{base_name}_sound_events.srt"
+
+        raw_txt = episode_dir / settings.output_subdirs.transcription_subdirs.raw / f"{base_name}.txt"
 
         with open(clean_json, "w", encoding="utf-8") as f:
             json.dump(
@@ -127,7 +136,7 @@ class SoundEventSeparator(BaseProcessor):
                 indent=4,
             )
 
-        self._generate_txt_files(base_path.parent / f"{base_name}.txt", clean_txt, sound_txt)
+        self._generate_txt_files(raw_txt, clean_txt, sound_txt)
         self._generate_srt_files(dialogue_segments, sound_event_segments, clean_srt, sound_srt)
 
         self.logger.info(

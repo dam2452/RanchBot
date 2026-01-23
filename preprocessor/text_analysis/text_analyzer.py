@@ -54,7 +54,8 @@ class TextAnalyzer(BaseProcessor):
                 if not episode_dir.is_dir():
                     continue
 
-                clean_txt_files = list(episode_dir.glob("*_clean_transcription.txt"))
+                clean_subdir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+                clean_txt_files = list(clean_subdir.glob("*_clean_transcription.txt"))
                 if not clean_txt_files:
                     continue
                 txt_file = clean_txt_files[0]
@@ -82,8 +83,9 @@ class TextAnalyzer(BaseProcessor):
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_dir = item.metadata["episode_dir"]
         episode_info = item.metadata["episode_info"]
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
-        output_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_text_stats.json"
+        output_file = clean_dir / f"{self.series_name}_{episode_info.episode_code()}_text_stats.json"
 
         return [OutputSpec(path=output_file, required=True)]
 
@@ -91,8 +93,9 @@ class TextAnalyzer(BaseProcessor):
         txt_file = item.input_path
         episode_dir = item.metadata["episode_dir"]
         episode_info = item.metadata["episode_info"]
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
-        output_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_text_stats.json"
+        output_file = clean_dir / f"{self.series_name}_{episode_info.episode_code()}_text_stats.json"
 
         try:
             stats = TextStatistics.from_file(txt_file, language=self.language)
