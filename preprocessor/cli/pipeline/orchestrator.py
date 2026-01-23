@@ -119,7 +119,7 @@ class PipelineOrchestrator:
 
             output_frames_dir = Path(settings.frame_export.output_dir)
             if output_frames_dir.exists():
-                frame_metadata_files = list(output_frames_dir.rglob("frame_metadata.json"))
+                frame_metadata_files = list(output_frames_dir.rglob("*_frame_metadata.json"))
                 stats["processed_episodes_count"] = len(frame_metadata_files)
                 total_frames = 0
                 for metadata_file in frame_metadata_files:
@@ -133,14 +133,14 @@ class PipelineOrchestrator:
 
             embeddings_dir = Path(settings.embedding.default_output_dir)
             if embeddings_dir.exists():
-                text_embedding_files = list(embeddings_dir.rglob("embeddings_text.json"))
-                video_embedding_files = list(embeddings_dir.rglob("embeddings_video.json"))
+                text_embedding_files = list(embeddings_dir.rglob("*_embeddings_text.json"))
+                video_embedding_files = list(embeddings_dir.rglob("*_embeddings_video.json"))
                 stats["text_embedding_files_count"] = len(text_embedding_files)
                 stats["video_embedding_files_count"] = len(video_embedding_files)
 
             image_hashes_dir = Path(settings.image_hash.output_dir)
             if image_hashes_dir.exists():
-                hash_files = list(image_hashes_dir.rglob("image_hashes.json"))
+                hash_files = list(image_hashes_dir.rglob("*_image_hashes.json"))
                 stats["image_hash_files_count"] = len(hash_files)
 
             elastic_docs_dir = get_output_path("elastic_documents")

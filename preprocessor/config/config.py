@@ -41,7 +41,7 @@ class TranscriptionSubdirs:
     sound_events: str = "sound_events"
 
 @dataclass
-class OutputSubdirs:
+class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
     video: str = "transcoded_videos"
     transcriptions: str = "transcriptions"
     transcription_subdirs: TranscriptionSubdirs = field(default_factory=TranscriptionSubdirs)

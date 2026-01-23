@@ -40,7 +40,9 @@ def save_character_detections(
         "detections": results,
     }
 
-    detections_output = episode_dir / "detections.json"
+    series_name = episode_info.series_name
+    episode_code = episode_info.episode_code()
+    detections_output = episode_dir / f"{series_name}_{episode_code}_character_detections.json"
     atomic_write_json(detections_output, detections_data, indent=2, ensure_ascii=False)
 
     frames_with_chars = sum(1 for r in results if r["characters"])

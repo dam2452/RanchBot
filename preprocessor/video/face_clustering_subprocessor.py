@@ -66,7 +66,9 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
-        metadata_output = episode_dir / "cluster_metadata.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        metadata_output = episode_dir / f"{series_name}_{episode_code}_face_clusters.json"
         return [OutputSpec(path=metadata_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -259,7 +261,9 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
             results_data=cluster_stats,
         )
 
-        metadata_output = episode_dir / "cluster_metadata.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        metadata_output = episode_dir / f"{series_name}_{episode_code}_face_clusters.json"
         atomic_write_json(metadata_output, metadata, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved cluster metadata to: {metadata_output}[/green]")

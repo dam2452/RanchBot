@@ -98,7 +98,7 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     default=settings.text_chunking.text_chunk_overlap,
     help="Number of overlapping sentences between chunks (only for --sentence-chunking)",
 )
-def generate_embeddings(  # pylint: disable=too-many-arguments,too-many-locals
+def generate_embeddings(  # pylint: disable=too-many-arguments
     transcription_jsons: Path,
     frames_dir: Path,
     output_dir: Path,

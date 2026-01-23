@@ -56,7 +56,7 @@ class CharacterDetector(BaseProcessor):
     # pylint: disable=duplicate-code
     def _get_processing_items(self) -> List[ProcessingItem]:
         return self._get_episode_processing_items_from_metadata(
-            "**/frame_metadata.json",
+            "**/*_frame_metadata.json",
             self.frames_dir,
             self.episode_manager,
         )

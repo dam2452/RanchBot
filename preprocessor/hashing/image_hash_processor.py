@@ -59,7 +59,7 @@ class ImageHashProcessor(BaseProcessor):
     # pylint: disable=duplicate-code
     def _get_processing_items(self) -> List[ProcessingItem]:
         return self._get_episode_processing_items_from_metadata(
-            "**/frame_metadata.json",
+            "**/*_frame_metadata.json",
             self.frames_dir,
             self.episode_manager,
         )
@@ -67,7 +67,7 @@ class ImageHashProcessor(BaseProcessor):
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
-        hash_output = episode_dir / "image_hashes.json"
+        hash_output = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_image_hashes.json"
         return [OutputSpec(path=hash_output, required=True)]
     # pylint: enable=duplicate-code
 
@@ -121,7 +121,7 @@ class ImageHashProcessor(BaseProcessor):
             results_data=hash_results,
         )
 
-        hash_output = episode_dir / "image_hashes.json"
+        hash_output = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_image_hashes.json"
         with open(hash_output, "w", encoding="utf-8") as f:
             json.dump(hash_data, f, indent=2, ensure_ascii=False)
 

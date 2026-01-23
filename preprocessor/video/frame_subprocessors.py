@@ -160,7 +160,9 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
-        video_output = episode_dir / "embeddings_video.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        video_output = episode_dir / f"{series_name}_{episode_code}_embeddings_video.json"
         return [OutputSpec(path=video_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -221,7 +223,9 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             results_data=video_embeddings,
         )
 
-        video_output = episode_dir / "embeddings_video.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        video_output = episode_dir / f"{series_name}_{episode_code}_embeddings_video.json"
         atomic_write_json(video_output, video_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved embeddings to: {video_output}[/green]")
@@ -261,7 +265,9 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
-        detections_output = episode_dir / "detections.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        detections_output = episode_dir / f"{series_name}_{episode_code}_character_detections.json"
         return [OutputSpec(path=detections_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -337,7 +343,9 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
-        detections_output = episode_dir / "detections.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        detections_output = episode_dir / f"{series_name}_{episode_code}_object_detections.json"
         return [OutputSpec(path=detections_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -454,7 +462,9 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             results_data=detections_data["frames"],
         )
 
-        detections_output = episode_dir / "detections.json"
+        series_name = episode_info.series_name
+        episode_code = episode_info.episode_code()
+        detections_output = episode_dir / f"{series_name}_{episode_code}_object_detections.json"
         atomic_write_json(detections_output, output_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved object detections to: {detections_output}[/green]")
@@ -493,9 +503,10 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
         detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
-        detection_file = detection_dir / "detections.json"
+        detection_files = list(detection_dir.glob("*_object_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
+        if not detection_file or not detection_file.exists():
             console.print(f"[yellow]No object detections found for {episode_info.episode_code()}, skipping visualization[/yellow]")
             return False
 
@@ -506,10 +517,12 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         import cv2  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
-        detection_file = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections) / "detections.json"
+        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_files = list(detection_dir.glob("*_object_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
-            console.print(f"[yellow]No detections JSON found: {detection_file}[/yellow]")
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No detections JSON found in {detection_dir}[/yellow]")
             return
 
         if not ramdisk_frames_dir.exists():
@@ -610,23 +623,26 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
         detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
-        detection_file = detection_dir / "detections.json"
+        detection_files = list(detection_dir.glob("*_character_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
+        if not detection_file or not detection_file.exists():
             console.print(f"[yellow]No character detections found for {episode_info.episode_code()}, skipping visualization[/yellow]")
             return False
 
         expected = self.get_expected_outputs(item)
         return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
         import cv2  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
-        detection_file = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections) / "detections.json"
+        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_files = list(detection_dir.glob("*_character_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
-            console.print(f"[yellow]No detections JSON found: {detection_file}[/yellow]")
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No detections JSON found in {detection_dir}[/yellow]")
             return
 
         if not ramdisk_frames_dir.exists():

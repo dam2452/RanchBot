@@ -117,7 +117,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             outputs.append(OutputSpec(path=episode_name_output, required=True))
 
         if self.generate_video:
-            video_output = episode_dir / "embeddings_video.json"
+            video_output = episode_dir / f"{self.episode_manager.series_name}_{episode_info.episode_code()}_embeddings_video.json"
             outputs.append(OutputSpec(path=video_output, required=True))
 
         if self.generate_full_episode:
@@ -224,10 +224,15 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             full_episode_embedding = self.__generate_full_episode_embedding(trans_file)
 
         episode_dir = self._get_episode_output_dir(trans_file)
-        text_output = episode_dir / "embeddings_text.json"
-        video_output = episode_dir / "embeddings_video.json"
-        full_episode_output = episode_dir / "embeddings_full_episode.json"
-        sound_events_output = episode_dir / "embeddings_sound_events.json"
+        episode_info_dict = data.get("episode_info", {})
+        season = episode_info_dict.get("season", 0)
+        episode_num = episode_info_dict.get("episode_number", 0)
+        episode_code = f"S{season:02d}E{episode_num:02d}"
+
+        text_output = episode_dir / f"{self.episode_manager.series_name}_{episode_code}_embeddings_text.json"
+        video_output = episode_dir / f"{self.episode_manager.series_name}_{episode_code}_embeddings_video.json"
+        full_episode_output = episode_dir / f"{self.episode_manager.series_name}_{episode_code}_embeddings_full_episode.json"
+        sound_events_output = episode_dir / f"{self.episode_manager.series_name}_{episode_code}_embeddings_sound_events.json"
         self.__save_embeddings(
             data,
             text_embeddings,
@@ -584,7 +589,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             return None
 
         frames_episode_dir = self.episode_manager.get_episode_subdir(episode_info_obj, settings.output_subdirs.frames)
-        metadata_file = frames_episode_dir / "frame_metadata.json"
+        metadata_file = frames_episode_dir / f"{self.episode_manager.series_name}_{episode_info_obj.episode_code()}_frame_metadata.json"
 
         if not metadata_file.exists():
             self.logger.warning(f"Frame metadata not found: {metadata_file}")

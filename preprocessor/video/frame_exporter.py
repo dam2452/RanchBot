@@ -64,7 +64,7 @@ class FrameExporter(BaseVideoProcessor):
         episode_info = item.metadata["episode_info"]
         episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.frames)
 
-        metadata_file = episode_dir / "frame_metadata.json"
+        metadata_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_frame_metadata.json"
         return [OutputSpec(path=metadata_file, required=True)]
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:
@@ -79,7 +79,7 @@ class FrameExporter(BaseVideoProcessor):
         episode_dir = self.__get_episode_dir(episode_info)
 
         if episode_dir.exists():
-            metadata_file = episode_dir / "frame_metadata.json"
+            metadata_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_frame_metadata.json"
             if not metadata_file.exists():
                 console.print(f"[yellow]Cleaning incomplete frames from previous run: {episode_dir}[/yellow]")
                 shutil.rmtree(episode_dir, ignore_errors=True)
@@ -96,7 +96,7 @@ class FrameExporter(BaseVideoProcessor):
         console.print(f"[cyan]Extracting {len(frame_requests)} keyframes from {item.input_path.name}[/cyan]")
 
         try:
-            self.__extract_frames(item.input_path, frame_requests, episode_dir)
+            self.__extract_frames(item.input_path, frame_requests, episode_dir, episode_info)
             self.__write_metadata(episode_dir, frame_requests, episode_info, item.input_path)
             console.print(f"[green]✓ Exported {len(frame_requests)} frames to {episode_dir}[/green]")
         except Exception as e:
@@ -115,23 +115,24 @@ class FrameExporter(BaseVideoProcessor):
             data["scene_timestamps"] = scene_timestamps
         return data
 
-    def __extract_frames(self, video_file: Path, frame_requests: List[Dict[str, Any]], episode_dir: Path) -> None:
+    def __extract_frames(self, video_file: Path, frame_requests: List[Dict[str, Any]], episode_dir: Path, episode_info) -> None:
         vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
         frame_numbers = [req["frame_number"] for req in frame_requests]
 
         with self.progress.track_operation(f"Keyframes ({len(frame_numbers)} frames)", len(frame_numbers)) as tracker:
             for idx, frame_num in enumerate(frame_numbers, 1):
-                self.__extract_and_save_frame(vr, frame_num, episode_dir)
+                self.__extract_and_save_frame(vr, frame_num, episode_dir, episode_info)
                 tracker.update(idx, interval=50)
 
         del vr
 
-    def __extract_and_save_frame(self, vr, frame_num: int, episode_dir: Path) -> None:
+    def __extract_and_save_frame(self, vr, frame_num: int, episode_dir: Path, episode_info) -> None:
         frame_np = vr[frame_num].asnumpy()
         frame_pil = Image.fromarray(frame_np)
 
         resized = self.__resize_frame(frame_pil)
-        filename = f"frame_{frame_num:06d}.jpg"
+        episode_code = episode_info.episode_code()
+        filename = f"{self.series_name}_{episode_code}_frame_{frame_num:06d}.jpg"
         resized.save(episode_dir / filename, quality=90)
 
     def __resize_frame(self, frame: Image.Image) -> Image.Image:
@@ -148,6 +149,7 @@ class FrameExporter(BaseVideoProcessor):
     def __write_metadata(self, episode_dir: Path, frame_requests: List[Dict[str, Any]], episode_info, source_video: Path) -> None:
         frame_types_count = {}
         frames_with_paths = []
+        episode_code = episode_info.episode_code()
 
         for frame in frame_requests:
             frame_type = frame.get("type", "unknown")
@@ -155,7 +157,7 @@ class FrameExporter(BaseVideoProcessor):
 
             frame_with_path = frame.copy()
             frame_num = frame["frame_number"]
-            frame_with_path["frame_path"] = f"frame_{frame_num:06d}.jpg"
+            frame_with_path["frame_path"] = f"{self.series_name}_{episode_code}_frame_{frame_num:06d}.jpg"
             frames_with_paths.append(frame_with_path)
 
         metadata = {
@@ -183,7 +185,7 @@ class FrameExporter(BaseVideoProcessor):
             },
             "frames": frames_with_paths,
         }
-        metadata_file = episode_dir / "frame_metadata.json"
+        metadata_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_frame_metadata.json"
         atomic_write_json(metadata_file, metadata, indent=2, ensure_ascii=False)
 
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:

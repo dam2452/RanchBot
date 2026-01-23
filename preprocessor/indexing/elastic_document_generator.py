@@ -88,10 +88,12 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         if self.embeddings_dir and episode_info:
             episode_emb_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
-            text_emb_file = episode_emb_dir / "embeddings_text.json"
-            video_emb_file = episode_emb_dir / "embeddings_video.json"
+            text_emb_files = list(episode_emb_dir.glob("*_embeddings_text.json"))
+            text_emb_file = text_emb_files[0] if text_emb_files else None
+            video_emb_files = list(episode_emb_dir.glob("*_embeddings_video.json"))
+            video_emb_file = video_emb_files[0] if video_emb_files else None
 
-            if text_emb_file.exists():
+            if text_emb_file and text_emb_file.exists():
                 text_embeddings_file = self.episode_manager.build_episode_output_path(
                     episode_info,
                     f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_embeddings}",
@@ -99,7 +101,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 )
                 outputs.append(OutputSpec(path=text_embeddings_file, required=True))
 
-            if video_emb_file.exists():
+            if video_emb_file and video_emb_file.exists():
                 video_frames_file = self.episode_manager.build_episode_output_path(
                     episode_info,
                     f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_frames}",
@@ -221,9 +223,10 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         if self.embeddings_dir:
             episode_emb_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
-            text_emb_file = episode_emb_dir / "embeddings_text.json"
+            text_emb_files = list(episode_emb_dir.glob("*_embeddings_text.json"))
+            text_emb_file = text_emb_files[0] if text_emb_files else None
 
-            if text_emb_file.exists() and any("_text_embeddings.jsonl" in str(o.path) for o in missing_outputs):
+            if text_emb_file and text_emb_file.exists() and any("_text_embeddings.jsonl" in str(o.path) for o in missing_outputs):
                 self.__generate_text_embeddings(
                     text_emb_file,
                     episode_id,
@@ -233,9 +236,10 @@ class ElasticDocumentGenerator(BaseProcessor):
                     base_name,
                 )
 
-            video_emb_file = episode_emb_dir / "embeddings_video.json"
+            video_emb_files = list(episode_emb_dir.glob("*_embeddings_video.json"))
+            video_emb_file = video_emb_files[0] if video_emb_files else None
 
-            if video_emb_file.exists() and any("_video_frames.jsonl" in str(o.path) for o in missing_outputs):
+            if video_emb_file and video_emb_file.exists() and any("_video_frames.jsonl" in str(o.path) for o in missing_outputs):
                 self.__generate_video_frames(
                     video_emb_file,
                     episode_id,
@@ -321,9 +325,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         if not self.character_detections_dir:
             return {}
 
-        detection_file = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections) / "detections.json"
+        detection_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_files = list(detection_dir.glob("*_character_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
+        if not detection_file or not detection_file.exists():
             return {}
 
         try:
@@ -348,9 +354,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         if not self.object_detections_dir:
             return {}
 
-        detection_file = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections) / "detections.json"
+        detection_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_files = list(detection_dir.glob("*_object_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
+        if not detection_file or not detection_file.exists():
             return {}
 
         try:

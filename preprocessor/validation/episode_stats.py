@@ -250,9 +250,11 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not clusters_dir.exists():
             return
 
-        metadata_file = clusters_dir / "cluster_metadata.json"
-        if not metadata_file.exists():
-            self.warnings.append(f"Missing face clustering metadata file: {metadata_file.name}")
+        metadata_files = list(clusters_dir.glob("*_face_clusters.json"))
+        metadata_file = metadata_files[0] if metadata_files else None
+
+        if not metadata_file or not metadata_file.exists():
+            self.warnings.append("Missing face clustering metadata file")
             return
 
         result = validate_json_file(metadata_file)
