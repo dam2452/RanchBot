@@ -285,6 +285,7 @@ def run_embedding_step(device, state_manager, **kwargs):
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
     frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
+    skip_full_episode = kwargs.get("skip_full_episode", False)
 
     embedding_generator = EmbeddingGenerator(
         {
@@ -296,7 +297,7 @@ def run_embedding_step(device, state_manager, **kwargs):
             "segments_per_embedding": settings.text_chunking.segments_per_embedding,
             "generate_text": True,
             "generate_video": False,
-            "generate_full_episode": settings.embedding.generate_full_episode_embedding,
+            "generate_full_episode": not skip_full_episode and settings.embedding.generate_full_episode_embedding,
             "device": device,
             "batch_size": settings.embedding.batch_size,
             "series_name": name,

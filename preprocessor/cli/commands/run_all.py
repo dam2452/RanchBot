@@ -116,6 +116,7 @@ from preprocessor.utils.console import console
 @click.option("--skip-scenes", is_flag=True, help="Skip Step 4: Scene detection (use existing scene timestamps)")
 @click.option("--skip-frame-export", is_flag=True, help="Skip Step 5: Frame export (use existing frames)")
 @click.option("--skip-embeddings", is_flag=True, help="Skip Step 6: Text embedding generation (use existing text embeddings)")
+@click.option("--skip-full-episode", is_flag=True, help="Skip full episode embedding generation (only text, video, sound events)")
 @click.option("--skip-image-hashing", is_flag=True, help="Skip Step 7a: Image hashing sub-step (use existing hashes)")
 @click.option("--skip-video-embeddings", is_flag=True, help="Skip Step 7b: Video embeddings sub-step (use existing)")
 @click.option("--skip-character-detection", is_flag=True, help="Skip Step 7c: Character detection sub-step (use existing)")
@@ -152,6 +153,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_text_analysis: bool,
     skip_scenes: bool,
     skip_frame_export: bool,
+    skip_embeddings: bool,
+    skip_full_episode: bool,
     skip_image_hashing: bool,
     skip_video_embeddings: bool,
     skip_character_detection: bool,
@@ -159,7 +162,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     skip_face_clustering: bool,
     skip_object_detection: bool,
     debug_visualizations: bool,
-    skip_embeddings: bool,
     skip_elastic_documents: bool,
     skip_archives: bool,
     skip_index: bool,
@@ -220,6 +222,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "skip_face_clustering": skip_face_clustering,
         "skip_object_detection": skip_object_detection,
         "skip_object_visualization": not debug_visualizations,
+        "skip_full_episode": skip_full_episode,
     }
 
     metadata_output_dir = Path("/app/output_data/processing_metadata")
