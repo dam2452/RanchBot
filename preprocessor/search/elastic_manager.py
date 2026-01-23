@@ -277,6 +277,62 @@ class ElasticSearchManager:
         },
     }
 
+    SOUND_EVENTS_INDEX_MAPPING = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                    },
+                },
+                "segment_id": {"type": "integer"},
+                "text": {"type": "text", "analyzer": "standard"},
+                "sound_type": {"type": "keyword"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "video_path": {"type": "keyword"},
+                "scene_info": {
+                    "properties": {
+                        "scene_id": {"type": "integer"},
+                        "scene_start": {"type": "float"},
+                        "scene_end": {"type": "float"},
+                    },
+                },
+            },
+        },
+    }
+
+    SOUND_EVENT_EMBEDDINGS_INDEX_MAPPING = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                    },
+                },
+                "embedding_id": {"type": "integer"},
+                "segment_range": {"type": "integer_range"},
+                "text": {"type": "text"},
+                "sound_types": {"type": "keyword"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "sound_event_embedding": {
+                    "type": "dense_vector",
+                    "dims": settings.embedding_model.embedding_dim,
+                    "index": True,
+                    "similarity": "cosine",
+                },
+                "video_path": {"type": "keyword"},
+            },
+        },
+    }
+
     @staticmethod
     async def connect_to_elasticsearch(
         es_host: str,

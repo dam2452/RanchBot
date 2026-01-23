@@ -194,6 +194,20 @@ def run_transcribe_step(videos, episodes_info_json, name, model, language, devic
     return generator.work()
 
 
+def run_sound_separation_step(name, episodes_info_json, transcription_jsons, state_manager, **_kwargs):
+    from preprocessor.transcription.processors.sound_separator import SoundEventSeparator  # pylint: disable=import-outside-toplevel
+
+    separator = SoundEventSeparator(
+        {
+            "transcription_dir": transcription_jsons,
+            "episodes_info_json": episodes_info_json,
+            "series_name": name,
+            "state_manager": state_manager,
+        },
+    )
+    return separator.work()
+
+
 def run_scene_step(device, **kwargs):
     from preprocessor.video.scene_detector import SceneDetector  # pylint: disable=import-outside-toplevel
 
@@ -520,7 +534,7 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
     return 0
 
 
-def run_text_analysis_step(name, episodes_info_json, language, state_manager, **kwargs):  # pylint: disable=unused-argument
+def run_text_analysis_step(name, episodes_info_json, language, state_manager, **_kwargs):
     from preprocessor.text_analysis.text_analyzer import TextAnalyzer  # pylint: disable=import-outside-toplevel
 
     analyzer = TextAnalyzer(

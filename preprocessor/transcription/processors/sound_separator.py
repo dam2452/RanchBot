@@ -1,0 +1,315 @@
+import json
+from pathlib import Path
+import re
+from typing import (
+    Any,
+    Dict,
+    List,
+    Tuple,
+)
+
+from preprocessor.config.config import settings
+from preprocessor.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
+from preprocessor.core.episode_manager import EpisodeManager
+
+
+class SoundEventSeparator(BaseProcessor):
+
+    def __init__(self, args: Dict[str, Any]) -> None:
+        super().__init__(
+            args=args,
+            class_name=self.__class__.__name__,
+            error_exit_code=2,
+            loglevel=args.get("loglevel", 20),
+        )
+
+        self.transcription_dir = Path(self._args.get("transcription_dir", settings.transcription.output_dir))
+        episodes_info_json = self._args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
+
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        pass
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        segmented_files = list(self.transcription_dir.rglob("*_segmented.json"))
+
+        items = []
+        for trans_file in segmented_files:
+            episode_info = self.episode_manager.parse_filename(trans_file)
+            if not episode_info:
+                self.logger.warning(f"Cannot parse episode info from {trans_file.name}")
+                continue
+
+            episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
+
+            items.append(
+                ProcessingItem(
+                    episode_id=episode_id,
+                    input_path=trans_file,
+                    metadata={"episode_info": episode_info},
+                ),
+            )
+
+        return items
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        base_path = item.input_path.parent / item.input_path.stem
+        base_name = base_path.name.replace("_segmented", "")
+
+        clean_json = base_path.parent / f"{base_name}_clean_transcription.json"
+        sound_json = base_path.parent / f"{base_name}_sound_events.json"
+        clean_txt = base_path.parent / f"{base_name}_clean_transcription.txt"
+        sound_txt = base_path.parent / f"{base_name}_sound_events.txt"
+        clean_srt = base_path.parent / f"{base_name}_clean_transcription.srt"
+        sound_srt = base_path.parent / f"{base_name}_sound_events.srt"
+
+        return [
+            OutputSpec(path=clean_json, required=True),
+            OutputSpec(path=sound_json, required=True),
+            OutputSpec(path=clean_txt, required=True),
+            OutputSpec(path=sound_txt, required=True),
+            OutputSpec(path=clean_srt, required=True),
+            OutputSpec(path=sound_srt, required=True),
+        ]
+
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:  # pylint: disable=too-many-locals
+        with open(item.input_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        episode_info = data.get("episode_info", {})
+        segments = data.get("segments", [])
+
+        dialogue_segments = []
+        sound_event_segments = []
+
+        for segment in segments:
+            classification = self._classify_segment(segment)
+
+            if classification == "dialogue":
+                dialogue_segments.append(self._clean_segment_text(segment))
+            elif classification == "sound_event":
+                sound_event_segments.append(self._enrich_sound_event(self._clean_segment_text(segment)))
+            elif classification == "mixed":
+                dialogue_parts, sound_parts = self._split_mixed_segment(segment)
+                dialogue_segments.extend(dialogue_parts)
+                sound_event_segments.extend([self._enrich_sound_event(s) for s in sound_parts])
+
+        dialogue_segments = self._renumber_segments(dialogue_segments)
+        sound_event_segments = self._renumber_segments(sound_event_segments)
+
+        base_path = item.input_path.parent / item.input_path.stem
+        base_name = base_path.name.replace("_segmented", "")
+
+        clean_json = base_path.parent / f"{base_name}_clean_transcription.json"
+        sound_json = base_path.parent / f"{base_name}_sound_events.json"
+        clean_txt = base_path.parent / f"{base_name}_clean_transcription.txt"
+        sound_txt = base_path.parent / f"{base_name}_sound_events.txt"
+        clean_srt = base_path.parent / f"{base_name}_clean_transcription.srt"
+        sound_srt = base_path.parent / f"{base_name}_sound_events.srt"
+
+        with open(clean_json, "w", encoding="utf-8") as f:
+            json.dump(
+                {"episode_info": episode_info, "segments": dialogue_segments},
+                f,
+                ensure_ascii=False,
+                indent=4,
+            )
+
+        with open(sound_json, "w", encoding="utf-8") as f:
+            json.dump(
+                {"episode_info": episode_info, "segments": sound_event_segments},
+                f,
+                ensure_ascii=False,
+                indent=4,
+            )
+
+        self._generate_txt_files(base_path.parent / f"{base_name}.txt", clean_txt, sound_txt)
+        self._generate_srt_files(dialogue_segments, sound_event_segments, clean_srt, sound_srt)
+
+        self.logger.info(
+            f"Separated {item.episode_id}: "
+            f"{len(dialogue_segments)} dialogue, {len(sound_event_segments)} sound events",
+        )
+
+    def _classify_segment(self, segment: Dict) -> str:
+        words = segment.get("words", [])
+        if not words:
+            return "dialogue"
+
+        has_sound = False
+        has_dialogue = False
+
+        for word in words:
+            if self._is_sound_event(word):
+                has_sound = True
+            elif word.get("type") not in ["spacing", ""]:
+                has_dialogue = True
+
+        if has_sound and has_dialogue:
+            return "mixed"
+        if has_sound:
+            return "sound_event"
+        return "dialogue"
+
+    def _is_sound_event(self, word: Dict) -> bool:
+        if word.get("type") == "audio_event":
+            return True
+
+        text = word.get("text", "").strip()
+        if re.match(r'^\(.*\)$', text):
+            return True
+
+        return False
+
+    def _split_mixed_segment(self, segment: Dict) -> Tuple[List[Dict], List[Dict]]:
+        words = segment.get("words", [])
+        dialogue_sequences = []
+        sound_sequences = []
+
+        current_type = None
+        current_words = []
+
+        for word in words:
+            if word.get("type") == "spacing":
+                if current_words:
+                    current_words.append(word)
+                continue
+
+            is_sound = self._is_sound_event(word)
+            word_type = "sound" if is_sound else "dialogue"
+
+            if word_type != current_type:
+                if current_words:
+                    self._finalize_sequence(
+                        current_type, current_words, dialogue_sequences, sound_sequences, segment,
+                    )
+                current_type = word_type
+                current_words = [word]
+            else:
+                current_words.append(word)
+
+        if current_words:
+            self._finalize_sequence(
+                current_type, current_words, dialogue_sequences, sound_sequences, segment,
+            )
+
+        return dialogue_sequences, sound_sequences
+
+    def _finalize_sequence(
+        self,
+        seq_type: str,
+        words: List[Dict],
+        dialogue_sequences: List[Dict],
+        sound_sequences: List[Dict],
+        original_segment: Dict,
+    ) -> None:
+        if not words:
+            return
+
+        non_spacing_words = [w for w in words if w.get("type") != "spacing"]
+        if not non_spacing_words:
+            return
+
+        text = "".join([w.get("text", "") for w in words])
+        text = re.sub(r'\s+', ' ', text).strip()
+        start_time = min(w.get("start", 0) for w in words)
+        end_time = max(w.get("end", 0) for w in words)
+
+        new_segment = {
+            "text": text,
+            "start": start_time,
+            "end": end_time,
+            "words": words,
+        }
+
+        for key in original_segment:
+            if key not in ["text", "start", "end", "words"]:
+                new_segment[key] = original_segment[key]
+
+        if seq_type == "dialogue":
+            dialogue_sequences.append(new_segment)
+        else:
+            sound_sequences.append(new_segment)
+
+    def _clean_segment_text(self, segment: Dict) -> Dict:
+        cleaned = segment.copy()
+        if "text" in cleaned:
+            text = cleaned["text"]
+            text = re.sub(r'\s+', ' ', text).strip()
+            cleaned["text"] = text
+        return cleaned
+
+    def _enrich_sound_event(self, segment: Dict) -> Dict:
+        enriched = segment.copy()
+        enriched["sound_type"] = "sound"
+        return enriched
+
+    @staticmethod
+    def _renumber_segments(segments: List[Dict]) -> List[Dict]:
+        for i, segment in enumerate(segments):
+            segment["id"] = i
+        return segments
+
+    def _generate_txt_files(self, original_txt: Path, clean_txt: Path, sound_txt: Path) -> None:
+        if not original_txt.exists():
+            self.logger.warning(f"Original TXT file not found: {original_txt}")
+            return
+
+        with open(original_txt, "r", encoding="utf-8") as f:
+            original_content = f.read()
+
+        clean_content = re.sub(r'\([^)]*\)', '', original_content)
+        clean_content = re.sub(r'\s+', ' ', clean_content).strip()
+
+        sound_matches = re.findall(r'\([^)]*\)', original_content)
+        sound_content = ' '.join(sound_matches)
+
+        with open(clean_txt, "w", encoding="utf-8") as f:
+            f.write(clean_content)
+
+        with open(sound_txt, "w", encoding="utf-8") as f:
+            f.write(sound_content)
+
+    @staticmethod
+    def _generate_srt_files(
+        dialogue_segments: List[Dict],
+        sound_segments: List[Dict],
+        clean_srt: Path,
+        sound_srt: Path,
+    ) -> None:
+        def format_timestamp(seconds: float) -> str:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            secs = int(seconds % 60)
+            millis = int((seconds % 1) * 1000)
+            return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
+
+        def write_srt(segments: List[Dict], output_path: Path) -> None:
+            with open(output_path, "w", encoding="utf-8") as f:
+                for idx, seg in enumerate(segments, start=1):
+                    words = seg.get("words", [])
+                    text = seg.get("text", "").strip()
+
+                    if not text or not words:
+                        continue
+
+                    non_spacing_words = [w for w in words if w.get("type") != "spacing"]
+                    if not non_spacing_words:
+                        continue
+
+                    start_time = min(w.get("start", 0.0) for w in non_spacing_words)
+                    end_time = max(w.get("end", 0.0) for w in non_spacing_words)
+
+                    f.write(f"{idx}\n")
+                    f.write(f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n")
+                    f.write(f"{text}\n\n")
+
+        write_srt(dialogue_segments, clean_srt)
+        write_srt(sound_segments, sound_srt)
+
+    def _get_progress_description(self) -> str:
+        return "Separating sound events from dialogues"

@@ -169,7 +169,13 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:  # pylint: disable=too-many-locals
         trans_file = item.input_path
 
-        with open(trans_file, "r", encoding="utf-8") as f:
+        clean_transcription_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_clean_transcription.json")
+        if not clean_transcription_file.exists():
+            self.logger.warning(f"Clean transcription not found: {clean_transcription_file}, skipping text embeddings")
+            return
+        trans_file_for_text = clean_transcription_file
+
+        with open(trans_file_for_text, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         has_segments = bool(data.get("segments"))
@@ -199,7 +205,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         full_episode_embedding = None
         if need_full_episode:
-            full_episode_embedding = self.__generate_full_episode_embedding(trans_file, data)
+            full_episode_embedding = self.__generate_full_episode_embedding(trans_file)
 
         episode_dir = self._get_episode_output_dir(trans_file)
         text_output = episode_dir / "embeddings_text.json"
@@ -337,8 +343,12 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         del embeddings_tensor
         return embeddings
 
-    def __generate_full_episode_embedding(self, trans_file: Path, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:  # pylint: disable=unused-argument,too-many-locals
-        txt_file = trans_file.parent / trans_file.name.replace("_segmented.json", ".txt").replace(".json", ".txt")
+    def __generate_full_episode_embedding(self, trans_file: Path) -> Optional[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-statements
+        clean_txt_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_clean_transcription.txt")
+        if clean_txt_file.exists():
+            txt_file = clean_txt_file
+        else:
+            txt_file = trans_file.parent / trans_file.name.replace("_segmented.json", ".txt").replace(".json", ".txt")
 
         if not txt_file.exists():
             self.logger.warning(f"Transcript file not found: {txt_file}")

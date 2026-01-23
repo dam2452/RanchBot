@@ -14,6 +14,7 @@ from preprocessor.cli.commands import (
     run_all,
     scrape_episodes,
     search,
+    separate_sounds,
     transcode,
     transcribe,
     transcribe_elevenlabs,
@@ -61,6 +62,8 @@ cli.add_command(validate)
 cli.add_command(analyze_text)
 # noinspection PyTypeChecker
 cli.add_command(fix_unicode)
+# noinspection PyTypeChecker
+cli.add_command(separate_sounds)
 
 
 __all__ = ["cli"]

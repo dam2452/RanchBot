@@ -34,18 +34,12 @@ from preprocessor.text_analysis.text_analyzer import TextAnalyzer
     type=click.Path(exists=True, path_type=Path),
     help="JSON file with episode metadata (optional)",
 )
-@click.option(
-    "--force",
-    is_flag=True,
-    help="Force reanalysis even if output files exist",
-)
 def analyze_text(
     season: str,
     episode: str,
     language: str,
     series_name: str,
     episodes_info_json: Path,
-    force: bool,  # pylint: disable=unused-argument
 ):
     """Analyze transcription texts and generate linguistic statistics."""
     if episode and not season:

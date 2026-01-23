@@ -31,6 +31,8 @@ class ElasticDocumentSubdirs:
     episode_names: str = "episode_names"
     text_statistics: str = "text_statistics"
     full_episode_embeddings: str = "full_episode_embeddings"
+    sound_events: str = "sound_events"
+    sound_event_embeddings: str = "sound_event_embeddings"
 
 @dataclass
 class OutputSubdirs:

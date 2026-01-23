@@ -15,6 +15,7 @@ from preprocessor.cli.pipeline.steps import (
     run_index_step,
     run_scene_step,
     run_scrape_step,
+    run_sound_separation_step,
     run_text_analysis_step,
     run_transcode_step,
     run_transcribe_step,
@@ -236,25 +237,26 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         and skip_object_detection and skip_object_visualization
     )
 
-    orchestrator.add_step("Scraping episode metadata", "0a/12", run_scrape_step, skip=False)
-    orchestrator.add_step("Scraping character metadata", "0b/12", run_character_scrape_step, skip=False)
-    orchestrator.add_step("Downloading character references", "0c/12", run_character_reference_download_step, skip=False)
-    orchestrator.add_step("Transcoding videos", "1/12", run_transcode_step, skip=skip_transcode)
-    orchestrator.add_step("Generating transcriptions", "2/12", run_transcribe_step, skip=skip_transcribe)
-    orchestrator.add_step("Analyzing transcription texts", "3/12", run_text_analysis_step, skip=skip_text_analysis)
-    orchestrator.add_step("Detecting scenes", "4/12", run_scene_step, skip=skip_scenes)
-    orchestrator.add_step("Exporting frames (1080p)", "5/12", run_frame_export_step, skip=skip_frame_export)
-    orchestrator.add_step("Generating text embeddings", "6/12", run_embedding_step, skip=skip_embeddings)
+    orchestrator.add_step("Scraping episode metadata", "0a/13", run_scrape_step, skip=False)
+    orchestrator.add_step("Scraping character metadata", "0b/13", run_character_scrape_step, skip=False)
+    orchestrator.add_step("Downloading character references", "0c/13", run_character_reference_download_step, skip=False)
+    orchestrator.add_step("Transcoding videos", "1/13", run_transcode_step, skip=skip_transcode)
+    orchestrator.add_step("Generating transcriptions", "2/13", run_transcribe_step, skip=skip_transcribe)
+    orchestrator.add_step("Separating sounds and dialogues", "3/13", run_sound_separation_step, skip=skip_transcribe)
+    orchestrator.add_step("Analyzing transcription texts", "4/13", run_text_analysis_step, skip=skip_text_analysis)
+    orchestrator.add_step("Detecting scenes", "5/13", run_scene_step, skip=skip_scenes)
+    orchestrator.add_step("Exporting frames (1080p)", "6/13", run_frame_export_step, skip=skip_frame_export)
+    orchestrator.add_step("Generating text embeddings", "7/13", run_embedding_step, skip=skip_embeddings)
     orchestrator.add_step(
         "Processing frames (hashing + embeddings + characters + emotions + clustering + objects)",
-        "7/12",
+        "8/13",
         run_frame_processing_step,
         skip=skip_frame_processing,
     )
-    orchestrator.add_step("Generating Elasticsearch documents", "8/12", run_elastic_documents_step, skip=skip_elastic_documents)
-    orchestrator.add_step("Archiving Elasticsearch documents", "9/12", run_archive_generation_step, skip=skip_archives)
-    orchestrator.add_step("Indexing in Elasticsearch", "10/12", run_index_step, skip=skip_index)
-    orchestrator.add_step("Validating output data", "11/12", run_validation_step, skip=skip_validation)
+    orchestrator.add_step("Generating Elasticsearch documents", "9/13", run_elastic_documents_step, skip=skip_elastic_documents)
+    orchestrator.add_step("Archiving Elasticsearch documents", "10/13", run_archive_generation_step, skip=skip_archives)
+    orchestrator.add_step("Indexing in Elasticsearch", "11/13", run_index_step, skip=skip_index)
+    orchestrator.add_step("Validating output data", "12/13", run_validation_step, skip=skip_validation)
 
     exit_code = orchestrator.execute(**params)
 

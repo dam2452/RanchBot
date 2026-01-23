@@ -73,7 +73,8 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
     def _validate_transcription(self):
         transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
-        transcription_file = transcriptions_dir / f"{self.series_name}_{self.episode_info.episode_code()}.json"
+        base_name = f"{self.series_name}_{self.episode_info.episode_code()}"
+        transcription_file = transcriptions_dir / f"{base_name}.json"
         if not transcription_file.exists():
             self.errors.append(f"Missing transcription file: {transcription_file}")
             return
@@ -82,6 +83,26 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not result.is_valid:
             self.errors.append(f"Invalid transcription JSON: {result.error_message}")
             return
+
+        clean_transcription_file = transcriptions_dir / f"{base_name}_clean_transcription.json"
+        if not clean_transcription_file.exists():
+            self.warnings.append(f"Missing clean transcription file: {clean_transcription_file.name}")
+        else:
+            result = validate_json_file(clean_transcription_file)
+            if not result.is_valid:
+                self.warnings.append(f"Invalid clean transcription JSON: {result.error_message}")
+
+        clean_txt_file = transcriptions_dir / f"{base_name}_clean_transcription.txt"
+        if not clean_txt_file.exists():
+            self.warnings.append(f"Missing clean transcription txt: {clean_txt_file.name}")
+
+        sound_events_file = transcriptions_dir / f"{base_name}_sound_events.json"
+        if not sound_events_file.exists():
+            self.warnings.append(f"Missing sound events file: {sound_events_file.name}")
+        else:
+            result = validate_json_file(sound_events_file)
+            if not result.is_valid:
+                self.warnings.append(f"Invalid sound events JSON: {result.error_message}")
 
         try:
             with open(transcription_file, "r", encoding="utf-8") as f:

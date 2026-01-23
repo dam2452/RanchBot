@@ -80,6 +80,8 @@ class ElasticSearchIndexer(BaseProcessor):
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.video_frames}/**/*.jsonl")),
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.episode_names}/**/*.jsonl")),
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.full_episode_embeddings}/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.sound_events}/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.sound_event_embeddings}/**/*.jsonl")),
         ])
 
     async def _exec_async(self) -> None:
@@ -107,6 +109,8 @@ class ElasticSearchIndexer(BaseProcessor):
                 ELASTIC_SUBDIRS.video_frames: f"{self.name}_video_frames",
                 ELASTIC_SUBDIRS.episode_names: f"{self.name}_episode_names",
                 ELASTIC_SUBDIRS.full_episode_embeddings: f"{self.name}_full_episode_embeddings",
+                ELASTIC_SUBDIRS.sound_events: f"{self.name}_sound_events",
+                ELASTIC_SUBDIRS.sound_event_embeddings: f"{self.name}_sound_event_embeddings",
             }
 
             for doc_type, index_name in indices.items():
@@ -137,6 +141,8 @@ class ElasticSearchIndexer(BaseProcessor):
             ELASTIC_SUBDIRS.video_frames: ElasticSearchManager.VIDEO_EMBEDDINGS_INDEX_MAPPING,
             ELASTIC_SUBDIRS.episode_names: ElasticSearchManager.EPISODE_NAMES_INDEX_MAPPING,
             ELASTIC_SUBDIRS.full_episode_embeddings: ElasticSearchManager.FULL_EPISODE_EMBEDDINGS_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.sound_events: ElasticSearchManager.SOUND_EVENTS_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.sound_event_embeddings: ElasticSearchManager.SOUND_EVENT_EMBEDDINGS_INDEX_MAPPING,
         }
 
         async def operation():

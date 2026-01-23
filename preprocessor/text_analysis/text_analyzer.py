@@ -54,11 +54,10 @@ class TextAnalyzer(BaseProcessor):
                 if not episode_dir.is_dir():
                     continue
 
-                txt_files = list(episode_dir.glob("*.txt"))
-                if not txt_files:
+                clean_txt_files = list(episode_dir.glob("*_clean_transcription.txt"))
+                if not clean_txt_files:
                     continue
-
-                txt_file = txt_files[0]
+                txt_file = clean_txt_files[0]
 
                 episode_info = self.episode_manager.parse_filename(txt_file)
                 if not episode_info:
