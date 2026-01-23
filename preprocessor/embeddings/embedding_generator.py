@@ -58,6 +58,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.generate_text: bool = self._args.get("generate_text", True)
         self.generate_video: bool = self._args.get("generate_video", True)
         self.generate_full_episode: bool = self._args.get("generate_full_episode", settings.embedding.generate_full_episode_embedding)
+        self.generate_sound_events: bool = self._args.get("generate_sound_events", True)
 
         self.image_hashes_dir: Path = Path(self._args.get("image_hashes_dir", settings.image_hash.output_dir))
 
@@ -120,6 +121,10 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         if self.generate_full_episode:
             full_episode_output = episode_dir / "embeddings_full_episode.json"
             outputs.append(OutputSpec(path=full_episode_output, required=True))
+
+        if self.generate_sound_events:
+            sound_events_output = episode_dir / "embeddings_sound_events.json"
+            outputs.append(OutputSpec(path=sound_events_output, required=False))
 
         return outputs
 
@@ -188,10 +193,15 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         need_video = any("embeddings_video.json" in str(o.path) for o in missing_outputs)
         need_episode_name = any("episode_name_embedding.json" in str(o.path) for o in missing_outputs)
         need_full_episode = any("embeddings_full_episode.json" in str(o.path) for o in missing_outputs)
+        need_sound_events = any("embeddings_sound_events.json" in str(o.path) for o in missing_outputs)
 
         text_embeddings = []
         if need_text:
             text_embeddings = self.__generate_text_embeddings(data)
+
+        sound_event_embeddings = []
+        if need_sound_events:
+            sound_event_embeddings = self.__generate_sound_event_embeddings(trans_file)
 
         video_embeddings = []
         if need_video:
@@ -211,7 +221,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         text_output = episode_dir / "embeddings_text.json"
         video_output = episode_dir / "embeddings_video.json"
         full_episode_output = episode_dir / "embeddings_full_episode.json"
-        self.__save_embeddings(data, text_embeddings, video_embeddings, full_episode_embedding, text_output, video_output, full_episode_output)
+        sound_events_output = episode_dir / "embeddings_sound_events.json"
+        self.__save_embeddings(data, text_embeddings, video_embeddings, full_episode_embedding, sound_event_embeddings, text_output, video_output, full_episode_output, sound_events_output)
         self._cleanup_memory()
 
     def __generate_text_embeddings(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
@@ -285,6 +296,115 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                         })
                 except (RuntimeError, ValueError, OSError) as e:
                     self.logger.error(f"Failed text embedding batch {batch_idx}: {e}")
+
+                tracker.update((batch_idx // text_batch_size) + 1, interval=5)
+
+        return embeddings
+
+    def __generate_sound_event_embeddings(self, trans_file: Path) -> List[Dict[str, Any]]:
+        sound_events_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_sound_events.json")
+        if not sound_events_file.exists():
+            return []
+
+        try:
+            with open(sound_events_file, "r", encoding="utf-8") as f:
+                sound_events_data = json.load(f)
+        except Exception as e:
+            self.logger.error(f"Failed to load sound events file {sound_events_file}: {e}")
+            return []
+
+        segments = sound_events_data.get("segments", [])
+        if not segments:
+            return []
+
+        text_chunks = []
+        chunk_metadata = []
+
+        if self.use_sentence_based_chunking:
+            full_text = " ".join([seg.get("text", "") for seg in segments])
+            sentences = self.__split_into_sentences(full_text)
+
+            sentences_per_chunk = self.text_sentences_per_chunk
+            overlap = self.text_chunk_overlap
+            step = sentences_per_chunk - overlap
+
+            for i in range(0, len(sentences), step):
+                chunk_sentences = sentences[i:i + sentences_per_chunk]
+                if not chunk_sentences:
+                    continue
+
+                chunk_text = " ".join(chunk_sentences).strip()
+                if not chunk_text:
+                    continue
+
+                char_start = sum(len(s) + 1 for s in sentences[:i])
+                char_end = char_start + len(chunk_text)
+
+                start_seg_id = self.__find_segment_at_position(segments, char_start)
+                end_seg_id = self.__find_segment_at_position(segments, char_end)
+
+                start_time = segments[start_seg_id].get("start", 0.0) if start_seg_id < len(segments) else 0.0
+                end_time = segments[end_seg_id].get("end", 0.0) if end_seg_id < len(segments) else 0.0
+
+                sound_types = set()
+                for seg_id in range(start_seg_id, min(end_seg_id + 1, len(segments))):
+                    sound_type = segments[seg_id].get("sound_type", "sound")
+                    sound_types.add(sound_type)
+
+                text_chunks.append(chunk_text)
+                chunk_metadata.append({
+                    "segment_range": [start_seg_id, end_seg_id],
+                    "text": chunk_text,
+                    "sound_types": list(sound_types),
+                    "start_time": start_time,
+                    "end_time": end_time,
+                })
+        else:
+            for i in range(0, len(segments), self.segments_per_embedding):
+                chunk = segments[i: i + self.segments_per_embedding]
+                combined_text = " ".join([seg.get("text", "") for seg in chunk])
+
+                if combined_text.strip():
+                    sound_types = set()
+                    for seg in chunk:
+                        sound_type = seg.get("sound_type", "sound")
+                        sound_types.add(sound_type)
+
+                    start_time = chunk[0].get("start", 0.0) if chunk else 0.0
+                    end_time = chunk[-1].get("end", 0.0) if chunk else 0.0
+
+                    text_chunks.append(combined_text)
+                    chunk_metadata.append({
+                        "segment_range": [i, i + len(chunk) - 1],
+                        "text": combined_text,
+                        "sound_types": list(sound_types),
+                        "start_time": start_time,
+                        "end_time": end_time,
+                    })
+
+        if not text_chunks:
+            return []
+
+        embeddings = []
+        text_batch_size = settings.embedding.text_batch_size
+
+        with self.progress.track_operation(
+            f"Sound event embeddings ({len(text_chunks)} chunks)",
+            (len(text_chunks) + text_batch_size - 1) // text_batch_size,
+        ) as tracker:
+            for batch_idx in range(0, len(text_chunks), text_batch_size):
+                batch_texts = text_chunks[batch_idx: batch_idx + text_batch_size]
+                batch_meta = chunk_metadata[batch_idx: batch_idx + text_batch_size]
+
+                try:
+                    batch_embeddings = self.__encode_text_batch(batch_texts)
+                    for meta, embedding in zip(batch_meta, batch_embeddings):
+                        embeddings.append({
+                            **meta,
+                            "embedding": embedding.tolist(),
+                        })
+                except (RuntimeError, ValueError, OSError) as e:
+                    self.logger.error(f"Failed sound event embedding batch {batch_idx}: {e}")
 
                 tracker.update((batch_idx // text_batch_size) + 1, interval=5)
 
@@ -493,9 +613,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         text_embeddings,
         video_embeddings,
         full_episode_embedding,
+        sound_event_embeddings,
         text_output,
         video_output,
         full_episode_output,
+        sound_events_output,
     ):
         episode_info = data.get("episode_info", {})
         text_output.parent.mkdir(parents=True, exist_ok=True)
@@ -572,6 +694,33 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             )
             atomic_write_json(full_episode_output, full_episode_data, indent=2, ensure_ascii=False)
             console.print(f"[green]✓ Saved full episode embedding to: {full_episode_output}[/green]")
+
+        if sound_event_embeddings:
+            sound_events_data = create_processing_metadata(
+                episode_info=type(
+                    'obj', (object,), {
+                        'season': episode_info.get("season"),
+                        'relative_episode': episode_info.get("episode_number"),
+                    },
+                )(),
+                processing_params={
+                    "model_name": self.model_name,
+                    "model_revision": self.model_revision,
+                    "segments_per_embedding": self.segments_per_embedding,
+                    "use_sentence_based_chunking": self.use_sentence_based_chunking,
+                    "text_sentences_per_chunk": self.text_sentences_per_chunk if self.use_sentence_based_chunking else None,
+                    "text_chunk_overlap": self.text_chunk_overlap if self.use_sentence_based_chunking else None,
+                    "device": self.device,
+                },
+                statistics={
+                    "total_embeddings": len(sound_event_embeddings),
+                    "embedding_dimension": len(sound_event_embeddings[0]["embedding"]) if sound_event_embeddings else 0,
+                },
+                results_key="sound_event_embeddings",
+                results_data=sound_event_embeddings,
+            )
+            atomic_write_json(sound_events_output, sound_events_data, indent=2, ensure_ascii=False)
+            console.print(f"[green]✓ Saved sound event embeddings to: {sound_events_output}[/green]")
 
     @staticmethod
     def _cleanup_memory() -> None:

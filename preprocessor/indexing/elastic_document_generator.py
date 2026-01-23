@@ -138,6 +138,15 @@ class ElasticDocumentGenerator(BaseProcessor):
                 )
                 outputs.append(OutputSpec(path=full_episode_elastic_file, required=True))
 
+            sound_event_emb_file = episode_emb_dir / "embeddings_sound_events.json"
+            if sound_event_emb_file.exists():
+                sound_event_elastic_file = self.episode_manager.build_episode_output_path(
+                    episode_info,
+                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.sound_event_embeddings}",
+                    f"{base_name}_sound_event_embeddings.jsonl",
+                )
+                outputs.append(OutputSpec(path=sound_event_elastic_file, required=False))
+
         return outputs
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None: # pylint: disable=too-many-locals,too-many-statements
@@ -267,6 +276,18 @@ class ElasticDocumentGenerator(BaseProcessor):
             if full_episode_emb_file.exists() and any("_full_episode_embedding.jsonl" in str(o.path) for o in missing_outputs):
                 self.__generate_full_episode_embedding_document(
                     full_episode_emb_file,
+                    episode_id,
+                    episode_metadata,
+                    video_path,
+                    episode_info,
+                    base_name,
+                )
+
+            sound_event_emb_file = episode_emb_dir / "embeddings_sound_events.json"
+
+            if sound_event_emb_file.exists() and any("_sound_event_embeddings.jsonl" in str(o.path) for o in missing_outputs):
+                self.__generate_sound_event_embeddings_document(
+                    sound_event_emb_file,
                     episode_id,
                     episode_metadata,
                     video_path,
@@ -750,3 +771,55 @@ class ElasticDocumentGenerator(BaseProcessor):
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
         console.print(f"[green]Generated full episode embedding document → {output_file.name}[/green]")
+
+    def __generate_sound_event_embeddings_document(
+        self,
+        sound_event_emb_file: Path,
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        episode_info,
+        base_name: str,
+    ) -> None:
+        with open(sound_event_emb_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        sound_event_embeddings = data.get("sound_event_embeddings", [])
+        if not sound_event_embeddings:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.sound_event_embeddings}",
+            f"{base_name}_sound_event_embeddings.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            for i, emb in enumerate(sound_event_embeddings):
+                segment_range = emb.get("segment_range", [])
+                text = emb.get("text", "")
+                embedding = emb.get("embedding", [])
+                sound_types = emb.get("sound_types", [])
+                start_time = emb.get("start_time", 0.0)
+                end_time = emb.get("end_time", 0.0)
+
+                if not embedding:
+                    continue
+
+                doc = {
+                    "episode_id": episode_id,
+                    "episode_metadata": episode_metadata,
+                    "embedding_id": i,
+                    "segment_range": segment_range,
+                    "text": text,
+                    "sound_types": sound_types,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "sound_event_embedding": embedding,
+                    "video_path": video_path,
+                }
+
+                f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated {len(sound_event_embeddings)} sound event embedding documents → {output_file.name}[/green]")
