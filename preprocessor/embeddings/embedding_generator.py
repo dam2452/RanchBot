@@ -222,7 +222,17 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         video_output = episode_dir / "embeddings_video.json"
         full_episode_output = episode_dir / "embeddings_full_episode.json"
         sound_events_output = episode_dir / "embeddings_sound_events.json"
-        self.__save_embeddings(data, text_embeddings, video_embeddings, full_episode_embedding, sound_event_embeddings, text_output, video_output, full_episode_output, sound_events_output)
+        self.__save_embeddings(
+            data,
+            text_embeddings,
+            video_embeddings,
+            full_episode_embedding,
+            sound_event_embeddings,
+            text_output,
+            video_output,
+            full_episode_output,
+            sound_events_output,
+        )
         self._cleanup_memory()
 
     def __generate_text_embeddings(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
@@ -301,7 +311,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         return embeddings
 
-    def __generate_sound_event_embeddings(self, trans_file: Path) -> List[Dict[str, Any]]:
+    def __generate_sound_event_embeddings(self, trans_file: Path) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-statements
         sound_events_file = trans_file.parent / trans_file.name.replace("_segmented.json", "_sound_events.json")
         if not sound_events_file.exists():
             return []
@@ -309,7 +319,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         try:
             with open(sound_events_file, "r", encoding="utf-8") as f:
                 sound_events_data = json.load(f)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"Failed to load sound events file {sound_events_file}: {e}")
             return []
 

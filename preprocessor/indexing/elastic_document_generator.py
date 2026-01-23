@@ -772,7 +772,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated full episode embedding document → {output_file.name}[/green]")
 
-    def __generate_sound_event_embeddings_document(
+    def __generate_sound_event_embeddings_document(  # pylint: disable=too-many-locals
         self,
         sound_event_emb_file: Path,
         episode_id: str,
