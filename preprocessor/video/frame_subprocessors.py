@@ -66,7 +66,14 @@ class ImageHashSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
-        hash_output = episode_dir / "image_hashes.json"
+        series_name = item.metadata["series_name"]
+        file_naming = FileNamingConventions(series_name)
+        hash_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = episode_dir / hash_filename
         return [OutputSpec(path=hash_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -88,9 +95,10 @@ class ImageHashSubProcessor(FrameSubProcessor):
             return
 
         hash_results = compute_hashes_in_batches(ramdisk_frames_dir, frame_requests, self.hasher, self.batch_size)
-        self.__save_hashes(episode_info, hash_results)
+        series_name = item.metadata["series_name"]
+        self.__save_hashes(episode_info, hash_results, series_name)
 
-    def __save_hashes(self, episode_info, hash_results: List[Dict[str, Any]]) -> None:
+    def __save_hashes(self, episode_info, hash_results: List[Dict[str, Any]], series_name: str) -> None:
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
@@ -109,7 +117,13 @@ class ImageHashSubProcessor(FrameSubProcessor):
             results_data=hash_results,
         )
 
-        hash_output = episode_dir / "image_hashes.json"
+        file_naming = FileNamingConventions(series_name)
+        hash_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = episode_dir / hash_filename
         atomic_write_json(hash_output, hash_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved hashes to: {hash_output}[/green]")
