@@ -15,16 +15,22 @@ from bot.database.models import (
     ClipType,
     LastClip,
 )
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.not_sending_videos.save_clip_handler_responses import (
+    get_clip_limit_exceeded_message,
+    get_clip_name_exists_message,
+    get_clip_name_length_exceeded_message,
+    get_clip_name_not_provided_message,
+    get_clip_name_numeric_provided_message,
+    get_clip_saved_successfully_message,
     get_log_clip_name_exists_message,
     get_log_clip_name_numeric_message,
     get_log_clip_saved_successfully_message,
     get_log_no_segment_selected_message,
+    get_no_segment_selected_message,
 )
 from bot.settings import settings
 from bot.video.clips_extractor import ClipsExtractor
@@ -47,18 +53,14 @@ class SaveClipHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            1,
-            await self.get_response(RK.CLIP_NAME_NOT_PROVIDED),
-        )
+        return await self._validate_argument_count(self._message, 1, get_clip_name_not_provided_message())
 
     async def __check_clip_name_format(self) -> bool:
         parts = self._message.get_text().split(maxsplit=1)
         clip_name = parts[1]
 
         if clip_name.isdigit():
-            await self.reply_error(RK.CLIP_NAME_CANNOT_BE_NUMERIC)
+            await self.reply_error(get_clip_name_numeric_provided_message())
             log_message = get_log_clip_name_numeric_message(clip_name, self._message.get_username())
             await self._log_system_message(logging.INFO, log_message)
             return False
@@ -67,7 +69,7 @@ class SaveClipHandler(BotMessageHandler):
     async def __check_clip_name_length(self) -> bool:
         clip_name = self._message.get_text().split(maxsplit=1)[1]
         if len(clip_name) > settings.MAX_CLIP_NAME_LENGTH:
-            await self.reply_error(RK.CLIP_NAME_LENGTH_EXCEEDED)
+            await self.reply_error(get_clip_name_length_exceeded_message())
             return False
         return True
 
@@ -85,7 +87,7 @@ class SaveClipHandler(BotMessageHandler):
         if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
             return True
 
-        await self.reply_error(RK.CLIP_LIMIT_EXCEEDED)
+        await self.reply_error(get_clip_limit_exceeded_message())
         return False
 
     async def __check_last_clip_exists(self) -> bool:
@@ -190,13 +192,13 @@ class SaveClipHandler(BotMessageHandler):
 
 
     async def __reply_clip_name_exists(self, clip_name: str) -> None:
-        await self.reply_error(RK.CLIP_NAME_EXISTS, args=[clip_name])
+        await self.reply_error(get_clip_name_exists_message(clip_name))
         await self._log_system_message(logging.INFO, get_log_clip_name_exists_message(clip_name, self._message.get_username()))
 
     async def __reply_no_segment_selected(self) -> None:
-        await self.reply_error(RK.NO_SEGMENT_SELECTED)
+        await self.reply_error(get_no_segment_selected_message())
         await self._log_system_message(logging.INFO, get_log_no_segment_selected_message())
 
     async def __reply_clip_saved_successfully(self, clip_name: str) -> None:
-        await self.reply(RK.CLIP_SAVED_SUCCESSFULLY, args=[clip_name])
+        await self.reply(get_clip_saved_successfully_message(clip_name))
         await self._log_system_message(logging.INFO, get_log_clip_saved_successfully_message(clip_name, self._message.get_username()))

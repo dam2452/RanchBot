@@ -1,39 +1,38 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.sending_videos.adjust_video_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
 @pytest.mark.usefixtures("db_pool")
 class TestAdjustVideoClipHandler(BaseTest):
-    async def __execute_both_variants(self, command_args: str, response_key: str):
-        expected_response =  await self.get_response(response_key)
-        self.expect_command_result_contains(f"/d {command_args}", [expected_response])
-        self.expect_command_result_contains(f"/ad {command_args}", [expected_response])
+    def __execute_both_variants(self, command_args: str, expected_message: str):
+        self.expect_command_result_contains(f"/d {command_args}", [expected_message])
+        self.expect_command_result_contains(f"/ad {command_args}", [expected_message])
 
     @pytest.mark.asyncio
     async def test_no_previous_searches(self):
-        await self.__execute_both_variants("1 10 -5", RK.NO_PREVIOUS_SEARCHES)
+        self.__execute_both_variants("1 10 -5", msg.get_no_previous_searches_message())
 
     @pytest.mark.asyncio
     async def test_no_quotes_selected(self):
-        await self.__execute_both_variants("-5 10", RK.NO_QUOTES_SELECTED)
+        self.__execute_both_variants("-5 10", msg.get_no_quotes_selected_message())
 
     @pytest.mark.asyncio
     async def test_invalid_args_count(self):
         video_name = "geniusz"
         self.assert_command_result_file_matches(self.send_command(f"/klip {video_name}"), f"clip_{video_name}.mp4")
 
-        await self.__execute_both_variants("-abc", RK.INVALID_ARGS_COUNT)
-        await self.__execute_both_variants("-abc 1.2", RK.INVALID_ARGS_COUNT)
-        await self.__execute_both_variants("-abc 1.2 1.2 1.2 1.2", RK.INVALID_ARGS_COUNT)
+        self.__execute_both_variants("-abc", msg.get_invalid_args_count_message())
+        self.__execute_both_variants("-abc 1.2", msg.get_invalid_args_count_message())
+        self.__execute_both_variants("-abc 1.2 1.2 1.2 1.2", msg.get_invalid_args_count_message())
 
     @pytest.mark.asyncio
     async def test_invalid_interval(self):
         video_name = "geniusz"
         self.send_command(f"/szukaj {video_name}")
 
-        await self.__execute_both_variants("1 -5.5 -15", RK.INVALID_INTERVAL)
+        self.__execute_both_variants("1 -5.5 -15", msg.get_invalid_interval_message())
 
     @pytest.mark.asyncio
     async def test_invalid_segment_index(self):
@@ -42,7 +41,7 @@ class TestAdjustVideoClipHandler(BaseTest):
         adjust_params = "10.0 -3"
         self.expect_command_result_contains(f"/szukaj {search_term}", ["Wyniki wyszukiwania"])
 
-        await self.__execute_both_variants(f"{invalid_clip_number} {adjust_params}", RK.INVALID_SEGMENT_INDEX)
+        self.__execute_both_variants(f"{invalid_clip_number} {adjust_params}", msg.get_invalid_segment_index_message())
 
     @pytest.mark.asyncio
     async def test_adjust_clip_with_valid_params(self):
@@ -97,4 +96,4 @@ class TestAdjustVideoClipHandler(BaseTest):
         await self.switch_to_normal_user()
         self.assert_command_result_file_matches(self.send_command(f"/klip {video_name}"), "clip_geniusz.mp4")
 
-        await self.__execute_both_variants(large_adjust_params, RK.MAX_EXTENSION_LIMIT)
+        self.__execute_both_variants(large_adjust_params, msg.get_max_extension_limit_message())

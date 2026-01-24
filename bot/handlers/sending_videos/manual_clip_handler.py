@@ -8,17 +8,21 @@ from typing import (
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import (
+    get_end_time_earlier_than_start_message,
+    get_incorrect_season_episode_format_message,
+    get_incorrect_time_format_message,
+    get_invalid_args_count_message,
     get_log_clip_extracted_message,
     get_log_end_time_earlier_than_start_message,
     get_log_incorrect_season_episode_format_message,
     get_log_incorrect_time_format_message,
     get_log_video_file_not_exist_message,
+    get_video_file_not_exist_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.utils.functions import (
@@ -58,11 +62,7 @@ class ManualClipHandler(BotMessageHandler):
         return True
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            3,
-            await self.get_response(RK.INVALID_ARGS_COUNT),
-        )
+        return await self._validate_argument_count(self._message, 3, get_invalid_args_count_message())
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
@@ -127,18 +127,18 @@ class ManualClipHandler(BotMessageHandler):
         return Episode(episode), minutes_str_to_seconds(start_time), minutes_str_to_seconds(end_time)
 
     async def __reply_incorrect_season_episode_format(self) -> None:
-        await self._responder.send_markdown(await self.get_response(RK.INCORRECT_SEASON_EPISODE_FORMAT))
+        await self.reply_error(get_incorrect_season_episode_format_message())
         await self._log_system_message(logging.INFO, get_log_incorrect_season_episode_format_message())
 
     async def __reply_video_file_not_exist(self, video_path: Optional[Path]) -> None:
-        await self._responder.send_markdown(await self.get_response(RK.VIDEO_FILE_NOT_EXIST))
+        await self.reply_error(get_video_file_not_exist_message())
         path_str = str(video_path) if video_path else "Unknown"
         await self._log_system_message(logging.INFO, get_log_video_file_not_exist_message(path_str))
 
     async def __reply_incorrect_time_format(self) -> None:
-        await self._responder.send_markdown(await self.get_response(RK.INCORRECT_TIME_FORMAT))
+        await self.reply_error(get_incorrect_time_format_message())
         await self._log_system_message(logging.INFO, get_log_incorrect_time_format_message())
 
     async def __reply_end_time_earlier_than_start(self) -> None:
-        await self._responder.send_text(await self.get_response(RK.END_TIME_EARLIER_THAN_START))
+        await self.reply_error(get_end_time_earlier_than_start_message())
         await self._log_system_message(logging.INFO, get_log_end_time_earlier_than_start_message())

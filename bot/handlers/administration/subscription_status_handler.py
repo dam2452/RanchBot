@@ -7,14 +7,15 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.administration.subscription_status_handler_responses import (
+    format_subscription_status_response,
     get_log_no_active_subscription_message,
     get_log_subscription_status_sent_message,
+    get_no_subscription_message,
 )
 
 
@@ -35,20 +36,14 @@ class SubscriptionStatusHandler(BotMessageHandler):
 
         subscription_end, days_remaining = subscription_status
 
-        if self._message.should_reply_json():
-            await self.reply(
-                key="",
-                data={
-                    "username": username,
-                    "subscription_end": subscription_end.isoformat(),
-                    "days_remaining": days_remaining,
-                },
-            )
-        else:
-            await self.reply(
-                RK.SUBSCRIPTION_STATUS,
-                args=[username, str(subscription_end), str(days_remaining)],
-            )
+        await self.reply(
+            format_subscription_status_response(username, subscription_end, days_remaining),
+            data={
+                "username": username,
+                "subscription_end": subscription_end.isoformat(),
+                "days_remaining": days_remaining,
+            },
+        )
 
         return await self._log_system_message(
             logging.INFO,
@@ -64,8 +59,5 @@ class SubscriptionStatusHandler(BotMessageHandler):
         return subscription_end, days_remaining
 
     async def __reply_no_subscription(self, username: str) -> None:
-        await self.reply_error(RK.NO_SUBSCRIPTION)
-        await self._log_system_message(
-            logging.INFO,
-            get_log_no_active_subscription_message(username),
-        )
+        await self.reply_error(get_no_subscription_message())
+        await self._log_system_message(logging.INFO, get_log_no_active_subscription_message(username))

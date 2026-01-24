@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.administration.create_key_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -14,7 +14,7 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
+            [msg.get_create_key_success_message(days, key_name)],
         )
 
     @pytest.mark.asyncio
@@ -24,7 +24,7 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_USAGE)],
+            [msg.get_create_key_usage_message()],
         )
 
     @pytest.mark.asyncio
@@ -35,7 +35,7 @@ class TestCreateKeyHandler(BaseTest):
         self.send_command(f'/removekey {key_name}')
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_USAGE)],
+            [msg.get_create_key_usage_message()],
         )
 
     @pytest.mark.asyncio
@@ -45,7 +45,7 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {invalid_days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_USAGE)],
+            [msg.get_create_key_usage_message()],
         )
 
     @pytest.mark.asyncio
@@ -55,7 +55,7 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
+            [msg.get_create_key_success_message(days, key_name)],
         )
 
     @pytest.mark.asyncio
@@ -65,10 +65,10 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.CREATE_KEY_SUCCESS, [key_name, days])],
+            [msg.get_create_key_success_message(days, key_name)],
         )
 
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [await self.get_response(RK.KEY_ALREADY_EXISTS, [key_name])],
+            [msg.get_key_already_exists_message(key_name)],
         )

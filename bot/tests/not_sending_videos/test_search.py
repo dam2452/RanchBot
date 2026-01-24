@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.not_sending_videos.search_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -22,7 +22,7 @@ class TestSearchHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_search_invalid_arguments(self):
         response = self.send_command('/szukaj')
-        self.assert_response_contains(response, [await self.get_response(RK.INVALID_ARGS_COUNT)])
+        self.assert_response_contains(response, [msg.get_invalid_args_count_message()])
 
     @pytest.mark.asyncio
     async def test_search_long_quote_exceeds_limit(self):

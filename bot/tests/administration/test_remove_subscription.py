@@ -1,7 +1,7 @@
 import pytest
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.administration.remove_subscription_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -20,7 +20,7 @@ class TestRemoveSubscriptionHandler(BaseTest):
         )
         self.expect_command_result_contains(
             f'/removesubscription {user_id}',
-            [await self.get_response(RK.SUBSCRIPTION_REMOVED, [str(user_id)])],
+            [msg.get_subscription_removed_message(str(user_id))],
         )
 
     @pytest.mark.asyncio
@@ -28,14 +28,14 @@ class TestRemoveSubscriptionHandler(BaseTest):
         user_id = 987654321
         self.expect_command_result_contains(
             f'/removesubscription {user_id}',
-            [await self.get_response(RK.SUBSCRIPTION_REMOVED, [str(user_id)])],
+            [msg.get_subscription_removed_message(str(user_id))],
         )
 
     @pytest.mark.asyncio
     async def test_remove_subscription_invalid_user_id_format(self):
         self.expect_command_result_contains(
             '/removesubscription user123',
-            [await self.get_response(RK.NO_USER_ID_PROVIDED)],
+            [msg.get_no_user_id_provided_message()],
         )
 
     @pytest.mark.asyncio
@@ -50,9 +50,9 @@ class TestRemoveSubscriptionHandler(BaseTest):
         )
         self.expect_command_result_contains(
             f'/removesubscription {user_id}',
-            [await self.get_response(RK.SUBSCRIPTION_REMOVED, [str(user_id)])],
+            [msg.get_subscription_removed_message(str(user_id))],
         )
         self.expect_command_result_contains(
             f'/removesubscription {user_id}',
-            [await self.get_response(RK.SUBSCRIPTION_REMOVED, [str(user_id)])],
+            [msg.get_subscription_removed_message(str(user_id))],
         )

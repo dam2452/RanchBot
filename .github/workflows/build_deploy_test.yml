@@ -58,6 +58,7 @@ jobs:
       - name: Run E2E Tests
         env:
           SECRETS: ${{ secrets.BOT_TEST_ENV }}
+          PIP_ROOT_USER_ACTION: ignore
         run: |
           echo "$SECRETS" > .env
           # shellcheck disable=SC2046

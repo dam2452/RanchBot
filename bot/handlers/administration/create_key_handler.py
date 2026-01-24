@@ -2,15 +2,14 @@ import logging
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.administration.create_key_handler_responses import (
-    get_key_added_message,
-    get_log_key_name_exists_message,
-    get_wrong_argument_message,
+    get_create_key_success_message,
+    get_create_key_usage_message,
+    get_key_already_exists_message,
 )
 
 
@@ -26,12 +25,7 @@ class CreateKeyHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        if not await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.CREATE_KEY_USAGE),
-        ):
-            await self.reply_error(RK.CREATE_KEY_USAGE)
-            return False
-        return True
+        return await self._validate_argument_count(self._message, 2, get_create_key_usage_message())
 
     async def __check_days_is_digit(self) -> bool:
         args = self._message.get_text().split()
@@ -39,8 +33,8 @@ class CreateKeyHandler(BotMessageHandler):
             if int(args[1]) <= 0:
                 raise ValueError()
         except (IndexError, ValueError):
-            await self.reply_error(RK.CREATE_KEY_USAGE)
-            await self._log_system_message(logging.INFO, get_wrong_argument_message())
+            await self.reply_error(get_create_key_usage_message())
+            await self._log_system_message(logging.INFO, get_create_key_usage_message())
             return False
         return True
 
@@ -48,8 +42,8 @@ class CreateKeyHandler(BotMessageHandler):
         args = self._message.get_text().split()
         key = " ".join(args[2:])
         if await DatabaseManager.get_subscription_days_by_key(key):
-            await self.reply_error(RK.KEY_ALREADY_EXISTS, args=[key])
-            await self._log_system_message(logging.INFO, get_log_key_name_exists_message(key))
+            await self.reply_error(get_key_already_exists_message(key))
+            await self._log_system_message(logging.INFO, get_key_already_exists_message(key))
             return False
         return True
 
@@ -61,8 +55,7 @@ class CreateKeyHandler(BotMessageHandler):
         await DatabaseManager.create_subscription_key(days, key)
 
         await self.reply(
-            RK.CREATE_KEY_SUCCESS,
-            args=[key, str(days)],
+            get_create_key_success_message(days, key),
             data={"days": days, "key": key},
         )
-        await self._log_system_message(logging.INFO, get_key_added_message(key, days))
+        await self._log_system_message(logging.INFO, get_create_key_success_message(days, key))
