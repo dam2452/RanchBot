@@ -8,7 +8,9 @@ from typing import (
 from uuid import uuid4
 
 from aiogram.types import (
+    FSInputFile,
     InlineQueryResultArticle,
+    InlineQueryResultCachedVideo,
     InputTextMessageContent,
 )
 
@@ -107,17 +109,78 @@ class ClipHandler(BotMessageHandler):
     def supports_inline_mode(self) -> bool:
         return True
 
-    async def handle_inline_query(self, query: str) -> Optional[List[Any]]:
+    async def handle_inline_query(self, query: str, bot, user_id: int) -> Optional[List[Any]]:
         if not query.strip():
             return []
 
-        result = InlineQueryResultArticle(
-            id=str(uuid4()),
-            title=f'Szukaj klipu: "{query}"',
-            description="Kliknij aby wysłać klip do czatu",
-            input_message_content=InputTextMessageContent(
-                message_text=f"/klip {query}",
-            ),
-        )
+        if not settings.INLINE_CACHE_CHANNEL_ID:
+            result = InlineQueryResultArticle(
+                id=str(uuid4()),
+                title="Inline mode nie jest skonfigurowany",
+                description="Skontaktuj się z administratorem",
+                input_message_content=InputTextMessageContent(
+                    message_text="Inline mode wymaga konfiguracji INLINE_CACHE_CHANNEL_ID",
+                ),
+            )
+            return [result]
 
-        return [result]
+        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, return_all=False)
+        if not segments:
+            result = InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=f'Nie znaleziono klipu dla: "{query}"',
+                description="Spróbuj innego wyszukiwania",
+                input_message_content=InputTextMessageContent(
+                    message_text=f"Nie znaleziono klipu dla: {query}",
+                ),
+            )
+            return [result]
+
+        segment = segments[0] if isinstance(segments, list) else segments
+        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
+        end_time = segment["end"] + settings.EXTEND_AFTER
+
+        clip_duration = end_time - start_time
+        if not await DatabaseManager.is_admin_or_moderator(user_id) and clip_duration > settings.MAX_CLIP_DURATION:
+            result = InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=f'Klip "{query}" jest za długi',
+                description=f"Maksymalna długość: {settings.MAX_CLIP_DURATION}s",
+                input_message_content=InputTextMessageContent(
+                    message_text=get_message_too_long_message(),
+                ),
+            )
+            return [result]
+
+        try:
+            output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
+
+            sent_message = await bot.send_video(
+                chat_id=settings.INLINE_CACHE_CHANNEL_ID,
+                video=FSInputFile(output_filename),
+                supports_streaming=True,
+            )
+
+            output_filename.unlink()
+
+            file_id = sent_message.video.file_id
+
+            result = InlineQueryResultCachedVideo(
+                id=str(uuid4()),
+                video_file_id=file_id,
+                title=f'Klip: "{query}"',
+                description="Kliknij aby wysłać klip",
+            )
+
+            return [result]
+
+        except FFMpegException:
+            result = InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=f'Błąd podczas generowania klipu dla: "{query}"',
+                description="Spróbuj ponownie później",
+                input_message_content=InputTextMessageContent(
+                    message_text=get_extraction_failure_message(),
+                ),
+            )
+            return [result]

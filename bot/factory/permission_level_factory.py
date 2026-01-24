@@ -110,7 +110,7 @@ class PermissionLevelFactory(ABC):
 
             for handler_cls in handlers_with_inline:
                 handler = handler_cls(message=None, responder=None, logger=self._logger)
-                results = await handler.handle_inline_query(query)
+                results = await handler.handle_inline_query(query, self._bot, inline_query.from_user.id)
                 if results:
                     all_results.extend(results)
 
