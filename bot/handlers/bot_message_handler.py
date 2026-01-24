@@ -162,6 +162,5 @@ class BotMessageHandler(ABC):
     def supports_inline_mode(self) -> bool:
         return False
 
-    @abstractmethod
     async def handle_inline_query(self, query: str) -> Optional[List[Any]]:
         pass
