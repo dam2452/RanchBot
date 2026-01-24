@@ -162,5 +162,5 @@ class BotMessageHandler(ABC):
     def supports_inline_mode(self) -> bool:
         return False
 
-    async def handle_inline_query(self, query: str) -> Optional[List[Any]]:
+    async def handle_inline_query(self, query: str, bot: Any, user_id: int) -> Optional[List[Any]]:
         pass
