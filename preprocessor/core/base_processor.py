@@ -112,7 +112,10 @@ class BaseProcessor(ABC):
                 ProcessingItem(
                     episode_id=episode_id,
                     input_path=metadata_file,
-                    metadata={"episode_info": episode_info},
+                    metadata={
+                        "episode_info": episode_info,
+                        "series_name": episode_manager.series_name,
+                    },
                 ),
             )
 

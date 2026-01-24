@@ -113,7 +113,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             return outputs
 
         if self.generate_text:
-            text_filename = f"{FILE_SUFFIXES['embeddings_text']}.json"
+            text_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_embeddings_text",
+            )
             text_output = OutputPathBuilder.build_embedding_path(episode_info, text_filename)
             outputs.append(OutputSpec(path=text_output, required=True))
 
@@ -126,20 +130,28 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             video_filename = self.episode_manager.file_naming.build_filename(
                 episode_info,
                 extension="json",
-                suffix="embeddings_video",
+                suffix="_embeddings_video",
             )
             video_output = OutputPathBuilder.build_embedding_path(episode_info, video_filename)
             outputs.append(OutputSpec(path=video_output, required=True))
 
         if self.generate_full_episode:
-            full_episode_filename = f"{FILE_SUFFIXES['embeddings_full']}.json"
+            full_episode_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_embeddings_full_episode",
+            )
             full_episode_output = OutputPathBuilder.build_embedding_path(episode_info, full_episode_filename)
             outputs.append(OutputSpec(path=full_episode_output, required=True))
 
         if self.generate_sound_events:
-            sound_events_filename = f"{FILE_SUFFIXES['embeddings_sound']}.json"
+            sound_events_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_embeddings_sound_events",
+            )
             sound_events_output = OutputPathBuilder.build_embedding_path(episode_info, sound_events_filename)
-            outputs.append(OutputSpec(path=sound_events_output, required=False))
+            outputs.append(OutputSpec(path=sound_events_output, required=True))
 
         return outputs
 

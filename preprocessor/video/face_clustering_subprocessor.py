@@ -67,7 +67,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
-        series_name = episode_info.series_name
+        series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         metadata_filename = file_naming.build_filename(
             episode_info,
@@ -107,7 +107,8 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         labels = self._cluster_faces(face_data)
 
         console.print("[cyan]Saving clusters[/cyan]")
-        self._save_clusters(episode_info, face_data, labels, frame_files)
+        series_name = item.metadata["series_name"]
+        self._save_clusters(episode_info, face_data, labels, frame_files, series_name)
 
     def _extract_faces_with_embeddings(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
         face_data = []
@@ -176,6 +177,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         face_data: List[Dict[str, Any]],
         labels: np.ndarray,
         all_frame_files: List[Path],
+        series_name: str,
     ) -> None:
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
         episode_dir.mkdir(parents=True, exist_ok=True)
@@ -231,7 +233,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
                 "character_name": None,
             })
 
-        self._save_metadata(episode_info, face_data, labels, cluster_stats, all_frame_files)
+        self._save_metadata(episode_info, face_data, labels, cluster_stats, all_frame_files, series_name)
 
     def _save_metadata(
         self,
@@ -240,6 +242,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         labels: np.ndarray,
         cluster_stats: List[Dict[str, Any]],
         all_frame_files: List[Path],
+        series_name: str,
     ) -> None:
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
 
@@ -266,8 +269,6 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
             results_key="clusters",
             results_data=cluster_stats,
         )
-
-        series_name = episode_info.series_name
         file_naming = FileNamingConventions(series_name)
         metadata_filename = file_naming.build_filename(
             episode_info,

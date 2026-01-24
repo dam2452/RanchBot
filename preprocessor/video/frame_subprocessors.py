@@ -161,7 +161,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
-        series_name = episode_info.series_name
+        series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         video_filename = file_naming.build_filename(
             episode_info,
@@ -206,9 +206,10 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             checkpoint_interval=20,
             prefetch_count=settings.embedding.prefetch_chunks,
         )
-        self.__save_embeddings(episode_info, video_embeddings)
+        series_name = item.metadata["series_name"]
+        self.__save_embeddings(episode_info, video_embeddings, series_name)
 
-    def __save_embeddings(self, episode_info, video_embeddings: List[Dict[str, Any]]) -> None:
+    def __save_embeddings(self, episode_info, video_embeddings: List[Dict[str, Any]], series_name: str) -> None:
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
@@ -228,8 +229,6 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             results_key="video_embeddings",
             results_data=video_embeddings,
         )
-
-        series_name = episode_info.series_name
         file_naming = FileNamingConventions(series_name)
         video_filename = file_naming.build_filename(
             episode_info,
@@ -276,7 +275,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
-        series_name = episode_info.series_name
+        series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(
             episode_info,
@@ -359,7 +358,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
-        series_name = episode_info.series_name
+        series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(
             episode_info,
@@ -462,9 +461,10 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             top_classes = sorted(class_counts.items(), key=lambda x: x[1], reverse=True)[:5]
             console.print(f"[cyan]Top 5 classes: {', '.join(f'{cls}:{cnt}' for cls, cnt in top_classes)}[/cyan]")
 
-        self.__save_detections(episode_info, detections_data)
+        series_name = item.metadata["series_name"]
+        self.__save_detections(episode_info, detections_data, series_name)
 
-    def __save_detections(self, episode_info, detections_data: Dict[str, Any]) -> None:
+    def __save_detections(self, episode_info, detections_data: Dict[str, Any], series_name: str) -> None:
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
@@ -482,8 +482,6 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             results_key="detections",
             results_data=detections_data["frames"],
         )
-
-        series_name = episode_info.series_name
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(
             episode_info,
