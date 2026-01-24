@@ -15,6 +15,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.utils.console import console
 
@@ -53,28 +54,35 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         return items
 
-    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:  # pylint: disable=too-many-locals
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:  # pylint: disable=too-many-locals,too-many-statements
         base_name = item.metadata["base_name"]
         episode_info = self.episode_manager.parse_filename(item.input_path)
 
         outputs = []
 
         if episode_info:
-            segments_file = self.episode_manager.build_episode_output_path(
+            segments_filename = f"{base_name}_segments.jsonl"
+            segments_file = OutputPathBuilder.build_elastic_document_path(
                 episode_info,
-                f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.segments}",
-                f"{base_name}_segments.jsonl",
+                ELASTIC_SUBDIRS.segments,
+                segments_filename,
             )
             outputs.append(OutputSpec(path=segments_file, required=True))
 
-            trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
+            trans_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.transcriptions)
             sound_events_dir = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
-            sound_events_json = sound_events_dir / f"{base_name}_sound_events.json"
+            sound_events_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="sound_events",
+            )
+            sound_events_json = sound_events_dir / sound_events_filename
             if sound_events_json.exists():
-                sound_events_file = self.episode_manager.build_episode_output_path(
+                sound_events_elastic = f"{base_name}_sound_events.jsonl"
+                sound_events_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.sound_events}",
-                    f"{base_name}_sound_events.jsonl",
+                    ELASTIC_SUBDIRS.sound_events,
+                    sound_events_elastic,
                 )
                 outputs.append(OutputSpec(path=sound_events_file, required=False))
         else:
@@ -87,25 +95,27 @@ class ElasticDocumentGenerator(BaseProcessor):
             )
 
         if self.embeddings_dir and episode_info:
-            episode_emb_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+            episode_emb_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.embeddings)
             text_emb_files = list(episode_emb_dir.glob("*_embeddings_text.json"))
             text_emb_file = text_emb_files[0] if text_emb_files else None
             video_emb_files = list(episode_emb_dir.glob("*_embeddings_video.json"))
             video_emb_file = video_emb_files[0] if video_emb_files else None
 
             if text_emb_file and text_emb_file.exists():
-                text_embeddings_file = self.episode_manager.build_episode_output_path(
+                text_embeddings_filename = f"{base_name}_text_embeddings.jsonl"
+                text_embeddings_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_embeddings}",
-                    f"{base_name}_text_embeddings.jsonl",
+                    ELASTIC_SUBDIRS.text_embeddings,
+                    text_embeddings_filename,
                 )
                 outputs.append(OutputSpec(path=text_embeddings_file, required=True))
 
             if video_emb_file and video_emb_file.exists():
-                video_frames_file = self.episode_manager.build_episode_output_path(
+                video_frames_filename = f"{base_name}_video_frames.jsonl"
+                video_frames_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_frames}",
-                    f"{base_name}_video_frames.jsonl",
+                    ELASTIC_SUBDIRS.video_frames,
+                    video_frames_filename,
                 )
                 outputs.append(OutputSpec(path=video_frames_file, required=True))
 
@@ -115,38 +125,43 @@ class ElasticDocumentGenerator(BaseProcessor):
                 output_dir=self.embeddings_dir,
             )
             if episode_name_emb:
-                episode_name_file = self.episode_manager.build_episode_output_path(
+                episode_name_filename = f"{base_name}_episode_name.jsonl"
+                episode_name_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.episode_names}",
-                    f"{base_name}_episode_name.jsonl",
+                    ELASTIC_SUBDIRS.episode_names,
+                    episode_name_filename,
                 )
                 outputs.append(OutputSpec(path=episode_name_file, required=True))
 
-            trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
-            text_stats_file = trans_dir / f"{base_name}_text_stats.json"
+            trans_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.transcriptions)
+            text_stats_filename = f"{base_name}_text_stats.json"
+            text_stats_file = trans_dir / text_stats_filename
             if text_stats_file.exists():
-                text_stats_elastic_file = self.episode_manager.build_episode_output_path(
+                text_stats_elastic_filename = f"{base_name}_text_statistics.jsonl"
+                text_stats_elastic_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_statistics}",
-                    f"{base_name}_text_statistics.jsonl",
+                    ELASTIC_SUBDIRS.text_statistics,
+                    text_stats_elastic_filename,
                 )
                 outputs.append(OutputSpec(path=text_stats_elastic_file, required=True))
 
             full_episode_emb_file = episode_emb_dir / "embeddings_full_episode.json"
             if full_episode_emb_file.exists():
-                full_episode_elastic_file = self.episode_manager.build_episode_output_path(
+                full_episode_elastic_filename = f"{base_name}_full_episode_embedding.jsonl"
+                full_episode_elastic_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.full_episode_embeddings}",
-                    f"{base_name}_full_episode_embedding.jsonl",
+                    ELASTIC_SUBDIRS.full_episode_embeddings,
+                    full_episode_elastic_filename,
                 )
                 outputs.append(OutputSpec(path=full_episode_elastic_file, required=True))
 
             sound_event_emb_file = episode_emb_dir / "embeddings_sound_events.json"
             if sound_event_emb_file.exists():
-                sound_event_elastic_file = self.episode_manager.build_episode_output_path(
+                sound_event_elastic_filename = f"{base_name}_sound_event_embeddings.jsonl"
+                sound_event_elastic_file = OutputPathBuilder.build_elastic_document_path(
                     episode_info,
-                    f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.sound_event_embeddings}",
-                    f"{base_name}_sound_event_embeddings.jsonl",
+                    ELASTIC_SUBDIRS.sound_event_embeddings,
+                    sound_event_elastic_filename,
                 )
                 outputs.append(OutputSpec(path=sound_event_elastic_file, required=False))
 

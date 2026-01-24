@@ -2,7 +2,6 @@ from dataclasses import dataclass
 import json
 import logging
 from pathlib import Path
-import re
 from typing import (
     Any,
     Dict,
@@ -10,8 +9,10 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.config import BASE_OUTPUT_DIR
-from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
+from preprocessor.core.episode_file_finder import EpisodeFileFinder
+from preprocessor.core.episode_parser import EpisodeInfoParser
+from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.output_path_builder import OutputPathBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -39,26 +40,16 @@ class EpisodeManager:
     def __init__(self, episodes_info_json: Optional[Path], series_name: str):
         self.series_name = series_name.lower()
         self.episodes_data: Optional[Dict[str, Any]] = None
+        self.file_naming = FileNamingConventions(self.series_name)
+        self.file_finder = EpisodeFileFinder(self.series_name)
+        self.parser = EpisodeInfoParser()
 
         if episodes_info_json and episodes_info_json.exists():
             with open(episodes_info_json, "r", encoding="utf-8") as f:
                 self.episodes_data = json.load(f)
 
     def parse_filename(self, file_path: Path) -> Optional[EpisodeInfo]:
-        full_path_str = str(file_path)
-
-        match_season_episode = re.search(r'S(\d+)[/\\]?E(\d+)', full_path_str, re.IGNORECASE)
-        if match_season_episode:
-            season = int(match_season_episode.group(1))
-            episode = int(match_season_episode.group(2))
-            return self.get_episode_by_season_and_relative(season, episode)
-
-        logger.error(
-            f"Cannot parse episode from filename: {file_path.name}. "
-            f"Expected format: S##E## (e.g., S01E05, S10E13). "
-            f"Absolute episode numbers (E## without season) are not supported.",
-        )
-        return None
+        return self.parser.parse_filename(file_path, self)
 
     def get_episode_by_season_and_relative(self, season: int, relative_episode: int) -> Optional[EpisodeInfo]:
         if not self.episodes_data:
@@ -98,97 +89,37 @@ class EpisodeManager:
         )
 
     def build_output_path(self, episode_info: EpisodeInfo, base_dir: Path, extension: str = ".mp4") -> Path:
-        filename = f"{self.series_name}_{episode_info.episode_code()}{extension}"
-        season_dir = base_dir / episode_info.season_dir_name()
+        filename = self.file_naming.build_filename(episode_info, extension=extension.lstrip('.'))
+        season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
+        season_dir = base_dir / season_dir_name
         season_dir.mkdir(parents=True, exist_ok=True)
         return season_dir / filename
 
     @staticmethod
     def get_episode_subdir(episode_info: EpisodeInfo, subdir: str) -> Path:
-        return BASE_OUTPUT_DIR / subdir / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
+        return OutputPathBuilder.get_episode_dir(episode_info, subdir)
 
     @staticmethod
     def build_episode_output_path(episode_info: EpisodeInfo, subdir: str, filename: str) -> Path:
-        path = EpisodeManager.get_episode_subdir(episode_info, subdir) / filename
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return path
+        return OutputPathBuilder.build_output_path(episode_info, subdir, filename)
 
     def build_video_path_for_elastic(self, episode_info: EpisodeInfo) -> str:
-        filename = f"{self.series_name}_{episode_info.episode_code()}.mp4"
-        path = Path("bot") / f"{self.series_name.upper()}-WIDEO" / episode_info.season_dir_name() / filename
-        return path.as_posix()
+        return OutputPathBuilder.build_elastic_video_path(episode_info, self.series_name)
 
-    @staticmethod
-    def find_video_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
-        if not search_dir.exists():
-            return None
-
-        if search_dir.is_file():
-            return search_dir
-
-
-        episode_code = episode_info.episode_code()
-        search_dirs = [search_dir / episode_info.season_dir_name(), search_dir]
-
-        for dir_path in search_dirs:
-            if not dir_path.exists():
-                continue
-
-            for ext in SUPPORTED_VIDEO_EXTENSIONS:
-                for video_file in dir_path.glob(f"*{ext}"):
-                    if re.search(episode_code, video_file.name, re.IGNORECASE):
-                        return video_file
-
-        return None
+    def find_video_file(self, episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
+        return self.file_finder.find_video_file(episode_info, search_dir)
 
     def find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool = True) -> Optional[Path]:
-        if not search_dir.exists():
-            return None
-
-        season_dir = search_dir / episode_info.season_dir_name()
-        if not season_dir.exists():
-            return None
-
-        base_name = f"{self.series_name}_{episode_info.episode_code()}"
-
-        if prefer_segmented:
-            segmented = season_dir / f"{base_name}_segmented.json"
-            if segmented.exists():
-                return segmented
-
-        regular = season_dir / f"{base_name}.json"
-        if regular.exists():
-            return regular
-
-        return None
+        return self.file_finder.find_transcription_file(episode_info, search_dir, prefer_segmented)
 
     @staticmethod
     def find_scene_timestamps_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
-        if not search_dir.exists():
-            return None
-
-        episode_code = episode_info.episode_code()
-        pattern = f"**/*{episode_code}*_scenes.json"
-
-        for scene_file in search_dir.glob(pattern):
-            return scene_file
-
-        return None
+        finder = EpisodeFileFinder("")
+        return finder.find_scene_timestamps_file(episode_info, search_dir)
 
     @staticmethod
     def load_scene_timestamps(episode_info: EpisodeInfo, search_dir: Optional[Path], _logger=None) -> Optional[List[Dict[str, Any]]]:
-        if not search_dir:
-            return None
-        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, search_dir)
-        if not scene_file:
-            return None
-        try:
-            with open(scene_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            if _logger:
-                _logger.error(f"Failed to load scene timestamps: {e}")
-            return None
+        return EpisodeFileFinder.load_scene_timestamps(episode_info, search_dir, _logger)
 
     @staticmethod
     def get_metadata(episode_info: EpisodeInfo) -> Dict[str, Any]:
@@ -202,7 +133,7 @@ class EpisodeManager:
 
     @staticmethod
     def get_episode_id_for_state(episode_info: EpisodeInfo) -> str:
-        return f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}"
+        return EpisodeInfoParser.get_episode_id(episode_info)
 
     def list_all_episodes(self) -> List[EpisodeInfo]:
         episodes = []

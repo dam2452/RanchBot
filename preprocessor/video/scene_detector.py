@@ -20,6 +20,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
 
@@ -71,15 +72,15 @@ class SceneDetector(BaseProcessor):
         episode_info = item.metadata.get("episode_info")
 
         if episode_info:
-            output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
-            output_path = self.episode_manager.build_episode_output_path(
+            output_filename = self.episode_manager.file_naming.build_filename(
                 episode_info,
-                settings.output_subdirs.scenes,
-                output_filename,
+                extension="json",
+                suffix="scenes",
             )
+            output_path = OutputPathBuilder.build_scene_path(episode_info, output_filename)
         else:
             output_filename = f"{item.input_path.stem}_scenes.json"
-            output_path = self.episode_manager.get_episode_subdir(None, settings.output_subdirs.scenes) / output_filename
+            output_path = OutputPathBuilder.get_episode_dir(None, settings.output_subdirs.scenes) / output_filename
 
         return [OutputSpec(path=output_path, required=True)]
 

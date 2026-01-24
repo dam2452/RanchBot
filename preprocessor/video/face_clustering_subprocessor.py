@@ -23,6 +23,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.file_utils import atomic_write_json
@@ -67,8 +68,13 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        metadata_output = episode_dir / f"{series_name}_{episode_code}_face_clusters.json"
+        file_naming = FileNamingConventions(series_name)
+        metadata_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_face_clusters",
+        )
+        metadata_output = episode_dir / metadata_filename
         return [OutputSpec(path=metadata_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -262,8 +268,13 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         )
 
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        metadata_output = episode_dir / f"{series_name}_{episode_code}_face_clusters.json"
+        file_naming = FileNamingConventions(series_name)
+        metadata_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_face_clusters",
+        )
+        metadata_output = episode_dir / metadata_filename
         atomic_write_json(metadata_output, metadata, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved cluster metadata to: {metadata_output}[/green]")

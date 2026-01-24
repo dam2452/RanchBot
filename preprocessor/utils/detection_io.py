@@ -9,6 +9,7 @@ from typing import (
 
 from preprocessor.characters.face_detection_utils import detect_characters_in_frame
 from preprocessor.config.config import settings
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_minimal_episode_info
@@ -40,9 +41,14 @@ def save_character_detections(
         "detections": results,
     }
 
-    series_name = episode_info.series_name
-    episode_code = episode_info.episode_code()
-    detections_output = episode_dir / f"{series_name}_{episode_code}_character_detections.json"
+    series_name = episode_info.series_name if hasattr(episode_info, 'series_name') else 'unknown'
+    file_naming = FileNamingConventions(series_name)
+    detections_filename = file_naming.build_filename(
+        episode_info,
+        extension="json",
+        suffix="_character_detections",
+    )
+    detections_output = episode_dir / detections_filename
     atomic_write_json(detections_output, detections_data, indent=2, ensure_ascii=False)
 
     frames_with_chars = sum(1 for r in results if r["characters"])

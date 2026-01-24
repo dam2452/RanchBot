@@ -21,6 +21,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import (
@@ -161,8 +162,13 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        video_output = episode_dir / f"{series_name}_{episode_code}_embeddings_video.json"
+        file_naming = FileNamingConventions(series_name)
+        video_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="embeddings_video",
+        )
+        video_output = episode_dir / video_filename
         return [OutputSpec(path=video_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -224,8 +230,13 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         )
 
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        video_output = episode_dir / f"{series_name}_{episode_code}_embeddings_video.json"
+        file_naming = FileNamingConventions(series_name)
+        video_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="embeddings_video",
+        )
+        video_output = episode_dir / video_filename
         atomic_write_json(video_output, video_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved embeddings to: {video_output}[/green]")
@@ -266,8 +277,13 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        detections_output = episode_dir / f"{series_name}_{episode_code}_character_detections.json"
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_character_detections",
+        )
+        detections_output = episode_dir / detections_filename
         return [OutputSpec(path=detections_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -344,8 +360,13 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         episode_info = item.metadata["episode_info"]
         episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        detections_output = episode_dir / f"{series_name}_{episode_code}_object_detections.json"
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_object_detections",
+        )
+        detections_output = episode_dir / detections_filename
         return [OutputSpec(path=detections_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -463,8 +484,13 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         )
 
         series_name = episode_info.series_name
-        episode_code = episode_info.episode_code()
-        detections_output = episode_dir / f"{series_name}_{episode_code}_object_detections.json"
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_object_detections",
+        )
+        detections_output = episode_dir / detections_filename
         atomic_write_json(detections_output, output_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved object detections to: {detections_output}[/green]")

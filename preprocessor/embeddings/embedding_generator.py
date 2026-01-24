@@ -19,7 +19,9 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import FILE_SUFFIXES
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
@@ -106,26 +108,33 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         if not episode_info:
             return outputs
 
-        episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
-
         if self.generate_text:
-            text_output = episode_dir / "embeddings_text.json"
+            text_filename = f"{FILE_SUFFIXES['embeddings_text']}.json"
+            text_output = OutputPathBuilder.build_embedding_path(episode_info, text_filename)
             outputs.append(OutputSpec(path=text_output, required=True))
 
         if self.generate_episode_names:
-            episode_name_output = episode_dir / "episode_name_embedding.json"
+            episode_name_filename = f"{FILE_SUFFIXES['episode_name']}.json"
+            episode_name_output = OutputPathBuilder.build_embedding_path(episode_info, episode_name_filename)
             outputs.append(OutputSpec(path=episode_name_output, required=True))
 
         if self.generate_video:
-            video_output = episode_dir / f"{self.episode_manager.series_name}_{episode_info.episode_code()}_embeddings_video.json"
+            video_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="embeddings_video",
+            )
+            video_output = OutputPathBuilder.build_embedding_path(episode_info, video_filename)
             outputs.append(OutputSpec(path=video_output, required=True))
 
         if self.generate_full_episode:
-            full_episode_output = episode_dir / "embeddings_full_episode.json"
+            full_episode_filename = f"{FILE_SUFFIXES['embeddings_full']}.json"
+            full_episode_output = OutputPathBuilder.build_embedding_path(episode_info, full_episode_filename)
             outputs.append(OutputSpec(path=full_episode_output, required=True))
 
         if self.generate_sound_events:
-            sound_events_output = episode_dir / "embeddings_sound_events.json"
+            sound_events_filename = f"{FILE_SUFFIXES['embeddings_sound']}.json"
+            sound_events_output = OutputPathBuilder.build_embedding_path(episode_info, sound_events_filename)
             outputs.append(OutputSpec(path=sound_events_output, required=False))
 
         return outputs

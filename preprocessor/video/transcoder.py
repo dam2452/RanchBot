@@ -9,11 +9,11 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.resolution import Resolution
 from preprocessor.video.base_video_processor import BaseVideoProcessor
 
@@ -55,12 +55,7 @@ class VideoTranscoder(BaseVideoProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        filename = f"{self.series_name}_{episode_info.episode_code()}.mp4"
-        output_path = self.episode_manager.build_episode_output_path(
-            episode_info,
-            settings.output_subdirs.video,
-            filename,
-        )
+        output_path = OutputPathBuilder.build_video_path(episode_info, self.series_name, extension=".mp4")
         return [OutputSpec(path=output_path, required=True)]
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:

@@ -85,7 +85,12 @@ class TextAnalyzer(BaseProcessor):
         episode_info = item.metadata["episode_info"]
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
-        output_file = clean_dir / f"{self.series_name}_{episode_info.episode_code()}_text_stats.json"
+        output_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="text_stats",
+        )
+        output_file = clean_dir / output_filename
 
         return [OutputSpec(path=output_file, required=True)]
 
@@ -95,7 +100,12 @@ class TextAnalyzer(BaseProcessor):
         episode_info = item.metadata["episode_info"]
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
-        output_file = clean_dir / f"{self.series_name}_{episode_info.episode_code()}_text_stats.json"
+        output_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="text_stats",
+        )
+        output_file = clean_dir / output_filename
 
         try:
             stats = TextStatistics.from_file(txt_file, language=self.language)

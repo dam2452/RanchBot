@@ -18,6 +18,7 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.enums import KeyframeStrategy
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
@@ -62,9 +63,14 @@ class FrameExporter(BaseVideoProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.frames)
+        episode_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.frames)
 
-        metadata_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_frame_metadata.json"
+        metadata_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_frame_metadata",
+        )
+        metadata_file = episode_dir / metadata_filename
         return [OutputSpec(path=metadata_file, required=True)]
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:
@@ -79,7 +85,12 @@ class FrameExporter(BaseVideoProcessor):
         episode_dir = self.__get_episode_dir(episode_info)
 
         if episode_dir.exists():
-            metadata_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_frame_metadata.json"
+            metadata_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_frame_metadata",
+            )
+            metadata_file = episode_dir / metadata_filename
             if not metadata_file.exists():
                 console.print(f"[yellow]Cleaning incomplete frames from previous run: {episode_dir}[/yellow]")
                 shutil.rmtree(episode_dir, ignore_errors=True)
@@ -131,8 +142,8 @@ class FrameExporter(BaseVideoProcessor):
         frame_pil = Image.fromarray(frame_np)
 
         resized = self.__resize_frame(frame_pil)
-        episode_code = episode_info.episode_code()
-        filename = f"{self.series_name}_{episode_code}_frame_{frame_num:06d}.jpg"
+        base_filename = self.episode_manager.file_naming.build_base_filename(episode_info)
+        filename = f"{base_filename}_frame_{frame_num:06d}.jpg"
         resized.save(episode_dir / filename, quality=90)
 
     def __resize_frame(self, frame: Image.Image) -> Image.Image:
@@ -149,7 +160,6 @@ class FrameExporter(BaseVideoProcessor):
     def __write_metadata(self, episode_dir: Path, frame_requests: List[Dict[str, Any]], episode_info, source_video: Path) -> None:
         frame_types_count = {}
         frames_with_paths = []
-        episode_code = episode_info.episode_code()
 
         for frame in frame_requests:
             frame_type = frame.get("type", "unknown")
@@ -157,7 +167,8 @@ class FrameExporter(BaseVideoProcessor):
 
             frame_with_path = frame.copy()
             frame_num = frame["frame_number"]
-            frame_with_path["frame_path"] = f"{self.series_name}_{episode_code}_frame_{frame_num:06d}.jpg"
+            base_filename = self.episode_manager.file_naming.build_base_filename(episode_info)
+            frame_with_path["frame_path"] = f"{base_filename}_frame_{frame_num:06d}.jpg"
             frames_with_paths.append(frame_with_path)
 
         metadata = {
@@ -185,7 +196,12 @@ class FrameExporter(BaseVideoProcessor):
             },
             "frames": frames_with_paths,
         }
-        metadata_file = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_frame_metadata.json"
+        metadata_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_frame_metadata",
+        )
+        metadata_file = episode_dir / metadata_filename
         atomic_write_json(metadata_file, metadata, indent=2, ensure_ascii=False)
 
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:

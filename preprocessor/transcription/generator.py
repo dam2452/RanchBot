@@ -7,13 +7,13 @@ from typing import (
     List,
 )
 
-from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcription.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcription.processors.normalized_audio_processor import NormalizedAudioProcessor
@@ -74,11 +74,11 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            filename = f"{self.series_name_lower}_{episode_info.episode_code()}.json"
-            expected_file = self.episode_manager.build_episode_output_path(
+            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            expected_file = OutputPathBuilder.build_transcription_path(
                 episode_info,
-                settings.output_subdirs.transcriptions,
                 filename,
+                subdir="raw",
             )
             outputs.append(OutputSpec(path=expected_file, required=True))
 
@@ -134,11 +134,11 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            filename = f"{self.series_name_lower}_{episode_info.episode_code()}.json"
-            expected_file = self.episode_manager.build_episode_output_path(
+            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            expected_file = OutputPathBuilder.build_transcription_path(
                 episode_info,
-                settings.output_subdirs.transcriptions,
                 filename,
+                subdir="raw",
             )
 
             if not expected_file.exists():
@@ -163,11 +163,11 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            filename = f"{self.series_name_lower}_{episode_info.episode_code()}.json"
-            expected_file = self.episode_manager.build_episode_output_path(
+            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            expected_file = OutputPathBuilder.build_transcription_path(
                 episode_info,
-                settings.output_subdirs.transcriptions,
                 filename,
+                subdir="raw",
             )
 
             if any(expected_file == output.path for output in missing_outputs):

@@ -13,6 +13,7 @@ from preprocessor.config.config import (
     settings,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.validation.episode_stats import EpisodeStats
 from preprocessor.validation.report_generator import ReportGenerator
@@ -109,8 +110,9 @@ class Validator:
                 "stats": stats.to_dict()["stats"],
             }
 
-            episode_code = stats.episode_info.episode_code()
-            report_path = self.validation_reports_dir / f"{self.series_name}_{episode_code}.json"
+            file_naming = FileNamingConventions(self.series_name)
+            report_filename = file_naming.build_filename(stats.episode_info, extension="json")
+            report_path = self.validation_reports_dir / report_filename
             atomic_write_json(report_path, episode_report)
 
     def _print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison):

@@ -18,6 +18,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
@@ -66,8 +67,16 @@ class ImageHashProcessor(BaseProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
-        hash_output = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_image_hashes.json"
+        hash_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = OutputPathBuilder.build_output_path(
+            episode_info,
+            settings.output_subdirs.image_hashes,
+            hash_filename,
+        )
         return [OutputSpec(path=hash_output, required=True)]
     # pylint: enable=duplicate-code
 
@@ -121,7 +130,12 @@ class ImageHashProcessor(BaseProcessor):
             results_data=hash_results,
         )
 
-        hash_output = episode_dir / f"{self.series_name}_{episode_info.episode_code()}_image_hashes.json"
+        hash_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = episode_dir / hash_filename
         with open(hash_output, "w", encoding="utf-8") as f:
             json.dump(hash_data, f, indent=2, ensure_ascii=False)
 
