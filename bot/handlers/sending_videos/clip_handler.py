@@ -1,6 +1,16 @@
 import logging
 import math
-from typing import List
+from typing import (
+    Any,
+    List,
+    Optional,
+)
+from uuid import uuid4
+
+from aiogram.types import (
+    InlineQueryResultArticle,
+    InputTextMessageContent,
+)
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
@@ -93,3 +103,21 @@ class ClipHandler(BotMessageHandler):
     async def __log_segment_and_clip_success(self, chat_id: int, username: str) -> None:
         await self._log_system_message(logging.INFO, get_log_segment_saved_message(chat_id))
         await self._log_system_message(logging.INFO, get_log_clip_success_message(username))
+
+    def supports_inline_mode(self) -> bool:
+        return True
+
+    async def handle_inline_query(self, query: str) -> Optional[List[Any]]:
+        if not query.strip():
+            return []
+
+        result = InlineQueryResultArticle(
+            id=str(uuid4()),
+            title=f'Szukaj klipu: "{query}"',
+            description="Kliknij aby wysłać klip do czatu",
+            input_message_content=InputTextMessageContent(
+                message_text=f"/klip {query}",
+            ),
+        )
+
+        return [result]
