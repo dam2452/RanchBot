@@ -33,7 +33,6 @@ class ClipsExtractor:
             "-i", str(video_path),
             "-t", str(duration),
             "-c", "copy",
-            "-bsf:v", "h264_metadata=sample_aspect_ratio=1/1",
             "-movflags", "+faststart",
             "-fflags", "+genpts",
             "-avoid_negative_ts", "1",
