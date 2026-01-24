@@ -176,7 +176,19 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         episode_dir = trans_file.parent.parent
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
-        base_name_for_clean = trans_file.stem.replace("_segmented", "")
+
+        base_name_for_clean = trans_file.stem
+        suffixes = ("_segmented", "_sound_events", "_clean_transcription", "_clean")
+        while True:
+            removed = False
+            for suffix in suffixes:
+                if base_name_for_clean.endswith(suffix):
+                    base_name_for_clean = base_name_for_clean[:-len(suffix)]
+                    removed = True
+                    break
+            if not removed:
+                break
+
         clean_transcription_file = clean_dir / f"{base_name_for_clean}_clean_transcription.json"
 
         if not clean_transcription_file.exists():

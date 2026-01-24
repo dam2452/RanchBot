@@ -64,6 +64,8 @@ class SoundEventSeparator(BaseProcessor):
 
         clean_json = clean_dir / f"{base_name}_clean_transcription.json"
         sound_json = sound_dir / f"{base_name}_sound_events.json"
+        clean_segmented_json = clean_dir / f"{base_name}_segmented_clean.json"
+        sound_segmented_json = sound_dir / f"{base_name}_segmented_sound_events.json"
         clean_txt = clean_dir / f"{base_name}_clean_transcription.txt"
         sound_txt = sound_dir / f"{base_name}_sound_events.txt"
         clean_srt = clean_dir / f"{base_name}_clean_transcription.srt"
@@ -72,6 +74,8 @@ class SoundEventSeparator(BaseProcessor):
         return [
             OutputSpec(path=clean_json, required=True),
             OutputSpec(path=sound_json, required=True),
+            OutputSpec(path=clean_segmented_json, required=True),
+            OutputSpec(path=sound_segmented_json, required=True),
             OutputSpec(path=clean_txt, required=True),
             OutputSpec(path=sound_txt, required=True),
             OutputSpec(path=clean_srt, required=True),
@@ -113,6 +117,8 @@ class SoundEventSeparator(BaseProcessor):
 
         clean_json = clean_dir / f"{base_name}_clean_transcription.json"
         sound_json = sound_dir / f"{base_name}_sound_events.json"
+        clean_segmented_json = clean_dir / f"{base_name}_segmented_clean.json"
+        sound_segmented_json = sound_dir / f"{base_name}_segmented_sound_events.json"
         clean_txt = clean_dir / f"{base_name}_clean_transcription.txt"
         sound_txt = sound_dir / f"{base_name}_sound_events.txt"
         clean_srt = clean_dir / f"{base_name}_clean_transcription.srt"
@@ -120,7 +126,26 @@ class SoundEventSeparator(BaseProcessor):
 
         raw_txt = episode_dir / settings.output_subdirs.transcription_subdirs.raw / f"{base_name}.txt"
 
+        dialogue_segments_simple = self._convert_to_simple_format(dialogue_segments)
+        sound_event_segments_simple = self._convert_to_simple_format(sound_event_segments)
+
         with open(clean_json, "w", encoding="utf-8") as f:
+            json.dump(
+                {"episode_info": episode_info, "segments": dialogue_segments_simple},
+                f,
+                ensure_ascii=False,
+                indent=4,
+            )
+
+        with open(sound_json, "w", encoding="utf-8") as f:
+            json.dump(
+                {"episode_info": episode_info, "segments": sound_event_segments_simple},
+                f,
+                ensure_ascii=False,
+                indent=4,
+            )
+
+        with open(clean_segmented_json, "w", encoding="utf-8") as f:
             json.dump(
                 {"episode_info": episode_info, "segments": dialogue_segments},
                 f,
@@ -128,7 +153,7 @@ class SoundEventSeparator(BaseProcessor):
                 indent=4,
             )
 
-        with open(sound_json, "w", encoding="utf-8") as f:
+        with open(sound_segmented_json, "w", encoding="utf-8") as f:
             json.dump(
                 {"episode_info": episode_info, "segments": sound_event_segments},
                 f,
@@ -262,6 +287,21 @@ class SoundEventSeparator(BaseProcessor):
         for i, segment in enumerate(segments):
             segment["id"] = i
         return segments
+
+    @staticmethod
+    def _convert_to_simple_format(segments: List[Dict]) -> List[Dict]:
+        simple_segments = []
+        for seg in segments:
+            simple_seg = {
+                "id": seg.get("id"),
+                "text": seg.get("text", ""),
+                "start": seg.get("start"),
+                "end": seg.get("end"),
+            }
+            if "sound_type" in seg:
+                simple_seg["sound_type"] = seg["sound_type"]
+            simple_segments.append(simple_seg)
+        return simple_segments
 
     def _generate_txt_files(self, original_txt: Path, clean_txt: Path, sound_txt: Path) -> None:
         if not original_txt.exists():
