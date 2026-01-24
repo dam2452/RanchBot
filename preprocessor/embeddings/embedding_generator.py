@@ -372,67 +372,27 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         text_chunks = []
         chunk_metadata = []
 
-        if self.use_sentence_based_chunking:
-            full_text = " ".join([seg.get("text", "") for seg in segments])
-            sentences = self.__split_into_sentences(full_text)
+        for i in range(0, len(segments), self.segments_per_embedding):
+            chunk = segments[i: i + self.segments_per_embedding]
+            combined_text = " ".join([seg.get("text", "") for seg in chunk])
 
-            sentences_per_chunk = self.text_sentences_per_chunk
-            overlap = self.text_chunk_overlap
-            step = sentences_per_chunk - overlap
-
-            for i in range(0, len(sentences), step):
-                chunk_sentences = sentences[i:i + sentences_per_chunk]
-                if not chunk_sentences:
-                    continue
-
-                chunk_text = " ".join(chunk_sentences).strip()
-                if not chunk_text:
-                    continue
-
-                char_start = sum(len(s) + 1 for s in sentences[:i])
-                char_end = char_start + len(chunk_text)
-
-                start_seg_id = self.__find_segment_at_position(segments, char_start)
-                end_seg_id = self.__find_segment_at_position(segments, char_end)
-
-                start_time = segments[start_seg_id].get("start", 0.0) if start_seg_id < len(segments) else 0.0
-                end_time = segments[end_seg_id].get("end", 0.0) if end_seg_id < len(segments) else 0.0
-
+            if combined_text.strip():
                 sound_types = set()
-                for seg_id in range(start_seg_id, min(end_seg_id + 1, len(segments))):
-                    sound_type = segments[seg_id].get("sound_type", "sound")
+                for seg in chunk:
+                    sound_type = seg.get("sound_type", "sound")
                     sound_types.add(sound_type)
 
-                text_chunks.append(chunk_text)
+                start_time = chunk[0].get("start", 0.0) if chunk else 0.0
+                end_time = chunk[-1].get("end", 0.0) if chunk else 0.0
+
+                text_chunks.append(combined_text)
                 chunk_metadata.append({
-                    "segment_range": [start_seg_id, end_seg_id],
-                    "text": chunk_text,
+                    "segment_range": [i, i + len(chunk) - 1],
+                    "text": combined_text,
                     "sound_types": list(sound_types),
                     "start_time": start_time,
                     "end_time": end_time,
                 })
-        else:
-            for i in range(0, len(segments), self.segments_per_embedding):
-                chunk = segments[i: i + self.segments_per_embedding]
-                combined_text = " ".join([seg.get("text", "") for seg in chunk])
-
-                if combined_text.strip():
-                    sound_types = set()
-                    for seg in chunk:
-                        sound_type = seg.get("sound_type", "sound")
-                        sound_types.add(sound_type)
-
-                    start_time = chunk[0].get("start", 0.0) if chunk else 0.0
-                    end_time = chunk[-1].get("end", 0.0) if chunk else 0.0
-
-                    text_chunks.append(combined_text)
-                    chunk_metadata.append({
-                        "segment_range": [i, i + len(chunk) - 1],
-                        "text": combined_text,
-                        "sound_types": list(sound_types),
-                        "start_time": start_time,
-                        "end_time": end_time,
-                    })
 
         if not text_chunks:
             return []

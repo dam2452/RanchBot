@@ -29,16 +29,16 @@ docker-compose build
   --skip-transcode --skip-transcribe
 ```
 
-## Architektura pipeline (12 kroków)
+## Architektura pipeline (13 kroków)
 
 ```
-[0a] scrape episodes → [1] transcode → [2] transcribe → [3] analyze text
+[0a] scrape episodes → [1] transcode → [2] transcribe → [3] separate sounds → [4] analyze text
 [0b] scrape characters → [0c] download references
-[4] detect scenes → [5] export frames → [6] text embeddings → [7] frame processing:
-    [7a] image hashing | [7b] video embeddings | [7c] character detection
-    [7d] character visualization | [7e] emotion detection | [7f] face clustering
-    [7g] object detection | [7h] object visualization
-[8] generate elastic docs → [9] archive zips → [10] index → [11] validate
+[5] detect scenes → [6] export frames → [7] text embeddings → [8] frame processing:
+    [8a] image hashing | [8b] video embeddings | [8c] character detection
+    [8d] character visualization | [8e] emotion detection | [8f] face clustering
+    [8g] object detection | [8h] object visualization
+[9] generate elastic docs → [10] archive zips → [11] index → [12] validate
 ```
 
 **Czas:** ~28-32 min na 45-min odcinek | **Throughput:** ~2-3 odcinki/godz
@@ -47,25 +47,25 @@ docker-compose build
 
 | Flaga | Krok |
 |-------|------|
-| `--skip-transcode` | 1/12: Transkodowanie |
-| `--skip-transcribe` | 2/12: Transkrypcja |
-| `--skip-text-analysis` | 3/12: Analiza tekstowa |
-| `--skip-scenes` | 4/12: Detekcja scen |
-| `--skip-frame-export` | 5/12: Eksport klatek |
-| `--skip-embeddings` | 6/12: Text embeddings |
-| `--skip-frame-processing` | 7/12: Wszystkie sub-kroki |
-| `--skip-image-hashing` | 7a: Image hashing |
-| `--skip-video-embeddings` | 7b: Video embeddings |
-| `--skip-character-detection` | 7c: Character detection |
-| `--skip-character-visualization` | 7d: Character visualization |
-| `--skip-emotion-detection` | 7e: Emotion detection |
-| `--skip-face-clustering` | 7f: Face clustering |
-| `--skip-object-detection` | 7g: Object detection |
-| `--skip-object-visualization` | 7h: Object visualization |
-| `--skip-elastic-documents` | 8/12: Generowanie dokumentów |
-| `--skip-archives` | 9/12: Archiwizacja ZIP |
-| `--skip-index` | 10/12: Indeksowanie |
-| `--skip-validation` | 11/12: Walidacja outputu |
+| `--skip-transcode` | 1/13: Transkodowanie |
+| `--skip-transcribe` | 2/13: Transkrypcja (skipuje też krok 3) |
+| `--skip-text-analysis` | 4/13: Analiza tekstowa |
+| `--skip-scenes` | 5/13: Detekcja scen |
+| `--skip-frame-export` | 6/13: Eksport klatek |
+| `--skip-embeddings` | 7/13: Text embeddings |
+| `--skip-frame-processing` | 8/13: Wszystkie sub-kroki |
+| `--skip-image-hashing` | 8a: Image hashing |
+| `--skip-video-embeddings` | 8b: Video embeddings |
+| `--skip-character-detection` | 8c: Character detection |
+| `--skip-character-visualization` | 8d: Character visualization |
+| `--skip-emotion-detection` | 8e: Emotion detection |
+| `--skip-face-clustering` | 8f: Face clustering |
+| `--skip-object-detection` | 8g: Object detection |
+| `--skip-object-visualization` | 8h: Object visualization |
+| `--skip-elastic-documents` | 9/13: Generowanie dokumentów |
+| `--skip-archives` | 10/13: Archiwizacja ZIP |
+| `--skip-index` | 11/13: Indeksowanie |
+| `--skip-validation` | 12/13: Walidacja outputu |
 
 **Uwaga:** Walidacja (krok 11/12) działa tylko dla sezonów, które mają pliki wideo w katalogu wejściowym (`input_data/videos`). Puste foldery sezonów są skipowane automatycznie. Nazwy folderów są normalizowane do formatu SXX (np. "Sezon 10" → "S10", "season 3" → "S03").
 
@@ -83,6 +83,13 @@ docker-compose build
 # Transkrypcja
 ./run-preprocessor.sh transcribe /input_data/videos --name series_name --model large-v3-turbo
 
+# Separacja dialogów i sound events (generuje clean + sound_events z raw transcription)
+./run-preprocessor.sh separate-sounds --transcription-jsons /app/output_data/transcriptions
+# Tworzy 3 subdirectory w transcriptions/:
+#   - raw/ (oryginalna transkrypcja Whisper - nie używana do embeddingów)
+#   - clean/ (tylko dialogi - używane do text embeddings)
+#   - sound_events/ (tylko [MUZYKA], [ŚMIECH] itp. - używane do sound event embeddings)
+
 # Analiza tekstowa transkrypcji (generuje text_stats.json + elastic text_statistics.jsonl)
 ./run-preprocessor.sh analyze-text --season S10 --language pl
 # Statystyki: zdania, slowa, unikalne slowa, bigramy, trigramy, czestotliwosc slow
@@ -95,18 +102,28 @@ docker-compose build
 
 # Embeddingi (domyślnie sentence-based: 8 zdań + 3 overlap + full episode)
 ./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions --frames-dir /app/output_data/frames_1080p
-# Generuje 3 pliki: embeddings_text.json, embeddings_video.json, embeddings_full_episode.json
+# Generuje 5 plików z RÓŻNYCH źródeł:
+#   - embeddings_text.json           ← clean/ranczo_SXXEXX_clean_transcription.json
+#   - embeddings_sound_events.json   ← sound_events/ranczo_SXXEXX_sound_events.json
+#   - embeddings_video.json          ← frames/SXXEXX/*.jpg
+#   - embeddings_full_episode.json   ← clean/ranczo_SXXEXX_clean_transcription.txt
+#   - episode_name_embedding.json    ← episodes_info.json
+#
+# Hierarchia źródeł (NIE ma fallbacków na RAW):
+#   RAW transcription → [tylko do separacji] → CLEAN + SOUND_EVENTS → [do embeddingów]
+#
 # Full episode embedding używa sliding window (6000 chars, 4500 overlap) dla długich transkryptów
+# UWAGA: Text, sound events i full episode skipowane gdy brak odpowiednich plików (warning w logu)
 
 # Generowanie dokumentow Elasticsearch
 ./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
-# Typy: segments, text_embeddings, video_frames, episode_names, text_statistics, full_episode_embeddings
+# Typy: segments, text_embeddings, sound_event_embeddings, video_frames, episode_names, text_statistics, full_episode_embeddings
 
 # Archiwizacja dokumentow Elasticsearch (ZIP per odcinek)
 ./run-preprocessor.sh generate-archives --series-name ranczo
 # Generuje: output_data/archives/S01/E01/ranczo_S01E01_elastic_documents.zip
-# Zawiera: segments, text_embeddings, video_frames, episode_name, text_statistics, full_episode_embeddings
-# UWAGA: Domyslnie tworzy ZIP tylko gdy wszystkie 6 plikow jest gotowych!
+# Zawiera: segments, text_embeddings, sound_event_embeddings, video_frames, episode_name, text_statistics, full_episode_embeddings
+# UWAGA: Domyslnie tworzy ZIP tylko gdy wszystkie 7 plikow jest gotowych!
 ./run-preprocessor.sh generate-archives --season 1 --episode 1  # tylko jeden odcinek
 ./run-preprocessor.sh generate-archives --force-regenerate  # nadpisz istniejace
 ./run-preprocessor.sh generate-archives --allow-partial  # tworz ZIP nawet jesli brakuje plikow
@@ -140,10 +157,14 @@ docker-compose build
 ```
 output_data/
 ├── transcoded_videos/     # MP4 h264_nvenc
-├── transcriptions/        # JSON segmented + text_stats.json
+├── transcriptions/        # Transkrypcje podzielone na: raw, clean, sound_events
+│   └── S01/E01/
+│       ├── raw/           # Oryginalne transkrypcje Whisper (segmented + simple + txt + srt)
+│       ├── clean/         # Tylko dialogi (bez sound events) + text_stats.json
+│       └── sound_events/  # Tylko sound events (muzyka, śmiech, dźwięki)
 ├── scene_timestamps/      # JSON ze scenami
 ├── exported_frames/       # JPG 1080p
-├── embeddings/            # embeddings_text.json, embeddings_video.json, embeddings_full_episode.json
+├── embeddings/            # 4 typy: text, video, sound_events, full_episode + episode_name
 ├── image_hashes/          # perceptual hashes klatek
 ├── character_detections/  # detections.json (InsightFace + FER+ emotions) + visualizations/
 ├── face_clusters/         # klastry twarzy (HDBSCAN, dev-only)
@@ -154,6 +175,7 @@ output_data/
 │   ├── video_frames/
 │   ├── episode_names/
 │   ├── text_statistics/
+│   ├── sound_event_embeddings/
 │   └── full_episode_embeddings/
 ├── archives/              # ZIP (wszystkie JSONL per odcinek)
 │   └── S01/E01/ranczo_S01E01_elastic_documents.zip
@@ -185,7 +207,23 @@ output_data/
 
 ## Nowe funkcje
 
-### Emotion Detection (7e)
+### Sound Event Separation (3/13)
+Separacja dialogów i sound events z transkrypcji Whisper:
+- **Input:** RAW transkrypcja z Whisper (zawiera [MUZYKA], [ŚMIECH], [OKLASKI] itp.)
+- **Output:** 2 pliki - clean (tylko dialogi) + sound_events (tylko dźwięki)
+- **Algorytm:** Pattern matching na oznaczeniach Whisper w nawiasach kwadratowych
+- **Użycie:** Clean → text embeddings, Sound events → sound event embeddings
+- **WAŻNE:** RAW transkrypcje NIE są używane do embeddingów (tylko clean i sound_events)
+
+### Sound Event Embeddings (7/13)
+Embeddingi dla wykrytych sound events (muzyka, śmiech, oklaski):
+- **Źródło:** sound_events/ranczo_SXXEXX_sound_events.json
+- **Chunking:** Identyczny jak text embeddings (sentence-based lub segment-based)
+- **Metadata:** Każdy chunk zawiera `sound_types` (lista typów dźwięków w chunku)
+- **Output:** embeddings_sound_events.json + elastic document w sound_event_embeddings/
+- **Skip:** Automatyczny gdy brak sound events file (warning w logu)
+
+### Emotion Detection (8e)
 Detekcja emocji na wykrytych twarzach postaci za pomocą FER+ ONNX:
 - **GPU-only:** ONNX Runtime z CUDAExecutionProvider (wymaga CUDA)
 - **Model:** FER+ (8 emocji: neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)
@@ -193,26 +231,28 @@ Detekcja emocji na wykrytych twarzach postaci za pomocą FER+ ONNX:
 - **Output:** Dodaje pole `emotion` do detections.json oraz elastic documents
 - **Skip flag:** `--skip-emotion-detection`
 
-### Face Clustering (7f)
+### Face Clustering (8f)
 Automatyczna klasteryzacja wykrytych twarzy za pomocą HDBSCAN:
 - **GPU-only:** cuML HDBSCAN (wymaga CUDA)
 - **Parametry:** `min_cluster_size=5`, `min_samples=3` (konfigurowalne w settings)
 - **Output:** face_clusters/{season}/{episode}/ z plikami JSON i opcjonalnie pełnymi klatkami
 - **Skip flag:** `--skip-face-clustering`
 
-### Character Detection Visualization (7d)
+### Character Detection Visualization (8d)
 Wizualizacja wykrytych postaci na klatkach z emocjami:
 - **Output:** character_detections/visualizations/ z adnotowanymi klatkami
 - **Format:** `Nazwa 0.95 | happiness 0.85` (nazwa postaci + emocja)
 - **Skip flag:** `--skip-character-visualization`
 
-### Full Episode Embedding (6)
+### Full Episode Embedding (7/13)
 Generowanie embeddingi dla całego transkryptu odcinka:
+- **Źródło:** clean/ranczo_SXXEXX_clean_transcription.txt (NIE raw!)
 - **Sliding window:** 6000 chars per chunk, 4500 chars overlap dla długich transkryptów
 - **Weighted averaging:** chunks ważone długością
 - **Normalizacja:** L2 normalization finalnego embeddingu
 - **Output:** embeddings_full_episode.json + elastic document w full_episode_embeddings/
 - **Config:** `settings.embedding.generate_full_episode_embedding = True` (domyślnie)
+- **Skip:** Automatyczny gdy brak clean txt (warning w logu)
 
 ## Format plików wideo
 
