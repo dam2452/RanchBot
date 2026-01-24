@@ -19,8 +19,11 @@ class OutputPathBuilder:
 
     @staticmethod
     def build_transcription_path(episode_info, filename: str, subdir: str = "raw") -> Path:
-        full_subdir = f"{settings.output_subdirs.transcriptions}/{subdir}"
-        return OutputPathBuilder.build_output_path(episode_info, full_subdir, filename)
+        season_code = f"S{episode_info.season:02d}"
+        episode_code = f"E{episode_info.relative_episode:02d}"
+        path = BASE_OUTPUT_DIR / settings.output_subdirs.transcriptions / season_code / episode_code / subdir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
 
     @staticmethod
     def build_output_path(episode_info, subdir: str, filename: str) -> Path:
