@@ -49,11 +49,6 @@ class PermissionLevelFactory(ABC):
 
         self._logger.info(f"{self.__class__.__name__} middlewares registered")
 
-        inline_handler = self.get_inline_handler()
-        if inline_handler:
-            dp.inline_query.register(inline_handler)
-            self._logger.info(f"{self.__class__.__name__} inline handler registered")
-
     def get_telegram_routes_and_middlewares(self) -> Tuple[
         List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]],
         List[BotMiddleware],
