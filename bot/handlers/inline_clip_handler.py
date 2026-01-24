@@ -1,5 +1,5 @@
-import json
-import logging
+from pathlib import Path
+import tempfile
 from typing import (
     Any,
     List,
@@ -40,9 +40,6 @@ class InlineClipHandler(BotMessageHandler):
         return True
 
     async def handle_inline_query(self, query: str, bot: Any, user_id: int) -> Optional[List[Any]]:
-        import tempfile
-        from pathlib import Path
-
         if not query.strip():
             return []
 
