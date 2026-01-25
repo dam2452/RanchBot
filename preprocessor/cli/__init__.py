@@ -11,6 +11,7 @@ from preprocessor.cli.commands import (
     image_hashing,
     import_transcriptions,
     index,
+    process_character_references,
     run_all,
     scrape_episodes,
     search,
@@ -64,6 +65,8 @@ cli.add_command(analyze_text)
 cli.add_command(fix_unicode)
 # noinspection PyTypeChecker
 cli.add_command(separate_sounds)
+# noinspection PyTypeChecker
+cli.add_command(process_character_references)
 
 
 __all__ = ["cli"]

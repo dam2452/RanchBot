@@ -99,6 +99,32 @@ def run_character_reference_download_step(name, characters_json, search_mode="no
     return downloader.work()
 
 
+def run_character_reference_processing_step(name, state_manager, **_kwargs):
+    from preprocessor.characters.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
+
+    characters_dir = settings.character.output_dir
+    if not characters_dir.exists() or not list(characters_dir.iterdir()):
+        console.print("[yellow]No character references found, skipping processing[/yellow]")
+        return 0
+
+    processor = CharacterReferenceProcessor(
+        {
+            "characters_dir": characters_dir,
+            "output_dir": settings.character.processed_references_dir,
+            "similarity_threshold": settings.character.face_similarity_threshold,
+            "interactive": False,
+            "series_name": name,
+            "state_manager": state_manager,
+        },
+    )
+    exit_code = processor.work()
+
+    if exit_code == 0:
+        processor.generate_validation_grid()
+
+    return exit_code
+
+
 def run_character_detection_step(**kwargs):
     from preprocessor.characters.detector import CharacterDetector  # pylint: disable=import-outside-toplevel
 

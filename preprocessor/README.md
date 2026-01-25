@@ -29,11 +29,11 @@ docker-compose build
   --skip-transcode --skip-transcribe
 ```
 
-## Architektura pipeline (13 kroków)
+## Architektura pipeline (14 kroków)
 
 ```
 [0a] scrape episodes → [1] transcode → [2] transcribe → [3] separate sounds → [4] analyze text
-[0b] scrape characters → [0c] download references
+[0b] scrape characters → [0c] download references → [0d] process references (validate faces)
 [5] detect scenes → [6] export frames → [7] text embeddings → [8] frame processing:
     [8a] image hashing | [8b] video embeddings | [8c] character detection
     [8d] character visualization | [8e] emotion detection | [8f] face clustering
@@ -47,13 +47,14 @@ docker-compose build
 
 | Flaga | Krok |
 |-------|------|
-| `--skip-transcode` | 1/13: Transkodowanie |
-| `--skip-transcribe` | 2/13: Transkrypcja (skipuje też krok 3) |
-| `--skip-text-analysis` | 4/13: Analiza tekstowa |
-| `--skip-scenes` | 5/13: Detekcja scen |
-| `--skip-frame-export` | 6/13: Eksport klatek |
-| `--skip-embeddings` | 7/13: Text embeddings |
-| `--skip-frame-processing` | 8/13: Wszystkie sub-kroki |
+| `--skip-character-reference-processing` | 0d/14: Processing referencji postaci |
+| `--skip-transcode` | 1/14: Transkodowanie |
+| `--skip-transcribe` | 2/14: Transkrypcja (skipuje też krok 3) |
+| `--skip-text-analysis` | 4/14: Analiza tekstowa |
+| `--skip-scenes` | 5/14: Detekcja scen |
+| `--skip-frame-export` | 6/14: Eksport klatek |
+| `--skip-embeddings` | 7/14: Text embeddings |
+| `--skip-frame-processing` | 8/14: Wszystkie sub-kroki |
 | `--skip-image-hashing` | 8a: Image hashing |
 | `--skip-video-embeddings` | 8b: Video embeddings |
 | `--skip-character-detection` | 8c: Character detection |
@@ -62,10 +63,10 @@ docker-compose build
 | `--skip-face-clustering` | 8f: Face clustering |
 | `--skip-object-detection` | 8g: Object detection |
 | `--skip-object-visualization` | 8h: Object visualization |
-| `--skip-elastic-documents` | 9/13: Generowanie dokumentów |
-| `--skip-archives` | 10/13: Archiwizacja ZIP |
-| `--skip-index` | 11/13: Indeksowanie |
-| `--skip-validation` | 12/13: Walidacja outputu |
+| `--skip-elastic-documents` | 9/14: Generowanie dokumentów |
+| `--skip-archives` | 10/14: Archiwizacja ZIP |
+| `--skip-index` | 11/14: Indeksowanie |
+| `--skip-validation` | 12/14: Walidacja outputu |
 
 **Uwaga:** Walidacja (krok 11/12) działa tylko dla sezonów, które mają pliki wideo w katalogu wejściowym (`input_data/videos`). Puste foldery sezonów są skipowane automatycznie. Nazwy folderów są normalizowane do formatu SXX (np. "Sezon 10" → "S10", "season 3" → "S03").
 
@@ -99,6 +100,18 @@ docker-compose build
 
 # Eksport klatek
 ./run-preprocessor.sh export-frames /input_data/videos --scene-timestamps-dir /app/output_data/scene_timestamps
+
+# Preprocessing referencji postaci (znajdź wspólną twarz na zdjęciach)
+./run-preprocessor.sh process-character-references --name series_name
+# Input: preprocessor/output_data/characters/{char_name}/*.jpg
+# Output: preprocessor/output_data/character_references_processed/{char_name}/
+#   - face_00.jpg, face_01.jpg, face_02.jpg (wycięte i znormalizowane twarze 112x112)
+#   - face_vector.npy (średni face vector z InsightFace)
+#   - metadata.json (stats, similarity, selection method)
+#   - validation_grid.png (duży grid ze wszystkimi postaciami do walidacji)
+# Algorytm: znajdź twarz występującą na wszystkich zdjęciach (face similarity > 0.50)
+# Interactive mode: gdy >1 kandydat lub brak wspólnej twarzy - generuje grid image i pyta użytkownika
+# Walidacja: na końcu generuje validation_grid.png z wszystkimi przetworzonymi postaciami
 
 # Embeddingi (domyślnie sentence-based: 8 zdań + 3 overlap + full episode)
 ./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions --frames-dir /app/output_data/frames_1080p
@@ -157,6 +170,8 @@ docker-compose build
 ```
 output_data/
 ├── transcoded_videos/     # MP4 h264_nvenc
+├── characters/            # Zdjęcia wzorcowe postaci (raw)
+├── character_references_processed/  # Przetworzone referencje (wycięte twarze + face vectors)
 ├── transcriptions/        # Transkrypcje podzielone na: raw, clean, sound_events
 │   └── S01/E01/
 │       ├── raw/           # Oryginalne transkrypcje Whisper (segmented + simple + txt + srt)

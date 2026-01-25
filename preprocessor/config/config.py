@@ -133,6 +133,9 @@ class CharacterSettings:
     reference_images_per_character: int = 3
     characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
     detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
+    processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
+    face_similarity_threshold: float = 0.50
+    normalized_face_size: tuple = (112, 112)
 
 @dataclass
 class ObjectDetectionSettings:

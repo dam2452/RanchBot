@@ -354,7 +354,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         return embeddings
 
-    def __generate_sound_event_embeddings(self, trans_file: Path) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-statements
+    def __generate_sound_event_embeddings(self, trans_file: Path) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
         parent_name = trans_file.parent.name
         if parent_name in {"raw", "clean", "sound_events"}:
             episode_dir = trans_file.parent.parent

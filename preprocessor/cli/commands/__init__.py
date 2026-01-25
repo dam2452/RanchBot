@@ -8,6 +8,7 @@ from preprocessor.cli.commands.generate_embeddings import generate_embeddings
 from preprocessor.cli.commands.image_hashing import image_hashing
 from preprocessor.cli.commands.import_transcriptions import import_transcriptions
 from preprocessor.cli.commands.index import index
+from preprocessor.cli.commands.process_character_references import process_character_references
 from preprocessor.cli.commands.run_all import run_all
 from preprocessor.cli.commands.scrape_episodes import scrape_episodes
 from preprocessor.cli.commands.search import search
@@ -28,6 +29,7 @@ __all__ = [
     "image_hashing",
     "import_transcriptions",
     "index",
+    "process_character_references",
     "run_all",
     "scrape_episodes",
     "search",
