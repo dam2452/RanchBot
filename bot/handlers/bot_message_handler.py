@@ -4,7 +4,6 @@ from abc import (
 )
 import logging
 from pathlib import Path
-import re
 from typing import (
     Awaitable,
     Callable,
