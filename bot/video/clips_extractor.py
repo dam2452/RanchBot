@@ -28,7 +28,7 @@ class ClipsExtractor:
 
         command = [
             "ffmpeg",
-            "-y",  # overwrite output files
+            "-y",
             "-ss", str(start_time),
             "-i", str(video_path),
             "-t", str(duration),
