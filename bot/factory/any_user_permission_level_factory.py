@@ -4,14 +4,17 @@ from typing import (
 )
 
 from bot.factory.permission_level_factory import PermissionLevelFactory
-from bot.handlers import SaveUserKeyHandler
+from bot.handlers import (
+    InlineClipHandler,
+    SaveUserKeyHandler,
+)
 from bot.middlewares import AnyMiddleware
 from bot.middlewares.bot_middleware import BotMiddleware
 
 
 class AnyUserPermissionLevelFactory(PermissionLevelFactory):
     def create_handler_classes(self) -> List[Type]:
-        return [SaveUserKeyHandler]
+        return [SaveUserKeyHandler, InlineClipHandler]
 
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         return [AnyMiddleware(self._logger, commands)]
