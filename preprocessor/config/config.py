@@ -136,6 +136,9 @@ class CharacterSettings:
     processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
     face_similarity_threshold: float = 0.50
     normalized_face_size: tuple = (112, 112)
+    # Threshold tylko dla generowania wzorców postaci (character_references_processed).
+    # Niska wartość (0.2) dla lepszej detekcji przy małych/rozmazanych twarzach.
+    reference_detection_threshold: float = 0.2
 
 @dataclass
 class ObjectDetectionSettings:
@@ -148,6 +151,7 @@ class ObjectDetectionSettings:
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
     detection_size: tuple = (1280, 1280)
+    detection_threshold: float = 0.5
     threshold: float = 0.55
     use_gpu: bool = True
 

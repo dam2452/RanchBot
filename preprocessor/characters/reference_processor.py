@@ -139,7 +139,9 @@ class CharacterReferenceProcessor(BaseProcessor):
                 all_faces.append([])
                 continue
 
+            console.print(f"[dim]  {img_path.name}: detecting faces (image size: {img.shape[1]}x{img.shape[0]})...[/dim]")
             faces = self.face_app.get(img)
+            console.print(f"[dim]    Found {len(faces)} face(s)[/dim]")
 
             faces_data = []
             for face in faces:

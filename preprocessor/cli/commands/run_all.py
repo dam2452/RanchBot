@@ -112,6 +112,7 @@ from preprocessor.utils.console import console
     help="Parser mode: normal (Qwen local model) or premium (Gemini 2.5 Flash)",
 )
 @click.option("--skip-character-reference-processing", is_flag=True, help="Skip Step 0d: Character reference processing (use existing processed references)")
+@click.option("--interactive-character-processing", is_flag=True, help="Enable interactive mode for character reference processing (allows manual face selection)")
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
 @click.option("--skip-text-analysis", is_flag=True, help="Skip Step 3: Text analysis (use existing text statistics)")
@@ -151,6 +152,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     transcription_mode: str,
     parser_mode: str,
     skip_character_reference_processing: bool,
+    interactive_character_processing: bool,
     skip_transcode: bool,
     skip_transcribe: bool,
     skip_text_analysis: bool,
@@ -217,6 +219,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "transcription_mode": transcription_mode,
         "parser_mode": parser_mode,
         "state_manager": state_manager,
+        "interactive_character_processing": interactive_character_processing,
         "skip_image_hashing": skip_image_hashing,
         "skip_video_embeddings": skip_video_embeddings,
         "skip_character_detection": skip_character_detection,

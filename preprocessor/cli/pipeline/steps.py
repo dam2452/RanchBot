@@ -99,7 +99,7 @@ def run_character_reference_download_step(name, characters_json, search_mode="no
     return downloader.work()
 
 
-def run_character_reference_processing_step(name, state_manager, **_kwargs):
+def run_character_reference_processing_step(name, state_manager, interactive_character_processing=False, **_kwargs):
     from preprocessor.characters.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
 
     characters_dir = settings.character.output_dir
@@ -112,7 +112,7 @@ def run_character_reference_processing_step(name, state_manager, **_kwargs):
             "characters_dir": characters_dir,
             "output_dir": settings.character.processed_references_dir,
             "similarity_threshold": settings.character.face_similarity_threshold,
-            "interactive": False,
+            "interactive": interactive_character_processing,
             "series_name": name,
             "state_manager": state_manager,
         },
