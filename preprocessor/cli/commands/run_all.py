@@ -111,8 +111,16 @@ from preprocessor.utils.console import console
     default="normal",
     help="Parser mode: normal (Qwen local model) or premium (Gemini 2.5 Flash)",
 )
-@click.option("--skip-character-reference-processing", is_flag=True, help="Skip Step 0d: Character reference processing (use existing processed references)")
-@click.option("--interactive-character-processing", is_flag=True, help="Enable interactive mode for character reference processing (allows manual face selection)")
+@click.option(
+    "--skip-character-reference-processing",
+    is_flag=True,
+    help="Skip Step 0d: Character reference processing (use existing processed references)",
+)
+@click.option(
+    "--interactive-character-processing",
+    is_flag=True,
+    help="Enable interactive mode for character reference processing (allows manual face selection)",
+)
 @click.option("--skip-transcode", is_flag=True, help="Skip Step 1: Transcoding (use existing transcoded videos)")
 @click.option("--skip-transcribe", is_flag=True, help="Skip Step 2: Transcription (use existing transcriptions)")
 @click.option("--skip-text-analysis", is_flag=True, help="Skip Step 3: Text analysis (use existing text statistics)")
