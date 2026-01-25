@@ -23,7 +23,9 @@ from aiogram.types import (
 )
 
 from bot.adapters.telegram.telegram_message import TelegramMessage
+from bot.adapters.telegram.telegram_inline_message import TelegramInlineMessage
 from bot.adapters.telegram.telegram_responder import TelegramResponder
+from bot.adapters.telegram.telegram_inline_responder import TelegramInlineResponder
 from bot.handlers import BotMessageHandler
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
@@ -86,6 +88,18 @@ class PermissionLevelFactory(ABC):
             await handler.handle()
         return wrapper
 
+    @staticmethod
+    def __wrap_telegram_inline_handler(
+        handler_cls: Type[BotMessageHandler],
+        logger: logging.Logger,
+    ) -> Callable[[InlineQuery], Awaitable[None]]:
+        async def wrapper(query: InlineQuery):
+            abstract_msg: AbstractMessage = TelegramInlineMessage(query)
+            responder: AbstractResponder = TelegramInlineResponder(query)
+            handler = handler_cls(abstract_msg, responder, logger)
+            await handler.handle()
+        return wrapper
+
     @abstractmethod
     def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         pass
@@ -116,7 +130,7 @@ class PermissionLevelFactory(ABC):
 
             await inline_query.answer(
                 results=all_results,
-                cache_time=1,
+                cache_time=3600,
                 is_personal=True,
             )
 

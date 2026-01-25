@@ -34,12 +34,6 @@ class InlineClipHandler(BotMessageHandler):
         return []
 
     async def _do_handle(self) -> None:
-        pass
-
-    def supports_inline_mode(self) -> bool:
-        return True
-
-    async def handle_inline_query(self, query: str, bot: Any, user_id: int) -> Optional[List[Any]]:
         if not query.strip():
             return []
 
@@ -94,7 +88,8 @@ class InlineClipHandler(BotMessageHandler):
                 end_time = segment["end"] + settings.EXTEND_AFTER
                 clip_duration = end_time - start_time
 
-                if not await DatabaseManager.is_admin_or_moderator(user_id) and clip_duration > settings.MAX_CLIP_DURATION:
+                if not await DatabaseManager.is_admin_or_moderator(
+                        user_id) and clip_duration > settings.MAX_CLIP_DURATION:
                     continue
 
                 try:
