@@ -33,9 +33,9 @@ class ClipsExtractor:
             "-i", str(video_path),
             "-t", str(duration),
             "-c", "copy",
-            "-avoid_negative_ts", "make_zero",
-            "-fflags", "+genpts",
             "-movflags", "+faststart",
+            "-fflags", "+genpts",
+            "-avoid_negative_ts", "1",
             "-loglevel", "error",
             str(output_filename),
         ]
@@ -60,3 +60,4 @@ class ClipsExtractor:
         clip_duration = await get_video_duration(output_filename)
         await log_system_message(logging.INFO, f"Clip duration: {clip_duration}", logger)
         return output_filename
+    
