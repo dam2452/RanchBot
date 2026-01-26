@@ -22,6 +22,7 @@ FILE_SUFFIXES = {
     "episode_name": "episode_name_embedding",
     "image_hashes": "_image_hashes",
     "detections": "detections",
+    "character_detections": "_character_detections",
 }
 
 FILE_EXTENSIONS = {

@@ -24,8 +24,8 @@ from preprocessor.config.config import settings
 @click.option(
     "--similarity-threshold",
     type=float,
-    default=settings.character.face_similarity_threshold,
-    help="Threshold for face similarity matching",
+    default=settings.character.reference_matching_threshold,
+    help="Threshold for face similarity when matching between reference images",
 )
 @click.option(
     "--interactive/--no-interactive",

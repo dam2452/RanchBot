@@ -38,6 +38,13 @@ def load_character_references(
             continue
 
         char_name = char_dir.name.replace("_", " ").title()
+        vector_file = char_dir / "face_vector.npy"
+
+        if vector_file.exists():
+            character_vectors[char_name] = np.load(vector_file)
+            console.print(f"[dim]  ✓ {char_name}: loaded from face_vector.npy[/dim]")
+            continue
+
         images = list(char_dir.glob("*.jpg"))
 
         if not images:

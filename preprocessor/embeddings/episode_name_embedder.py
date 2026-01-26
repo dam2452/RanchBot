@@ -97,8 +97,16 @@ class EpisodeNameEmbedder:
         episode: int,
         embedding_data: Dict[str, Any],
     ) -> Path:
-        output_file = self.output_dir / f"S{season:02d}" / f"E{episode:02d}" / "episode_name_embedding.json"
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+        from preprocessor.core.episode_manager import EpisodeInfo  # pylint: disable=import-outside-toplevel
+        from preprocessor.core.output_path_builder import OutputPathBuilder  # pylint: disable=import-outside-toplevel
+
+        episode_info = EpisodeInfo(
+            absolute_episode=0,
+            season=season,
+            relative_episode=episode,
+            title="",
+        )
+        output_file = OutputPathBuilder.build_embedding_path(episode_info, "episode_name_embedding.json")
 
         atomic_write_json(output_file, embedding_data, indent=2, ensure_ascii=False)
 
@@ -128,10 +136,19 @@ class EpisodeNameEmbedder:
         episode: int,
         output_dir: Optional[Path] = None,
     ) -> Optional[Dict[str, Any]]:
+        from preprocessor.core.episode_manager import EpisodeInfo  # pylint: disable=import-outside-toplevel
+        from preprocessor.core.output_path_builder import OutputPathBuilder  # pylint: disable=import-outside-toplevel
+
         if output_dir is None:
             output_dir = settings.embedding.default_output_dir
 
-        embedding_file = output_dir / f"S{season:02d}" / f"E{episode:02d}" / "episode_name_embedding.json"
+        episode_info = EpisodeInfo(
+            absolute_episode=0,
+            season=season,
+            relative_episode=episode,
+            title="",
+        )
+        embedding_file = OutputPathBuilder.build_embedding_path(episode_info, "episode_name_embedding.json")
 
         if not embedding_file.exists():
             return None

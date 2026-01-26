@@ -23,6 +23,7 @@ class EpisodeInfo:
     season: int
     relative_episode: int
     title: str
+    series_name: Optional[str] = None
     premiere_date: Optional[str] = None
     viewership: Optional[str] = None
 
@@ -58,6 +59,7 @@ class EpisodeManager:
                 season=season,
                 relative_episode=relative_episode,
                 title=f"S{season:02d}E{relative_episode:02d}",
+                series_name=self.series_name,
             )
 
         for season_data in self.episodes_data.get("seasons", []):
@@ -71,6 +73,7 @@ class EpisodeManager:
                         season=season,
                         relative_episode=relative_episode,
                         title=ep_data.get("title", f"S{season:02d}E{relative_episode:02d}"),
+                        series_name=self.series_name,
                         premiere_date=ep_data.get("premiere_date"),
                         viewership=ep_data.get("viewership"),
                     )
@@ -86,6 +89,7 @@ class EpisodeManager:
             season=season,
             relative_episode=relative_episode,
             title=f"S{season:02d}E{relative_episode:02d}",
+            series_name=self.series_name,
         )
 
     def build_output_path(self, episode_info: EpisodeInfo, base_dir: Path, extension: str = ".mp4") -> Path:
@@ -155,6 +159,7 @@ class EpisodeManager:
                         season=season_num,
                         relative_episode=idx + 1,
                         title=ep_data.get("title", f"S{season_num:02d}E{idx + 1:02d}"),
+                        series_name=self.series_name,
                         premiere_date=ep_data.get("premiere_date"),
                         viewership=ep_data.get("viewership"),
                     ),

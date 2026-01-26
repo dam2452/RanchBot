@@ -484,6 +484,12 @@ class CharacterReferenceProcessor(BaseProcessor):
         return "Processing character references"
 
     def generate_validation_grid(self) -> None:  # pylint: disable=too-many-locals,too-many-statements
+        output_path = self.output_dir / "validation_grid.png"
+
+        if output_path.exists():
+            console.print(f"[dim]⊘ Skipping validation grid (already exists): {output_path}[/dim]")
+            return
+
         console.print("\n[blue]Generating validation grid...[/blue]")
 
         if not self.output_dir.exists():
@@ -744,7 +750,6 @@ class CharacterReferenceProcessor(BaseProcessor):
                 cv2.LINE_AA,
             )
 
-        output_path = self.output_dir / "validation_grid.png"
         cv2.imwrite(str(output_path), grid, [cv2.IMWRITE_PNG_COMPRESSION, 6])
 
         console.print(f"[green]✓ Validation grid saved to: {output_path}[/green]")

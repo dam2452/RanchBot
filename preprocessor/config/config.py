@@ -134,9 +134,10 @@ class CharacterSettings:
     characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
     detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
     processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
-    face_similarity_threshold: float = 0.50
     normalized_face_size: tuple = (112, 112)
-    reference_detection_threshold: float = 0.2 #TO.DO change to 0.35
+    face_detection_threshold: float = 0.2
+    reference_matching_threshold: float = 0.50
+    frame_detection_threshold: float = 0.55
 
 @dataclass
 class ObjectDetectionSettings:
@@ -149,8 +150,6 @@ class ObjectDetectionSettings:
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
     detection_size: tuple = (1280, 1280)
-    detection_threshold: float = 0.5
-    threshold: float = 0.55
     use_gpu: bool = True
 
 @dataclass

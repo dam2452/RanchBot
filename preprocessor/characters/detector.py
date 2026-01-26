@@ -20,6 +20,8 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.console import console
 from preprocessor.utils.detection_io import (
     process_frames_for_detection,
@@ -41,7 +43,7 @@ class CharacterDetector(BaseProcessor):
 
         self.frames_dir: Path = self._args["frames_dir"]
         self.characters_dir: Path = self._args.get("characters_dir", settings.character.output_dir)
-        self.threshold: float = settings.face_recognition.threshold
+        self.threshold: float = settings.character.frame_detection_threshold
 
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
@@ -63,8 +65,17 @@ class CharacterDetector(BaseProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
-        detections_output = episode_dir / "detections.json"
+        file_naming = FileNamingConventions(self.series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="character_detections",
+        )
+        detections_output = OutputPathBuilder.build_output_path(
+            episode_info,
+            settings.output_subdirs.character_detections,
+            detections_filename,
+        )
         return [OutputSpec(path=detections_output, required=True)]
     # pylint: enable=duplicate-code
 

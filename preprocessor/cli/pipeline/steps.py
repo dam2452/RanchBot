@@ -111,7 +111,7 @@ def run_character_reference_processing_step(name, state_manager, interactive_cha
         {
             "characters_dir": characters_dir,
             "output_dir": settings.character.processed_references_dir,
-            "similarity_threshold": settings.character.face_similarity_threshold,
+            "similarity_threshold": settings.character.reference_matching_threshold,
             "interactive": interactive_character_processing,
             "series_name": name,
             "state_manager": state_manager,
@@ -437,7 +437,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
         char_detection_sub = CharacterDetectionSubProcessor(
             characters_dir=Path(settings.character.output_dir),
             use_gpu=settings.face_recognition.use_gpu,
-            threshold=settings.face_recognition.threshold,
+            threshold=settings.character.frame_detection_threshold,
         )
         processor.add_sub_processor(char_detection_sub)
         sub_processors.append(char_detection_sub)

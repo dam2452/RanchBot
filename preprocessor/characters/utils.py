@@ -42,7 +42,7 @@ def init_face_detection() -> FaceAnalysis:
             face_app.prepare(
                 ctx_id=0,
                 det_size=settings.face_recognition.detection_size,
-                det_thresh=settings.character.reference_detection_threshold,
+                det_thresh=settings.character.face_detection_threshold,
             )
         except Exception as e:
             console.print("[red]✗ Failed to initialize face detection on GPU[/red]")
@@ -60,7 +60,7 @@ def init_face_detection() -> FaceAnalysis:
     console.print(f"[green]✓ Face detection initialized ({settings.face_recognition.model_name})[/green]")
     console.print("[dim]  Device: GPU (CUDA)[/dim]")
     console.print(f"[dim]  Detection size: {settings.face_recognition.detection_size}[/dim]")
-    console.print(f"[dim]  Detection threshold (for reference processing): {settings.character.reference_detection_threshold}[/dim]")
+    console.print(f"[dim]  Face detection threshold: {settings.character.face_detection_threshold}[/dim]")
     console.print(f"[dim]  Model cache: {model_root}[/dim]")
 
     return face_app
