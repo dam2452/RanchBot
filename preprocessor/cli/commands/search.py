@@ -447,7 +447,8 @@ def print_results(result, result_type="text"):
         scene_ctx = format_scene_context(source.get("scene_info"))
 
         click.echo(f"\n[{i}] Score: {score:.2f}")
-        click.echo(f"Episode: S{meta['season']:02d}E{meta['episode_number']:02d} - {meta.get('title', 'N/A')}")
+        season_code = "S00" if meta['season'] == 0 else f"S{meta['season']:02d}"
+        click.echo(f"Episode: {season_code}E{meta['episode_number']:02d} - {meta.get('title', 'N/A')}")
 
         if result_type == "text":
             click.echo(f"Segment ID: {source.get('segment_id', 'N/A')}")

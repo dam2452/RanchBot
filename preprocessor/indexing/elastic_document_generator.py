@@ -217,7 +217,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             return
 
         episode_metadata = self.__build_episode_metadata(episode_info)
-        episode_id = f"S{season:02d}E{episode_number:02d}"
+        episode_id = episode_info.episode_code()
         video_path = self.episode_manager.build_video_path_for_elastic(episode_info)
 
         scene_timestamps = self.__load_scene_timestamps(episode_info)

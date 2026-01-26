@@ -26,4 +26,4 @@ class EpisodeInfoParser:
 
     @staticmethod
     def get_episode_id(episode_info) -> str:
-        return f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}"
+        return episode_info.episode_code()

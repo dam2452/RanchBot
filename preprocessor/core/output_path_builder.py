@@ -19,7 +19,7 @@ class OutputPathBuilder:
 
     @staticmethod
     def get_season_dir(episode_info) -> str:
-        return "Specjalne" if episode_info.season == 0 else f"S{episode_info.season:02d}"
+        return f"S{episode_info.season:02d}"
 
     @staticmethod
     def build_transcription_path(episode_info, filename: str, subdir: str = "raw") -> Path:

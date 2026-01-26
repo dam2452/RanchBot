@@ -56,14 +56,14 @@ class EpisodeNameEmbedder:
         title = metadata.get("title")
 
         if not title:
-            self.logger.warning(f"No title found for S{season:02d}E{episode_number:02d}")
+            self.logger.warning(f"No title found for {episode_info.episode_code()}")
             return None
 
         embedding = self._generate_title_embedding(title)
         if embedding is None:
             return None
 
-        episode_id = f"S{season:02d}E{episode_number:02d}"
+        episode_id = episode_info.episode_code()
 
         result = {
             "episode_id": episode_id,

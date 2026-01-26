@@ -259,7 +259,12 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         episode_info_dict = data.get("episode_info", {})
         season = episode_info_dict.get("season", 0)
         episode_num = episode_info_dict.get("episode_number", 0)
-        episode_code = f"S{season:02d}E{episode_num:02d}"
+
+        episode_info_temp = self.episode_manager.get_episode_by_season_and_relative(season, episode_num)
+        if episode_info_temp:
+            episode_code = episode_info_temp.episode_code()
+        else:
+            episode_code = f"S{season:02d}E{episode_num:02d}"
 
         text_output = episode_dir / f"{self.episode_manager.series_name}_{episode_code}_embeddings_text.json"
         video_output = episode_dir / f"{self.episode_manager.series_name}_{episode_code}_embeddings_video.json"

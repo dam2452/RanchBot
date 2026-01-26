@@ -32,7 +32,7 @@ class EpisodeInfo:
         return f"S{self.season:02d}E{self.relative_episode:02d}"
 
     def season_dir_name(self) -> str:
-        return "Specjalne" if self.season == 0 else f"S{self.season:02d}"
+        return f"S{self.season:02d}"
 
     def is_special(self) -> bool:
         return self.season == 0

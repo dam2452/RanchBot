@@ -405,7 +405,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         console.print(f"[cyan]Detecting objects in {len(frame_files)} frames[/cyan]")
 
         detections_data = {
-            "episode_code": f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}",
+            "episode_code": episode_info.episode_code(),
             "model": self.model_name,
             "confidence_threshold": self.conf_threshold,
             "frames": [],

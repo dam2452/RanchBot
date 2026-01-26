@@ -72,7 +72,7 @@ class ArchiveGenerator(BaseProcessor):
             base_name = segment_file.stem.replace(FILE_SUFFIXES["segments"], "")
             items.append(
                 ProcessingItem(
-                    episode_id=f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}",
+                    episode_id=episode_info.episode_code(),
                     input_path=segment_file,
                     metadata={
                         "base_name": base_name,
