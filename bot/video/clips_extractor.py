@@ -60,4 +60,3 @@ class ClipsExtractor:
         clip_duration = await get_video_duration(output_filename)
         await log_system_message(logging.INFO, f"Clip duration: {clip_duration}", logger)
         return output_filename
-    
