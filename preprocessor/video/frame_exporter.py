@@ -39,6 +39,7 @@ class FrameExporter(BaseVideoProcessor):
         self.output_frames.mkdir(parents=True, exist_ok=True)
 
         self.scene_timestamps_dir: Path = Path(self._args.get("scene_timestamps_dir", settings.scene_detection.output_dir))
+        self.resize_width: int = self._args.get("frame_width", settings.frame_export.frame_width)
         self.resize_height: int = self._args.get("frame_height", settings.frame_export.frame_height)
 
         keyframe_strategy_str = self._args.get("keyframe_strategy", settings.keyframe_extraction.strategy)
@@ -147,9 +148,29 @@ class FrameExporter(BaseVideoProcessor):
         resized.save(episode_dir / filename, quality=90)
 
     def __resize_frame(self, frame: Image.Image) -> Image.Image:
-        aspect_ratio = frame.width / frame.height
-        new_width = int(self.resize_height * aspect_ratio)
-        return frame.resize((new_width, self.resize_height), Image.Resampling.LANCZOS)
+        source_aspect = frame.width / frame.height
+        target_aspect = self.resize_width / self.resize_height
+
+        if abs(source_aspect - target_aspect) < 0.01:
+            return frame.resize((self.resize_width, self.resize_height), Image.Resampling.LANCZOS)
+
+        if source_aspect > target_aspect:
+            new_height = self.resize_height
+            new_width = int(self.resize_height * source_aspect)
+            resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            x_crop = (new_width - self.resize_width) // 2
+            cropped = resized.crop((x_crop, 0, x_crop + self.resize_width, self.resize_height))
+            return cropped
+        else:
+            new_width = self.resize_width
+            new_height = int(self.resize_width / source_aspect)
+            resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            result = Image.new('RGB', (self.resize_width, self.resize_height), (0, 0, 0))
+            y_offset = (self.resize_height - new_height) // 2
+            result.paste(resized, (0, y_offset))
+            return result
 
     @staticmethod
     def __calculate_total_scenes(frame_requests: List[Dict[str, Any]]) -> int:
@@ -180,6 +201,7 @@ class FrameExporter(BaseVideoProcessor):
             },
             "source_video": str(source_video),
             "processing_parameters": {
+                "frame_width": self.resize_width,
                 "frame_height": self.resize_height,
                 "keyframe_strategy": self.keyframe_strategy.value,
                 "keyframe_interval": self.keyframe_interval,

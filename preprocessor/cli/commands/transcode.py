@@ -23,7 +23,7 @@ from preprocessor.video.transcoder import VideoTranscoder
 )
 @click.option(
     "--resolution",
-    type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),
+    type=click.Choice(["144p", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p"]),
     default="1080p",
     help="Target resolution for videos",
 )

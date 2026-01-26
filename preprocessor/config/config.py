@@ -117,6 +117,7 @@ class KeyframeExtractionSettings:
 @dataclass
 class FrameExportSettings:
     output_dir: Path = BASE_OUTPUT_DIR / "exported_frames"
+    frame_width: int = 1920
     frame_height: int = 1080
 
 @dataclass
