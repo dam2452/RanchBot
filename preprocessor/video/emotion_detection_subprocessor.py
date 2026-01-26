@@ -69,7 +69,8 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
             )
             return False
 
-        return bool(missing_outputs)
+        marker_file = episode_dir / ".emotion_complete"
+        return any(output.path == marker_file for output in missing_outputs)
 
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None: # pylint: disable=too-many-locals,too-many-statements
         self.initialize()
