@@ -192,13 +192,14 @@ class BaseProcessor(ABC):
 
         items_to_process = []
         skipped_count = 0
+        skip_messages = []
 
         for item in all_items:
             should_skip, missing_outputs, skip_message = self._should_skip_item(item)
 
             if should_skip:
                 if skip_message:
-                    console.print(skip_message)
+                    skip_messages.append(skip_message)
                 skipped_count += 1
             else:
                 item.metadata['missing_outputs'] = missing_outputs
@@ -209,6 +210,9 @@ class BaseProcessor(ABC):
                 f"[yellow]All items already processed ({len(all_items)} total, {skipped_count} skipped)[/yellow]",
             )
             return
+
+        for skip_message in skip_messages:
+            console.print(skip_message)
 
         console.print(
             f"[blue]Processing {len(items_to_process)} items "
