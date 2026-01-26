@@ -69,8 +69,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
             )
             return False
 
-        expected = self.get_expected_outputs(item)
-        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
+        return bool(missing_outputs)
 
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None: # pylint: disable=too-many-locals,too-many-statements
         self.initialize()
