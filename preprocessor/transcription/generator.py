@@ -80,7 +80,20 @@ class TranscriptionGenerator(BaseProcessor):
                 filename,
                 subdir="raw",
             )
-            outputs.append(OutputSpec(path=expected_file, required=True))
+
+            segmented_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_segmented",
+            )
+            segmented_file = OutputPathBuilder.build_transcription_path(
+                episode_info,
+                segmented_filename,
+                subdir="raw",
+            )
+
+            if not expected_file.exists() and not segmented_file.exists():
+                outputs.append(OutputSpec(path=expected_file, required=True))
 
         return outputs
 
@@ -141,7 +154,18 @@ class TranscriptionGenerator(BaseProcessor):
                 subdir="raw",
             )
 
-            if not expected_file.exists():
+            segmented_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_segmented",
+            )
+            segmented_file = OutputPathBuilder.build_transcription_path(
+                episode_info,
+                segmented_filename,
+                subdir="raw",
+            )
+
+            if not expected_file.exists() and not segmented_file.exists():
                 missing_files.append(f"{video_file.name} -> {expected_file}")
 
         if missing_files:
