@@ -28,14 +28,14 @@ class ClipsExtractor:
 
         command = [
             "ffmpeg",
-            "-y",  # overwrite output files
+            "-y",
             "-ss", str(start_time),
             "-i", str(video_path),
             "-t", str(duration),
             "-c", "copy",
-            "-movflags", "+faststart",
+            "-avoid_negative_ts", "make_zero",
             "-fflags", "+genpts",
-            "-avoid_negative_ts", "1",
+            "-movflags", "+faststart",
             "-loglevel", "error",
             str(output_filename),
         ]
