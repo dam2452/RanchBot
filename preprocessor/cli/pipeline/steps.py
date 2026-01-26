@@ -99,7 +99,7 @@ def run_character_reference_download_step(name, characters_json, search_mode="no
     return downloader.work()
 
 
-def run_character_reference_processing_step(name, state_manager, interactive_character_processing=False, **_kwargs):
+def run_character_reference_processing_step(name, state_manager, interactive_character_processing=False, debug_visualizations=False, **_kwargs):
     from preprocessor.characters.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
 
     characters_dir = settings.character.output_dir
@@ -119,7 +119,7 @@ def run_character_reference_processing_step(name, state_manager, interactive_cha
     )
     exit_code = processor.work()
 
-    if exit_code == 0:
+    if exit_code == 0 and debug_visualizations:
         processor.generate_validation_grid()
 
     return exit_code

@@ -294,7 +294,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
         detections_filename = file_naming.build_filename(
             episode_info,
             extension="json",
-            suffix="_character_detections",
+            suffix="character_detections",
         )
         detections_output = episode_dir / detections_filename
         return [OutputSpec(path=detections_output, required=True)]

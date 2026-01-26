@@ -15,6 +15,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.utils.console import console
 from preprocessor.utils.emotion_utils import (
     crop_face_from_frame,
@@ -51,10 +52,16 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
-        detections_file = (
-            EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections) /
-            "detections.json"
+        series_name = item.metadata["series_name"]
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="character_detections",
         )
+        detections_file = episode_dir / detections_filename
 
         if not detections_file.exists():
             console.print(
@@ -65,15 +72,20 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
         expected = self.get_expected_outputs(item)
         return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None: # pylint: disable=too-many-locals
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None: # pylint: disable=too-many-locals,too-many-statements
         self.initialize()
 
         episode_info = item.metadata["episode_info"]
+        series_name = item.metadata["series_name"]
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
 
-        detections_file = (
-            EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections) /
-            "detections.json"
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="character_detections",
         )
+        detections_file = episode_dir / detections_filename
 
         if not detections_file.exists():
             console.print(f"[yellow]No detections file: {detections_file}[/yellow]")

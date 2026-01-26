@@ -95,9 +95,9 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames found in {ramdisk_frames_dir}[/yellow]")
             return
 
-        console.print(f"[cyan]Extracting faces and embeddings from {len(frame_files)} frames[/cyan]")
+        console.print(f"[cyan]Extracting faces and vectors from {len(frame_files)} frames[/cyan]")
 
-        face_data = self._extract_faces_with_embeddings(frame_files)
+        face_data = self._extract_faces_with_vectors(frame_files)
 
         if len(face_data) == 0:
             console.print("[yellow]No faces detected, skipping clustering[/yellow]")
@@ -110,7 +110,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         series_name = item.metadata["series_name"]
         self._save_clusters(episode_info, face_data, labels, frame_files, series_name)
 
-    def _extract_faces_with_embeddings(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
+    def _extract_faces_with_vectors(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
         face_data = []
 
         for idx, frame_path in enumerate(frame_files):
@@ -138,7 +138,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
                     continue
 
                 face_data.append({
-                    'embedding': face.normed_embedding,
+                    'vector': face.normed_embedding,
                     'frame_path': frame_path,
                     'bbox': bbox,
                     'face_img': face_img,
@@ -149,10 +149,10 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         return face_data
 
     def _cluster_faces(self, face_data: List[Dict[str, Any]]) -> np.ndarray:
-        embeddings = np.array([fd['embedding'] for fd in face_data])
+        vectors = np.array([fd['vector'] for fd in face_data])
 
         console.print(f"[cyan]Clustering with GPU HDBSCAN (min_cluster_size={self.min_cluster_size}, min_samples={self.min_samples})[/cyan]")
-        embeddings_gpu = cp.asarray(embeddings)
+        vectors_gpu = cp.asarray(vectors)
 
         clusterer = cuHDBSCAN(
             min_cluster_size=self.min_cluster_size,
@@ -160,7 +160,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
             metric='euclidean',
             cluster_selection_method='eom',
         )
-        labels = clusterer.fit_predict(embeddings_gpu)
+        labels = clusterer.fit_predict(vectors_gpu)
         labels = cp.asnumpy(labels)
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)

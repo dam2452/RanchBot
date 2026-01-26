@@ -228,6 +228,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "parser_mode": parser_mode,
         "state_manager": state_manager,
         "interactive_character_processing": interactive_character_processing,
+        "debug_visualizations": debug_visualizations,
         "skip_image_hashing": skip_image_hashing,
         "skip_video_embeddings": skip_video_embeddings,
         "skip_character_detection": skip_character_detection,
