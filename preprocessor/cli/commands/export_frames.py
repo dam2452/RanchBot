@@ -48,7 +48,7 @@ def export_frames(
 ):
     """Export keyframes at target resolution based on configured keyframe strategy."""
     state_manager = create_state_manager(name, no_state)
-    
+
     res = Resolution.from_str(resolution)
 
     exporter = FrameExporter(
