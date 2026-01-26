@@ -161,7 +161,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
         atomic_write_json(detections_file, detections_data, indent=2, ensure_ascii=False)
 
         marker_file = detections_file.parent / ".emotion_complete"
-        marker_file.touch()
+        marker_file.write_text("completed", encoding="utf-8")
 
         console.print(
             f"[green]✓ Emotion analysis complete: {processed}/{total_characters} characters processed[/green]",
