@@ -4,6 +4,10 @@ from preprocessor.config.config import (
     BASE_OUTPUT_DIR,
     settings,
 )
+from preprocessor.core.constants import (
+    DEFAULT_VIDEO_EXTENSION,
+    FILE_EXTENSIONS,
+)
 
 
 class OutputPathBuilder:
@@ -32,7 +36,7 @@ class OutputPathBuilder:
         return path
 
     @staticmethod
-    def build_video_path(episode_info, series_name: str, extension: str = ".mp4") -> Path:
+    def build_video_path(episode_info, series_name: str, extension: str = DEFAULT_VIDEO_EXTENSION) -> Path:
         filename = f"{series_name.lower()}_{episode_info.episode_code()}{extension}"
         season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
         season_dir = BASE_OUTPUT_DIR / settings.output_subdirs.video / season_dir_name
@@ -41,7 +45,7 @@ class OutputPathBuilder:
 
     @staticmethod
     def build_elastic_video_path(episode_info, series_name: str) -> str:
-        filename = f"{series_name.lower()}_{episode_info.episode_code()}.mp4"
+        filename = f"{series_name.lower()}_{episode_info.episode_code()}{FILE_EXTENSIONS['mp4']}"
         season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
         path = Path("bot") / f"{series_name.upper()}-WIDEO" / season_dir_name / filename
         return path.as_posix()

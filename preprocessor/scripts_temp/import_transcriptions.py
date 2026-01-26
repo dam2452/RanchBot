@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import shutil
 
-SOURCE_DIR = Path("/mnt/c/Users/dam2452/Downloads/output_ranczo/json")
+SOURCE_DIR = Path("/mnt/c/GIT_REPO/RANCZO_KLIPY/sceny-trans")
 OUTPUT_DIR = Path("/mnt/c/GIT_REPO/RANCZO_KLIPY/preprocessor/output_data/transcriptions")
 SERIES_NAME = "ranczo"
 
@@ -16,199 +17,75 @@ def parse_filename(filename: str) -> tuple[int, int] | None:
     return None
 
 
-def convert_file(source_file: Path, season: int, episode: int) -> bool:
-    episode_dir = OUTPUT_DIR / f"S{season:02d}" / f"E{episode:02d}"
-    episode_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with open(source_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"  ERROR: Invalid JSON in {source_file.name}: {e}")
-        return False
-
-    if not data:
-        print(f"  ERROR: Empty file {source_file.name}")
-        return False
+def copy_and_fix_file(source_dir: Path, filename_base: str, season: int, episode: int) -> bool:
+    raw_dir = OUTPUT_DIR / f"S{season:02d}" / f"E{episode:02d}" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     episode_info = {
         "season": season,
         "episode_number": episode,
     }
 
-    full_json = {
-        "episode_info": episode_info,
-        "language_code": data.get("language_code", "pol"),
-        "language_probability": data.get("language_probability", 1.0),
-        "text": data.get("text", ""),
-        "words": data.get("words", []),
-    }
+    segmented_src = source_dir / "segmented_json" / f"{filename_base}_segmented.json"
+    simple_src = source_dir / "simple_json" / f"{filename_base}_simple.json"
+    srt_src = source_dir / "srt" / f"{filename_base}.srt"
+    txt_src = source_dir / "txt" / f"{filename_base}.txt"
 
-    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}.json"
-    output_file = episode_dir / output_filename
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(full_json, f, indent=2, ensure_ascii=False)
-    print(f"Created: {output_file}")
+    if not segmented_src.exists():
+        print(f"  ERROR: Missing {segmented_src.name}")
+        return False
 
-    generate_segmented(data, episode_dir, season, episode, episode_info)
-    generate_simple(data, episode_dir, season, episode, episode_info)
-    generate_srt(data, episode_dir, season, episode)
-    generate_txt(data, episode_dir, season, episode)
-    return True
+    try: # pylint: disable=too-many-try-statements
+        with open(segmented_src, "r", encoding="utf-8") as f:
+            segmented_data = json.load(f)
+        segmented_data["episode_info"] = episode_info
+        segmented_dst = raw_dir / f"{SERIES_NAME}_S{season:02d}E{episode:02d}_segmented.json"
+        with open(segmented_dst, "w", encoding="utf-8") as f:
+            json.dump(segmented_data, f, indent=2, ensure_ascii=False)
+        print(f"  Created: {segmented_dst}")
 
+        with open(simple_src, "r", encoding="utf-8") as f:
+            simple_data = json.load(f)
+        simple_data["episode_info"] = episode_info
+        simple_dst = raw_dir / f"{SERIES_NAME}_S{season:02d}E{episode:02d}_simple.json"
+        with open(simple_dst, "w", encoding="utf-8") as f:
+            json.dump(simple_data, f, indent=2, ensure_ascii=False)
+        print(f"  Created: {simple_dst}")
 
-def generate_segmented(data: dict, episode_dir: Path, season: int, episode: int, episode_info: dict) -> None:
-    words = data.get("words", [])
-    segments = []
-    current_segment = {"text": "", "words": []}
+        srt_dst = raw_dir / f"{SERIES_NAME}_S{season:02d}E{episode:02d}.srt"
+        shutil.copy2(srt_src, srt_dst)
+        print(f"  Created: {srt_dst}")
 
-    for word in words:
-        word_text = word.get("text", "")
-        current_segment["words"].append(word)
-        current_segment["text"] += word_text + " "
+        txt_dst = raw_dir / f"{SERIES_NAME}_S{season:02d}E{episode:02d}.txt"
+        shutil.copy2(txt_src, txt_dst)
+        print(f"  Created: {txt_dst}")
 
-        if word_text.endswith((".", "?", "!", ")")):
-            current_segment["text"] = current_segment["text"].strip()
-            if current_segment["text"]:
-                segments.append(current_segment)
-            current_segment = {"text": "", "words": []}
-
-    if current_segment["text"].strip():
-        current_segment["text"] = current_segment["text"].strip()
-        segments.append(current_segment)
-
-    segmented_json = {
-        "episode_info": episode_info,
-        "segments": segments,
-    }
-
-    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}_segmented.json"
-    output_file = episode_dir / output_filename
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(segmented_json, f, indent=2, ensure_ascii=False)
-    print(f"Created: {output_file}")
-
-
-def generate_simple(data: dict, episode_dir: Path, season: int, episode: int, episode_info: dict) -> None:
-    words = data.get("words", [])
-    segments = []
-    current_segment = {"speaker": "speaker_unknown", "text": ""}
-
-    for word in words:
-        word_text = word.get("text", "")
-        speaker = word.get("speaker_id", "speaker_unknown")
-
-        if current_segment["speaker"] != speaker and current_segment["text"]:
-            current_segment["text"] = current_segment["text"].strip()
-            segments.append(current_segment)
-            current_segment = {"speaker": speaker, "text": ""}
-
-        current_segment["speaker"] = speaker
-        current_segment["text"] += word_text + " "
-
-    if current_segment["text"].strip():
-        current_segment["text"] = current_segment["text"].strip()
-        segments.append(current_segment)
-
-    simple_json = {
-        "episode_info": episode_info,
-        "segments": segments,
-    }
-
-    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}_simple.json"
-    output_file = episode_dir / output_filename
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(simple_json, f, indent=2, ensure_ascii=False)
-    print(f"Created: {output_file}")
-
-
-def format_timestamp(seconds: float) -> str:
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    millis = int((seconds % 1) * 1000)
-    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
-
-
-def generate_srt(data: dict, episode_dir: Path, season: int, episode: int) -> None:
-    words = data.get("words", [])
-    srt_lines = []
-    index = 1
-
-    segment_words = []
-    segment_text = ""
-
-    for word in words:
-        word_text = word.get("text", "")
-        segment_words.append(word)
-        segment_text += word_text + " "
-
-        if word_text.endswith((".", "?", "!", ")")):
-            if segment_words and segment_text.strip():
-                start = segment_words[0].get("start", 0.0)
-                end = segment_words[-1].get("end", 0.0)
-                text = segment_text.strip()
-
-                srt_lines.append(f"{index}")
-                srt_lines.append(f"{format_timestamp(start)} --> {format_timestamp(end)}")
-                srt_lines.append(text)
-                srt_lines.append("")
-                index += 1
-
-            segment_words = []
-            segment_text = ""
-
-    if segment_words and segment_text.strip():
-        start = segment_words[0].get("start", 0.0)
-        end = segment_words[-1].get("end", 0.0)
-        text = segment_text.strip()
-        srt_lines.append(f"{index}")
-        srt_lines.append(f"{format_timestamp(start)} --> {format_timestamp(end)}")
-        srt_lines.append(text)
-        srt_lines.append("")
-
-    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}.srt"
-    output_file = episode_dir / output_filename
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write("\n".join(srt_lines))
-    print(f"Created: {output_file}")
-
-
-def generate_txt(data: dict, episode_dir: Path, season: int, episode: int) -> None:
-    text = data.get("text", "")
-
-    output_filename = f"{SERIES_NAME}_S{season:02d}E{episode:02d}.txt"
-    output_file = episode_dir / output_filename
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(text)
-    print(f"Created: {output_file}")
+        return True
+    except Exception as e: # pylint: disable=broad-exception-caught
+        print(f"  ERROR: {e}")
+        return False
 
 
 def main() -> None:
     print(f"Source: {SOURCE_DIR}")
     print(f"Output: {OUTPUT_DIR}")
 
-    for season_dir in sorted(SOURCE_DIR.iterdir()):
-        if not season_dir.is_dir():
+    segmented_dir = SOURCE_DIR / "segmented_json"
+    if not segmented_dir.exists():
+        print(f"ERROR: {segmented_dir} does not exist")
+        return
+
+    for segmented_file in sorted(segmented_dir.glob("*_segmented.json")):
+        filename_base = segmented_file.stem.replace("_segmented", "")
+
+        parsed = parse_filename(filename_base)
+        if not parsed:
+            print(f"Skipping (cannot parse): {filename_base}")
             continue
 
-        print(f"\nProcessing: {season_dir.name}")
-
-        if "Ranczo Wilkowyje" in season_dir.name:
-            for json_file in sorted(season_dir.glob("*.json")):
-                print(f"  {json_file.name} -> S00E01 (special)")
-                convert_file(json_file, 0, 1)
-            continue
-
-        for json_file in sorted(season_dir.glob("*.json")):
-            parsed = parse_filename(json_file.name)
-            if not parsed:
-                print(f"  Skipping (cannot parse): {json_file.name}")
-                continue
-
-            season, episode = parsed
-            print(f"  {json_file.name} -> S{season:02d}E{episode:02d}")
-            convert_file(json_file, season, episode)
+        season, episode = parsed
+        print(f"{filename_base} -> S{season:02d}E{episode:02d}")
+        copy_and_fix_file(SOURCE_DIR, filename_base, season, episode)
 
 
 if __name__ == "__main__":

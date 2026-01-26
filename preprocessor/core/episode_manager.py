@@ -9,6 +9,7 @@ from typing import (
     Optional,
 )
 
+from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
 from preprocessor.core.episode_file_finder import EpisodeFileFinder
 from preprocessor.core.episode_parser import EpisodeInfoParser
 from preprocessor.core.file_naming import FileNamingConventions
@@ -92,7 +93,7 @@ class EpisodeManager:
             series_name=self.series_name,
         )
 
-    def build_output_path(self, episode_info: EpisodeInfo, base_dir: Path, extension: str = ".mp4") -> Path:
+    def build_output_path(self, episode_info: EpisodeInfo, base_dir: Path, extension: str = DEFAULT_VIDEO_EXTENSION) -> Path:
         filename = self.file_naming.build_filename(episode_info, extension=extension.lstrip('.'))
         season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
         season_dir = base_dir / season_dir_name

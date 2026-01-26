@@ -14,6 +14,10 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import (
+    FILE_EXTENSIONS,
+    FILE_SUFFIXES,
+)
 from preprocessor.core.episode_manager import EpisodeManager
 
 
@@ -57,19 +61,19 @@ class SoundEventSeparator(BaseProcessor):
         return items
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
-        base_name = item.input_path.stem.replace("_segmented", "")
+        base_name = item.input_path.stem.replace(FILE_SUFFIXES["segmented"], "")
         episode_dir = item.input_path.parent.parent
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
         sound_dir = episode_dir / settings.output_subdirs.transcription_subdirs.sound_events
 
-        clean_json = clean_dir / f"{base_name}_clean_transcription.json"
-        sound_json = sound_dir / f"{base_name}_sound_events.json"
-        clean_segmented_json = clean_dir / f"{base_name}_segmented_clean.json"
-        sound_segmented_json = sound_dir / f"{base_name}_segmented_sound_events.json"
-        clean_txt = clean_dir / f"{base_name}_clean_transcription.txt"
-        sound_txt = sound_dir / f"{base_name}_sound_events.txt"
-        clean_srt = clean_dir / f"{base_name}_clean_transcription.srt"
-        sound_srt = sound_dir / f"{base_name}_sound_events.srt"
+        clean_json = clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['json']}"
+        sound_json = sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['json']}"
+        clean_segmented_json = clean_dir / f"{base_name}{FILE_SUFFIXES['segmented']}_clean{FILE_EXTENSIONS['json']}"
+        sound_segmented_json = sound_dir / f"{base_name}{FILE_SUFFIXES['segmented']}_sound_events{FILE_EXTENSIONS['json']}"
+        clean_txt = clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['txt']}"
+        sound_txt = sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['txt']}"
+        clean_srt = clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['srt']}"
+        sound_srt = sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['srt']}"
 
         return [
             OutputSpec(path=clean_json, required=True),
@@ -107,7 +111,7 @@ class SoundEventSeparator(BaseProcessor):
         dialogue_segments = self._renumber_segments(dialogue_segments)
         sound_event_segments = self._renumber_segments(sound_event_segments)
 
-        base_name = item.input_path.stem.replace("_segmented", "")
+        base_name = item.input_path.stem.replace(FILE_SUFFIXES["segmented"], "")
         episode_dir = item.input_path.parent.parent
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
         sound_dir = episode_dir / settings.output_subdirs.transcription_subdirs.sound_events

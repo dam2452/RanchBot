@@ -8,10 +8,14 @@ SUPPORTED_VIDEO_EXTENSIONS = (
     ".webm",
 )
 
+DEFAULT_VIDEO_EXTENSION = ".mp4"
+
 FILE_SUFFIXES = {
     "segmented": "_segmented",
+    "segments": "_segments",
     "simple": "_simple",
     "clean": "_clean_transcription",
+    "clean_alt": "_clean",
     "scenes": "_scenes",
     "sound_events": "_sound_events",
     "text_stats": "_text_stats",

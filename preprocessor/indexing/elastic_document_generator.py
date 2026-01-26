@@ -14,6 +14,10 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import (
+    FILE_EXTENSIONS,
+    FILE_SUFFIXES,
+)
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
@@ -61,7 +65,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         outputs = []
 
         if episode_info:
-            segments_filename = f"{base_name}_segments.jsonl"
+            segments_filename = f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}"
             segments_file = OutputPathBuilder.build_elastic_document_path(
                 episode_info,
                 ELASTIC_SUBDIRS.segments,
@@ -89,7 +93,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             season_dir = item.input_path.parent.name
             outputs.append(
                 OutputSpec(
-                    path=self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}_segments.jsonl",
+                    path=self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}",
                     required=True,
                 ),
             )
@@ -178,7 +182,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
         base_name_for_clean = trans_file.stem
-        suffixes = ("_segmented", "_sound_events", "_clean_transcription", "_clean")
+        suffixes = (FILE_SUFFIXES["segmented"], FILE_SUFFIXES["sound_events"], FILE_SUFFIXES["clean"], FILE_SUFFIXES["clean_alt"])
         while True:
             removed = False
             for suffix in suffixes:
@@ -189,7 +193,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             if not removed:
                 break
 
-        clean_transcription_file = clean_dir / f"{base_name_for_clean}_clean_transcription.json"
+        clean_transcription_file = clean_dir / f"{base_name_for_clean}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['json']}"
 
         if not clean_transcription_file.exists():
             self.logger.warning(f"Clean transcription not found: {clean_transcription_file}, skipping")
@@ -220,7 +224,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         character_detections = self.__load_character_detections(episode_info)
         object_detections = self.__load_object_detections(episode_info)
 
-        if any("_segments.jsonl" in str(o.path) for o in missing_outputs):
+        if any(f"{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}" in str(o.path) for o in missing_outputs):
             self.__generate_segments(
                 transcription_data,
                 episode_id,
@@ -482,10 +486,10 @@ class ElasticDocumentGenerator(BaseProcessor):
             output_file = self.episode_manager.build_episode_output_path(
                 episode_info,
                 f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.segments}",
-                f"{base_name}_segments.jsonl",
+                f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}",
             )
         else:
-            output_file = self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}_segments.jsonl"
+            output_file = self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}"
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 

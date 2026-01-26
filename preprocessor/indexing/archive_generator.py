@@ -13,6 +13,10 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import (
+    FILE_EXTENSIONS,
+    FILE_SUFFIXES,
+)
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
 
@@ -56,7 +60,7 @@ class ArchiveGenerator(BaseProcessor):
             console.print(f"[yellow]Segments directory not found: {segments_dir}[/yellow]")
             return []
 
-        all_segment_files = list(segments_dir.glob("**/*_segments.jsonl"))
+        all_segment_files = list(segments_dir.glob(f"**/*{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}"))
         items = []
 
         for segment_file in all_segment_files:
@@ -65,7 +69,7 @@ class ArchiveGenerator(BaseProcessor):
                 self.logger.warning(f"Cannot parse episode info from {segment_file}")
                 continue
 
-            base_name = segment_file.stem.replace("_segments", "")
+            base_name = segment_file.stem.replace(FILE_SUFFIXES["segments"], "")
             items.append(
                 ProcessingItem(
                     episode_id=f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}",

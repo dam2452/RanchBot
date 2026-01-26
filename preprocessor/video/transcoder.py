@@ -13,6 +13,7 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
 from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.resolution import Resolution
 from preprocessor.video.base_video_processor import BaseVideoProcessor
@@ -55,7 +56,7 @@ class VideoTranscoder(BaseVideoProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        output_path = OutputPathBuilder.build_video_path(episode_info, self.series_name, extension=".mp4")
+        output_path = OutputPathBuilder.build_video_path(episode_info, self.series_name, extension=DEFAULT_VIDEO_EXTENSION)
         return [OutputSpec(path=output_path, required=True)]
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:

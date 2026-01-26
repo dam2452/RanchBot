@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from preprocessor.config.config import settings
+from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.utils.console import console
 from preprocessor.video.emotion_detection_subprocessor import EmotionDetectionSubProcessor
 from preprocessor.video.face_clustering_subprocessor import FaceClusteringSubProcessor
@@ -519,7 +520,7 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
     seasons_with_videos = []
     for season_dir in seasons:
         video_files = []
-        for ext in (".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm"):
+        for ext in SUPPORTED_VIDEO_EXTENSIONS:
             video_files.extend(list(season_dir.glob(f"**/*{ext}")))
         if video_files:
             seasons_with_videos.append(season_dir)

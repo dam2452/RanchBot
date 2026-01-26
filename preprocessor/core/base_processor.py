@@ -14,7 +14,10 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
+from preprocessor.core.constants import (
+    FILE_SUFFIXES,
+    SUPPORTED_VIDEO_EXTENSIONS,
+)
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import (
     console,
@@ -320,7 +323,7 @@ class BaseProcessor(ABC):
     def _create_transcription_processing_item(self, transcription_file: Path) -> ProcessingItem:
         from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
 
-        base_name = transcription_file.stem.replace("_segmented", "").replace("_simple", "")
+        base_name = transcription_file.stem.replace(FILE_SUFFIXES["segmented"], "").replace(FILE_SUFFIXES["simple"], "")
 
         episode_info = self.episode_manager.parse_filename(transcription_file) if hasattr(self, 'episode_manager') else None
         if episode_info:

@@ -6,6 +6,7 @@ from typing import (
     List,
 )
 
+from preprocessor.core.constants import FILE_EXTENSIONS
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -38,7 +39,7 @@ class JsonGenerator:
 
     def __call__(self) -> None:
         for item in self.__jsons_dir.rglob("*"):
-            if item.is_file() and item.suffix == ".json":
+            if item.is_file() and item.suffix == FILE_EXTENSIONS["json"]:
                 output_path = self.__output_dir / item.name
                 self.__format_json(item, output_path)
 

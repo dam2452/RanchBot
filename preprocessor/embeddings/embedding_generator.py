@@ -436,7 +436,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
     @staticmethod
     def __remove_all_suffixes(base_name: str) -> str:
-        suffixes = ("_segmented", "_sound_events", "_clean_transcription", "_clean")
+        suffixes = (FILE_SUFFIXES["segmented"], FILE_SUFFIXES["sound_events"], FILE_SUFFIXES["clean"], FILE_SUFFIXES["clean_alt"])
         while True:
             removed = False
             for suffix in suffixes:
