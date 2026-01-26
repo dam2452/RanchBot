@@ -107,7 +107,7 @@ class FrameProcessor(BaseProcessor):
     def __copy_frames_to_ramdisk(source_dir: Path, dest_dir: Path) -> None:
         dest_dir.mkdir(parents=True, exist_ok=True)
 
-        frame_files = list(source_dir.glob("frame_*.jpg"))
+        frame_files = list(source_dir.glob("*frame_*.jpg"))
         console.print(f"[cyan]Copying {len(frame_files)} frames to RAMdisk: {dest_dir}[/cyan]")
 
         for frame_file in frame_files:

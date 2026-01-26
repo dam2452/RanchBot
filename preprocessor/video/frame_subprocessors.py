@@ -318,7 +318,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
         frame_files = sorted([
             f for f in ramdisk_frames_dir.glob("*.jpg")
-            if f.is_file() and f.name.startswith("frame_")
+            if f.is_file() and "frame_" in f.name
         ])
 
         console.print(f"[cyan]Detecting characters in {len(frame_files)} frames[/cyan]")
@@ -395,7 +395,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
         frame_files = sorted([
             f for f in ramdisk_frames_dir.glob("*.jpg")
-            if f.is_file() and f.name.startswith("frame_")
+            if f.is_file() and "frame_" in f.name
         ])
 
         if not frame_files:

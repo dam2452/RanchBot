@@ -88,7 +88,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
 
         frame_files = sorted([
             f for f in ramdisk_frames_dir.glob("*.jpg")
-            if f.is_file() and f.name.startswith("frame_")
+            if f.is_file() and "frame_" in f.name
         ])
 
         if not frame_files:

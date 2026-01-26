@@ -249,8 +249,8 @@ class GeminiSettings:
 class TranscodeDefaults:
     output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
     codec: str = "h264_nvenc"
-    preset: str = "slow"
-    crf: int = 31
+    preset: str = "p7"
+    crf: int = 30
     gop_size: float = 0.5
 
 @dataclass

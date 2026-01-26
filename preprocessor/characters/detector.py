@@ -100,7 +100,7 @@ class CharacterDetector(BaseProcessor):
 
         frame_files = sorted([
             f for f in frames_dir.glob("*.jpg")
-            if f.is_file() and f.name.startswith("frame_")
+            if f.is_file() and "frame_" in f.name
         ])
 
         fps = 25.0
