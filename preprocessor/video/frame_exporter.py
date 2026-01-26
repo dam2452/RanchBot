@@ -162,15 +162,15 @@ class FrameExporter(BaseVideoProcessor):
             x_crop = (new_width - self.resize_width) // 2
             cropped = resized.crop((x_crop, 0, x_crop + self.resize_width, self.resize_height))
             return cropped
-        else:
-            new_width = self.resize_width
-            new_height = int(self.resize_width / source_aspect)
-            resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-            result = Image.new('RGB', (self.resize_width, self.resize_height), (0, 0, 0))
-            y_offset = (self.resize_height - new_height) // 2
-            result.paste(resized, (0, y_offset))
-            return result
+        new_width = self.resize_width
+        new_height = int(self.resize_width / source_aspect)
+        resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        result = Image.new('RGB', (self.resize_width, self.resize_height), (0, 0, 0))
+        y_offset = (self.resize_height - new_height) // 2
+        result.paste(resized, (0, y_offset))
+        return result
 
     @staticmethod
     def __calculate_total_scenes(frame_requests: List[Dict[str, Any]]) -> int:
