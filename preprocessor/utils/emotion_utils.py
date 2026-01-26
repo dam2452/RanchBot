@@ -85,34 +85,43 @@ def crop_face_from_frame(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np
 def detect_emotions_batch(
     face_images: List[np.ndarray],
     model: HSEmotionRecognizer,
+    batch_size: int = 32,
 ) -> List[Tuple[str, float, Dict[str, float]]]:
     results = []
+    total = len(face_images)
 
-    try:
-        batch_results = model.predict_multi_emotions(face_images, logits=False)
+    for batch_start in range(0, total, batch_size):
+        batch_end = min(batch_start + batch_size, total)
+        batch = face_images[batch_start:batch_end]
 
-        for emotion, scores in batch_results:
-            emotion_scores = {
-                EMOTION_LABELS[i]: float(scores[i])
-                for i in range(len(EMOTION_LABELS))
-            }
-            confidence = float(max(scores))
-            dominant_emotion = emotion.lower()
+        progress_pct = int((batch_end / total) * 100)
+        console.print(f"[cyan]  Processing batch {batch_start}-{batch_end}/{total} ({progress_pct}%)[/cyan]")
 
-            results.append((dominant_emotion, confidence, emotion_scores))
+        try:
+            batch_results = model.predict_multi_emotions(batch, logits=False)
 
-    except Exception: # pylint: disable=broad-exception-caught
-        for face_img in face_images:
-            try:
-                emotion, scores = model.predict_emotions(face_img, logits=False)
+            for emotion, scores in batch_results:
                 emotion_scores = {
                     EMOTION_LABELS[i]: float(scores[i])
                     for i in range(len(EMOTION_LABELS))
                 }
                 confidence = float(max(scores))
                 dominant_emotion = emotion.lower()
+
                 results.append((dominant_emotion, confidence, emotion_scores))
-            except Exception: # pylint: disable=broad-exception-caught
-                results.append(None)
+
+        except Exception: # pylint: disable=broad-exception-caught
+            for face_img in batch:
+                try:
+                    emotion, scores = model.predict_emotions(face_img, logits=False)
+                    emotion_scores = {
+                        EMOTION_LABELS[i]: float(scores[i])
+                        for i in range(len(EMOTION_LABELS))
+                    }
+                    confidence = float(max(scores))
+                    dominant_emotion = emotion.lower()
+                    results.append((dominant_emotion, confidence, emotion_scores))
+                except Exception: # pylint: disable=broad-exception-caught
+                    results.append(None)
 
     return results

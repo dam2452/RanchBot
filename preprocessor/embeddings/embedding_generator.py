@@ -89,6 +89,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
     def _get_processing_items(self) -> List[ProcessingItem]:
         all_transcription_files = list(self.transcription_jsons.glob("**/*.json"))
         items = []
+        seen_episodes = set()
 
         for trans_file in all_transcription_files:
             if "_simple.json" in trans_file.name or "_text_stats.json" in trans_file.name:
@@ -101,6 +102,13 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 segmented_version = trans_file.parent / f"{trans_file.stem}_segmented.json"
                 if segmented_version.exists():
                     continue
+
+            episode_info = self.episode_manager.parse_filename(trans_file)
+            if episode_info:
+                episode_key = (episode_info.season, episode_info.relative_episode)
+                if episode_key in seen_episodes:
+                    continue
+                seen_episodes.add(episode_key)
 
             items.append(self._create_transcription_processing_item(trans_file))
 
