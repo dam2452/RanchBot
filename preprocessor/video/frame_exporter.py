@@ -1,6 +1,8 @@
 from datetime import datetime
+import json
 from pathlib import Path
 import shutil
+import subprocess
 from typing import (
     Any,
     Dict,
@@ -128,6 +130,9 @@ class FrameExporter(BaseVideoProcessor):
         return data
 
     def __extract_frames(self, video_file: Path, frame_requests: List[Dict[str, Any]], episode_dir: Path, episode_info) -> None:
+        metadata = self.__get_video_metadata(video_file)
+        self.current_video_dar = self.__calculate_display_aspect_ratio(metadata)
+
         vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
         frame_numbers = [req["frame_number"] for req in frame_requests]
 
@@ -142,21 +147,55 @@ class FrameExporter(BaseVideoProcessor):
         frame_np = vr[frame_num].asnumpy()
         frame_pil = Image.fromarray(frame_np)
 
-        resized = self.__resize_frame(frame_pil)
+        resized = self.__resize_frame(frame_pil, self.current_video_dar)
         base_filename = self.episode_manager.file_naming.build_base_filename(episode_info)
         filename = f"{base_filename}_frame_{frame_num:06d}.jpg"
         resized.save(episode_dir / filename, quality=90)
 
-    def __resize_frame(self, frame: Image.Image) -> Image.Image:
-        source_aspect = frame.width / frame.height
+    @staticmethod
+    def __get_video_metadata(video_path: Path) -> Dict[str, Any]:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height,sample_aspect_ratio,display_aspect_ratio",
+            "-of", "json",
+            str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        probe_data: Dict[str, Any] = json.loads(result.stdout)
+        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
+        if not streams:
+            raise ValueError(f"No video streams found in {video_path}")
+        return streams[0]
+
+    @staticmethod
+    def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
+        width = metadata.get("width", 0)
+        height = metadata.get("height", 0)
+        if width == 0 or height == 0:
+            raise ValueError("Invalid video dimensions")
+
+        sar_str = metadata.get("sample_aspect_ratio", "1:1")
+        if sar_str == "N/A" or not sar_str:
+            sar_str = "1:1"
+
+        try:
+            sar_num, sar_denom = [int(x) for x in sar_str.split(":")]
+            sar = sar_num / sar_denom if sar_denom != 0 else 1.0
+        except (ValueError, ZeroDivisionError):
+            sar = 1.0
+
+        return (width / height) * sar
+
+    def __resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
         target_aspect = self.resize_width / self.resize_height
 
-        if abs(source_aspect - target_aspect) < 0.01:
+        if abs(display_aspect_ratio - target_aspect) < 0.01:
             return frame.resize((self.resize_width, self.resize_height), Image.Resampling.LANCZOS)
 
-        if source_aspect > target_aspect:
+        if display_aspect_ratio > target_aspect:
             new_height = self.resize_height
-            new_width = int(self.resize_height * source_aspect)
+            new_width = int(self.resize_height * display_aspect_ratio)
             resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
             x_crop = (new_width - self.resize_width) // 2
@@ -164,7 +203,7 @@ class FrameExporter(BaseVideoProcessor):
             return cropped
 
         new_width = self.resize_width
-        new_height = int(self.resize_width / source_aspect)
+        new_height = int(self.resize_width / display_aspect_ratio)
         resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         result = Image.new('RGB', (self.resize_width, self.resize_height), (0, 0, 0))

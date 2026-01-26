@@ -92,7 +92,8 @@ class VideoTranscoder(BaseVideoProcessor):
 
         vf_filter = (
             f"scale={self.resolution.width}:{self.resolution.height}:force_original_aspect_ratio=decrease,"
-            f"pad={self.resolution.width}:{self.resolution.height}:(ow-iw)/2:(oh-ih)/2:black"
+            f"pad={self.resolution.width}:{self.resolution.height}:(ow-iw)/2:(oh-ih)/2:black,"
+            "setsar=1"
         )
 
         command = [
