@@ -254,8 +254,8 @@ class SoundEventSeparator(BaseProcessor):
 
         text = "".join([w.get("text", "") for w in words])
         text = re.sub(r'\s+', ' ', text).strip()
-        start_time = min(w.get("start", 0) for w in words)
-        end_time = max(w.get("end", 0) for w in words)
+        start_time = min((w.get("start") or 0) for w in words)
+        end_time = max((w.get("end") or 0) for w in words)
 
         new_segment = {
             "text": text,
@@ -279,6 +279,17 @@ class SoundEventSeparator(BaseProcessor):
             text = cleaned["text"]
             text = re.sub(r'\s+', ' ', text).strip()
             cleaned["text"] = text
+
+        if cleaned.get("start") is None or cleaned.get("end") is None:
+            words = cleaned.get("words", [])
+            if words:
+                starts = [(w.get("start") or 0) for w in words if w.get("start") is not None]
+                ends = [(w.get("end") or 0) for w in words if w.get("end") is not None]
+                if starts:
+                    cleaned["start"] = min(starts)
+                if ends:
+                    cleaned["end"] = max(ends)
+
         return cleaned
 
     def _enrich_sound_event(self, segment: Dict) -> Dict:
@@ -299,8 +310,8 @@ class SoundEventSeparator(BaseProcessor):
             simple_seg = {
                 "id": seg.get("id"),
                 "text": seg.get("text", ""),
-                "start": seg.get("start"),
-                "end": seg.get("end"),
+                "start": seg.get("start") or 0.0,
+                "end": seg.get("end") or 0.0,
             }
             if "sound_type" in seg:
                 simple_seg["sound_type"] = seg["sound_type"]
@@ -354,8 +365,8 @@ class SoundEventSeparator(BaseProcessor):
                     if not non_spacing_words:
                         continue
 
-                    start_time = min(w.get("start", 0.0) for w in non_spacing_words)
-                    end_time = max(w.get("end", 0.0) for w in non_spacing_words)
+                    start_time = min((w.get("start") or 0.0) for w in non_spacing_words)
+                    end_time = max((w.get("end") or 0.0) for w in non_spacing_words)
 
                     f.write(f"{idx}\n")
                     f.write(f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n")

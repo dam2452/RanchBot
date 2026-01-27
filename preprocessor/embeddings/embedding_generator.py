@@ -114,6 +114,36 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
 
         return items
 
+    def _should_skip_item(self, item: ProcessingItem):
+        trans_file = item.input_path
+        parent_name = trans_file.parent.name
+        if parent_name in {"raw", "clean", "sound_events"}:
+            episode_dir = trans_file.parent.parent
+        else:
+            episode_dir = trans_file.parent
+
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+        base_name = self.__remove_all_suffixes(trans_file.stem)
+        clean_transcription_file = clean_dir / f"{base_name}_clean_transcription.json"
+
+        if clean_transcription_file.exists():
+            try:
+                with open(clean_transcription_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                segments = data.get("segments", [])
+                if not segments:
+                    episode_info = self.episode_manager.parse_filename(trans_file)
+                    episode_id = item.episode_id
+                    if episode_info:
+                        self.logger.warning(
+                            f"Empty clean transcription (no segments) for {episode_id}, skipping",
+                        )
+                    return True, [], f"[yellow]Skipping (empty transcription): {episode_id}[/yellow]"
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                self.logger.error(f"Failed to read {clean_transcription_file}: {e}")
+
+        return super()._should_skip_item(item)
+
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         outputs = []
         episode_info = self.episode_manager.parse_filename(item.input_path)

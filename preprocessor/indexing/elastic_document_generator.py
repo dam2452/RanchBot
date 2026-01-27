@@ -453,6 +453,9 @@ class ElasticDocumentGenerator(BaseProcessor):
             start_time = scene["start"]["seconds"]
             end_time = scene["end"]["seconds"]
 
+            if start_time is None or end_time is None:
+                continue
+
             if start_time <= timestamp < end_time:
                 return {
                     "scene_number": scene["scene_number"],
@@ -502,8 +505,8 @@ class ElasticDocumentGenerator(BaseProcessor):
                 if not words:
                     continue
 
-                start_time = words[0].get("start", 0.0)
-                end_time = words[-1].get("end", 0.0)
+                start_time = words[0].get("start") or 0.0
+                end_time = words[-1].get("end") or 0.0
                 speaker = words[0].get("speaker_id", "unknown")
 
                 scene_info = self.__find_scene_for_timestamp(start_time, scene_timestamps)
@@ -554,11 +557,11 @@ class ElasticDocumentGenerator(BaseProcessor):
 
                 words = segment.get("words", [])
                 if not words:
-                    start_time = segment.get("start", 0.0)
-                    end_time = segment.get("end", 0.0)
+                    start_time = segment.get("start") or 0.0
+                    end_time = segment.get("end") or 0.0
                 else:
-                    start_time = words[0].get("start", 0.0)
-                    end_time = words[-1].get("end", 0.0)
+                    start_time = words[0].get("start") or 0.0
+                    end_time = words[-1].get("end") or 0.0
 
                 scene_info = self.__find_scene_for_timestamp(start_time, scene_timestamps)
 
