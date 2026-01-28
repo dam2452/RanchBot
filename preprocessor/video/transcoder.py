@@ -91,9 +91,10 @@ class VideoTranscoder(BaseVideoProcessor):
         fps = self._get_framerate(input_video)
 
         vf_filter = (
-            "setsar=1,"
+            "scale='iw*sar:ih',"
             f"scale={self.resolution.width}:{self.resolution.height}:force_original_aspect_ratio=decrease,"
-            f"pad={self.resolution.width}:{self.resolution.height}:(ow-iw)/2:(oh-ih)/2:black"
+            f"pad={self.resolution.width}:{self.resolution.height}:(ow-iw)/2:(oh-ih)/2:black,"
+            "setsar=1"
         )
 
         command = [
