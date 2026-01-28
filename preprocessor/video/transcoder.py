@@ -47,12 +47,18 @@ class VideoTranscoder(BaseVideoProcessor):
             raise ValueError("codec is required")
         if "preset" not in args:
             raise ValueError("preset is required")
-        if "crf" not in args:
-            raise ValueError("crf is required")
         if "gop_size" not in args:
             raise ValueError("gop_size is required")
         if "transcoded_videos" not in args:
             raise ValueError("transcoded_videos is required")
+        if "video_bitrate_mbps" not in args or args["video_bitrate_mbps"] is None:
+            raise ValueError("video_bitrate_mbps is required for VBR mode")
+        if "minrate_mbps" not in args or args["minrate_mbps"] is None:
+            raise ValueError("minrate_mbps is required for VBR mode")
+        if "maxrate_mbps" not in args or args["maxrate_mbps"] is None:
+            raise ValueError("maxrate_mbps is required for VBR mode")
+        if "bufsize_mbps" not in args or args["bufsize_mbps"] is None:
+            raise ValueError("bufsize_mbps is required for VBR mode")
 
         videos_path = Path(args["videos"])
         if not videos_path.is_dir():
@@ -93,7 +99,8 @@ class VideoTranscoder(BaseVideoProcessor):
 
     def _transcode_video(self, input_video: Path, output_video: Path) -> None:
         input_fps = self._get_framerate(input_video)
-        input_bitrate = self._get_video_bitrate(input_video)
+        input_video_bitrate = self._get_video_bitrate(input_video)
+        input_audio_bitrate = self._get_audio_bitrate(input_video)
 
         target_fps = min(input_fps, 30.0)
         if target_fps < input_fps:
@@ -106,16 +113,25 @@ class VideoTranscoder(BaseVideoProcessor):
         maxrate = self.maxrate_mbps
         bufsize = self.bufsize_mbps
 
-        if input_bitrate and input_bitrate < video_bitrate:
-            adjusted_bitrate = min(input_bitrate * 1.05, video_bitrate)
+        if input_video_bitrate and input_video_bitrate < video_bitrate:
+            adjusted_bitrate = min(input_video_bitrate * 1.05, video_bitrate)
             ratio = adjusted_bitrate / video_bitrate
             video_bitrate = adjusted_bitrate
             minrate = round(minrate * ratio, 2)
             maxrate = round(maxrate * ratio, 2)
             bufsize = round(bufsize * ratio, 2)
             self.logger.info(
-                f"Input bitrate ({input_bitrate} Mbps) < target ({self.video_bitrate_mbps} Mbps). "
+                f"Input video bitrate ({input_video_bitrate} Mbps) < target ({self.video_bitrate_mbps} Mbps). "
                 f"Adjusted to {video_bitrate} Mbps to avoid quality loss.",
+            )
+
+        audio_bitrate = self.audio_bitrate_kbps
+        if input_audio_bitrate and input_audio_bitrate < audio_bitrate:
+            adjusted_audio_bitrate = min(int(input_audio_bitrate * 1.05), audio_bitrate)
+            audio_bitrate = adjusted_audio_bitrate
+            self.logger.info(
+                f"Input audio bitrate ({input_audio_bitrate} kbps) < target ({self.audio_bitrate_kbps} kbps). "
+                f"Adjusted to {audio_bitrate} kbps to avoid quality loss.",
             )
 
         vf_filter = (
@@ -161,7 +177,7 @@ class VideoTranscoder(BaseVideoProcessor):
             "-temporal-aq", "1",
             "-multipass", "fullres",
             "-c:a", "aac",
-            "-b:a", f"{self.audio_bitrate_kbps}k",
+            "-b:a", f"{audio_bitrate}k",
             "-ac", "2",
             "-vf", vf_filter,
             "-movflags", "+faststart",
@@ -218,3 +234,22 @@ class VideoTranscoder(BaseVideoProcessor):
         if not bit_rate:
             return None
         return round(int(bit_rate) / 1_000_000, 2)
+
+    @staticmethod
+    def _get_audio_bitrate(video: Path) -> Optional[int]:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "a:0",
+            "-show_entries", "stream=bit_rate",
+            "-of", "json",
+            str(video),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        probe_data: Dict[str, Any] = json.loads(result.stdout)
+        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
+        if not streams:
+            return None
+        bit_rate = streams[0].get("bit_rate")
+        if not bit_rate:
+            return None
+        return int(int(bit_rate) / 1000)
