@@ -69,7 +69,7 @@ class ArchiveGenerator(BaseProcessor):
                 self.logger.warning(f"Cannot parse episode info from {segment_file}")
                 continue
 
-            base_name = segment_file.stem.replace(FILE_SUFFIXES["segments"], "")
+            base_name = segment_file.stem.replace(FILE_SUFFIXES["text_segments"], "")
             items.append(
                 ProcessingItem(
                     episode_id=episode_info.episode_code(),
