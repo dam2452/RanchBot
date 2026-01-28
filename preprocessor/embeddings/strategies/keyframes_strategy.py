@@ -26,7 +26,7 @@ class KeyframesStrategy(BaseKeyframeStrategy):
         total_frames = len(vr)
         del vr
 
-        interval_frames = int(fps * settings.embedding.keyframe_interval_multiplier)
+        interval_frames = int(fps * settings.keyframe_extraction.interval_multiplier)
         frame_requests = []
 
         keyframe_count = 0

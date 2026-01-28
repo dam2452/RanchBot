@@ -21,6 +21,7 @@ class BaseVideoProcessor(BaseProcessor, ABC):
         class_name: str,
         error_exit_code: int,
         input_videos_key: str = "videos",
+        subdirectory_filter: str = None,
     ):
         super().__init__(
             args=args,
@@ -30,6 +31,7 @@ class BaseVideoProcessor(BaseProcessor, ABC):
         )
 
         self.input_videos: Path = Path(self._args[input_videos_key])
+        self.subdirectory_filter: str = subdirectory_filter
         episodes_json_path = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
 
@@ -39,4 +41,5 @@ class BaseVideoProcessor(BaseProcessor, ABC):
             extensions=self.get_video_glob_patterns(),
             episode_manager=self.episode_manager,
             skip_unparseable=True,
+            subdirectory_filter=self.subdirectory_filter,
         )

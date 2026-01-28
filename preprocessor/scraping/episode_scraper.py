@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import (
     Any,
@@ -11,6 +10,7 @@ from patchright.sync_api import sync_playwright  # noqa: F401  # pylint: disable
 
 from preprocessor.scraping.base_scraper import BaseScraper
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 
 
 class EpisodeScraper(BaseScraper):
@@ -32,8 +32,7 @@ class EpisodeScraper(BaseScraper):
         }
 
         self.output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+        atomic_write_json(self.output_file, result, indent=2, ensure_ascii=False)
 
         total_episodes = sum(len(season.episodes) for season in all_seasons)
         console.print(f"[green]✓ Extracted {len(all_seasons)} seasons, {total_episodes} episodes[/green]")

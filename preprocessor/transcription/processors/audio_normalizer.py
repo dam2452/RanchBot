@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 import subprocess
-from typing import Optional
+from typing import (
+    List,
+    Optional,
+)
 
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -10,24 +13,34 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 class AudioNormalizer:
     SUPPORTED_VIDEO_EXTENSIONS = BaseProcessor.SUPPORTED_VIDEO_EXTENSIONS
 
-    def __init__(self, input_videos: Path, output_dir: Path, logger: ErrorHandlingLogger):
+    def __init__(
+        self,
+        input_videos: Path,
+        output_dir: Path,
+        logger: ErrorHandlingLogger,
+        video_files: Optional[List[Path]] = None,
+    ):
         self.__input_videos: Path = input_videos
         self.__output_dir: Path = output_dir
         self.__logger: ErrorHandlingLogger = logger
+        self.__video_files: Optional[List[Path]] = video_files
 
         self.__output_dir.mkdir(parents=True, exist_ok=True)
 
     def __call__(self) -> None:
-        for video in self.__input_videos.rglob("*"):
-            if video.suffix.lower() in self.SUPPORTED_VIDEO_EXTENSIONS:
+        if self.__video_files is not None:
+            for video in self.__video_files:
                 self.__process_video(video)
+        else:
+            for video in self.__input_videos.rglob("*"):
+                if video.suffix.lower() in self.SUPPORTED_VIDEO_EXTENSIONS:
+                    self.__process_video(video)
 
     def __process_video(self, video: Path) -> None:
         try:
             output_path = self.__output_dir / video.with_suffix(".wav").name
 
             if output_path.exists():
-                self.__logger.info(f"Skipping (audio already normalized): {video.name}")
                 return
 
             audio_idx = self.__get_best_audio_stream(video)

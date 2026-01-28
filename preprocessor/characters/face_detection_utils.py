@@ -1,3 +1,13 @@
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*estimate.*is deprecated.*",
+    category=FutureWarning,
+    module="insightface",
+)
+
+# pylint: disable=wrong-import-position
 from pathlib import Path
 from typing import (
     Any,
@@ -13,6 +23,8 @@ from numpy.linalg import norm
 
 from preprocessor.utils.console import console
 
+# pylint: enable=wrong-import-position
+
 
 def load_character_references(
     characters_dir: Path,
@@ -26,6 +38,13 @@ def load_character_references(
             continue
 
         char_name = char_dir.name.replace("_", " ").title()
+        vector_file = char_dir / "face_vector.npy"
+
+        if vector_file.exists():
+            character_vectors[char_name] = np.load(vector_file)
+            console.print(f"[dim]  ✓ {char_name}: loaded from face_vector.npy[/dim]")
+            continue
+
         images = list(char_dir.glob("*.jpg"))
 
         if not images:
@@ -78,15 +97,29 @@ def detect_characters_in_frame(
 
     for face in faces:
         face_embedding = face.normed_embedding
+        bbox = face.bbox.astype(int)
+
+        best_match = None
+        best_similarity = threshold
 
         for char_name, char_vector in character_vectors.items():
             similarity = np.dot(face_embedding, char_vector)
 
-            if similarity > threshold:
-                detected.append({
-                    "name": char_name,
-                    "confidence": float(similarity),
-                })
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = char_name
+
+        if best_match is not None:
+            detected.append({
+                "name": best_match,
+                "confidence": float(best_similarity),
+                "bbox": {
+                    "x1": int(bbox[0]),
+                    "y1": int(bbox[1]),
+                    "x2": int(bbox[2]),
+                    "y2": int(bbox[3]),
+                },
+            })
 
     detected.sort(key=lambda x: x["confidence"], reverse=True)
     return detected

@@ -87,7 +87,7 @@ class GPUBatchProcessor:
                     rate = current_batch_size / elapsed if elapsed > 0 else 0
                     console.print(
                         f"    [dim cyan]→ {sub_idx + 1}-{sub_end}/{total_images} "
-                        f"({sub_end / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.1f} img/s)[/dim cyan]",
+                        f"({sub_end / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.3f} img/s)[/dim cyan]",
                     )
 
                     elapsed_total = time.time() - batch_start_time

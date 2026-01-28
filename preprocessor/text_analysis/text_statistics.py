@@ -1,0 +1,206 @@
+from collections import Counter
+from dataclasses import (
+    dataclass,
+    field,
+)
+from pathlib import Path
+import re
+from typing import (
+    Dict,
+    List,
+    Set,
+)
+
+
+@dataclass
+class LanguageConfig:
+    vowels: Set[str]
+    consonants: Set[str]
+    punctuation: Set[str]
+    special_chars: Set[str]
+
+
+POLISH_VOWELS = set("aąeęioóuyAĄEĘIOÓUY")
+POLISH_CONSONANTS = set("bcćdfghjklłmnńprsśtwzźżBCĆDFGHJKLŁMNŃPRSŚTWZŹŻ")
+ENGLISH_VOWELS = set("aeiouAEIOU")
+ENGLISH_CONSONANTS = set("bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ")
+
+PUNCTUATION = set(".,;:!?…-—–()[]{}\"'«»„""''")  # noqa: RUF001, pylint: disable=implicit-str-concat
+SPECIAL_CHARS = set("@#$%^&*+=<>|\\/_~`")
+
+
+POLISH_CONFIG = LanguageConfig(
+    vowels=POLISH_VOWELS | ENGLISH_VOWELS,
+    consonants=POLISH_CONSONANTS | ENGLISH_CONSONANTS,
+    punctuation=PUNCTUATION,
+    special_chars=SPECIAL_CHARS,
+)
+
+ENGLISH_CONFIG = LanguageConfig(
+    vowels=ENGLISH_VOWELS,
+    consonants=ENGLISH_CONSONANTS,
+    punctuation=PUNCTUATION,
+    special_chars=SPECIAL_CHARS,
+)
+
+
+@dataclass
+class TextStatistics:  # pylint: disable=too-many-instance-attributes
+    text: str
+    language: str = "pl"
+
+    sentences: int = 0
+    lines: int = 0
+    paragraphs: int = 0
+    empty_lines: int = 0
+    words: int = 0
+    letters: int = 0
+    digits: int = 0
+    symbols: int = 0
+    punctuation_marks: int = 0
+    special_characters: int = 0
+    chars_without_spaces: int = 0
+    spaces: int = 0
+    total_chars: int = 0
+    vowels: int = 0
+    consonants: int = 0
+
+    unique_words: int = 0
+    avg_word_length: float = 0.0
+    avg_sentence_length: float = 0.0
+    type_token_ratio: float = 0.0
+
+    letter_frequency: Dict[str, int] = field(default_factory=dict)
+    word_frequency: List[Dict[str, any]] = field(default_factory=list)
+    bigrams: List[Dict[str, any]] = field(default_factory=list)
+    trigrams: List[Dict[str, any]] = field(default_factory=list)
+
+    @classmethod
+    def from_file(cls, file_path: Path, language: str = "pl") -> "TextStatistics":
+        with open(file_path, "r", encoding="utf-8") as f:
+            text = f.read()
+
+        stats = cls(text=text, language=language)
+        stats.calculate()
+        return stats
+
+    @classmethod
+    def from_text(cls, text: str, language: str = "pl") -> "TextStatistics":
+        stats = cls(text=text, language=language)
+        stats.calculate()
+        return stats
+
+    def calculate(self):
+        self._calculate_basic_stats()
+        self._calculate_character_stats()
+        self._calculate_word_stats()
+        self._calculate_advanced_stats()
+
+    def _get_config(self) -> LanguageConfig:
+        return POLISH_CONFIG if self.language == "pl" else ENGLISH_CONFIG
+
+    def _calculate_basic_stats(self):
+        lines = self.text.split("\n")
+        self.lines = len(lines)
+        self.empty_lines = sum(1 for line in lines if not line.strip())
+
+        paragraphs = self.text.split("\n\n")
+        self.paragraphs = len([p for p in paragraphs if p.strip()])
+
+        sentence_pattern = r'[.!?…]+(?:\s|$)'
+        self.sentences = len(re.findall(sentence_pattern, self.text))
+
+        self.total_chars = len(self.text)
+        self.spaces = self.text.count(" ") + self.text.count("\t") + self.text.count("\n")
+        self.chars_without_spaces = self.total_chars - self.spaces
+
+    def _calculate_character_stats(self):
+        config = self._get_config()
+        letter_counter = Counter()
+
+        for char in self.text:
+            if char.isalpha():
+                self.letters += 1
+                letter_counter[char.lower()] += 1
+
+                if char in config.vowels:
+                    self.vowels += 1
+                elif char in config.consonants:
+                    self.consonants += 1
+            elif char.isdigit():
+                self.digits += 1
+            elif char in config.punctuation:
+                self.punctuation_marks += 1
+            elif char in config.special_chars:
+                self.special_characters += 1
+            elif not char.isspace():
+                self.symbols += 1
+
+        self.letter_frequency = dict(sorted(letter_counter.items(), key=lambda x: x[1], reverse=True))
+
+    def _calculate_word_stats(self):
+        words = re.findall(r'\b\w+\b', self.text.lower())
+        self.words = len(words)
+
+        if self.words > 0:
+            word_counter = Counter(words)
+            self.unique_words = len(word_counter)
+            self.type_token_ratio = round(self.unique_words / self.words, 4) if self.words > 0 else 0.0
+
+            word_lengths = [len(w) for w in words]
+            self.avg_word_length = round(sum(word_lengths) / len(word_lengths), 2) if word_lengths else 0.0
+
+            self.word_frequency = [
+                {"word": word, "count": count}
+                for word, count in word_counter.most_common(50)
+            ]
+
+    def _calculate_advanced_stats(self):
+        if self.sentences > 0:
+            self.avg_sentence_length = round(self.words / self.sentences, 2)
+
+        words = re.findall(r'\b\w+\b', self.text.lower())
+        if len(words) >= 2:
+            bigram_counter = Counter(zip(words[:-1], words[1:]))
+            self.bigrams = [
+                {"bigram": f"{w1} {w2}", "count": count}
+                for (w1, w2), count in bigram_counter.most_common(25)
+            ]
+
+        if len(words) >= 3:
+            trigram_counter = Counter(zip(words[:-2], words[1:-1], words[2:]))
+            self.trigrams = [
+                {"trigram": f"{w1} {w2} {w3}", "count": count}
+                for (w1, w2, w3), count in trigram_counter.most_common(25)
+            ]
+
+    def to_dict(self) -> Dict:
+        return {
+            "basic_statistics": {
+                "sentences": self.sentences,
+                "lines": self.lines,
+                "paragraphs": self.paragraphs,
+                "empty_lines": self.empty_lines,
+                "words": self.words,
+                "letters": self.letters,
+                "digits": self.digits,
+                "symbols": self.symbols,
+                "punctuation_marks": self.punctuation_marks,
+                "special_characters": self.special_characters,
+                "chars_without_spaces": self.chars_without_spaces,
+                "spaces": self.spaces,
+                "total_chars": self.total_chars,
+                "vowels": self.vowels,
+                "consonants": self.consonants,
+            },
+            "advanced_statistics": {
+                "unique_words": self.unique_words,
+                "avg_word_length": self.avg_word_length,
+                "avg_sentence_length": self.avg_sentence_length,
+                "type_token_ratio": self.type_token_ratio,
+            },
+            "letter_frequency": self.letter_frequency,
+            "word_frequency": self.word_frequency,
+            "bigrams": self.bigrams,
+            "trigrams": self.trigrams,
+        }

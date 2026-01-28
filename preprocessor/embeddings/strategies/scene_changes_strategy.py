@@ -27,7 +27,7 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
             console.print("[yellow]No scene timestamps found[/yellow]")
             return []
 
-        fps = scene_timestamps.get("video_info", {}).get("fps", settings.embedding.scene_fps_default)
+        fps = scene_timestamps.get("video_info", {}).get("fps", settings.keyframe_extraction.scene_fps_default)
         frame_requests = []
 
         for i, scene in enumerate(scenes):

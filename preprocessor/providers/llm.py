@@ -13,12 +13,9 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-import torch
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
+from vllm import (
+    LLM,
+    SamplingParams,
 )
 
 from preprocessor.config.config import settings
@@ -97,7 +94,6 @@ class LLMProvider:
 
     __instance = None
     __model = None
-    __tokenizer = None
     __openai_client = None
 
     def __new__(cls, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None):
@@ -236,60 +232,40 @@ class LLMProvider:
             raise e
 
     def __load_model(self) -> None:
-        console.print(f"[cyan]Loading LLM: {self.model_name} (bitsandbytes 8-bit, 128K context)[/cyan]")
+        console.print(f"[cyan]Loading LLM: {self.model_name} (vLLM, 128K context)[/cyan]")
         try:
-            self.__tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
+            self.__model = LLM(
+                model=self.model_name,
                 trust_remote_code=True,
-                model_max_length=131072,
+                max_model_len=131072,
+                gpu_memory_utilization=0.95,
+                tensor_parallel_size=1,
+                dtype="bfloat16",
+                enable_chunked_prefill=True,
+                max_num_batched_tokens=16384,
+                enforce_eager=True,
+                disable_log_stats=True,
             )
-
-            config = AutoConfig.from_pretrained(
-                self.model_name,
-                trust_remote_code=True,
-            )
-            config.rope_scaling = {
-                "type": "yarn",
-                "factor": 4.0,
-                "original_max_position_embeddings": 32768,
-            }
-
-            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
-
-            self.__model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                config=config,
-                quantization_config=quantization_config,
-                device_map="auto",
-                trust_remote_code=True,
-            )
-            console.print(f"[green]✓ LLM loaded on {self.__model.device}[/green]")
+            console.print("[green]✓ LLM loaded successfully (vLLM)[/green]")
         except Exception as e:
             console.print(f"[red]Failed to load model: {e}[/red]")
             raise e
 
     def __generate(self, messages: List[Dict], max_tokens: int = 32768) -> str:
-        text = self.__tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
+        sampling_params = SamplingParams(
+            temperature=0.7,
+            top_p=0.8,
+            top_k=20,
+            max_tokens=max_tokens,
+            repetition_penalty=1.05,
         )
 
-        model_inputs = self.__tokenizer([text], return_tensors="pt", truncation=False).to(self.__model.device)
+        outputs = self.__model.chat(
+            messages=[messages],
+            sampling_params=sampling_params,
+        )
 
-        with torch.inference_mode():
-            generated_ids = self.__model.generate(
-                **model_inputs,
-                max_new_tokens=max_tokens,
-                temperature=0.7,
-                top_p=0.8,
-                top_k=20,
-                repetition_penalty=1.05,
-                do_sample=True,
-            )
-
-        output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
-        return self.__tokenizer.decode(output_ids, skip_special_tokens=True).strip()
+        return outputs[0].outputs[0].text.strip()
 
     def __generate_with_gemini(self, messages: List[Dict]) -> str:
         response = self.__openai_client.chat.completions.create(

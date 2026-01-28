@@ -10,8 +10,12 @@ from PIL import Image
 
 
 def _load_single_frame(frames_dir: Path, request: Dict[str, Any], convert_rgb: bool) -> Image.Image:
-    frame_num = request["frame_number"]
-    frame_path = frames_dir / f"frame_{frame_num:06d}.jpg"
+    if "frame_path" in request:
+        frame_path = frames_dir / request["frame_path"]
+    else:
+        frame_num = request["frame_number"]
+        frame_path = frames_dir / f"frame_{frame_num:06d}.jpg"
+
     if frame_path.exists():
         img = Image.open(frame_path)
         if convert_rgb and img.mode != 'RGB':

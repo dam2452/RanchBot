@@ -1,19 +1,25 @@
 import click
 
 from preprocessor.cli.commands import (
+    analyze_text,
     detect_scenes,
     export_frames,
+    fix_unicode,
+    generate_archives,
     generate_elastic_documents,
     generate_embeddings,
     image_hashing,
     import_transcriptions,
     index,
+    process_character_references,
     run_all,
     scrape_episodes,
     search,
+    separate_sounds,
     transcode,
     transcribe,
     transcribe_elevenlabs,
+    validate,
 )
 
 
@@ -46,9 +52,21 @@ cli.add_command(generate_embeddings)
 # noinspection PyTypeChecker
 cli.add_command(generate_elastic_documents)
 # noinspection PyTypeChecker
+cli.add_command(generate_archives)
+# noinspection PyTypeChecker
 cli.add_command(search)
 # noinspection PyTypeChecker
 cli.add_command(run_all)
+# noinspection PyTypeChecker
+cli.add_command(validate)
+# noinspection PyTypeChecker
+cli.add_command(analyze_text)
+# noinspection PyTypeChecker
+cli.add_command(fix_unicode)
+# noinspection PyTypeChecker
+cli.add_command(separate_sounds)
+# noinspection PyTypeChecker
+cli.add_command(process_character_references)
 
 
 __all__ = ["cli"]

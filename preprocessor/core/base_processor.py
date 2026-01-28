@@ -14,7 +14,10 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
+from preprocessor.core.constants import (
+    FILE_SUFFIXES,
+    SUPPORTED_VIDEO_EXTENSIONS,
+)
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import (
     console,
@@ -74,13 +77,23 @@ class BaseProcessor(ABC):
             self._execute()
         except KeyboardInterrupt:
             console.print("\n[yellow]Process interrupted by user[/yellow]")
+            self.cleanup()
+            self.logger.finalize()
             return 130
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error(f"{self.__class__.__name__} failed: {e}")
+
+        self.cleanup()
         return self.logger.finalize()
 
     def cleanup(self) -> None:
         pass
+
+    def _load_resources(self) -> bool:
+        return True
+
+    def _get_processing_info(self) -> List[str]:
+        return []
 
     @staticmethod
     def _get_episode_processing_items_from_metadata(
@@ -102,17 +115,14 @@ class BaseProcessor(ABC):
                 ProcessingItem(
                     episode_id=episode_id,
                     input_path=metadata_file,
-                    metadata={"episode_info": episode_info},
+                    metadata={
+                        "episode_info": episode_info,
+                        "series_name": episode_manager.series_name,
+                    },
                 ),
             )
 
         return items
-
-    @staticmethod
-    def _build_episode_output_dir(episode_info, base_output_dir: Path) -> Path:
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        return base_output_dir / f"S{season:02d}" / f"E{episode:02d}"
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         raise NotImplementedError(
@@ -185,13 +195,14 @@ class BaseProcessor(ABC):
 
         items_to_process = []
         skipped_count = 0
+        skip_messages = []
 
         for item in all_items:
             should_skip, missing_outputs, skip_message = self._should_skip_item(item)
 
             if should_skip:
                 if skip_message:
-                    console.print(skip_message)
+                    skip_messages.append(skip_message)
                 skipped_count += 1
             else:
                 item.metadata['missing_outputs'] = missing_outputs
@@ -203,6 +214,9 @@ class BaseProcessor(ABC):
             )
             return
 
+        for skip_message in skip_messages:
+            console.print(skip_message)
+
         console.print(
             f"[blue]Processing {len(items_to_process)} items "
             f"(of {len(all_items)} total, {skipped_count} skipped)[/blue]",
@@ -211,6 +225,16 @@ class BaseProcessor(ABC):
         self._execute_processing(items_to_process)
 
     def _execute_processing(self, items: List[ProcessingItem]) -> None:
+        if not items:
+            console.print("[yellow]No items to process, skipping resource loading[/yellow]")
+            return
+
+        for info_line in self._get_processing_info():
+            console.print(info_line)
+
+        if not self._load_resources():
+            return
+
         step_name = self._get_step_name()
 
         try:
@@ -244,8 +268,7 @@ class BaseProcessor(ABC):
             console.print("\n[yellow]Processing interrupted[/yellow]")
             raise
 
-    @staticmethod
-    def _get_temp_files(_item: ProcessingItem) -> List[str]:
+    def _get_temp_files(self, item: ProcessingItem) -> List[str]:  # pylint: disable=unused-argument
         return []
 
     def _get_progress_description(self) -> str:
@@ -257,6 +280,7 @@ class BaseProcessor(ABC):
         extensions: List[str],
         episode_manager: "EpisodeManager",
         skip_unparseable: bool = True,
+        subdirectory_filter: Optional[str] = None,
     ) -> List[ProcessingItem]:
         from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
 
@@ -266,7 +290,11 @@ class BaseProcessor(ABC):
             video_files = [source_path]
         else:
             for ext in extensions:
-                video_files.extend(source_path.glob(f"**/{ext}"))
+                if subdirectory_filter:
+                    pattern = f"**/{subdirectory_filter}/{ext}"
+                else:
+                    pattern = f"**/{ext}"
+                video_files.extend(source_path.glob(pattern))
 
         items = []
         for video_file in sorted(video_files):
@@ -295,7 +323,7 @@ class BaseProcessor(ABC):
     def _create_transcription_processing_item(self, transcription_file: Path) -> ProcessingItem:
         from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
 
-        base_name = transcription_file.stem.replace("_segmented", "").replace("_simple", "")
+        base_name = transcription_file.stem.replace(FILE_SUFFIXES["segmented"], "").replace(FILE_SUFFIXES["simple"], "")
 
         episode_info = self.episode_manager.parse_filename(transcription_file) if hasattr(self, 'episode_manager') else None
         if episode_info:

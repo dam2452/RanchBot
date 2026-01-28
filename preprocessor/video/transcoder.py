@@ -13,6 +13,8 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.resolution import Resolution
 from preprocessor.video.base_video_processor import BaseVideoProcessor
 
@@ -27,9 +29,6 @@ class VideoTranscoder(BaseVideoProcessor):
         )
 
         self.resolution: Resolution = self._args["resolution"]
-        self.output_videos: Path = Path(self._args["transcoded_videos"])
-        self.output_videos.mkdir(parents=True, exist_ok=True)
-
         self.codec: str = str(self._args["codec"])
         self.preset: str = str(self._args["preset"])
         self.crf: int = int(self._args["crf"])
@@ -57,24 +56,42 @@ class VideoTranscoder(BaseVideoProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        output_path = self.episode_manager.build_output_path(episode_info, self.output_videos, ".mp4")
-
+        output_path = OutputPathBuilder.build_video_path(episode_info, self.series_name, extension=DEFAULT_VIDEO_EXTENSION)
         return [OutputSpec(path=output_path, required=True)]
+
+    def _get_temp_files(self, item: ProcessingItem) -> List[str]:
+        expected_outputs = self._get_expected_outputs(item)
+        if not expected_outputs:
+            return []
+        temp_path = expected_outputs[0].path.with_suffix('.mp4.tmp')
+        return [str(temp_path)]
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         video_file = item.input_path
         output_path = missing_outputs[0].path
+        temp_path = output_path.with_suffix('.mp4.tmp')
 
         try:
-            self._transcode_video(video_file, output_path)
+            temp_path.parent.mkdir(parents=True, exist_ok=True)
+            self._transcode_video(video_file, temp_path)
+            temp_path.replace(output_path)
             self.logger.info(f"Processed: {video_file} -> {output_path}")
         except subprocess.CalledProcessError as e:
             self.logger.error(f"FFmpeg failed for {video_file}: {e}")
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
+        except Exception as e:
+            self.logger.error(f"Unexpected error during transcoding {video_file}: {e}")
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
     def _transcode_video(self, input_video: Path, output_video: Path) -> None:
         fps = self._get_framerate(input_video)
 
         vf_filter = (
+            "setsar=1,"
             f"scale={self.resolution.width}:{self.resolution.height}:force_original_aspect_ratio=decrease,"
             f"pad={self.resolution.width}:{self.resolution.height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1:1"
         )
@@ -88,14 +105,19 @@ class VideoTranscoder(BaseVideoProcessor):
             "-i", str(input_video),
             "-c:v", self.codec,
             "-preset", self.preset,
-            "-profile:v", "main",
+            "-profile:v", "high",
             "-cq:v", str(self.crf),
             "-g", str(int(fps * self.gop_size)),
+            "-spatial-aq", "1",
+            "-temporal-aq", "1",
+            "-rc-lookahead", "32",
+            "-multipass", "fullres",
             "-c:a", "aac",
             "-b:a", "128k",
             "-ac", "2",
             "-vf", vf_filter,
             "-movflags", "+faststart",
+            "-f", "mp4",
             str(output_video),
         ]
 
