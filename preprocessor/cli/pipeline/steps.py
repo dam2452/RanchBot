@@ -156,15 +156,24 @@ def run_transcode_step(videos, episodes_info_json, name, resolution, codec, pres
 
     transcoded_videos = kwargs.get("transcoded_videos")
 
+    video_bitrate_mbps = settings.transcode.calculate_video_bitrate_mbps()
+    minrate_mbps = settings.transcode.calculate_minrate_mbps()
+    maxrate_mbps = settings.transcode.calculate_maxrate_mbps()
+    bufsize_mbps = settings.transcode.calculate_bufsize_mbps()
+
     transcode_config = TranscodeConfig(
         videos=videos,
         transcoded_videos=transcoded_videos,
         resolution=Resolution.from_str(resolution),
         codec=codec,
         preset=preset,
-        crf=settings.transcode.crf,
         gop_size=settings.transcode.gop_size,
         episodes_info_json=episodes_info_json,
+        video_bitrate_mbps=video_bitrate_mbps,
+        minrate_mbps=minrate_mbps,
+        maxrate_mbps=maxrate_mbps,
+        bufsize_mbps=bufsize_mbps,
+        audio_bitrate_kbps=settings.transcode.audio_bitrate_kbps,
     )
     transcode_dict = transcode_config.to_dict()
     transcode_dict["state_manager"] = state_manager

@@ -250,8 +250,25 @@ class TranscodeDefaults:
     output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
     codec: str = "h264_nvenc"
     preset: str = "p7"
-    crf: int = 30
+    target_file_size_mb: float = 50.0
+    target_duration_seconds: float = 100.0
+    audio_bitrate_kbps: int = 128
     gop_size: float = 0.5
+
+    def calculate_video_bitrate_mbps(self) -> float:
+        total_bitrate_mbps = (self.target_file_size_mb * 8) / self.target_duration_seconds
+        audio_bitrate_mbps = self.audio_bitrate_kbps / 1000.0
+        video_bitrate_mbps = total_bitrate_mbps - audio_bitrate_mbps
+        return round(video_bitrate_mbps, 2)
+
+    def calculate_minrate_mbps(self, percent: float = 0.5) -> float:
+        return round(self.calculate_video_bitrate_mbps() * percent, 2)
+
+    def calculate_maxrate_mbps(self, percent: float = 1.75) -> float:
+        return round(self.calculate_video_bitrate_mbps() * percent, 2)
+
+    def calculate_bufsize_mbps(self, multiplier: float = 2.0) -> float:
+        return round(self.calculate_video_bitrate_mbps() * multiplier, 2)
 
 @dataclass
 class TranscriptionDefaults:
@@ -319,9 +336,13 @@ class TranscodeConfig:
     resolution: Resolution
     codec: str
     preset: str
-    crf: int
     gop_size: float
     episodes_info_json: Optional[Path] = None
+    video_bitrate_mbps: Optional[float] = None
+    minrate_mbps: Optional[float] = None
+    maxrate_mbps: Optional[float] = None
+    bufsize_mbps: Optional[float] = None
+    audio_bitrate_kbps: int = 128
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -330,7 +351,11 @@ class TranscodeConfig:
             "resolution": self.resolution,
             "codec": self.codec,
             "preset": self.preset,
-            "crf": self.crf,
+            "video_bitrate_mbps": self.video_bitrate_mbps,
+            "minrate_mbps": self.minrate_mbps,
+            "maxrate_mbps": self.maxrate_mbps,
+            "bufsize_mbps": self.bufsize_mbps,
+            "audio_bitrate_kbps": self.audio_bitrate_kbps,
             "gop_size": self.gop_size,
             "episodes_info_json": self.episodes_info_json,
         }

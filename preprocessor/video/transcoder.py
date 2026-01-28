@@ -31,7 +31,11 @@ class VideoTranscoder(BaseVideoProcessor):
         self.resolution: Resolution = self._args["resolution"]
         self.codec: str = str(self._args["codec"])
         self.preset: str = str(self._args["preset"])
-        self.crf: int = int(self._args["crf"])
+        self.video_bitrate_mbps: Optional[float] = self._args.get("video_bitrate_mbps")
+        self.minrate_mbps: Optional[float] = self._args.get("minrate_mbps")
+        self.maxrate_mbps: Optional[float] = self._args.get("maxrate_mbps")
+        self.bufsize_mbps: Optional[float] = self._args.get("bufsize_mbps")
+        self.audio_bitrate_kbps: int = int(self._args.get("audio_bitrate_kbps", 128))
         self.gop_size: float = float(self._args["gop_size"])
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
@@ -106,21 +110,37 @@ class VideoTranscoder(BaseVideoProcessor):
             "-i", str(input_video),
             "-c:v", self.codec,
             "-preset", self.preset,
-            "-profile:v", "high",
-            "-cq:v", str(self.crf),
+            "-profile:v", "main",
+            "-level", "4.1",
+            "-pix_fmt", "yuv420p",
+        ]
+
+        command.extend([
+            "-rc", "vbr_hq",
+            "-b:v", f"{self.video_bitrate_mbps}M",
+            "-minrate", f"{self.minrate_mbps}M",
+            "-maxrate", f"{self.maxrate_mbps}M",
+            "-bufsize", f"{self.bufsize_mbps}M",
+            "-bf", "2",
+            "-b_adapt", "1",
+            "-2pass", "1",
+            "-rc-lookahead", "32",
+            "-aq-strength", "15",
+        ])
+
+        command.extend([
             "-g", str(int(fps * self.gop_size)),
             "-spatial-aq", "1",
             "-temporal-aq", "1",
-            "-rc-lookahead", "32",
             "-multipass", "fullres",
             "-c:a", "aac",
-            "-b:a", "128k",
+            "-b:a", f"{self.audio_bitrate_kbps}k",
             "-ac", "2",
             "-vf", vf_filter,
             "-movflags", "+faststart",
             "-f", "mp4",
             str(output_video),
-        ]
+        ])
 
         self.logger.debug(f"Transcoding: {input_video.name} -> {output_video.name}")
         self.logger.debug(f"FFmpeg command: {' '.join(command)}")
