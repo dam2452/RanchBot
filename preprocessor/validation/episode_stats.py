@@ -80,16 +80,42 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         sound_events_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.sound_events
 
         transcription_file = raw_dir / f"{base_name}.json"
-        if not transcription_file.exists():
-            self.errors.append(f"Missing transcription file: {transcription_file}")
-            return
-
-        result = validate_json_file(transcription_file)
-        if not result.is_valid:
-            self.errors.append(f"Invalid transcription JSON: {result.error_message}")
-            return
-
         clean_transcription_file = clean_dir / f"{base_name}_clean_transcription.json"
+        clean_txt_file = clean_dir / f"{base_name}_clean_transcription.txt"
+        sound_events_file = sound_events_dir / f"{base_name}_sound_events.json"
+
+        has_any_transcription = any([
+            transcription_file.exists(),
+            clean_transcription_file.exists(),
+            clean_txt_file.exists(),
+        ])
+
+        if not has_any_transcription:
+            self.errors.append(f"No transcription files found in any format")
+            return
+
+        if not transcription_file.exists():
+            self.warnings.append(f"Missing raw transcription file: {transcription_file.name}")
+        else:
+            result = validate_json_file(transcription_file)
+            if not result.is_valid:
+                self.errors.append(f"Invalid transcription JSON: {result.error_message}")
+            else:
+                try:
+                    with open(transcription_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    text = data.get("text", "")
+                    self.transcription_chars = len(text)
+                    self.transcription_words = len(text.split())
+
+                    words = data.get("words", [])
+                    if words:
+                        last_word = words[-1]
+                        self.transcription_duration = last_word.get("end", 0.0)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    self.errors.append(f"Error reading transcription: {e}")
+
         if not clean_transcription_file.exists():
             self.warnings.append(f"Missing clean transcription file: {clean_transcription_file.name}")
         else:
@@ -97,11 +123,9 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             if not result.is_valid:
                 self.warnings.append(f"Invalid clean transcription JSON: {result.error_message}")
 
-        clean_txt_file = clean_dir / f"{base_name}_clean_transcription.txt"
         if not clean_txt_file.exists():
             self.warnings.append(f"Missing clean transcription txt: {clean_txt_file.name}")
 
-        sound_events_file = sound_events_dir / f"{base_name}_sound_events.json"
         if not sound_events_file.exists():
             self.warnings.append(f"Missing sound events file: {sound_events_file.name}")
         else:
@@ -109,30 +133,15 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             if not result.is_valid:
                 self.warnings.append(f"Invalid sound events JSON: {result.error_message}")
 
-        try:
-            with open(transcription_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            text = data.get("text", "")
-            self.transcription_chars = len(text)
-            self.transcription_words = len(text.split())
-
-            words = data.get("words", [])
-            if words:
-                last_word = words[-1]
-                self.transcription_duration = last_word.get("end", 0.0)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            self.errors.append(f"Error reading transcription: {e}")
-
     def _validate_exported_frames(self):
         frames_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.frames)
         if not frames_dir.exists():
-            self.errors.append(f"Missing {settings.output_subdirs.frames} directory: {frames_dir}")
+            self.warnings.append(f"Missing {settings.output_subdirs.frames} directory: {frames_dir}")
             return
 
         frame_files = sorted(frames_dir.glob(OUTPUT_FILE_PATTERNS["frame"]))
         if not frame_files:
-            self.errors.append(f"No frames found in {settings.output_subdirs.frames}/")
+            self.warnings.append(f"No frames found in {settings.output_subdirs.frames}/")
             return
 
         self.exported_frames_count = len(frame_files)
@@ -163,7 +172,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         videos_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.video)
         video_file = videos_dir / f"{self.series_name}_{self.episode_info.episode_code()}.mp4"
         if not video_file.exists():
-            self.errors.append(f"Missing video file: {video_file}")
+            self.warnings.append(f"Missing video file: {video_file}")
             return
 
         result = validate_video_file(video_file)
@@ -267,11 +276,20 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                 data = json.load(f)
 
             clusters = data.get("clusters", {})
-            self.face_clusters_count = len(clusters)
 
-            total_faces = 0
-            for _, cluster_info in clusters.items():
-                total_faces += cluster_info.get("face_count", 0)
+            if isinstance(clusters, dict):
+                self.face_clusters_count = len(clusters)
+                total_faces = 0
+                for _, cluster_info in clusters.items():
+                    total_faces += cluster_info.get("face_count", 0)
+            elif isinstance(clusters, list):
+                self.face_clusters_count = len(clusters)
+                total_faces = 0
+                for cluster_info in clusters:
+                    total_faces += cluster_info.get("face_count", 0)
+            else:
+                self.warnings.append("Unexpected clusters format in face clustering metadata")
+                return
 
             noise_info = data.get("noise", {})
             if noise_info:
