@@ -93,6 +93,24 @@ class VideoTranscoder(BaseVideoProcessor):
 
     def _transcode_video(self, input_video: Path, output_video: Path) -> None:
         fps = self._get_framerate(input_video)
+        input_bitrate = self._get_video_bitrate(input_video)
+
+        video_bitrate = self.video_bitrate_mbps
+        minrate = self.minrate_mbps
+        maxrate = self.maxrate_mbps
+        bufsize = self.bufsize_mbps
+
+        if input_bitrate and input_bitrate < video_bitrate:
+            adjusted_bitrate = min(input_bitrate * 1.05, video_bitrate)
+            ratio = adjusted_bitrate / video_bitrate
+            video_bitrate = adjusted_bitrate
+            minrate = round(minrate * ratio, 2)
+            maxrate = round(maxrate * ratio, 2)
+            bufsize = round(bufsize * ratio, 2)
+            self.logger.info(
+                f"Input bitrate ({input_bitrate} Mbps) < target ({self.video_bitrate_mbps} Mbps). "
+                f"Adjusted to {video_bitrate} Mbps to avoid quality loss."
+            )
 
         vf_filter = (
             "scale='iw*sar:ih',"
@@ -117,10 +135,10 @@ class VideoTranscoder(BaseVideoProcessor):
 
         command.extend([
             "-rc", "vbr_hq",
-            "-b:v", f"{self.video_bitrate_mbps}M",
-            "-minrate", f"{self.minrate_mbps}M",
-            "-maxrate", f"{self.maxrate_mbps}M",
-            "-bufsize", f"{self.bufsize_mbps}M",
+            "-b:v", f"{video_bitrate}M",
+            "-minrate", f"{minrate}M",
+            "-maxrate", f"{maxrate}M",
+            "-bufsize", f"{bufsize}M",
             "-bf", "2",
             "-b_adapt", "1",
             "-2pass", "1",
@@ -172,3 +190,22 @@ class VideoTranscoder(BaseVideoProcessor):
         num, denom = [int(x) for x in r_frame_rate.split("/")]
 
         return num / denom
+
+    @staticmethod
+    def _get_video_bitrate(video: Path) -> Optional[float]:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=bit_rate",
+            "-of", "json",
+            str(video),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        probe_data: Dict[str, Any] = json.loads(result.stdout)
+        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
+        if not streams:
+            return None
+        bit_rate = streams[0].get("bit_rate")
+        if not bit_rate:
+            return None
+        return round(int(bit_rate) / 1_000_000, 2)
