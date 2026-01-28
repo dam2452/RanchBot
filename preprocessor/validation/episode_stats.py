@@ -91,7 +91,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         ])
 
         if not has_any_transcription:
-            self.errors.append(f"No transcription files found in any format")
+            self.errors.append("No transcription files found in any format")
             return
 
         if not transcription_file.exists():
