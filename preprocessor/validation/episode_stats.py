@@ -18,6 +18,7 @@ from preprocessor.core.episode_manager import (
     EpisodeInfo,
     EpisodeManager,
 )
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.validation.base_result import ValidationStatusMixin
 from preprocessor.validation.file_validators import (
     validate_image_file,
@@ -197,8 +198,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.exported_frames_avg_resolution = most_common_res
 
     def _validate_video(self):
-        videos_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.video)
-        video_file = videos_dir / f"{self.series_name}_{self.episode_info.episode_code()}.mp4"
+        video_file = OutputPathBuilder.build_video_path(self.episode_info, self.series_name)
         if not video_file.exists():
             self.warnings.append(f"Missing video file: {video_file}")
             return
