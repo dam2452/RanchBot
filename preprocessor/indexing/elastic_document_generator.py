@@ -91,9 +91,11 @@ class ElasticDocumentGenerator(BaseProcessor):
                 outputs.append(OutputSpec(path=sound_events_file, required=False))
         else:
             season_dir = item.input_path.parent.name
+            filename = f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
+            path = self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / filename
             outputs.append(
                 OutputSpec(
-                    path=self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}",
+                    path=path,
                     required=True,
                 ),
             )
@@ -494,7 +496,8 @@ class ElasticDocumentGenerator(BaseProcessor):
                 f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}",
             )
         else:
-            output_file = self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
+            filename = f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
+            output_file = self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / filename
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 

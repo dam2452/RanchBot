@@ -55,12 +55,12 @@ class ArchiveGenerator(BaseProcessor):
             raise ValueError("elastic_documents_dir is required")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        segments_dir = self.elastic_documents_dir / ELASTIC_SUBDIRS.segments
+        segments_dir = self.elastic_documents_dir / ELASTIC_SUBDIRS.text_segments
         if not segments_dir.exists():
-            console.print(f"[yellow]Segments directory not found: {segments_dir}[/yellow]")
+            console.print(f"[yellow]Text segments directory not found: {segments_dir}[/yellow]")
             return []
 
-        all_segment_files = list(segments_dir.glob(f"**/*{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}"))
+        all_segment_files = list(segments_dir.glob(f"**/*{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"))
         items = []
 
         for segment_file in all_segment_files:

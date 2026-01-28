@@ -411,7 +411,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                     self.errors.append(f"Invalid {OUTPUT_FILE_NAMES['embeddings_text']}: {result.error_message}")
 
         elastic_subdirs = [
-            ELASTIC_SUBDIRS.segments,
+            ELASTIC_SUBDIRS.text_segments,
             ELASTIC_SUBDIRS.text_embeddings,
             ELASTIC_SUBDIRS.video_frames,
             ELASTIC_SUBDIRS.episode_names,
