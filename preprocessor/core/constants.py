@@ -45,6 +45,6 @@ OUTPUT_FILE_NAMES = {
 }
 
 OUTPUT_FILE_PATTERNS = {
-    "frame": "frame_*.jpg",
+    "frame": "*_frame_*.jpg",
     "scenes_suffix": "_scenes.json",
 }

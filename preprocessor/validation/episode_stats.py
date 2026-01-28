@@ -79,59 +79,87 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         clean_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.clean
         sound_events_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.sound_events
 
-        transcription_file = raw_dir / f"{base_name}.json"
-        clean_transcription_file = clean_dir / f"{base_name}_clean_transcription.json"
-        clean_txt_file = clean_dir / f"{base_name}_clean_transcription.txt"
-        sound_events_file = sound_events_dir / f"{base_name}_sound_events.json"
+        transcription_files = {
+            "main": raw_dir / f"{base_name}.json",
+            "segmented": raw_dir / f"{base_name}_segmented.json",
+            "simple": raw_dir / f"{base_name}_simple.json",
+            "clean": clean_dir / f"{base_name}_clean_transcription.json",
+            "clean_txt": clean_dir / f"{base_name}_clean_transcription.txt",
+            "sound_events": sound_events_dir / f"{base_name}_sound_events.json",
+        }
 
-        has_any_transcription = any([
-            transcription_file.exists(),
-            clean_transcription_file.exists(),
-            clean_txt_file.exists(),
-        ])
-
-        if not has_any_transcription:
+        if not any(f.exists() for f in transcription_files.values()):
             self.errors.append("No transcription files found in any format")
             return
 
-        if not transcription_file.exists():
-            self.warnings.append(f"Missing raw transcription file: {transcription_file.name}")
-        else:
-            result = validate_json_file(transcription_file)
-            if not result.is_valid:
-                self.errors.append(f"Invalid transcription JSON: {result.error_message}")
+        self._validate_raw_transcription(transcription_files)
+        self._validate_clean_transcription(transcription_files["clean"])
+        self._validate_clean_txt(transcription_files["clean_txt"])
+        self._validate_sound_events(transcription_files["sound_events"])
+
+    def _validate_raw_transcription(self, transcription_files: Dict):
+        raw_transcription = None
+        for key in ("main", "segmented", "simple"):
+            if transcription_files[key].exists():
+                raw_transcription = transcription_files[key]
+                break
+
+        if not raw_transcription:
+            self.warnings.append("Missing raw transcription file (checked: .json, _segmented.json, _simple.json)")
+            return
+
+        result = validate_json_file(raw_transcription)
+        if not result.is_valid:
+            self.errors.append(f"Invalid transcription JSON: {result.error_message}")
+            return
+
+        self._extract_transcription_stats(raw_transcription)
+
+    def _extract_transcription_stats(self, raw_transcription):
+        try:
+            with open(raw_transcription, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            text = data.get("text", "")
+            if not text:
+                segments = data.get("segments", [])
+                if segments:
+                    text = " ".join(seg.get("text", "") for seg in segments)
+
+            self.transcription_chars = len(text)
+            self.transcription_words = len(text.split())
+
+            words = data.get("words", [])
+            if words:
+                self.transcription_duration = words[-1].get("end", 0.0)
             else:
-                try:
-                    with open(transcription_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
+                segments = data.get("segments", [])
+                if segments and segments[-1].get("end"):
+                    self.transcription_duration = segments[-1].get("end", 0.0)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.errors.append(f"Error reading transcription: {e}")
 
-                    text = data.get("text", "")
-                    self.transcription_chars = len(text)
-                    self.transcription_words = len(text.split())
-
-                    words = data.get("words", [])
-                    if words:
-                        last_word = words[-1]
-                        self.transcription_duration = last_word.get("end", 0.0)
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    self.errors.append(f"Error reading transcription: {e}")
-
+    def _validate_clean_transcription(self, clean_transcription_file):
         if not clean_transcription_file.exists():
             self.warnings.append(f"Missing clean transcription file: {clean_transcription_file.name}")
-        else:
-            result = validate_json_file(clean_transcription_file)
-            if not result.is_valid:
-                self.warnings.append(f"Invalid clean transcription JSON: {result.error_message}")
+            return
 
+        result = validate_json_file(clean_transcription_file)
+        if not result.is_valid:
+            self.warnings.append(f"Invalid clean transcription JSON: {result.error_message}")
+
+    def _validate_clean_txt(self, clean_txt_file):
         if not clean_txt_file.exists():
             self.warnings.append(f"Missing clean transcription txt: {clean_txt_file.name}")
 
+    def _validate_sound_events(self, sound_events_file):
         if not sound_events_file.exists():
             self.warnings.append(f"Missing sound events file: {sound_events_file.name}")
-        else:
-            result = validate_json_file(sound_events_file)
-            if not result.is_valid:
-                self.warnings.append(f"Invalid sound events JSON: {result.error_message}")
+            return
+
+        result = validate_json_file(sound_events_file)
+        if not result.is_valid:
+            self.warnings.append(f"Invalid sound events JSON: {result.error_message}")
 
     def _validate_exported_frames(self):
         frames_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.frames)
