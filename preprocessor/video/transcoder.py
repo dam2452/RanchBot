@@ -92,8 +92,14 @@ class VideoTranscoder(BaseVideoProcessor):
             raise
 
     def _transcode_video(self, input_video: Path, output_video: Path) -> None:
-        fps = self._get_framerate(input_video)
+        input_fps = self._get_framerate(input_video)
         input_bitrate = self._get_video_bitrate(input_video)
+
+        target_fps = min(input_fps, 30.0)
+        if target_fps < input_fps:
+            self.logger.info(
+                f"Input FPS ({input_fps}) > 30. Limiting to {target_fps} FPS for compatibility and smaller file size.",
+            )
 
         video_bitrate = self.video_bitrate_mbps
         minrate = self.minrate_mbps
@@ -109,7 +115,7 @@ class VideoTranscoder(BaseVideoProcessor):
             bufsize = round(bufsize * ratio, 2)
             self.logger.info(
                 f"Input bitrate ({input_bitrate} Mbps) < target ({self.video_bitrate_mbps} Mbps). "
-                f"Adjusted to {video_bitrate} Mbps to avoid quality loss."
+                f"Adjusted to {video_bitrate} Mbps to avoid quality loss.",
             )
 
         vf_filter = (
@@ -133,6 +139,9 @@ class VideoTranscoder(BaseVideoProcessor):
             "-pix_fmt", "yuv420p",
         ]
 
+        if target_fps < input_fps:
+            command.extend(["-r", str(target_fps)])
+
         command.extend([
             "-rc", "vbr_hq",
             "-b:v", f"{video_bitrate}M",
@@ -147,7 +156,7 @@ class VideoTranscoder(BaseVideoProcessor):
         ])
 
         command.extend([
-            "-g", str(int(fps * self.gop_size)),
+            "-g", str(int(target_fps * self.gop_size)),
             "-spatial-aq", "1",
             "-temporal-aq", "1",
             "-multipass", "fullres",
