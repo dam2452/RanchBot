@@ -145,11 +145,11 @@ class PipelineOrchestrator:
 
             elastic_docs_dir = get_output_path("elastic_documents")
             if elastic_docs_dir.exists():
-                segment_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.segments).rglob("*.jsonl"))
+                segment_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.text_segments).rglob("*.jsonl"))
                 text_emb_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.text_embeddings).rglob("*.jsonl"))
                 video_frame_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.video_frames).rglob("*.jsonl"))
                 stats["elastic_documents"] = {
-                    ELASTIC_SUBDIRS.segments: len(segment_files),
+                    ELASTIC_SUBDIRS.text_segments: len(segment_files),
                     ELASTIC_SUBDIRS.text_embeddings: len(text_emb_files),
                     ELASTIC_SUBDIRS.video_frames: len(video_frame_files),
                 }

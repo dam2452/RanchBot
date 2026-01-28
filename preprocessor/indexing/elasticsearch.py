@@ -75,7 +75,7 @@ class ElasticSearchIndexer(BaseProcessor):
             return False
 
         return any([
-            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.segments}/**/*.jsonl")),
+            any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.text_segments}/**/*.jsonl")),
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.text_embeddings}/**/*.jsonl")),
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.video_frames}/**/*.jsonl")),
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.episode_names}/**/*.jsonl")),
@@ -104,7 +104,7 @@ class ElasticSearchIndexer(BaseProcessor):
 
         try:
             indices = {
-                ELASTIC_SUBDIRS.segments: f"{self.name}_segments",
+                ELASTIC_SUBDIRS.text_segments: f"{self.name}_segments",
                 ELASTIC_SUBDIRS.text_embeddings: f"{self.name}_text_embeddings",
                 ELASTIC_SUBDIRS.video_frames: f"{self.name}_video_frames",
                 ELASTIC_SUBDIRS.episode_names: f"{self.name}_episode_names",
@@ -136,7 +136,7 @@ class ElasticSearchIndexer(BaseProcessor):
 
     async def _create_index(self, index_name: str, doc_type: str) -> None:
         mappings = {
-            ELASTIC_SUBDIRS.segments: ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
+            ELASTIC_SUBDIRS.text_segments: ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
             ELASTIC_SUBDIRS.text_embeddings: ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
             ELASTIC_SUBDIRS.video_frames: ElasticSearchManager.VIDEO_EMBEDDINGS_INDEX_MAPPING,
             ELASTIC_SUBDIRS.episode_names: ElasticSearchManager.EPISODE_NAMES_INDEX_MAPPING,

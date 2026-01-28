@@ -25,7 +25,7 @@ ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
 class ArchiveGenerator(BaseProcessor):
     FOLDER_TO_FILE_SUFFIX = {
-        ELASTIC_SUBDIRS.segments: "segments",
+        ELASTIC_SUBDIRS.text_segments: "text_segments",
         ELASTIC_SUBDIRS.text_embeddings: "text_embeddings",
         ELASTIC_SUBDIRS.video_frames: "video_frames",
         ELASTIC_SUBDIRS.episode_names: "episode_name",

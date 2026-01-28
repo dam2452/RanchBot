@@ -12,7 +12,7 @@ DEFAULT_VIDEO_EXTENSION = ".mp4"
 
 FILE_SUFFIXES = {
     "segmented": "_segmented",
-    "segments": "_segments",
+    "text_segments": "_text_segments",
     "simple": "_simple",
     "clean": "_clean_transcription",
     "clean_alt": "_clean",

@@ -65,10 +65,10 @@ class ElasticDocumentGenerator(BaseProcessor):
         outputs = []
 
         if episode_info:
-            segments_filename = f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}"
+            segments_filename = f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
             segments_file = OutputPathBuilder.build_elastic_document_path(
                 episode_info,
-                ELASTIC_SUBDIRS.segments,
+                ELASTIC_SUBDIRS.text_segments,
                 segments_filename,
             )
             outputs.append(OutputSpec(path=segments_file, required=True))
@@ -93,7 +93,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             season_dir = item.input_path.parent.name
             outputs.append(
                 OutputSpec(
-                    path=self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}",
+                    path=self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}",
                     required=True,
                 ),
             )
@@ -225,7 +225,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         character_detections = self.__load_character_detections(episode_info)
         object_detections = self.__load_object_detections(episode_info)
 
-        if any(f"{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}" in str(o.path) for o in missing_outputs):
+        if any(f"{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}" in str(o.path) for o in missing_outputs):
             self.__generate_segments(
                 transcription_data,
                 episode_id,
@@ -490,26 +490,29 @@ class ElasticDocumentGenerator(BaseProcessor):
         if episode_info:
             output_file = self.episode_manager.build_episode_output_path(
                 episode_info,
-                f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.segments}",
-                f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}",
+                f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_segments}",
+                f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}",
             )
         else:
-            output_file = self.output_dir / ELASTIC_SUBDIRS.segments / season_dir / f"{base_name}{FILE_SUFFIXES['segments']}{FILE_EXTENSIONS['jsonl']}"
+            output_file = self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
             for i, segment in enumerate(segments):
-                if "text" not in segment:
+                text = segment.get("text", "").strip()
+                if not text:
                     continue
 
                 words = segment.get("words", [])
-                if not words:
-                    continue
-
-                start_time = words[0].get("start") or 0.0
-                end_time = words[-1].get("end") or 0.0
-                speaker = words[0].get("speaker_id", "unknown")
+                if words:
+                    start_time = words[0].get("start") or 0.0
+                    end_time = words[-1].get("end") or 0.0
+                    speaker = words[0].get("speaker_id", "unknown")
+                else:
+                    start_time = segment.get("start", 0.0)
+                    end_time = segment.get("end", 0.0)
+                    speaker = segment.get("speaker", "unknown")
 
                 scene_info = self.__find_scene_for_timestamp(start_time, scene_timestamps)
 
@@ -517,7 +520,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "episode_id": episode_id,
                     "episode_metadata": episode_metadata,
                     "segment_id": i,
-                    "text": segment.get("text", ""),
+                    "text": text,
                     "start_time": start_time,
                     "end_time": end_time,
                     "speaker": speaker,
