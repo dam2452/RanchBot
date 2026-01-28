@@ -249,7 +249,6 @@ class GeminiSettings:
 class TranscodeDefaults:
     output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
     codec: str = "h264_nvenc"
-    preset: str = "p7"
     target_file_size_mb: float = 50.0
     target_duration_seconds: float = 100.0
     audio_bitrate_kbps: int = 128
@@ -335,7 +334,6 @@ class TranscodeConfig:
     transcoded_videos: Path
     resolution: Resolution
     codec: str
-    preset: str
     gop_size: float
     episodes_info_json: Optional[Path] = None
     video_bitrate_mbps: Optional[float] = None
@@ -350,7 +348,6 @@ class TranscodeConfig:
             "transcoded_videos": self.transcoded_videos,
             "resolution": self.resolution,
             "codec": self.codec,
-            "preset": self.preset,
             "video_bitrate_mbps": self.video_bitrate_mbps,
             "minrate_mbps": self.minrate_mbps,
             "maxrate_mbps": self.maxrate_mbps,

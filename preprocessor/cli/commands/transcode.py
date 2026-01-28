@@ -32,10 +32,6 @@ from preprocessor.video.transcoder import VideoTranscoder
     help="Video codec: h264_nvenc (GPU), libx264 (CPU)",
 )
 @click.option(
-    "--preset",
-    help="FFmpeg preset: slow, medium, fast",
-)
-@click.option(
     "--gop-size",
     type=float,
     help="Keyframe interval in seconds",
@@ -52,7 +48,6 @@ def transcode(
     transcoded_videos: Path,
     resolution: str,
     codec: str,
-    preset: str,
     gop_size: float,
     episodes_info_json: Path,
     name: str,
@@ -63,8 +58,6 @@ def transcode(
         transcoded_videos = settings.transcode.output_dir
     if codec is None:
         codec = settings.transcode.codec
-    if preset is None:
-        preset = settings.transcode.preset
     if gop_size is None:
         gop_size = settings.transcode.gop_size
 
@@ -80,7 +73,6 @@ def transcode(
         transcoded_videos=transcoded_videos,
         resolution=Resolution.from_str(resolution),
         codec=codec,
-        preset=preset,
         gop_size=gop_size,
         episodes_info_json=episodes_info_json,
         video_bitrate_mbps=video_bitrate_mbps,

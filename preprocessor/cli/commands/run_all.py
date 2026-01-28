@@ -64,10 +64,6 @@ from preprocessor.utils.resolution import Resolution
     help="Video codec",
 )
 @click.option(
-    "--preset",
-    help="FFmpeg preset",
-)
-@click.option(
     "--model",
     default=settings.transcription.model,
     help="Whisper model",
@@ -149,7 +145,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     series_name: str,
     resolution: str,
     codec: str,
-    preset: str,
     model: str,
     language: str,
     dry_run: bool,
@@ -186,8 +181,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         transcoded_videos = settings.transcode.output_dir
     if codec is None:
         codec = settings.transcode.codec
-    if preset is None:
-        preset = settings.transcode.preset
 
     if scrape_urls and not episodes_info_json:
         episodes_info_json = Path("/app/output_data") / f"{series_name}_episodes.json"
@@ -215,7 +208,6 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
         "name": series_name,
         "resolution": resolution,
         "codec": codec,
-        "preset": preset,
         "model": model,
         "language": language,
         "device": "cuda",

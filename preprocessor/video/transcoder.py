@@ -30,7 +30,7 @@ class VideoTranscoder(BaseVideoProcessor):
 
         self.resolution: Resolution = self._args["resolution"]
         self.codec: str = str(self._args["codec"])
-        self.preset: str = str(self._args["preset"])
+        self.preset: str = "p7"
         self.video_bitrate_mbps: Optional[float] = self._args.get("video_bitrate_mbps")
         self.minrate_mbps: Optional[float] = self._args.get("minrate_mbps")
         self.maxrate_mbps: Optional[float] = self._args.get("maxrate_mbps")
@@ -45,8 +45,6 @@ class VideoTranscoder(BaseVideoProcessor):
             raise ValueError("resolution is required")
         if "codec" not in args:
             raise ValueError("codec is required")
-        if "preset" not in args:
-            raise ValueError("preset is required")
         if "gop_size" not in args:
             raise ValueError("gop_size is required")
         if "transcoded_videos" not in args:

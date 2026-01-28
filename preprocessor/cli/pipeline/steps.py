@@ -149,7 +149,7 @@ def run_character_detection_step(**kwargs):
     return detector.work()
 
 
-def run_transcode_step(videos, episodes_info_json, name, resolution, codec, preset, state_manager, **kwargs):
+def run_transcode_step(videos, episodes_info_json, name, resolution, codec, state_manager, **kwargs):
     from preprocessor.config.config import TranscodeConfig  # pylint: disable=import-outside-toplevel
     from preprocessor.utils.resolution import Resolution  # pylint: disable=import-outside-toplevel
     from preprocessor.video.transcoder import VideoTranscoder  # pylint: disable=import-outside-toplevel
@@ -166,7 +166,6 @@ def run_transcode_step(videos, episodes_info_json, name, resolution, codec, pres
         transcoded_videos=transcoded_videos,
         resolution=Resolution.from_str(resolution),
         codec=codec,
-        preset=preset,
         gop_size=settings.transcode.gop_size,
         episodes_info_json=episodes_info_json,
         video_bitrate_mbps=video_bitrate_mbps,
