@@ -31,7 +31,7 @@ from preprocessor.video.frame_exporter import FrameExporter
 )
 @click.option(
     "--resolution",
-    type=click.Choice(["144p", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p"]),
+    type=click.Choice(Resolution.get_all_choices()),
     default="1080p",
     help="Target resolution for exported frames",
 )

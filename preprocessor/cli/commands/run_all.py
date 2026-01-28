@@ -25,6 +25,7 @@ from preprocessor.cli.pipeline.steps import (
 from preprocessor.cli.utils import create_state_manager
 from preprocessor.config.config import settings
 from preprocessor.utils.console import console
+from preprocessor.utils.resolution import Resolution
 
 
 @click.command(context_settings={"show_default": True})
@@ -54,9 +55,9 @@ from preprocessor.utils.console import console
 @click.option("--series-name", required=True, help="Series name")
 @click.option(
     "--resolution",
-    type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),
-    default="1080p",
-    help="Target resolution",
+    type=click.Choice(Resolution.get_all_choices()),
+    default="720p",
+    help="Target resolution for transcoding",
 )
 @click.option(
     "--codec",
@@ -264,7 +265,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     orchestrator.add_step("Separating sounds and dialogues", "3/14", run_sound_separation_step, skip=skip_transcribe)
     orchestrator.add_step("Analyzing transcription texts", "4/14", run_text_analysis_step, skip=skip_text_analysis)
     orchestrator.add_step("Detecting scenes", "5/14", run_scene_step, skip=skip_scenes)
-    orchestrator.add_step("Exporting frames (1080p)", "6/14", run_frame_export_step, skip=skip_frame_export)
+    orchestrator.add_step("Exporting frames", "6/14", run_frame_export_step, skip=skip_frame_export)
     orchestrator.add_step("Generating text embeddings", "7/14", run_embedding_step, skip=skip_embeddings)
     orchestrator.add_step(
         "Processing frames (hashing + embeddings + characters + emotions + clustering + objects)",
