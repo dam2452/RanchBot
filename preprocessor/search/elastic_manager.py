@@ -198,7 +198,19 @@ class ElasticSearchManager:
                 "perceptual_hash": {"type": "keyword"},
                 "perceptual_hash_int": {"type": "unsigned_long"},
                 "video_path": {"type": "keyword"},
-                "character_appearances": {"type": "keyword"},
+                "character_appearances": {
+                    "type": "nested",
+                    "properties": {
+                        "name": {"type": "keyword"},
+                        "confidence": {"type": "float"},
+                        "emotion": {
+                            "properties": {
+                                "label": {"type": "keyword"},
+                                "confidence": {"type": "float"},
+                            },
+                        },
+                    },
+                },
                 "detected_objects": {
                     "type": "nested",
                     "properties": {
