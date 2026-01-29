@@ -54,7 +54,7 @@ class StepMetadata:
 class ProcessingMetadata:
     def __init__(self, series_name: str, params: Dict[str, Any]):
         self.series_name = series_name
-        self.params = self._sanitize_params(params)
+        self.params = self.__sanitize_params(params)
         self.start_time = datetime.now()
         self.end_time: Optional[datetime] = None
         self.total_duration_seconds: Optional[float] = None
@@ -62,7 +62,7 @@ class ProcessingMetadata:
         self.final_status = "running"
 
     @staticmethod
-    def _sanitize_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    def __sanitize_params(params: Dict[str, Any]) -> Dict[str, Any]:
         sanitized = {}
         for key, value in params.items():
             if key in set("state_manager"):

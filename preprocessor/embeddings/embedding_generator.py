@@ -208,7 +208,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         ]
 
     def _load_resources(self) -> bool:
-        self._load_model()
+        self.__load_model()
         self.gpu_processor = GPUBatchProcessor(
             self.model,
             self.batch_size,
@@ -224,7 +224,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         )
         return True
 
-    def _load_model(self) -> None:
+    def __load_model(self) -> None:
         try:
             self.model = Qwen3VLEmbedder(
                 model_name_or_path=self.model_name,
@@ -292,7 +292,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         if need_full_episode:
             full_episode_embedding = self.__generate_full_episode_embedding(trans_file)
 
-        episode_dir = self._get_episode_output_dir(trans_file)
+        episode_dir = self.__get_episode_output_dir(trans_file)
         episode_info_dict = data.get("episode_info", {})
         season = episode_info_dict.get("season", 0)
         episode_num = episode_info_dict.get("episode_number", 0)
@@ -686,7 +686,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self._cleanup_memory()
         return embeddings
 
-    def _get_episode_output_dir(self, transcription_file: Path) -> Path:
+    def __get_episode_output_dir(self, transcription_file: Path) -> Path:
         episode_info_from_file = self.episode_manager.parse_filename(transcription_file)
         if episode_info_from_file:
             return self.episode_manager.get_episode_subdir(episode_info_from_file, settings.output_subdirs.embeddings)

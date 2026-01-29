@@ -37,7 +37,7 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
             frame_count = scene.get("frame_count", 1)
 
             if frame_count <= 1:
-                frame_requests.append(self._create_request(start_frame, fps, FrameType.SCENE_SINGLE, i))
+                frame_requests.append(self.__create_request(start_frame, fps, FrameType.SCENE_SINGLE, i))
                 continue
 
             for frame_idx in range(self.frames_per_scene):
@@ -51,12 +51,12 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
                 else:
                     frame_type = FrameType.scene_mid(frame_idx)
 
-                frame_requests.append(self._create_request(frame_number, fps, frame_type, i))
+                frame_requests.append(self.__create_request(frame_number, fps, frame_type, i))
 
         return frame_requests
 
     @staticmethod
-    def _create_request(frame: int, fps: float, type_name: str, scene_num: int = None) -> Dict[str, Any]:
+    def __create_request(frame: int, fps: float, type_name: str, scene_num: int = None) -> Dict[str, Any]:
         req = {
             "frame_number": int(frame),
             "timestamp": float(frame / fps),

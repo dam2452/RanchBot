@@ -54,7 +54,7 @@ class ImageHashProcessor(BaseProcessor):
     def cleanup(self) -> None:
         console.print("[cyan]Unloading image hasher...[/cyan]")
         self.hasher = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
         console.print("[green]✓ Hasher unloaded[/green]")
 
     # pylint: disable=duplicate-code
@@ -107,7 +107,7 @@ class ImageHashProcessor(BaseProcessor):
 
         episode_dir = self.__get_episode_output_dir(episode_info)
         self.__save_hashes(episode_dir, episode_info, hash_results)
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def __get_episode_output_dir(self, episode_info) -> Path:
         return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
@@ -140,7 +140,7 @@ class ImageHashProcessor(BaseProcessor):
             json.dump(hash_data, f, indent=2, ensure_ascii=False)
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()

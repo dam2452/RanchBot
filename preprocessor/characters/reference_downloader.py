@@ -54,11 +54,11 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.use_gpu: bool = True
         self.search_mode: str = self._args.get("search_mode", "normal")
 
-        self.search_engine: BaseImageSearch = self._create_search_engine()
+        self.search_engine: BaseImageSearch = self.__create_search_engine()
         self.face_app: FaceAnalysis = None
         self.browser_context: Optional[BrowserContext] = None
 
-    def _create_search_engine(self) -> BaseImageSearch:
+    def __create_search_engine(self) -> BaseImageSearch:
         if self.search_mode == "premium":
             serpapi_key = settings.image_scraper.serpapi_key
             return GoogleImageSearch(api_key=serpapi_key, max_results=self.max_results)
@@ -70,7 +70,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         if "series_name" not in args:
             raise ValueError("series_name is required")
 
-    def _all_references_exist(self, characters: list) -> bool:
+    def __all_references_exist(self, characters: list) -> bool:
         for char in characters:
             char_name = char["name"]
             output_folder = self.output_dir / char_name.replace(" ", "_").lower()
@@ -92,7 +92,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             console.print("[yellow]No characters found in JSON[/yellow]")
             return
 
-        if self._all_references_exist(characters):
+        if self.__all_references_exist(characters):
             console.print(f"[green]✓ All reference images already exist for {len(characters)} characters (skipping)[/green]")
             return
 
@@ -119,7 +119,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                     char_name = char["name"]
                     downloaded = False
                     try:
-                        downloaded = self._download_character_references(char_name, progress)
+                        downloaded = self.__download_character_references(char_name, progress)
                     except Exception as e:  # pylint: disable=broad-exception-caught
                         self.logger.error(f"Failed to download references for {char_name}: {e}")
                     finally:
@@ -136,11 +136,11 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         console.print("[green]✓ Reference download completed[/green]")
 
-    def _count_faces(self, img) -> int:
+    def __count_faces(self, img) -> int:
         faces = self.face_app.get(img)
         return len(faces)
 
-    def _validate_and_decode_image(self, img_bytes: bytes, img_url: str) -> np.ndarray | None:
+    def __validate_and_decode_image(self, img_bytes: bytes, img_url: str) -> np.ndarray | None:
         if not img_bytes:
             return None
 
@@ -157,7 +157,7 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         return img
 
-    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
+    def __download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
         try:  # pylint: disable=too-many-try-statements
             response = page.goto(
                 img_url,
@@ -198,7 +198,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                 self.logger.debug(f"Failed to download image {img_url}: {e}")
             return None
 
-    def _download_character_references(self, char_name: str, progress) -> bool:  # pylint: disable=too-many-locals,too-many-statements
+    def __download_character_references(self, char_name: str, progress) -> bool:  # pylint: disable=too-many-locals,too-many-statements
         search_query = f"Serial {self.series_name} {char_name} postać"
         output_folder = self.output_dir / char_name.replace(" ", "_").lower()
         output_folder.mkdir(parents=True, exist_ok=True)
@@ -238,7 +238,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                         processed += 1
 
                         try:
-                            img = self._download_image_with_browser(img_url, page)
+                            img = self.__download_image_with_browser(img_url, page)
 
                             if img is None:
                                 continue
@@ -252,7 +252,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                                 continue
 
                             try:
-                                face_count = self._count_faces(img)
+                                face_count = self.__count_faces(img)
                             except Exception as face_err:  # pylint: disable=broad-exception-caught
                                 self.logger.debug(f"Face detection failed for {img_url}: {face_err}")
                                 continue
