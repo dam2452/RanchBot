@@ -61,18 +61,18 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
     face_clusters_total_faces: Optional[int] = None
 
     def collect_stats(self):
-        self._validate_transcription()
-        self._validate_exported_frames()
-        self._validate_video()
-        self._validate_scenes()
-        self._validate_image_hashes()
-        self._validate_character_visualizations()
-        self._validate_face_clusters()
-        self._validate_object_detections()
-        self._validate_object_visualizations()
-        self._validate_other_files()
+        self.__validate_transcription()
+        self.__validate_exported_frames()
+        self.__validate_video()
+        self.__validate_scenes()
+        self.__validate_image_hashes()
+        self.__validate_character_visualizations()
+        self.__validate_face_clusters()
+        self.__validate_object_detections()
+        self.__validate_object_visualizations()
+        self.__validate_other_files()
 
-    def _validate_transcription(self):
+    def __validate_transcription(self):
         transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
         base_name = f"{self.series_name}_{self.episode_info.episode_code()}"
 
@@ -93,12 +93,12 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.errors.append("No transcription files found in any format")
             return
 
-        self._validate_raw_transcription(transcription_files)
-        self._validate_clean_transcription(transcription_files["clean"])
-        self._validate_clean_txt(transcription_files["clean_txt"])
-        self._validate_sound_events(transcription_files["sound_events"])
+        self.__validate_raw_transcription(transcription_files)
+        self.__validate_clean_transcription(transcription_files["clean"])
+        self.__validate_clean_txt(transcription_files["clean_txt"])
+        self.__validate_sound_events(transcription_files["sound_events"])
 
-    def _validate_raw_transcription(self, transcription_files: Dict):
+    def __validate_raw_transcription(self, transcription_files: Dict):
         raw_transcription = None
         for key in ("main", "segmented", "simple"):
             if transcription_files[key].exists():
@@ -114,9 +114,9 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.errors.append(f"Invalid transcription JSON: {result.error_message}")
             return
 
-        self._extract_transcription_stats(raw_transcription)
+        self.__extract_transcription_stats(raw_transcription)
 
-    def _extract_transcription_stats(self, raw_transcription):
+    def __extract_transcription_stats(self, raw_transcription):
         try:
             with open(raw_transcription, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -140,7 +140,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading transcription: {e}")
 
-    def _validate_clean_transcription(self, clean_transcription_file):
+    def __validate_clean_transcription(self, clean_transcription_file):
         if not clean_transcription_file.exists():
             self.warnings.append(f"Missing clean transcription file: {clean_transcription_file.name}")
             return
@@ -149,11 +149,11 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not result.is_valid:
             self.warnings.append(f"Invalid clean transcription JSON: {result.error_message}")
 
-    def _validate_clean_txt(self, clean_txt_file):
+    def __validate_clean_txt(self, clean_txt_file):
         if not clean_txt_file.exists():
             self.warnings.append(f"Missing clean transcription txt: {clean_txt_file.name}")
 
-    def _validate_sound_events(self, sound_events_file):
+    def __validate_sound_events(self, sound_events_file):
         if not sound_events_file.exists():
             self.warnings.append(f"Missing sound events file: {sound_events_file.name}")
             return
@@ -162,7 +162,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not result.is_valid:
             self.warnings.append(f"Invalid sound events JSON: {result.error_message}")
 
-    def _validate_exported_frames(self):
+    def __validate_exported_frames(self):
         frames_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.frames)
         if not frames_dir.exists():
             self.warnings.append(f"Missing {settings.output_subdirs.frames} directory: {frames_dir}")
@@ -197,7 +197,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             most_common_res = max(set(resolutions), key=resolutions.count)
             self.exported_frames_avg_resolution = most_common_res
 
-    def _validate_video(self):
+    def __validate_video(self):
         video_file = OutputPathBuilder.build_video_path(self.episode_info, self.series_name)
         if not video_file.exists():
             self.warnings.append(f"Missing video file: {video_file}")
@@ -213,7 +213,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.video_codec = result.metadata["codec"]
         self.video_resolution = (result.metadata["width"], result.metadata["height"])
 
-    def _validate_scenes(self):
+    def __validate_scenes(self):
         scenes_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.scenes)
         scenes_file = scenes_dir / f"{self.series_name}_{self.episode_info.episode_code()}{OUTPUT_FILE_PATTERNS['scenes_suffix']}"
         if not scenes_file.exists():
@@ -237,7 +237,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading scenes: {e}")
 
-    def _validate_image_hashes(self):
+    def __validate_image_hashes(self):
         hashes_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.image_hashes)
         if not hashes_dir.exists():
             self.warnings.append(f"Missing {settings.output_subdirs.image_hashes} directory")
@@ -258,9 +258,9 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             else:
                 sizes.append(json_file.stat().st_size)
 
-        self._check_size_anomalies(sizes, "image_hashes")
+        self.__check_size_anomalies(sizes, "image_hashes")
 
-    def _validate_character_visualizations(self):
+    def __validate_character_visualizations(self):
         viz_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_visualizations)
         if not viz_dir.exists():
             return
@@ -282,7 +282,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if invalid_count > 0:
             self.warnings.append(f"{invalid_count} invalid character visualization images found")
 
-    def _validate_face_clusters(self):
+    def __validate_face_clusters(self):
         clusters_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.face_clusters)
         if not clusters_dir.exists():
             return
@@ -328,7 +328,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error reading face clustering metadata: {e}")
 
-    def _validate_object_detections(self):
+    def __validate_object_detections(self):
         detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_detections)
         if not detections_dir.exists():
             self.warnings.append(f"Missing {settings.output_subdirs.object_detections} directory")
@@ -349,9 +349,9 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             else:
                 sizes.append(json_file.stat().st_size)
 
-        self._check_size_anomalies(sizes, "object_detections")
+        self.__check_size_anomalies(sizes, "object_detections")
 
-    def _validate_object_visualizations(self):
+    def __validate_object_visualizations(self):
         viz_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_visualizations)
         if not viz_dir.exists():
             return
@@ -373,7 +373,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if invalid_count > 0:
             self.warnings.append(f"{invalid_count} invalid visualization images found")
 
-    def _validate_embedding_dimensions(self, jsonl_file, subdir: str):
+    def __validate_embedding_dimensions(self, jsonl_file, subdir: str):
         embedding_fields = {
             ELASTIC_SUBDIRS.text_embeddings: "text_embedding",
             ELASTIC_SUBDIRS.video_frames: "video_embedding",
@@ -407,7 +407,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         except Exception as e:  # pylint: disable=broad-exception-caught
             self.errors.append(f"Error validating embeddings in {jsonl_file.name}: {e}")
 
-    def _check_size_anomalies(self, sizes: List[int], folder_name: str, threshold: float = 0.2):
+    def __check_size_anomalies(self, sizes: List[int], folder_name: str, threshold: float = 0.2):
         if len(sizes) < 2:
             return
 
@@ -422,7 +422,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                     f"{folder_name} file #{i+1} size deviation: {deviation*100:.1f}% from average",
                 )
 
-    def _validate_other_files(self):
+    def __validate_other_files(self):
         char_detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_detections)
         detections_file = char_detections_dir / OUTPUT_FILE_NAMES["detections"]
         if detections_file.exists():
@@ -461,7 +461,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                     if not result.is_valid:
                         self.errors.append(f"Invalid JSONL {jsonl_file.name}: {result.error_message}")
                     else:
-                        self._validate_embedding_dimensions(jsonl_file, subdir)
+                        self.__validate_embedding_dimensions(jsonl_file, subdir)
 
         if not found_elastic_docs:
             self.warnings.append(f"Missing {settings.output_subdirs.elastic_documents} directory")

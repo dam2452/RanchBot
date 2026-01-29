@@ -50,9 +50,9 @@ class SeasonComparison:
         ]
 
         for metric_key in metric_keys:
-            self._compare_metric(metric_key, episodes_stats)
+            self.__compare_metric(metric_key, episodes_stats)
 
-    def _compare_metric(self, metric_key: str, episodes_stats: Dict[str, EpisodeStats]):
+    def __compare_metric(self, metric_key: str, episodes_stats: Dict[str, EpisodeStats]):
         values = []
         episode_values = {}
 

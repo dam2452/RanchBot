@@ -57,7 +57,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
 
     def cleanup(self) -> None:
         self.hasher = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -129,7 +129,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Saved hashes to: {hash_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -166,7 +166,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
     def cleanup(self) -> None:
         self.model = None
         self.gpu_processor = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -255,7 +255,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Saved embeddings to: {video_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -363,7 +363,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
     def cleanup(self) -> None:
         self.model = None
         self.image_processor = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -508,7 +508,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Saved object detections to: {detections_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -577,7 +577,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
 
         output_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_visualizations)
         output_dir.mkdir(parents=True, exist_ok=True)
-        colors = self._generate_colors()
+        colors = self.__generate_colors()
         conf_threshold = detection_data.get("processing_params", {}).get("confidence_threshold", 0.25)
 
         console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames for {episode_info.episode_code()}[/cyan]")
@@ -595,7 +595,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             if img is None:
                 continue
 
-            self._draw_detections_on_frame(img, frame_data['detections'], colors, conf_threshold)
+            self.__draw_detections_on_frame(img, frame_data['detections'], colors, conf_threshold)
             cv2.imwrite(str(output_path), img)
 
         marker_file = output_dir / ".visualization_complete"
@@ -603,7 +603,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
 
     @staticmethod
-    def _draw_detections_on_frame(img, detections: List[Dict], colors: Dict[int, tuple], conf_threshold: float) -> None:
+    def __draw_detections_on_frame(img, detections: List[Dict], colors: Dict[int, tuple], conf_threshold: float) -> None:
         import cv2  # pylint: disable=import-outside-toplevel
 
         for detection in detections:
@@ -626,7 +626,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
     @staticmethod
-    def _generate_colors(num_colors: int = 80) -> Dict[int, tuple]:
+    def __generate_colors(num_colors: int = 80) -> Dict[int, tuple]:
         np.random.seed(42)
         colors = {}
         for i in range(num_colors):
@@ -702,7 +702,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
         for frame_data in frames_with_detections:
             for char in frame_data.get('characters', []):
                 all_character_names.add(char['name'])
-        colors = self._generate_character_colors(all_character_names)
+        colors = self.__generate_character_colors(all_character_names)
 
         console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames with characters for {episode_info.episode_code()}[/cyan]")
 
@@ -723,7 +723,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
             if img is None:
                 continue
 
-            self._draw_characters_on_frame(img, frame_data['characters'], colors)
+            self.__draw_characters_on_frame(img, frame_data['characters'], colors)
             cv2.imwrite(str(output_path), img)
 
         marker_file = output_dir / ".visualization_complete"
@@ -731,7 +731,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
 
     @staticmethod
-    def _draw_characters_on_frame(img, characters: List[Dict], colors: Dict[str, tuple]) -> None:
+    def __draw_characters_on_frame(img, characters: List[Dict], colors: Dict[str, tuple]) -> None:
         import cv2  # pylint: disable=import-outside-toplevel
 
         for character in characters:
@@ -758,7 +758,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
             cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
     @staticmethod
-    def _generate_character_colors(character_names: set) -> Dict[str, tuple]:
+    def __generate_character_colors(character_names: set) -> Dict[str, tuple]:
         np.random.seed(42)
         colors = {}
         sorted_names = sorted(character_names)

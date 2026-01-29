@@ -55,7 +55,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
 
     def cleanup(self) -> None:
         self.face_app = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -97,20 +97,20 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
 
         console.print(f"[cyan]Extracting faces and vectors from {len(frame_files)} frames[/cyan]")
 
-        face_data = self._extract_faces_with_vectors(frame_files)
+        face_data = self.__extract_faces_with_vectors(frame_files)
 
         if len(face_data) == 0:
             console.print("[yellow]No faces detected, skipping clustering[/yellow]")
             return
 
         console.print(f"[cyan]Clustering {len(face_data)} faces[/cyan]")
-        labels = self._cluster_faces(face_data)
+        labels = self.__cluster_faces(face_data)
 
         console.print("[cyan]Saving clusters[/cyan]")
         series_name = item.metadata["series_name"]
-        self._save_clusters(episode_info, face_data, labels, frame_files, series_name)
+        self.__save_clusters(episode_info, face_data, labels, frame_files, series_name)
 
-    def _extract_faces_with_vectors(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
+    def __extract_faces_with_vectors(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
         face_data = []
 
         for idx, frame_path in enumerate(frame_files):
@@ -148,7 +148,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Found {len(face_data)} faces in {len(frame_files)} frames[/green]")
         return face_data
 
-    def _cluster_faces(self, face_data: List[Dict[str, Any]]) -> np.ndarray:
+    def __cluster_faces(self, face_data: List[Dict[str, Any]]) -> np.ndarray:
         vectors = np.array([fd['vector'] for fd in face_data])
 
         console.print(f"[cyan]Clustering with GPU HDBSCAN (min_cluster_size={self.min_cluster_size}, min_samples={self.min_samples})[/cyan]")
@@ -171,7 +171,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
 
         return labels
 
-    def _save_clusters(  # pylint: disable=too-many-locals
+    def __save_clusters(  # pylint: disable=too-many-locals
         self,
         episode_info,
         face_data: List[Dict[str, Any]],
@@ -233,9 +233,9 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
                 "character_name": None,
             })
 
-        self._save_metadata(episode_info, face_data, labels, cluster_stats, all_frame_files, series_name)
+        self.__save_metadata(episode_info, face_data, labels, cluster_stats, all_frame_files, series_name)
 
-    def _save_metadata(
+    def __save_metadata(
         self,
         episode_info,
         face_data: List[Dict[str, Any]],
@@ -281,7 +281,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Saved cluster metadata to: {metadata_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()

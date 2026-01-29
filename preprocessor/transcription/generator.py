@@ -52,7 +52,7 @@ class TranscriptionGenerator(BaseProcessor):
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        if self._check_all_transcriptions_exist():
+        if self.__check_all_transcriptions_exist():
             return []
 
         return [
@@ -105,8 +105,8 @@ class TranscriptionGenerator(BaseProcessor):
             self.temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            missing_video_files = self._get_missing_video_files(missing_outputs)
-            self._init_workers(self._args, missing_video_files)
+            missing_video_files = self.__get_missing_video_files(missing_outputs)
+            self.__init_workers(self._args, missing_video_files)
 
             self.logger.info("Step 1/3: Normalizing audio from videos...")
             self.audio_normalizer()
@@ -129,7 +129,7 @@ class TranscriptionGenerator(BaseProcessor):
             if self.temp_dir:
                 self.temp_dir.cleanup()
 
-    def _check_all_transcriptions_exist(self) -> bool:
+    def __check_all_transcriptions_exist(self) -> bool:
         if not self.episodes_info_json.exists():
             self.logger.debug(f"Episodes info JSON not found: {self.episodes_info_json}")
             return False
@@ -175,7 +175,7 @@ class TranscriptionGenerator(BaseProcessor):
         self.logger.info(f"All transcriptions already exist for {len(video_files)} video(s)")
         return True
 
-    def _get_missing_video_files(self, missing_outputs: List[OutputSpec]) -> List[Path]:
+    def __get_missing_video_files(self, missing_outputs: List[OutputSpec]) -> List[Path]:
         video_files = []
         for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
             video_files.extend(self.input_videos.rglob(f"*{ext}"))
@@ -199,7 +199,7 @@ class TranscriptionGenerator(BaseProcessor):
 
         return missing_video_files
 
-    def _init_workers(self, args: Dict[str, Any], video_files: List[Path]) -> None:
+    def __init_workers(self, args: Dict[str, Any], video_files: List[Path]) -> None:
         temp_dir_path: Path = Path(self.temp_dir.name) / "transcription_generator"
         normalizer_output: Path = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"

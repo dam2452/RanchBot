@@ -49,7 +49,7 @@ class ElasticSearchIndexer(BaseProcessor):
             raise ValueError("index name is required")
 
     @staticmethod
-    def _sanitize_error_for_logging(error: Dict[str, Any]) -> Dict[str, Any]:
+    def __sanitize_error_for_logging(error: Dict[str, Any]) -> Dict[str, Any]:
         vector_keys = {"text_embedding", "video_embedding", "title_embedding", "embedding"}
 
         def truncate_vectors(obj):
@@ -65,12 +65,12 @@ class ElasticSearchIndexer(BaseProcessor):
         return truncate_vectors(error)
 
     def __call__(self) -> None:
-        asyncio.run(self._exec_async())
+        asyncio.run(self.__exec_async())
 
     def _execute(self) -> None:
-        asyncio.run(self._exec_async())
+        asyncio.run(self.__exec_async())
 
-    def _check_files_exist(self) -> bool:
+    def __check_files_exist(self) -> bool:
         if not self.elastic_documents_dir.exists():
             return False
 
@@ -84,8 +84,8 @@ class ElasticSearchIndexer(BaseProcessor):
             any(self.elastic_documents_dir.glob(f"{ELASTIC_SUBDIRS.sound_event_embeddings}/**/*.jsonl")),
         ])
 
-    async def _exec_async(self) -> None:
-        if not self._check_files_exist():
+    async def __exec_async(self) -> None:
+        if not self.__check_files_exist():
             self.logger.info("No elastic documents found to index.")
             return
 
@@ -117,24 +117,24 @@ class ElasticSearchIndexer(BaseProcessor):
                 console.print(f"[cyan]Processing {doc_type} → {index_name}[/cyan]")
 
                 if not self.append:
-                    await self._delete_index(index_name)
-                    await self._create_index(index_name, doc_type)
+                    await self.__delete_index(index_name)
+                    await self.__create_index(index_name, doc_type)
                 elif not await self.client.indices.exists(index=index_name):
                     self.logger.info(f"Index '{index_name}' does not exist. Creating it.")
-                    await self._create_index(index_name, doc_type)
+                    await self.__create_index(index_name, doc_type)
                 else:
                     self.logger.info(f"Append mode: not deleting nor recreating index '{index_name}'.")
 
-                await self._index_documents(doc_type, index_name)
+                await self.__index_documents(doc_type, index_name)
 
             if not self.dry_run:
                 for doc_type, index_name in indices.items():
                     if await self.client.indices.exists(index=index_name):
-                        await self._print_sample_document(index_name)
+                        await self.__print_sample_document(index_name)
         finally:
             await self.client.close()
 
-    async def _create_index(self, index_name: str, doc_type: str) -> None:
+    async def __create_index(self, index_name: str, doc_type: str) -> None:
         mappings = {
             ELASTIC_SUBDIRS.text_segments: ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
             ELASTIC_SUBDIRS.text_embeddings: ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
@@ -155,9 +155,9 @@ class ElasticSearchIndexer(BaseProcessor):
                 )
                 self.logger.info(f"Index '{index_name}' created.")
 
-        await self._do_crud(operation, index_name)
+        await self.__do_crud(operation, index_name)
 
-    async def _delete_index(self, index_name: str) -> None:
+    async def __delete_index(self, index_name: str) -> None:
         async def operation():
             if await self.client.indices.exists(index=index_name):
                 await self.client.indices.delete(index=index_name)
@@ -165,9 +165,9 @@ class ElasticSearchIndexer(BaseProcessor):
             else:
                 self.logger.info(f"Index '{index_name}' does not exist. No action taken.")
 
-        await self._do_crud(operation, index_name)
+        await self.__do_crud(operation, index_name)
 
-    async def _do_crud(self, operation: Callable[[], Awaitable[None]], index_name: str) -> None:
+    async def __do_crud(self, operation: Callable[[], Awaitable[None]], index_name: str) -> None:
         try:
             await operation()
         except es_exceptions.RequestError as e:
@@ -177,14 +177,14 @@ class ElasticSearchIndexer(BaseProcessor):
             self.logger.error(f"Connection error: {e}")
             raise
 
-    async def _index_documents(self, doc_type: str, index_name: str) -> None:
+    async def __index_documents(self, doc_type: str, index_name: str) -> None:
         jsonl_files = list(self.elastic_documents_dir.glob(f"{doc_type}/**/*.jsonl"))
 
         if not jsonl_files:
             self.logger.info(f"No {doc_type} documents found. Skipping.")
             return
 
-        actions = self._load_jsonl_files(jsonl_files, index_name)
+        actions = self.__load_jsonl_files(jsonl_files, index_name)
 
         if not actions:
             self.logger.info(f"No {doc_type} documents to index.")
@@ -209,12 +209,12 @@ class ElasticSearchIndexer(BaseProcessor):
             except BulkIndexError as e:
                 self.logger.error(f"Bulk indexing failed: {len(e.errors)} errors.")
                 for error in e.errors[:3]:
-                    sanitized = self._sanitize_error_for_logging(error)
+                    sanitized = self.__sanitize_error_for_logging(error)
                     self.logger.error(f"Failed document: {json.dumps(sanitized, indent=2)}")
                 if len(e.errors) > 10:
                     self.logger.error(f"... and {len(e.errors) - 10} more errors")
 
-    def _load_jsonl_files(self, jsonl_files: List[Path], index_name: str) -> List[Dict[str, Any]]:
+    def __load_jsonl_files(self, jsonl_files: List[Path], index_name: str) -> List[Dict[str, Any]]:
         actions = []
 
         for jsonl_file in jsonl_files:
@@ -230,7 +230,7 @@ class ElasticSearchIndexer(BaseProcessor):
 
         return actions
 
-    def _load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
+    def __load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
         actions = []
 
         for jsonl_file in doc_dir.rglob("*.jsonl"):
@@ -246,7 +246,7 @@ class ElasticSearchIndexer(BaseProcessor):
 
         return actions
 
-    async def _print_sample_document(self, index_name: str) -> None:
+    async def __print_sample_document(self, index_name: str) -> None:
         try:  # pylint: disable=too-many-try-statements
             response = await self.client.search(index=index_name, size=1)
             if not response["hits"]["hits"]:
