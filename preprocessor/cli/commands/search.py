@@ -427,13 +427,21 @@ async def get_stats(es_client):
     }
 
 
+def format_timestamp(seconds):
+    minutes = int(seconds // 60)
+    secs = seconds % 60
+    return f"{minutes}m {secs:.1f}s"
+
+
 def format_scene_context(scene_info):
     if not scene_info:
         return ""
-    return f" [Scene {scene_info.get('scene_number', '?')}: {scene_info.get('scene_start_time', 0):.1f}s - {scene_info.get('scene_end_time', 0):.1f}s]"
+    start = format_timestamp(scene_info.get('scene_start_time', 0))
+    end = format_timestamp(scene_info.get('scene_end_time', 0))
+    return f" [Scene {scene_info.get('scene_number', '?')}: {start} - {end}]"
 
 
-def print_results(result, result_type="text"):
+def print_results(result, result_type="text"):  # pylint: disable=too-many-locals
     total = result["hits"]["total"]["value"]
     hits = result["hits"]["hits"]
 
@@ -452,7 +460,9 @@ def print_results(result, result_type="text"):
 
         if result_type == "text":
             click.echo(f"Segment ID: {source.get('segment_id', 'N/A')}")
-            click.echo(f"Time: {source['start_time']:.2f}s - {source['end_time']:.2f}s{scene_ctx}")
+            start_time = format_timestamp(source['start_time'])
+            end_time = format_timestamp(source['end_time'])
+            click.echo(f"Time: {start_time} - {end_time}{scene_ctx}")
             click.echo(f"Speaker: {source.get('speaker', 'N/A')}")
             click.echo(f"Text: {source['text']}")
         elif result_type == "text_semantic":
@@ -462,7 +472,8 @@ def print_results(result, result_type="text"):
         elif result_type == "episode_name":
             click.echo(f"Episode Title: {source.get('title', 'N/A')}")
         else:
-            click.echo(f"Frame: {source['frame_number']} @ {source['timestamp']:.2f}s{scene_ctx}")
+            timestamp = format_timestamp(source['timestamp'])
+            click.echo(f"Frame: {source['frame_number']} @ {timestamp}{scene_ctx}")
             if "frame_type" in source:
                 click.echo(f"Type: {source['frame_type']}")
             if "scene_number" in source:
