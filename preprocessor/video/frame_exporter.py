@@ -48,12 +48,10 @@ class FrameExporter(BaseVideoProcessor):
 
         keyframe_strategy_str = self._args.get("keyframe_strategy", settings.keyframe_extraction.strategy)
         self.keyframe_strategy = KeyframeStrategy(keyframe_strategy_str)
-        self.keyframe_interval: int = self._args.get("keyframe_interval", settings.keyframe_extraction.interval)
-        self.frames_per_scene: int = self._args.get("frames_per_scene", settings.keyframe_extraction.frames_per_scene)
+        self.frames_per_scene: int = self._args.get("frames_per_scene", settings.keyframe_extraction.scene_changes.frames_per_scene)
 
         self.strategy = KeyframeStrategyFactory.create(
             self.keyframe_strategy,
-            self.keyframe_interval,
             self.frames_per_scene,
         )
 
@@ -245,7 +243,6 @@ class FrameExporter(BaseVideoProcessor):
                 "frame_width": self.resize_width,
                 "frame_height": self.resize_height,
                 "keyframe_strategy": self.keyframe_strategy.value,
-                "keyframe_interval": self.keyframe_interval,
                 "frames_per_scene": self.frames_per_scene,
             },
             "statistics": {

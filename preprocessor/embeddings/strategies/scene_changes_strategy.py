@@ -5,7 +5,6 @@ from typing import (
     List,
 )
 
-from preprocessor.config.config import settings
 from preprocessor.core.enums import FrameType
 from preprocessor.embeddings.strategies.base_strategy import BaseKeyframeStrategy
 from preprocessor.utils.console import console
@@ -27,7 +26,10 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
             console.print("[yellow]No scene timestamps found[/yellow]")
             return []
 
-        fps = scene_timestamps.get("video_info", {}).get("fps", settings.keyframe_extraction.scene_fps_default)
+        video_info = scene_timestamps.get("video_info", {})
+        fps = video_info.get("fps")
+        if fps is None:
+            raise ValueError("FPS not found in scene_timestamps video_info")
         frame_requests = []
 
         for i, scene in enumerate(scenes):

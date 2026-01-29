@@ -106,13 +106,13 @@ class SceneDetectionSettings:
     output_dir: Path = BASE_OUTPUT_DIR / "scene_timestamps"
 
 @dataclass
+class SceneChangesSettings:
+    frames_per_scene: int = 1
+
+@dataclass
 class KeyframeExtractionSettings:
     strategy: str = "scene_changes"
-    interval: int = 1
-    frames_per_scene: int = 1
-    color_diff_threshold: float = 0.3
-    scene_fps_default: float = 30.0
-    interval_multiplier: int = 5
+    scene_changes: SceneChangesSettings = field(default_factory=SceneChangesSettings)
 
 @dataclass
 class FrameExportSettings:
