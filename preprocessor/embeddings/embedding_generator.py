@@ -54,7 +54,6 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.device: str = "cuda"
 
         self.segments_per_embedding: int = self._args.get("segments_per_embedding", settings.text_chunking.segments_per_embedding)
-        self.use_sentence_based_chunking: bool = self._args.get("use_sentence_based_chunking", settings.text_chunking.use_sentence_based_chunking)
         self.text_sentences_per_chunk: int = self._args.get("text_sentences_per_chunk", settings.text_chunking.text_sentences_per_chunk)
         self.text_chunk_overlap: int = self._args.get("text_chunk_overlap", settings.text_chunking.text_chunk_overlap)
         self.generate_text: bool = self._args.get("generate_text", True)
@@ -329,7 +328,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         text_chunks = []
         chunk_metadata = []
 
-        if self.use_sentence_based_chunking:
+        if True:  # Always use sentence-based chunking for text  # pylint: disable=using-constant-test
             full_text = " ".join([seg.get("text", "") for seg in segments])
             sentences = self.__split_into_sentences(full_text)
 
@@ -720,9 +719,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                     "model_name": self.model_name,
                     "model_revision": self.model_revision,
                     "segments_per_embedding": self.segments_per_embedding,
-                    "use_sentence_based_chunking": self.use_sentence_based_chunking,
-                    "text_sentences_per_chunk": self.text_sentences_per_chunk if self.use_sentence_based_chunking else None,
-                    "text_chunk_overlap": self.text_chunk_overlap if self.use_sentence_based_chunking else None,
+                    "use_sentence_based_chunking": True,
+                    "text_sentences_per_chunk": self.text_sentences_per_chunk,
+                    "text_chunk_overlap": self.text_chunk_overlap,
                     "device": self.device,
                 },
                 statistics={
@@ -793,9 +792,9 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                     "model_name": self.model_name,
                     "model_revision": self.model_revision,
                     "segments_per_embedding": self.segments_per_embedding,
-                    "use_sentence_based_chunking": self.use_sentence_based_chunking,
-                    "text_sentences_per_chunk": self.text_sentences_per_chunk if self.use_sentence_based_chunking else None,
-                    "text_chunk_overlap": self.text_chunk_overlap if self.use_sentence_based_chunking else None,
+                    "use_sentence_based_chunking": True,
+                    "text_sentences_per_chunk": self.text_sentences_per_chunk,
+                    "text_chunk_overlap": self.text_chunk_overlap,
                     "device": self.device,
                 },
                 statistics={

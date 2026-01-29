@@ -15,7 +15,6 @@ from pydantic import SecretStr
 
 from preprocessor.utils.resolution import Resolution
 
-
 # ============================================================================
 # CONSTANTS & HELPERS
 # ============================================================================
@@ -163,7 +162,6 @@ class WhisperSettings:
 @dataclass
 class TextChunkingSettings:
     segments_per_embedding: int = 5
-    use_sentence_based_chunking: bool = True
     text_sentences_per_chunk: int = 8
     text_chunk_overlap: int = 3
 
@@ -173,8 +171,6 @@ class ElevenLabsSettings(BaseAPISettings):
     model_id: str = "scribe_v1"
     language_code: str = "pol"
     diarize: bool = True
-    diarization_threshold: float = 0.4
-    temperature: float = 0.0
     polling_interval: int = 20
     max_attempts: int = 60
 
@@ -222,7 +218,6 @@ class EmbeddingSettings:
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
     detection_size: tuple = (1280, 1280)
-    use_gpu: bool = True
 
 
 @dataclass
@@ -231,19 +226,16 @@ class FaceClusteringSettings:
     min_cluster_size: int = 5
     min_samples: int = 3
     save_noise: bool = True
-    save_full_frames: bool = True
 
 
 @dataclass
 class EmotionDetectionSettings:
     model_name: str = "enet_b2_8"
-    use_gpu: bool = True
 
     @classmethod
     def from_env(cls) -> "EmotionDetectionSettings":
         model_name = os.getenv("EMOTION_MODEL_NAME", "enet_b2_8")
-        use_gpu = os.getenv("EMOTION_USE_GPU", "true").lower() == "true"
-        return cls(model_name=model_name, use_gpu=use_gpu)
+        return cls(model_name=model_name)
 
 
 @dataclass
@@ -259,12 +251,15 @@ class CharacterSettings:
     frame_detection_threshold: float = 0.55
 
 
+_OBJECT_DETECTIONS_DIR = BASE_OUTPUT_DIR / "object_detections"
+
+
 @dataclass
 class ObjectDetectionSettings:
     model_name: str = "ustc-community/dfine-xlarge-obj2coco"
     conf_threshold: float = 0.30
-    output_dir: Path = BASE_OUTPUT_DIR / "object_detections"
-    visualized_output_dir: Path = BASE_OUTPUT_DIR / "object_detections" / "visualizations"
+    output_dir: Path = _OBJECT_DETECTIONS_DIR
+    visualized_output_dir: Path = _OBJECT_DETECTIONS_DIR / "visualizations"
 
 
 # ============================================================================

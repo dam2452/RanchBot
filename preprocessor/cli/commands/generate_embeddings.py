@@ -82,11 +82,6 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     help="Batch size for GPU inference. Reduce if OOM errors occur",
 )
 @click.option(
-    "--sentence-chunking/--segment-chunking",
-    default=settings.text_chunking.use_sentence_based_chunking,
-    help="Use sentence-based chunking (smart, with overlap) or segment-based chunking (simple)",
-)
-@click.option(
     "--sentences-per-chunk",
     type=int,
     default=settings.text_chunking.text_sentences_per_chunk,
@@ -112,7 +107,6 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
     generate_sound_events: bool,
     device: str,
     batch_size: int,
-    sentence_chunking: bool,
     sentences_per_chunk: int,
     chunk_overlap: int,
 ):
@@ -133,7 +127,6 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
                 "generate_sound_events": generate_sound_events,
                 "device": device,
                 "batch_size": batch_size,
-                "use_sentence_based_chunking": sentence_chunking,
                 "text_sentences_per_chunk": sentences_per_chunk,
                 "text_chunk_overlap": chunk_overlap,
             },

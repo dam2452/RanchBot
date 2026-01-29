@@ -406,6 +406,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
     skip_face_clustering,
     skip_object_detection,
     skip_object_visualization,
+    debug_visualizations=False,
     **kwargs,
 ):
     name = kwargs.get("name")
@@ -445,7 +446,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
     if not skip_character_detection:
         char_detection_sub = CharacterDetectionSubProcessor(
             characters_dir=Path(settings.character.output_dir),
-            use_gpu=settings.face_recognition.use_gpu,
+            use_gpu=True,
             threshold=settings.character.frame_detection_threshold,
         )
         processor.add_sub_processor(char_detection_sub)
@@ -466,7 +467,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
             min_cluster_size=settings.face_clustering.min_cluster_size,
             min_samples=settings.face_clustering.min_samples,
             save_noise=settings.face_clustering.save_noise,
-            save_full_frames=settings.face_clustering.save_full_frames,
+            save_full_frames=debug_visualizations,
         )
         processor.add_sub_processor(face_clustering_sub)
         sub_processors.append(face_clustering_sub)

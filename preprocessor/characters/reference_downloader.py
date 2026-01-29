@@ -51,7 +51,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.max_results: int = settings.image_scraper.max_results_to_scrape
         self.min_width: int = settings.image_scraper.min_image_width
         self.min_height: int = settings.image_scraper.min_image_height
-        self.use_gpu: bool = settings.face_recognition.use_gpu
+        self.use_gpu: bool = True
         self.search_mode: str = self._args.get("search_mode", "normal")
 
         self.search_engine: BaseImageSearch = self._create_search_engine()
