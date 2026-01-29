@@ -623,6 +623,9 @@ class ElasticDocumentGenerator(BaseProcessor):
                 if not embedding:
                     continue
 
+                if isinstance(segment_range, list) and len(segment_range) == 2:
+                    segment_range = {"gte": segment_range[0], "lte": segment_range[1]}
+
                 doc = {
                     "episode_id": episode_id,
                     "episode_metadata": episode_metadata,
@@ -862,6 +865,9 @@ class ElasticDocumentGenerator(BaseProcessor):
 
                 if not embedding:
                     continue
+
+                if isinstance(segment_range, list) and len(segment_range) == 2:
+                    segment_range = {"gte": segment_range[0], "lte": segment_range[1]}
 
                 doc = {
                     "episode_id": episode_id,
