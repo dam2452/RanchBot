@@ -136,7 +136,7 @@ from preprocessor.utils.resolution import Resolution
 @click.option("--skip-archives", is_flag=True, help="Skip Step 9: Archive generation (use existing archives)")
 @click.option("--skip-index", is_flag=True, help="Skip Step 10: Elasticsearch indexing")
 @click.option("--skip-validation", is_flag=True, help="Skip Step 11: Output validation")
-def run_all(  # pylint: disable=too-many-arguments,too-many-locals
+def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     videos: Path,
     episodes_info_json: Path,
     transcoded_videos: Path,
@@ -182,16 +182,34 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals
     if codec is None:
         codec = settings.transcode.codec
 
-    if scrape_urls and not episodes_info_json:
-        episodes_info_json = Path("/app/output_data") / f"{series_name}_episodes.json"
-
     if not episodes_info_json:
-        console.print("[red]Error: Either --episodes-info-json or --scrape-urls must be provided[/red]")
-        sys.exit(1)
+        default_episodes_json = Path("/app/output_data") / f"{series_name}_episodes.json"
+        if default_episodes_json.exists():
+            episodes_info_json = default_episodes_json
+            console.print(f"[cyan]Using existing episodes JSON: {episodes_info_json}[/cyan]")
+        elif scrape_urls:
+            episodes_info_json = default_episodes_json
+            console.print(f"[cyan]Will scrape episodes to: {episodes_info_json}[/cyan]")
+        else:
+            console.print("[red]Error: Either --episodes-info-json, --scrape-urls must be provided, or existing episodes JSON must exist[/red]")
+            console.print(f"[yellow]Expected location: {default_episodes_json}[/yellow]")
+            sys.exit(1)
 
-    characters_json = settings.character.characters_list_file
-    if character_urls:
-        characters_json = Path("/app/output_data") / f"{series_name}_characters.json"
+    characters_json = None
+    default_characters_json = Path("/app/output_data") / f"{series_name}_characters.json"
+
+    if default_characters_json.exists():
+        characters_json = default_characters_json
+        console.print(f"[cyan]Using existing characters JSON: {characters_json}[/cyan]")
+    elif character_urls:
+        characters_json = default_characters_json
+        console.print(f"[cyan]Will scrape characters to: {characters_json}[/cyan]")
+    else:
+        characters_json = settings.character.characters_list_file
+        if characters_json and Path(characters_json).exists():
+            console.print(f"[cyan]Using default characters JSON: {characters_json}[/cyan]")
+        else:
+            console.print("[yellow]No characters JSON found. Character processing may be skipped.[/yellow]")
 
     state_manager = create_state_manager(series_name, no_state)
 

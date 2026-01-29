@@ -230,7 +230,7 @@ class ElasticSearchIndexer(BaseProcessor):
 
         return actions
 
-    def __load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
+    def _load_jsonl_documents(self, doc_dir: Path, index_name: str) -> List[Dict[str, Any]]:
         actions = []
 
         for jsonl_file in doc_dir.rglob("*.jsonl"):

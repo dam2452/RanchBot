@@ -140,7 +140,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         faces = self.face_app.get(img)
         return len(faces)
 
-    def __validate_and_decode_image(self, img_bytes: bytes, img_url: str) -> np.ndarray | None:
+    def _validate_and_decode_image(self, img_bytes: bytes, img_url: str) -> np.ndarray | None:
         if not img_bytes:
             return None
 
