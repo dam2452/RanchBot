@@ -305,6 +305,7 @@ async def search_by_emotion(es_client, emotion, season=None, episode=None, chara
                 },
             },
         ],
+        track_scores=True,
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "character_appearances", "scene_info"],
     )
