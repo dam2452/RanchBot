@@ -284,9 +284,27 @@ async def search_by_emotion(es_client, emotion, season=None, episode=None, chara
     if episode is not None:
         must_clauses.append({"term": {"episode_metadata.episode_number": episode}})
 
+    nested_filter = {"term": {"character_appearances.emotion.label": emotion}}
+    if character:
+        nested_filter = {"bool": {"must": [
+            {"term": {"character_appearances.emotion.label": emotion}},
+            {"term": {"character_appearances.name": character}},
+        ]}}
+
     return await es_client.search(
         index="ranczo_video_frames",
         query={"bool": {"must": must_clauses}},
+        sort=[
+            {
+                "character_appearances.emotion.confidence": {
+                    "order": "desc",
+                    "nested": {
+                        "path": "character_appearances",
+                        "filter": nested_filter,
+                    },
+                },
+            },
+        ],
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "character_appearances", "scene_info"],
     )
@@ -634,15 +652,15 @@ def search(  # pylint: disable=too-many-locals
                 else:
                     print_results(result, "video")
 
-            elif character:
-                result = await search_by_character(es_client, character, season, episode, limit)
+            elif emotion:
+                result = await search_by_emotion(es_client, emotion, season, episode, character, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
                     print_results(result, "video")
 
-            elif emotion:
-                result = await search_by_emotion(es_client, emotion, season, episode, character, limit)
+            elif character:
+                result = await search_by_character(es_client, character, season, episode, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
