@@ -159,7 +159,7 @@ class ElasticSearchManager:
                     },
                 },
                 "embedding_id": {"type": "integer"},
-                "segment_range": {"type": "integer_range"},
+                "segment_range": {"type": "integer"},
                 "text": {"type": "text"},
                 "text_embedding": {
                     "type": "dense_vector",
