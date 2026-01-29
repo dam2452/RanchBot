@@ -15,6 +15,11 @@ from pydantic import SecretStr
 
 from preprocessor.utils.resolution import Resolution
 
+
+# ============================================================================
+# CONSTANTS & HELPERS
+# ============================================================================
+
 is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
 BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("preprocessor/output_data")
 
@@ -22,6 +27,10 @@ BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("preprocessor/
 def get_output_path(relative_path: str) -> Path:
     return BASE_OUTPUT_DIR / relative_path
 
+
+# ============================================================================
+# OUTPUT DIRECTORY STRUCTURE
+# ============================================================================
 
 @dataclass
 class ElasticDocumentSubdirs:
@@ -34,11 +43,13 @@ class ElasticDocumentSubdirs:
     sound_events: str = "sound_events"
     sound_event_embeddings: str = "sound_event_embeddings"
 
+
 @dataclass
 class TranscriptionSubdirs:
     raw: str = "raw"
     clean: str = "clean"
     sound_events: str = "sound_events"
+
 
 @dataclass
 class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
@@ -60,193 +71,25 @@ class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
     elastic_document_subdirs: ElasticDocumentSubdirs = field(default_factory=ElasticDocumentSubdirs)
 
 
-@dataclass
-class WhisperSettings:
-    model: str = "large-v3-turbo"
-
-    @classmethod
-    def from_env(cls) -> "WhisperSettings":
-        return cls(
-            model=os.getenv("WHISPER_MODEL", "large-v3-turbo"),
-        )
+# ============================================================================
+# BASE CLASSES
+# ============================================================================
 
 @dataclass
-class TextChunkingSettings:
-    segments_per_embedding: int = 5
-    use_sentence_based_chunking: bool = True
-    text_sentences_per_chunk: int = 8
-    text_chunk_overlap: int = 3
-
-@dataclass
-class EmbeddingModelSettings:
-    model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
-    model_revision: str = "main"
-    embedding_dim: int = 4096
-    gpu_memory_utilization: float = 0.85
-    tensor_parallel_size: int = 1
-    max_model_len: int = 8192
-    image_placeholder: str = "<|vision_start|><|image_pad|><|vision_end|>"
-    enable_chunked_prefill: bool = True
-    max_num_batched_tokens: int = 8192
-    enforce_eager: bool = False
-
-@dataclass
-class EmbeddingSettings:
-    default_output_dir: Path = BASE_OUTPUT_DIR / "embeddings"
-    batch_size: int = 32
-    text_batch_size: int = 64
-    progress_sub_batch_size: int = 100
-    prefetch_chunks: int = 2
-    generate_full_episode_embedding: bool = True
-
-@dataclass
-class SceneDetectionSettings:
-    threshold: float = 0.5
-    min_scene_len: int = 10
-    output_dir: Path = BASE_OUTPUT_DIR / "scene_timestamps"
-
-@dataclass
-class SceneChangesSettings:
-    frames_per_scene: int = 1
-
-@dataclass
-class KeyframeExtractionSettings:
-    strategy: str = "scene_changes"
-    scene_changes: SceneChangesSettings = field(default_factory=SceneChangesSettings)
-
-@dataclass
-class FrameExportSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "exported_frames"
-    resolution: Resolution = Resolution.R1080P
-
-@dataclass
-class ImageHashSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "image_hashes"
-
-@dataclass
-class ScraperSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "scraped_pages"
-
-@dataclass
-class CharacterSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "characters"
-    reference_images_per_character: int = 3
-    characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
-    detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
-    processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
-    normalized_face_size: tuple = (112, 112)
-    face_detection_threshold: float = 0.2
-    reference_matching_threshold: float = 0.50
-    frame_detection_threshold: float = 0.55
-
-@dataclass
-class ObjectDetectionSettings:
-    model_name: str = "ustc-community/dfine-xlarge-obj2coco"
-    conf_threshold: float = 0.30
-    output_dir: Path = BASE_OUTPUT_DIR / "object_detections"
-    visualized_output_dir: Path = BASE_OUTPUT_DIR / "object_detections" / "visualizations"
-
-@dataclass
-class FaceRecognitionSettings:
-    model_name: str = "buffalo_l"
-    detection_size: tuple = (1280, 1280)
-    use_gpu: bool = True
-
-@dataclass
-class FaceClusteringSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "face_clusters"
-    min_cluster_size: int = 5
-    min_samples: int = 3
-    save_noise: bool = True
-    save_full_frames: bool = True
-
-@dataclass
-class EmotionDetectionSettings:
-    model_name: str = "enet_b2_8"
-    use_gpu: bool = True
-
-    @classmethod
-    def from_env(cls) -> "EmotionDetectionSettings":
-        model_name = os.getenv("EMOTION_MODEL_NAME", "enet_b2_8")
-        use_gpu = os.getenv("EMOTION_USE_GPU", "true").lower() == "true"
-        return cls(model_name=model_name, use_gpu=use_gpu)
-
-@dataclass
-class ImageScraperSettings:
-    max_results_to_scrape: int = 50
-    min_image_width: int = 800
-    min_image_height: int = 600
-    retry_attempts: int = 3
-    retry_delay: float = 3.0
-    request_delay_min: float = 3.0
-    request_delay_max: float = 6.0
-    page_navigation_timeout: int = 30000
-    _serpapi_key: Optional[SecretStr] = None
-
-    @classmethod
-    def from_env(cls) -> "ImageScraperSettings":
-        api_key = None
-        if os.getenv("SERPAPI_API_KEY"):
-            api_key = SecretStr(os.getenv("SERPAPI_API_KEY", ""))
-        return cls(_serpapi_key=api_key)
-
-    @property
-    def serpapi_key(self) -> Optional[str]:
-        return self._serpapi_key.get_secret_value() if self._serpapi_key else None
-
-@dataclass
-class ElevenLabsSettings:
-    model_id: str = "scribe_v1"
-    language_code: str = "pol"
-    diarize: bool = True
-    diarization_threshold: float = 0.4
-    temperature: float = 0.0
-    polling_interval: int = 20
-    max_attempts: int = 60
+class BaseAPISettings:
     _api_key: Optional[SecretStr] = None
-
-    @classmethod
-    def from_env(cls) -> "ElevenLabsSettings":
-        api_key = None
-        if os.getenv("ELEVEN_API_KEY"):
-            api_key = SecretStr(os.getenv("ELEVEN_API_KEY", ""))
-        return cls(_api_key=api_key)
 
     @property
     def api_key(self) -> Optional[str]:
         return self._api_key.get_secret_value() if self._api_key else None
 
-@dataclass
-class ElasticsearchSettings:
-    host: str = ""
-    user: str = ""
-    password: str = ""
 
-    @classmethod
-    def from_env(cls) -> "ElasticsearchSettings":
-        return cls(
-            host=os.getenv("ES_HOST", ""),
-            user=os.getenv("ES_USER", ""),
-            password=os.getenv("ES_PASS", ""),
-        )
+# ============================================================================
+# VIDEO PROCESSING
+# ============================================================================
 
 @dataclass
-class GeminiSettings:
-    _api_key: Optional[SecretStr] = None
-
-    @classmethod
-    def from_env(cls) -> "GeminiSettings":
-        api_key = None
-        if os.getenv("GEMINI_API_KEY"):
-            api_key = SecretStr(os.getenv("GEMINI_API_KEY", ""))
-        return cls(_api_key=api_key)
-
-    @property
-    def api_key(self) -> Optional[str]:
-        return self._api_key.get_secret_value() if self._api_key else None
-
-@dataclass
-class TranscodeDefaults:
+class TranscodeSettings:
     output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
     codec: str = "h264_nvenc"
     target_file_size_mb: float = 50.0
@@ -269,12 +112,230 @@ class TranscodeDefaults:
     def calculate_bufsize_mbps(self, multiplier: float = 2.0) -> float:
         return round(self.calculate_video_bitrate_mbps() * multiplier, 2)
 
+
 @dataclass
-class TranscriptionDefaults:
+class SceneDetectionSettings:
+    threshold: float = 0.5
+    min_scene_len: int = 10
+    output_dir: Path = BASE_OUTPUT_DIR / "scene_timestamps"
+
+
+@dataclass
+class SceneChangesSettings:
+    frames_per_scene: int = 1
+
+
+@dataclass
+class KeyframeExtractionSettings:
+    strategy: str = "scene_changes"
+    scene_changes: SceneChangesSettings = field(default_factory=SceneChangesSettings)
+
+
+@dataclass
+class FrameExportSettings:
+    output_dir: Path = BASE_OUTPUT_DIR / "exported_frames"
+    resolution: Resolution = Resolution.R1080P
+
+
+# ============================================================================
+# TRANSCRIPTION & TEXT PROCESSING
+# ============================================================================
+
+@dataclass
+class TranscriptionSettings:
     output_dir: Path = BASE_OUTPUT_DIR / "transcriptions"
     model: str = "large-v3-turbo"
     language: str = "Polish"
     device: str = "cuda"
+
+
+@dataclass
+class WhisperSettings:
+    model: str = "large-v3-turbo"
+
+    @classmethod
+    def from_env(cls) -> "WhisperSettings":
+        return cls(
+            model=os.getenv("WHISPER_MODEL", "large-v3-turbo"),
+        )
+
+
+@dataclass
+class TextChunkingSettings:
+    segments_per_embedding: int = 5
+    use_sentence_based_chunking: bool = True
+    text_sentences_per_chunk: int = 8
+    text_chunk_overlap: int = 3
+
+
+@dataclass
+class ElevenLabsSettings(BaseAPISettings):
+    model_id: str = "scribe_v1"
+    language_code: str = "pol"
+    diarize: bool = True
+    diarization_threshold: float = 0.4
+    temperature: float = 0.0
+    polling_interval: int = 20
+    max_attempts: int = 60
+
+    @classmethod
+    def from_env(cls) -> "ElevenLabsSettings":
+        api_key = None
+        if os.getenv("ELEVEN_API_KEY"):
+            api_key = SecretStr(os.getenv("ELEVEN_API_KEY", ""))
+        return cls(_api_key=api_key)
+
+
+# ============================================================================
+# EMBEDDINGS
+# ============================================================================
+
+@dataclass
+class EmbeddingModelSettings:
+    model_name: str = "Qwen/Qwen3-VL-Embedding-8B"
+    model_revision: str = "main"
+    embedding_dim: int = 4096
+    gpu_memory_utilization: float = 0.85
+    tensor_parallel_size: int = 1
+    max_model_len: int = 8192
+    image_placeholder: str = "<|vision_start|><|image_pad|><|vision_end|>"
+    enable_chunked_prefill: bool = True
+    max_num_batched_tokens: int = 8192
+    enforce_eager: bool = False
+
+
+@dataclass
+class EmbeddingSettings:
+    default_output_dir: Path = BASE_OUTPUT_DIR / "embeddings"
+    batch_size: int = 32
+    text_batch_size: int = 64
+    progress_sub_batch_size: int = 100
+    prefetch_chunks: int = 2
+    generate_full_episode_embedding: bool = True
+
+
+# ============================================================================
+# COMPUTER VISION
+# ============================================================================
+
+@dataclass
+class FaceRecognitionSettings:
+    model_name: str = "buffalo_l"
+    detection_size: tuple = (1280, 1280)
+    use_gpu: bool = True
+
+
+@dataclass
+class FaceClusteringSettings:
+    output_dir: Path = BASE_OUTPUT_DIR / "face_clusters"
+    min_cluster_size: int = 5
+    min_samples: int = 3
+    save_noise: bool = True
+    save_full_frames: bool = True
+
+
+@dataclass
+class EmotionDetectionSettings:
+    model_name: str = "enet_b2_8"
+    use_gpu: bool = True
+
+    @classmethod
+    def from_env(cls) -> "EmotionDetectionSettings":
+        model_name = os.getenv("EMOTION_MODEL_NAME", "enet_b2_8")
+        use_gpu = os.getenv("EMOTION_USE_GPU", "true").lower() == "true"
+        return cls(model_name=model_name, use_gpu=use_gpu)
+
+
+@dataclass
+class CharacterSettings:
+    output_dir: Path = BASE_OUTPUT_DIR / "characters"
+    reference_images_per_character: int = 3
+    characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
+    detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
+    processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
+    normalized_face_size: tuple = (112, 112)
+    face_detection_threshold: float = 0.2
+    reference_matching_threshold: float = 0.50
+    frame_detection_threshold: float = 0.55
+
+
+@dataclass
+class ObjectDetectionSettings:
+    model_name: str = "ustc-community/dfine-xlarge-obj2coco"
+    conf_threshold: float = 0.30
+    output_dir: Path = BASE_OUTPUT_DIR / "object_detections"
+    visualized_output_dir: Path = BASE_OUTPUT_DIR / "object_detections" / "visualizations"
+
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+
+@dataclass
+class ImageHashSettings:
+    output_dir: Path = BASE_OUTPUT_DIR / "image_hashes"
+
+
+@dataclass
+class ImageScraperSettings(BaseAPISettings):
+    max_results_to_scrape: int = 50
+    min_image_width: int = 800
+    min_image_height: int = 600
+    retry_attempts: int = 3
+    retry_delay: float = 3.0
+    request_delay_min: float = 3.0
+    request_delay_max: float = 6.0
+    page_navigation_timeout: int = 30000
+
+    @classmethod
+    def from_env(cls) -> "ImageScraperSettings":
+        api_key = None
+        if os.getenv("SERPAPI_API_KEY"):
+            api_key = SecretStr(os.getenv("SERPAPI_API_KEY", ""))
+        return cls(_api_key=api_key)
+
+    @property
+    def serpapi_key(self) -> Optional[str]:
+        return self.api_key
+
+
+@dataclass
+class ScraperSettings:
+    output_dir: Path = BASE_OUTPUT_DIR / "scraped_pages"
+
+
+# ============================================================================
+# EXTERNAL SERVICES
+# ============================================================================
+
+@dataclass
+class ElasticsearchSettings:
+    host: str = ""
+    user: str = ""
+    password: str = ""
+
+    @classmethod
+    def from_env(cls) -> "ElasticsearchSettings":
+        return cls(
+            host=os.getenv("ES_HOST", ""),
+            user=os.getenv("ES_USER", ""),
+            password=os.getenv("ES_PASS", ""),
+        )
+
+
+@dataclass
+class GeminiSettings(BaseAPISettings):
+    @classmethod
+    def from_env(cls) -> "GeminiSettings":
+        api_key = None
+        if os.getenv("GEMINI_API_KEY"):
+            api_key = SecretStr(os.getenv("GEMINI_API_KEY", ""))
+        return cls(_api_key=api_key)
+
+
+# ============================================================================
+# MAIN SETTINGS
+# ============================================================================
 
 @dataclass
 class Settings:  # pylint: disable=too-many-instance-attributes
@@ -297,8 +358,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
     gemini: GeminiSettings
-    transcode: TranscodeDefaults
-    transcription: TranscriptionDefaults
+    transcode: TranscodeSettings
+    transcription: TranscriptionSettings
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -322,11 +383,14 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             elevenlabs=ElevenLabsSettings.from_env(),
             elasticsearch=ElasticsearchSettings.from_env(),
             gemini=GeminiSettings.from_env(),
-            transcode=TranscodeDefaults(),
-            transcription=TranscriptionDefaults(),
+            transcode=TranscodeSettings(),
+            transcription=TranscriptionSettings(),
         )
 
-settings = Settings.from_env()
+
+# ============================================================================
+# PIPELINE CONFIGS
+# ============================================================================
 
 @dataclass
 class TranscodeConfig:
@@ -357,6 +421,7 @@ class TranscodeConfig:
             "episodes_info_json": self.episodes_info_json,
         }
 
+
 @dataclass
 class TranscriptionConfig:
     videos: Path
@@ -380,6 +445,7 @@ class TranscriptionConfig:
             "name": self.name,
         }
 
+
 @dataclass
 class IndexConfig:
     name: str
@@ -394,3 +460,10 @@ class IndexConfig:
             "dry_run": self.dry_run,
             "append": self.append,
         }
+
+
+# ============================================================================
+# GLOBAL INSTANCE
+# ============================================================================
+
+settings = Settings.from_env()
