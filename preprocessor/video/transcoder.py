@@ -81,7 +81,7 @@ class VideoTranscoder(BaseVideoProcessor):
 
         try:
             temp_path.parent.mkdir(parents=True, exist_ok=True)
-            self._transcode_video(video_file, temp_path)
+            self.__transcode_video(video_file, temp_path)
             temp_path.replace(output_path)
             self.logger.info(f"Processed: {video_file} -> {output_path}")
         except subprocess.CalledProcessError as e:
@@ -95,10 +95,10 @@ class VideoTranscoder(BaseVideoProcessor):
                 temp_path.unlink()
             raise
 
-    def _transcode_video(self, input_video: Path, output_video: Path) -> None:
-        input_fps = self._get_framerate(input_video)
-        input_video_bitrate = self._get_video_bitrate(input_video)
-        input_audio_bitrate = self._get_audio_bitrate(input_video)
+    def __transcode_video(self, input_video: Path, output_video: Path) -> None:
+        input_fps = self.__get_framerate(input_video)
+        input_video_bitrate = self.__get_video_bitrate(input_video)
+        input_audio_bitrate = self.__get_audio_bitrate(input_video)
 
         target_fps = min(input_fps, 30.0)
         if target_fps < input_fps:
@@ -194,7 +194,7 @@ class VideoTranscoder(BaseVideoProcessor):
             raise
 
     @staticmethod
-    def _get_framerate(video: Path) -> float:
+    def __get_framerate(video: Path) -> float:
         cmd = [
             "ffprobe", "-v", "error",
             "-select_streams", "v:0",
@@ -215,7 +215,7 @@ class VideoTranscoder(BaseVideoProcessor):
         return num / denom
 
     @staticmethod
-    def _get_video_bitrate(video: Path) -> Optional[float]:
+    def __get_video_bitrate(video: Path) -> Optional[float]:
         cmd = [
             "ffprobe", "-v", "error",
             "-select_streams", "v:0",
@@ -234,7 +234,7 @@ class VideoTranscoder(BaseVideoProcessor):
         return round(int(bit_rate) / 1_000_000, 2)
 
     @staticmethod
-    def _get_audio_bitrate(video: Path) -> Optional[int]:
+    def __get_audio_bitrate(video: Path) -> Optional[int]:
         cmd = [
             "ffprobe", "-v", "error",
             "-select_streams", "a:0",

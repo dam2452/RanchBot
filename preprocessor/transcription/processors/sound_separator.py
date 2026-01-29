@@ -97,19 +97,19 @@ class SoundEventSeparator(BaseProcessor):
         sound_event_segments = []
 
         for segment in segments:
-            classification = self._classify_segment(segment)
+            classification = self.__classify_segment(segment)
 
             if classification == "dialogue":
-                dialogue_segments.append(self._clean_segment_text(segment))
+                dialogue_segments.append(self.__clean_segment_text(segment))
             elif classification == "sound_event":
-                sound_event_segments.append(self._enrich_sound_event(self._clean_segment_text(segment)))
+                sound_event_segments.append(self.__enrich_sound_event(self.__clean_segment_text(segment)))
             elif classification == "mixed":
-                dialogue_parts, sound_parts = self._split_mixed_segment(segment)
+                dialogue_parts, sound_parts = self.__split_mixed_segment(segment)
                 dialogue_segments.extend(dialogue_parts)
-                sound_event_segments.extend([self._enrich_sound_event(s) for s in sound_parts])
+                sound_event_segments.extend([self.__enrich_sound_event(s) for s in sound_parts])
 
-        dialogue_segments = self._renumber_segments(dialogue_segments)
-        sound_event_segments = self._renumber_segments(sound_event_segments)
+        dialogue_segments = self.__renumber_segments(dialogue_segments)
+        sound_event_segments = self.__renumber_segments(sound_event_segments)
 
         base_name = item.input_path.stem.replace(FILE_SUFFIXES["segmented"], "")
         episode_dir = item.input_path.parent.parent
@@ -130,8 +130,8 @@ class SoundEventSeparator(BaseProcessor):
 
         raw_txt = episode_dir / settings.output_subdirs.transcription_subdirs.raw / f"{base_name}.txt"
 
-        dialogue_segments_simple = self._convert_to_simple_format(dialogue_segments)
-        sound_event_segments_simple = self._convert_to_simple_format(sound_event_segments)
+        dialogue_segments_simple = self.__convert_to_simple_format(dialogue_segments)
+        sound_event_segments_simple = self.__convert_to_simple_format(sound_event_segments)
 
         with open(clean_json, "w", encoding="utf-8") as f:
             json.dump(
@@ -165,15 +165,15 @@ class SoundEventSeparator(BaseProcessor):
                 indent=4,
             )
 
-        self._generate_txt_files(raw_txt, clean_txt, sound_txt)
-        self._generate_srt_files(dialogue_segments, sound_event_segments, clean_srt, sound_srt)
+        self.__generate_txt_files(raw_txt, clean_txt, sound_txt)
+        self.__generate_srt_files(dialogue_segments, sound_event_segments, clean_srt, sound_srt)
 
         self.logger.info(
             f"Separated {item.episode_id}: "
             f"{len(dialogue_segments)} dialogue, {len(sound_event_segments)} sound events",
         )
 
-    def _classify_segment(self, segment: Dict) -> str:
+    def __classify_segment(self, segment: Dict) -> str:
         words = segment.get("words", [])
         if not words:
             return "dialogue"
@@ -182,7 +182,7 @@ class SoundEventSeparator(BaseProcessor):
         has_dialogue = False
 
         for word in words:
-            if self._is_sound_event(word):
+            if self.__is_sound_event(word):
                 has_sound = True
             elif word.get("type") not in ["spacing", ""]:
                 has_dialogue = True
@@ -193,7 +193,7 @@ class SoundEventSeparator(BaseProcessor):
             return "sound_event"
         return "dialogue"
 
-    def _is_sound_event(self, word: Dict) -> bool:
+    def __is_sound_event(self, word: Dict) -> bool:
         if word.get("type") == "audio_event":
             return True
 
@@ -203,7 +203,7 @@ class SoundEventSeparator(BaseProcessor):
 
         return False
 
-    def _split_mixed_segment(self, segment: Dict) -> Tuple[List[Dict], List[Dict]]:
+    def __split_mixed_segment(self, segment: Dict) -> Tuple[List[Dict], List[Dict]]:
         words = segment.get("words", [])
         dialogue_sequences = []
         sound_sequences = []
@@ -217,12 +217,12 @@ class SoundEventSeparator(BaseProcessor):
                     current_words.append(word)
                 continue
 
-            is_sound = self._is_sound_event(word)
+            is_sound = self.__is_sound_event(word)
             word_type = "sound" if is_sound else "dialogue"
 
             if word_type != current_type:
                 if current_words:
-                    self._finalize_sequence(
+                    self.__finalize_sequence(
                         current_type, current_words, dialogue_sequences, sound_sequences, segment,
                     )
                 current_type = word_type
@@ -231,13 +231,13 @@ class SoundEventSeparator(BaseProcessor):
                 current_words.append(word)
 
         if current_words:
-            self._finalize_sequence(
+            self.__finalize_sequence(
                 current_type, current_words, dialogue_sequences, sound_sequences, segment,
             )
 
         return dialogue_sequences, sound_sequences
 
-    def _finalize_sequence(
+    def __finalize_sequence(
         self,
         seq_type: str,
         words: List[Dict],
@@ -273,7 +273,7 @@ class SoundEventSeparator(BaseProcessor):
         else:
             sound_sequences.append(new_segment)
 
-    def _clean_segment_text(self, segment: Dict) -> Dict:
+    def __clean_segment_text(self, segment: Dict) -> Dict:
         cleaned = segment.copy()
         if "text" in cleaned:
             text = cleaned["text"]
@@ -292,19 +292,19 @@ class SoundEventSeparator(BaseProcessor):
 
         return cleaned
 
-    def _enrich_sound_event(self, segment: Dict) -> Dict:
+    def __enrich_sound_event(self, segment: Dict) -> Dict:
         enriched = segment.copy()
         enriched["sound_type"] = "sound"
         return enriched
 
     @staticmethod
-    def _renumber_segments(segments: List[Dict]) -> List[Dict]:
+    def __renumber_segments(segments: List[Dict]) -> List[Dict]:
         for i, segment in enumerate(segments):
             segment["id"] = i
         return segments
 
     @staticmethod
-    def _convert_to_simple_format(segments: List[Dict]) -> List[Dict]:
+    def __convert_to_simple_format(segments: List[Dict]) -> List[Dict]:
         simple_segments = []
         for seg in segments:
             simple_seg = {
@@ -318,7 +318,7 @@ class SoundEventSeparator(BaseProcessor):
             simple_segments.append(simple_seg)
         return simple_segments
 
-    def _generate_txt_files(self, original_txt: Path, clean_txt: Path, sound_txt: Path) -> None:
+    def __generate_txt_files(self, original_txt: Path, clean_txt: Path, sound_txt: Path) -> None:
         if not original_txt.exists():
             self.logger.warning(f"Original TXT file not found: {original_txt}")
             return
@@ -339,7 +339,7 @@ class SoundEventSeparator(BaseProcessor):
             f.write(sound_content)
 
     @staticmethod
-    def _generate_srt_files(
+    def __generate_srt_files(
         dialogue_segments: List[Dict],
         sound_segments: List[Dict],
         clean_srt: Path,

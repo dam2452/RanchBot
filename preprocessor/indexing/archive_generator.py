@@ -103,7 +103,7 @@ class ArchiveGenerator(BaseProcessor):
 
         console.print(f"[cyan]Archiving documents for: {item.episode_id}[/cyan]")
 
-        episode_files = self._collect_episode_files(episode_info, base_name)
+        episode_files = self.__collect_episode_files(episode_info, base_name)
 
         if not episode_files:
             self.logger.warning(f"No files found for {item.episode_id}")
@@ -120,11 +120,11 @@ class ArchiveGenerator(BaseProcessor):
             return
 
         for output_spec in missing_outputs:
-            self._create_archive(output_spec.path, episode_files)
+            self.__create_archive(output_spec.path, episode_files)
 
         console.print(f"[green]Completed archive for: {item.episode_id}[/green]")
 
-    def _collect_episode_files(self, episode_info, base_name: str) -> Dict[str, Path]:
+    def __collect_episode_files(self, episode_info, base_name: str) -> Dict[str, Path]:
         collected_files = {}
 
         for folder_name, file_suffix in self.FOLDER_TO_FILE_SUFFIX.items():
@@ -144,7 +144,7 @@ class ArchiveGenerator(BaseProcessor):
 
         return collected_files
 
-    def _create_archive(self, archive_path: Path, files: Dict[str, Path]) -> None:
+    def __create_archive(self, archive_path: Path, files: Dict[str, Path]) -> None:
         archive_path.parent.mkdir(parents=True, exist_ok=True)
 
         temp_path = archive_path.with_suffix(archive_path.suffix + ".tmp")

@@ -24,12 +24,12 @@ class GlobalValidator:
         self.result = GlobalValidationResult()
 
     def validate(self) -> GlobalValidationResult:
-        self._validate_main_json_files()
-        self._validate_characters_folder()
-        self._validate_processing_metadata()
+        self.__validate_main_json_files()
+        self.__validate_characters_folder()
+        self.__validate_processing_metadata()
         return self.result
 
-    def _validate_main_json_files(self):
+    def __validate_main_json_files(self):
         episodes_file = self.base_output_dir / f"{self.series_name}_episodes.json"
         if episodes_file.exists():
             result = validate_json_file(episodes_file)
@@ -50,7 +50,7 @@ class GlobalValidator:
         else:
             self.result.warnings.append(f"Missing {characters_file.name}")
 
-    def _validate_characters_folder(self):
+    def __validate_characters_folder(self):
         characters_dir = self.base_output_dir / "characters"
         if not characters_dir.exists():
             self.result.warnings.append("Missing characters/ directory")
@@ -97,7 +97,7 @@ class GlobalValidator:
                 f"{len(characters_without_images)} characters without reference images",
             )
 
-    def _validate_processing_metadata(self):
+    def __validate_processing_metadata(self):
         metadata_dir = self.base_output_dir / "processing_metadata"
         if not metadata_dir.exists():
             self.result.warnings.append("Missing processing_metadata/ directory")

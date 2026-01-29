@@ -45,17 +45,17 @@ class PipelineOrchestrator:
             self.metadata = ProcessingMetadata(series_name=self.series_name, params=params)
 
         try:
-            exit_code = self._run_all_steps(params)
+            exit_code = self.__run_all_steps(params)
             if self.state_manager:
                 self.state_manager.cleanup()
-            self._finalize_metadata(exit_code)
+            self.__finalize_metadata(exit_code)
             return exit_code
         except KeyboardInterrupt:
             console.print("\n[yellow]Pipeline interrupted by user[/yellow]")
-            self._finalize_metadata(130)
+            self.__finalize_metadata(130)
             return 130
 
-    def _run_all_steps(self, params: Dict[str, Any]) -> int:
+    def __run_all_steps(self, params: Dict[str, Any]) -> int:
         for step in self.steps:
             step_metadata = None
             if self.metadata:
@@ -90,7 +90,7 @@ class PipelineOrchestrator:
 
         return 0
 
-    def _finalize_metadata(self, exit_code: int):
+    def __finalize_metadata(self, exit_code: int):
         if self.metadata:
             additional_stats = self.__collect_additional_statistics()
             self.metadata.finish_processing(exit_code, additional_stats)

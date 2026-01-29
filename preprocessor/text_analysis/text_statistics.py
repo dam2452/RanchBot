@@ -91,15 +91,15 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
         return stats
 
     def calculate(self):
-        self._calculate_basic_stats()
-        self._calculate_character_stats()
-        self._calculate_word_stats()
-        self._calculate_advanced_stats()
+        self.__calculate_basic_stats()
+        self.__calculate_character_stats()
+        self.__calculate_word_stats()
+        self.__calculate_advanced_stats()
 
-    def _get_config(self) -> LanguageConfig:
+    def __get_config(self) -> LanguageConfig:
         return POLISH_CONFIG if self.language == "pl" else ENGLISH_CONFIG
 
-    def _calculate_basic_stats(self):
+    def __calculate_basic_stats(self):
         lines = self.text.split("\n")
         self.lines = len(lines)
         self.empty_lines = sum(1 for line in lines if not line.strip())
@@ -114,8 +114,8 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
         self.spaces = self.text.count(" ") + self.text.count("\t") + self.text.count("\n")
         self.chars_without_spaces = self.total_chars - self.spaces
 
-    def _calculate_character_stats(self):
-        config = self._get_config()
+    def __calculate_character_stats(self):
+        config = self.__get_config()
         letter_counter = Counter()
 
         for char in self.text:
@@ -138,7 +138,7 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
 
         self.letter_frequency = dict(sorted(letter_counter.items(), key=lambda x: x[1], reverse=True))
 
-    def _calculate_word_stats(self):
+    def __calculate_word_stats(self):
         words = re.findall(r'\b\w+\b', self.text.lower())
         self.words = len(words)
 
@@ -155,7 +155,7 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
                 for word, count in word_counter.most_common(50)
             ]
 
-    def _calculate_advanced_stats(self):
+    def __calculate_advanced_stats(self):
         if self.sentences > 0:
             self.avg_sentence_length = round(self.words / self.sentences, 2)
 

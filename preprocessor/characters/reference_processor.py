@@ -114,22 +114,22 @@ class CharacterReferenceProcessor(BaseProcessor):
             console.print(f"[yellow]Skipping {char_name}: need at least 2 reference images, found {len(reference_images)}[/yellow]")
             return
 
-        all_faces = self._detect_faces_in_references(reference_images)
+        all_faces = self.__detect_faces_in_references(reference_images)
 
         if not all_faces or not all_faces[0]:
             console.print(f"[yellow]Skipping {char_name}: no faces detected in reference images[/yellow]")
             return
 
-        selected_faces = self._find_common_face(all_faces, char_name, reference_images)
+        selected_faces = self.__find_common_face(all_faces, char_name, reference_images)
 
         if not selected_faces:
             console.print(f"[yellow]Skipping {char_name}: could not identify common face[/yellow]")
             return
 
-        self._save_processed_references(char_name, selected_faces, reference_images)
+        self.__save_processed_references(char_name, selected_faces, reference_images)
         console.print(f"[green]✓ Processed {char_name}[/green]")
 
-    def _detect_faces_in_references(self, image_paths: List[Path]) -> List[List[FaceData]]:
+    def __detect_faces_in_references(self, image_paths: List[Path]) -> List[List[FaceData]]:
         all_faces = []
 
         for idx, img_path in enumerate(image_paths):
@@ -163,7 +163,7 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         return all_faces
 
-    def _find_common_face(
+    def __find_common_face(
         self,
         all_faces: List[List[FaceData]],
         char_name: str,
@@ -210,7 +210,7 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         if len(candidates) == 0:
             if self.interactive:
-                return self._ask_user_to_select_initial_face(
+                return self.__ask_user_to_select_initial_face(
                     first_image_faces,
                     all_faces,
                     char_name,
@@ -220,11 +220,11 @@ class CharacterReferenceProcessor(BaseProcessor):
         if len(candidates) == 1:
             return candidates[0].faces
         if self.interactive:
-            return self._ask_user_to_select_candidate(candidates, char_name)
+            return self.__ask_user_to_select_candidate(candidates, char_name)
         candidates.sort(key=lambda c: c.avg_similarity, reverse=True)
         return candidates[0].faces
 
-    def _ask_user_to_select_candidate(
+    def __ask_user_to_select_candidate(
         self,
         candidates: List[CandidateFace],
         char_name: str,
@@ -235,7 +235,7 @@ class CharacterReferenceProcessor(BaseProcessor):
         for idx, candidate in enumerate(candidates, 1):
             console.print(f"Candidate {idx}: avg similarity = {candidate.avg_similarity:.2f}")
 
-        grid_path = self._create_selection_grid(candidates, "candidates", char_name)
+        grid_path = self.__create_selection_grid(candidates, "candidates", char_name)
         console.print(f"[blue]Grid image saved to: {grid_path}[/blue]")
 
         while True:
@@ -252,7 +252,7 @@ class CharacterReferenceProcessor(BaseProcessor):
             except ValueError:
                 console.print("[red]Invalid input. Please enter a number or 's'[/red]")
 
-    def _ask_user_to_select_initial_face(
+    def __ask_user_to_select_initial_face(
         self,
         first_image_faces: List[FaceData],
         all_faces: List[List[FaceData]],
@@ -264,7 +264,7 @@ class CharacterReferenceProcessor(BaseProcessor):
         console.print("[yellow]Manual selection mode: Please select the correct face from the first image.[/yellow]")
         console.print(f"[yellow]Found {len(first_image_faces)} faces in first reference image.[/yellow]")
 
-        grid_path = self._create_selection_grid(first_image_faces, "manual", char_name)
+        grid_path = self.__create_selection_grid(first_image_faces, "manual", char_name)
         console.print(f"[blue]Grid image saved to: {grid_path}[/blue]")
 
         while True:
@@ -277,7 +277,7 @@ class CharacterReferenceProcessor(BaseProcessor):
                 selection = int(user_input)
                 if 1 <= selection <= len(first_image_faces):
                     selected_face = first_image_faces[selection - 1]
-                    return self._find_matching_faces_for_reference(
+                    return self.__find_matching_faces_for_reference(
                         selected_face.face_vector,
                         all_faces[1:],
                         [selected_face],
@@ -287,7 +287,7 @@ class CharacterReferenceProcessor(BaseProcessor):
             except ValueError:
                 console.print("[red]Invalid input. Please enter a number or 's'[/red]")
 
-    def _find_matching_faces_for_reference(
+    def __find_matching_faces_for_reference(
         self,
         reference_vector: np.ndarray,
         remaining_images: List[List[FaceData]],
@@ -325,7 +325,7 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         return matched_faces
 
-    def _create_selection_grid(  # pylint: disable=too-many-locals
+    def __create_selection_grid(  # pylint: disable=too-many-locals
         self,
         data,
         mode: str,
@@ -422,7 +422,7 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         return output_path
 
-    def _save_processed_references(  # pylint: disable=too-many-locals
+    def __save_processed_references(  # pylint: disable=too-many-locals
         self,
         char_name: str,
         selected_faces: List[FaceData],
@@ -448,7 +448,7 @@ class CharacterReferenceProcessor(BaseProcessor):
         np.save(vector_path, mean_vector)
 
         total_faces_detected = []
-        for faces_list in self._detect_faces_in_references(reference_images):
+        for faces_list in self.__detect_faces_in_references(reference_images):
             total_faces_detected.append(len(faces_list))
 
         similarities = []

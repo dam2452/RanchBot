@@ -25,7 +25,7 @@ class GPUBatchProcessor:
         self.max_vram_used = 0.0
         self.vram_samples = []
 
-    def _log_vram_usage(self) -> None:
+    def __log_vram_usage(self) -> None:
         if torch.cuda.is_available():
             vram_reserved = torch.cuda.memory_reserved(self.device) / 1024**3
             self.max_vram_used = max(self.max_vram_used, vram_reserved)
@@ -75,7 +75,7 @@ class GPUBatchProcessor:
 
                 inputs = [{"image": img} for img in batch_pil]
                 embeddings_tensor = self.model.process(inputs, normalize=True)
-                self._log_vram_usage()
+                self.__log_vram_usage()
                 batch_np = embeddings_tensor.cpu().numpy()
                 del embeddings_tensor
                 results.extend([emb.tolist() for emb in batch_np])

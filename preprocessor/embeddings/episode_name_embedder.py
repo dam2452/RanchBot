@@ -59,7 +59,7 @@ class EpisodeNameEmbedder:
             self.logger.warning(f"No title found for {episode_info.episode_code()}")
             return None
 
-        embedding = self._generate_title_embedding(title)
+        embedding = self.__generate_title_embedding(title)
         if embedding is None:
             return None
 
@@ -81,7 +81,7 @@ class EpisodeNameEmbedder:
 
         return result
 
-    def _generate_title_embedding(self, title: str) -> Optional[np.ndarray]:
+    def __generate_title_embedding(self, title: str) -> Optional[np.ndarray]:
         try:
             embeddings_tensor = self.model.get_text_embeddings(texts=[title])
             embedding = embeddings_tensor[0].cpu().numpy()

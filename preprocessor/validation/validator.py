@@ -46,7 +46,7 @@ class Validator:
 
         console.print(f"[bold cyan]Validating season {self.season}...[/bold cyan]")
 
-        episodes_stats = self._collect_episodes_stats(transcriptions_season_path)
+        episodes_stats = self.__collect_episodes_stats(transcriptions_season_path)
 
         if not episodes_stats:
             console.print(f"[red]No episodes found in {transcriptions_season_path}[/red]")
@@ -54,7 +54,7 @@ class Validator:
 
         self.validation_reports_dir.mkdir(parents=True, exist_ok=True)
 
-        self._generate_episode_reports(episodes_stats)
+        self.__generate_episode_reports(episodes_stats)
 
         season_comparison = SeasonComparison(
             season=self.season,
@@ -69,13 +69,13 @@ class Validator:
         season_report_path = self.validation_reports_dir / f"{self.series_name}_{self.season}_season.json"
         report_generator.generate_report(episodes_stats, season_comparison, season_report_path)
 
-        self._print_summary(episodes_stats, season_comparison)
+        self.__print_summary(episodes_stats, season_comparison)
 
         console.print(f"\n[green]Validation reports saved to: {self.validation_reports_dir}[/green]")
 
         return 0
 
-    def _collect_episodes_stats(self, transcriptions_season_path: Path) -> Dict[str, EpisodeStats]:
+    def __collect_episodes_stats(self, transcriptions_season_path: Path) -> Dict[str, EpisodeStats]:
         episode_dirs = sorted([d for d in transcriptions_season_path.iterdir() if d.is_dir() and d.name.startswith("E")])
 
         episodes_stats = {}
@@ -98,7 +98,7 @@ class Validator:
 
         return episodes_stats
 
-    def _generate_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]):
+    def __generate_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]):
         for stats in episodes_stats.values():
             episode_report = {
                 "validation_timestamp": datetime.now().isoformat(),
@@ -115,7 +115,7 @@ class Validator:
             report_path = self.validation_reports_dir / report_filename
             atomic_write_json(report_path, episode_report)
 
-    def _print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison):
+    def __print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison):
         console.print(f"\n[bold]Validation Summary for {self.season}[/bold]")
         console.print(f"Total episodes: {len(episodes_stats)}")
 
