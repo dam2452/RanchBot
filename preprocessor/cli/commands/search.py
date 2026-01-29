@@ -183,7 +183,12 @@ async def search_video_semantic(es_client, image_path, season=None, episode=None
     if episode is not None:
         filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
     if character:
-        filter_clauses.append({"term": {"character_appearances.name": character}})
+        filter_clauses.append({
+            "nested": {
+                "path": "character_appearances",
+                "query": {"term": {"character_appearances.name": character}},
+            },
+        })
 
     knn_query = {
         "field": "video_embedding",
@@ -214,7 +219,12 @@ async def search_text_to_video(es_client, text, season=None, episode=None, chara
     if episode is not None:
         filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
     if character:
-        filter_clauses.append({"term": {"character_appearances.name": character}})
+        filter_clauses.append({
+            "nested": {
+                "path": "character_appearances",
+                "query": {"term": {"character_appearances.name": character}},
+            },
+        })
 
     knn_query = {
         "field": "video_embedding",
@@ -237,34 +247,46 @@ async def search_text_to_video(es_client, text, season=None, episode=None, chara
 
 
 async def search_by_character(es_client, character, season=None, episode=None, limit=20):
-    filter_clauses = [{"term": {"character_appearances.name": character}}]
+    must_clauses = [{
+        "nested": {
+            "path": "character_appearances",
+            "query": {"term": {"character_appearances.name": character}},
+        },
+    }]
 
     if season is not None:
-        filter_clauses.append({"term": {"episode_metadata.season": season}})
+        must_clauses.append({"term": {"episode_metadata.season": season}})
     if episode is not None:
-        filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
+        must_clauses.append({"term": {"episode_metadata.episode_number": episode}})
 
     return await es_client.search(
         index="ranczo_video_frames",
-        query={"bool": {"filter": filter_clauses}},
+        query={"bool": {"must": must_clauses}},
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "character_appearances", "scene_info"],
     )
 
 
 async def search_by_emotion(es_client, emotion, season=None, episode=None, character=None, limit=20):
-    filter_clauses = [{"term": {"character_appearances.emotion.label": emotion}}]
+    nested_must = [{"term": {"character_appearances.emotion.label": emotion}}]
+    if character:
+        nested_must.append({"term": {"character_appearances.name": character}})
+
+    must_clauses = [{
+        "nested": {
+            "path": "character_appearances",
+            "query": {"bool": {"must": nested_must}},
+        },
+    }]
 
     if season is not None:
-        filter_clauses.append({"term": {"episode_metadata.season": season}})
+        must_clauses.append({"term": {"episode_metadata.season": season}})
     if episode is not None:
-        filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
-    if character:
-        filter_clauses.append({"term": {"character_appearances.name": character}})
+        must_clauses.append({"term": {"episode_metadata.episode_number": episode}})
 
     return await es_client.search(
         index="ranczo_video_frames",
-        query={"bool": {"filter": filter_clauses}},
+        query={"bool": {"must": must_clauses}},
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "character_appearances", "scene_info"],
     )
@@ -366,9 +388,18 @@ async def list_characters(es_client):
     result = await es_client.search(
         index="ranczo_video_frames",
         size=0,
-        aggs={"characters": {"terms": {"field": "character_appearances.name", "size": 1000}}},
+        aggs={
+            "characters_nested": {
+                "nested": {"path": "character_appearances"},
+                "aggs": {
+                    "character_names": {
+                        "terms": {"field": "character_appearances.name", "size": 1000},
+                    },
+                },
+            },
+        },
     )
-    buckets = result["aggregations"]["characters"]["buckets"]
+    buckets = result["aggregations"]["characters_nested"]["character_names"]["buckets"]
     return [(b["key"], b["doc_count"]) for b in buckets]
 
 
