@@ -286,10 +286,14 @@ async def search_by_emotion(es_client, emotion, season=None, episode=None, chara
 
     nested_filter = {"term": {"character_appearances.emotion.label": emotion}}
     if character:
-        nested_filter = {"bool": {"must": [
-            {"term": {"character_appearances.emotion.label": emotion}},
-            {"term": {"character_appearances.name": character}},
-        ]}}
+        nested_filter = {
+            "bool": {
+                "must": [
+                    {"term": {"character_appearances.emotion.label": emotion}},
+                    {"term": {"character_appearances.name": character}},
+                ],
+            },
+        }
 
     return await es_client.search(
         index="ranczo_video_frames",
@@ -386,9 +390,23 @@ async def search_by_object(es_client, object_query, season=None, episode=None, l
         },
     }
 
+    object_class = object_query.split(":")[0].strip() if ":" in object_query else object_query.strip()
+
     return await es_client.search(
         index="ranczo_video_frames",
         query=query_body,
+        sort=[
+            {
+                "detected_objects.count": {
+                    "order": "desc",
+                    "nested": {
+                        "path": "detected_objects",
+                        "filter": {"term": {"detected_objects.class": object_class}},
+                    },
+                },
+            },
+        ],
+        track_scores=True,
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "detected_objects", "character_appearances", "video_path", "episode_metadata", "scene_info"],
     )
