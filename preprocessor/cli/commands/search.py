@@ -440,6 +440,25 @@ async def list_characters(es_client):
     return [(b["key"], b["doc_count"]) for b in buckets]
 
 
+async def list_objects(es_client):
+    result = await es_client.search(
+        index="ranczo_video_frames",
+        size=0,
+        aggs={
+            "objects_nested": {
+                "nested": {"path": "detected_objects"},
+                "aggs": {
+                    "object_classes": {
+                        "terms": {"field": "detected_objects.class", "size": 1000},
+                    },
+                },
+            },
+        },
+    )
+    buckets = result["aggregations"]["objects_nested"]["object_classes"]["buckets"]
+    return [(b["key"], b["doc_count"]) for b in buckets]
+
+
 async def search_episode_name(es_client, query, season=None, limit=20):
     must_clauses = [{
         "multi_match": {
@@ -577,6 +596,7 @@ def print_results(result, result_type="text"):  # pylint: disable=too-many-local
 @click.option("--episode-name", type=str, help="Fuzzy search po nazwach odcinkow")
 @click.option("--episode-name-semantic", type=str, help="Semantic search po nazwach odcinkow")
 @click.option("--list-characters", "list_chars_flag", is_flag=True, help="Lista wszystkich postaci")
+@click.option("--list-objects", "list_objects_flag", is_flag=True, help="Lista wszystkich klas obiektow")
 @click.option("--season", type=int, help="Filtruj po sezonie")
 @click.option("--episode", type=int, help="Filtruj po odcinku")
 @click.option("--limit", type=int, default=20, help="Limit wynikow")
@@ -585,14 +605,14 @@ def print_results(result, result_type="text"):  # pylint: disable=too-many-local
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
 def search(  # pylint: disable=too-many-locals
     text, text_semantic, text_to_video, image, phash, character, emotion, object_query, episode_name,
-    episode_name_semantic, list_chars_flag, season, episode, limit,
+    episode_name_semantic, list_chars_flag, list_objects_flag, season, episode, limit,
     stats, json_output, host,
 ):
     """Search tool - comprehensive Elasticsearch search"""
 
     if not any([
         text, text_semantic, text_to_video, image, phash, character, emotion,
-        object_query, episode_name, episode_name_semantic, list_chars_flag, stats,
+        object_query, episode_name, episode_name_semantic, list_chars_flag, list_objects_flag, stats,
     ]):
         click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
         sys.exit(1)
@@ -642,6 +662,15 @@ def search(  # pylint: disable=too-many-locals
                     click.echo(f"\nZnaleziono {len(chars)} postaci:")
                     for char, count in sorted(chars, key=lambda x: -x[1]):
                         click.echo(f"  {char}: {count:,} wystapien")
+
+            elif list_objects_flag:
+                objects = await list_objects(es_client)
+                if json_output:
+                    click.echo(json.dumps(objects, indent=2))
+                else:
+                    click.echo(f"\nZnaleziono {len(objects)} klas obiektow:")
+                    for obj, count in sorted(objects, key=lambda x: -x[1]):
+                        click.echo(f"  {obj}: {count:,} wystapien")
 
             elif text:
                 result = await search_text_query(es_client, text, season, episode, limit)
