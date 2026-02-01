@@ -96,16 +96,15 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                     cache_time=3600,
                     is_personal=True,
                 )
-
             except Exception as e:
-                self._logger.error(f"Critical error in inline handler: {type(e).__name__}: {e}")
+                self._logger.error(f"Failed to handle inline query: {type(e).__name__}: {e}")
                 try:
                     error_result = InlineQueryResultArticle(
                         id=str(uuid4()),
                         title="Wystąpił błąd",
                         description="Spróbuj ponownie później",
                         input_message_content=InputTextMessageContent(
-                            message_text="❌ Wystąpił nieoczekiwany błąd",
+                            message_text="❌ Wystąpił błąd podczas przetwarzania zapytania",
                         ),
                     )
                     await inline_query.answer(
@@ -113,7 +112,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                         cache_time=0,
                         is_personal=True,
                     )
-                except Exception as answer_error:
-                    self._logger.error(f"Failed to send error response: {answer_error}")
+                except Exception:
+                    pass
 
         return inline_handler
