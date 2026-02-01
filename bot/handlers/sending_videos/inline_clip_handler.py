@@ -75,7 +75,7 @@ class InlineClipHandler(BotMessageHandler):
     async def handle_inline(self, bot: Bot) -> List[InlineQueryResult]:
         t_total = time.time()
 
-        query = self._message.get_text().split()[0]
+        query = self._message.get_text().strip()
         user_id = self._message.get_user_id()
         await log_user_activity(user_id, f"Inline query: {query}", self._logger)
         if not query:
