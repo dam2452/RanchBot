@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from aiogram import Bot
 from aiogram.types import (
+    BufferedInputFile,
     FSInputFile,
     InlineQueryResultArticle,
     InlineQueryResultCachedVideo,
@@ -267,8 +268,6 @@ class InlineClipHandler(BotMessageHandler):
         bot: Bot,
         is_admin: bool,
     ) -> Optional[InlineQueryResultCachedVideo]:
-        import logging
-        import time
         segment_info = format_segment(segment, season_info)
 
         start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
@@ -290,16 +289,21 @@ class InlineClipHandler(BotMessageHandler):
             ffmpeg_time = time.time() - t_ffmpeg
             file_size_mb = output_filename.stat().st_size / (1024 * 1024)
 
+            t_read = time.time()
+            file_data = await asyncio.to_thread(output_filename.read_bytes)
+            read_time = time.time() - t_read
+
             t_upload = time.time()
-            result = await self.__cache_video(
+            result = await self.__cache_video_from_bytes(
                 title=f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 description=segment_info.episode_title,
-                output_filename=output_filename,
+                file_data=file_data,
+                filename=output_filename.name,
                 bot=bot,
             )
             upload_time = time.time() - t_upload
 
-            await log_system_message(logging.INFO, f"⏱️  Clip {index}: size={file_size_mb:.2f}MB, ffmpeg={ffmpeg_time:.2f}s, upload={upload_time:.2f}s, total={ffmpeg_time+upload_time:.2f}s", self._logger)
+            await log_system_message(logging.INFO, f"⏱️  Clip {index}: size={file_size_mb:.2f}MB, ffmpeg={ffmpeg_time:.2f}s, read={read_time:.2f}s, upload={upload_time:.2f}s, total={ffmpeg_time+read_time+upload_time:.2f}s", self._logger)
             return result
 
         except Exception as e:
@@ -316,9 +320,32 @@ class InlineClipHandler(BotMessageHandler):
             output_filename: Path,
             bot: Bot,
     ) -> InlineQueryResultCachedVideo:
+        file_data = await asyncio.to_thread(output_filename.read_bytes)
+
         sent_message = await bot.send_video(
             chat_id=settings.INLINE_CACHE_CHANNEL_ID,
-            video=FSInputFile(output_filename),
+            video=BufferedInputFile(file_data, filename=output_filename.name),
+            supports_streaming=True,
+        )
+
+        return InlineQueryResultCachedVideo(
+            id=str(uuid4()),
+            video_file_id=sent_message.video.file_id,
+            title=title,
+            description=description,
+        )
+
+    @staticmethod
+    async def __cache_video_from_bytes(
+            title: str,
+            description: str,
+            file_data: bytes,
+            filename: str,
+            bot: Bot,
+    ) -> InlineQueryResultCachedVideo:
+        sent_message = await bot.send_video(
+            chat_id=settings.INLINE_CACHE_CHANNEL_ID,
+            video=BufferedInputFile(file_data, filename=filename),
             supports_streaming=True,
         )
 

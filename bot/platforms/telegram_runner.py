@@ -4,7 +4,9 @@ from aiogram import (
     Bot,
     Dispatcher,
 )
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiohttp import ClientTimeout, TCPConnector
 
 from bot.factory import create_all_factories
 from bot.settings import settings
@@ -12,7 +14,30 @@ from bot.settings import settings
 logger = logging.getLogger(__name__)
 
 async def run_telegram_bot():
-    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN.get_secret_value())
+    connector = TCPConnector(
+        limit=200,
+        limit_per_host=50,
+        ttl_dns_cache=300,
+        force_close=False,
+        enable_cleanup_closed=True,
+    )
+
+    timeout = ClientTimeout(
+        total=None,
+        connect=60,
+        sock_read=60,
+    )
+
+    session = AiohttpSession(
+        api=None,
+        connector=connector,
+        timeout=timeout,
+    )
+
+    bot = Bot(
+        token=settings.TELEGRAM_BOT_TOKEN.get_secret_value(),
+        session=session,
+    )
     dp = Dispatcher(storage=MemoryStorage())
 
     factories = create_all_factories(logger, bot)
