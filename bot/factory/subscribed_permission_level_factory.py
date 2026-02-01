@@ -61,16 +61,14 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
     def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
         async def inline_handler(inline_query: InlineQuery):
             query = inline_query.query.strip()
-            all_results = []
 
             handler = InlineClipHandler(message=None, responder=None, logger=self._logger)
             results = await handler.handle_inline(query, self._bot, inline_query.from_user.id)
 
-            if results:
-                await inline_query.answer(
-                    results=all_results,
-                    cache_time=3600,
-                    is_personal=True,
-                )
+            await inline_query.answer(
+                results=results,
+                cache_time=3600,
+                is_personal=True,
+            )
 
         return inline_handler
