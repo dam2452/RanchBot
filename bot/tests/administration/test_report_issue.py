@@ -1,7 +1,7 @@
 import pytest
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.administration.report_issue_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -11,34 +11,52 @@ class TestReportIssueHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_report_with_valid_message(self):
         message = 'To i to nie działa'
-        self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
+        self.expect_command_result_contains(
+            f'/report {message}',
+            [msg.get_report_received_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_report_with_empty_message(self):
         command = '/report'
-        self.expect_command_result_contains(command, [await self.get_response(RK.NO_REPORT_CONTENT)])
+        self.expect_command_result_contains(
+            command,
+            [msg.get_no_report_content_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_report_with_special_characters_in_message(self):
         message = 'To się nie działa @#$%^&*()!'
-        self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
+        self.expect_command_result_contains(
+            f'/report {message}',
+            [msg.get_report_received_message()],
+        )
 
 
     @pytest.mark.asyncio
     async def test_report_with_alias_command(self):
         message = 'Alias działa poprawnie'
-        self.expect_command_result_contains(f'/r {message}', [await self.get_response(RK.REPORT_RECEIVED)])
+        self.expect_command_result_contains(
+            f'/r {message}',
+            [msg.get_report_received_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_report_with_multiple_spaces(self):
         message = '   To się nie działa   '
-        self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
+        self.expect_command_result_contains(
+            f'/report {message}',
+            [msg.get_report_received_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_report_logs(self):
         message = 'To i to nie działa'
 
-        self.expect_command_result_contains(f'/report {message}', [await self.get_response(RK.REPORT_RECEIVED)])
+        self.expect_command_result_contains(
+            f'/report {message}',
+            [msg.get_report_received_message()],
+        )
 
         reports = await DatabaseManager.get_reports(self.default_admin)
 

@@ -8,7 +8,7 @@ from bot.database.models import VideoClip
 from bot.utils.functions import convert_number_to_emoji
 
 
-async def format_myclips_response(clips: List[VideoClip], username: Union[str, None], full_name: Union[str, None], season_info: Dict[str, int]) -> str:
+def format_myclips_response(clips: List[VideoClip], username: Union[str, None], full_name: Union[str, None], season_info: Dict[str, int]) -> str:
     clip_lines = []
 
     user_display_name = f"@{username}" if username else full_name
@@ -40,6 +40,11 @@ async def format_myclips_response(clips: List[VideoClip], username: Union[str, N
         f"🎥 *Liczba klipów:* {convert_number_to_emoji(len(clips))} 🎥\n\n"
         f"```Użytkownik: {user_display_name} \n".replace(" ", "\u00A0") + "\n\n".join(clip_lines) + "\n```"
     )
+
+
+def get_no_saved_clips_message() -> str:
+    return "📭 Nie masz zapisanych klipów.📭"
+
 
 def get_log_no_saved_clips_message(username: str) -> str:
     return f"No saved clips found for user: {username}"

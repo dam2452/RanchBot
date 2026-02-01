@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.sending_videos.manual_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -24,7 +24,7 @@ class TestManualClipHandler(BaseTest):
         start_time = "abc"
         end_time = "36:49.00"
 
-        expected_message = await self.get_response(RK.INCORRECT_TIME_FORMAT)
+        expected_message = msg.get_incorrect_time_format_message()
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = self.send_command(command)
@@ -36,7 +36,7 @@ class TestManualClipHandler(BaseTest):
         start_time = "00:00.00"
         end_time = "00:10.00"
 
-        expected_message = await self.get_response(RK.VIDEO_FILE_NOT_EXIST)
+        expected_message = msg.get_video_file_not_exist_message()
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = self.send_command(command)
@@ -60,7 +60,7 @@ class TestManualClipHandler(BaseTest):
         start_time = "36:49.00"
         end_time = "36:47.50"
 
-        expected_message =  await self.get_response(RK.END_TIME_EARLIER_THAN_START)
+        expected_message = msg.get_end_time_earlier_than_start_message()
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = self.send_command(command)
@@ -73,7 +73,7 @@ class TestManualClipHandler(BaseTest):
         start_time = "00:00.00"
         end_time = "45:00.00"
 
-        expected_message = await self.get_response(RK.LIMIT_EXCEEDED_CLIP_DURATION)
+        expected_message = msg.get_limit_exceeded_clip_duration_message()
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = self.send_command(command)

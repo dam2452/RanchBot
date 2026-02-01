@@ -5,15 +5,16 @@ from typing import (
     List,
 )
 
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.not_sending_videos.episode_list_handler_responses import (
     format_episode_list_response,
+    get_invalid_args_count_message,
     get_log_episode_list_sent_message,
     get_log_no_episodes_found_message,
+    get_no_episodes_found_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
 
@@ -29,11 +30,7 @@ class EpisodeListHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message,
-            1,
-            await self.get_response(RK.INVALID_ARGS_COUNT),
-        )
+        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message())
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
@@ -41,7 +38,7 @@ class EpisodeListHandler(BotMessageHandler):
         try:
             season = int(args[1])
         except (IndexError, ValueError):
-            return await self.reply_error(RK.INVALID_ARGS_COUNT)
+            return await self.reply_error(get_invalid_args_count_message())
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
         episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger)
@@ -50,14 +47,11 @@ class EpisodeListHandler(BotMessageHandler):
             return await self.__reply_no_episodes_found(season)
 
         if self._message.should_reply_json():
-            await self.reply(
-                key="",
-                data={
+            await self._responder.send_json({
                     "season": season,
                     "episodes": episodes,
                     "season_info": season_info,
-                },
-            )
+            })
         else:
             response = format_episode_list_response(season, episodes, season_info)
             for part in self.__split_message(response):
@@ -69,7 +63,7 @@ class EpisodeListHandler(BotMessageHandler):
         )
 
     async def __reply_no_episodes_found(self, season: int) -> None:
-        await self.reply_error(RK.NO_EPISODES_FOUND, args=[str(season)])
+        await self.reply_error(get_no_episodes_found_message(season))
         await self._log_system_message(logging.INFO, get_log_no_episodes_found_message(season))
 
     @staticmethod

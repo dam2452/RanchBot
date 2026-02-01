@@ -6,7 +6,10 @@ from pydantic import (
     SecretStr,
     model_validator,
 )
-from pydantic_settings import BaseSettings
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
 
 from bot.utils.config_loader import load_env_file
 
@@ -87,9 +90,10 @@ class Settings(BaseSettings):
 
         return self
 
-    class Config:
-        env_file = str(env_path)
-        env_prefix = ""
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=str(env_path),
+        env_prefix="",
+        extra="ignore",
+    )
 
 settings = Settings()

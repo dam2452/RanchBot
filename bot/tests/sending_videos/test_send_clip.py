@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.sending_videos.send_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -34,7 +34,7 @@ class TestSendClipHandler(BaseTest):
         clip_number = 1
         response = self.send_command(f'/wyslij {clip_number}')
         self.assert_response_contains(
-            response, [await self.get_response(RK.CLIP_NOT_FOUND_NUMBER, [str(clip_number)])],
+            response, [msg.get_clip_not_found_message(clip_number)],
         )
 
     @pytest.mark.asyncio

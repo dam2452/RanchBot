@@ -28,6 +28,9 @@ def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str
     response += "```"
     return response
 
+def get_no_episodes_found_message(season: int) -> str:
+    return f"❌ Nie znaleziono odcinków dla sezonu {season}."
+
 
 def get_log_no_episodes_found_message(season: int) -> str:
     return f"No episodes found for season {season}."
@@ -35,3 +38,7 @@ def get_log_no_episodes_found_message(season: int) -> str:
 
 def get_log_episode_list_sent_message(season: int, username: str) -> str:
     return f"Sent episode list for season {season} to user '{username}'."
+
+
+def get_invalid_args_count_message() -> str:
+    return "📋 Podaj poprawną komendę w formacie: /odcinki <sezon>. Przykład: /odcinki 2"

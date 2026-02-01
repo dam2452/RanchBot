@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.sending_videos.compile_selected_clips_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -35,7 +35,7 @@ class TestCompileSelectedClipsHandler(BaseTest):
         self.send_command('/zapisz klip2')
 
         response = self.send_command('/polaczklipy 1 5')
-        self.assert_response_contains(response, [await self.get_response(RK.INVALID_ARGS_COUNT)])
+        self.assert_response_contains(response, [msg.get_invalid_args_count_message()])
 
     @pytest.mark.asyncio
     async def test_merge_single_clip(self):
@@ -49,7 +49,7 @@ class TestCompileSelectedClipsHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_merge_no_clips(self):
         response = self.send_command('/polaczklipy 1 2')
-        self.assert_response_contains(response, [await self.get_response(RK.NO_MATCHING_CLIPS_FOUND)])
+        self.assert_response_contains(response, [msg.get_no_matching_clips_found_message()])
 
     @pytest.mark.asyncio
     async def test_merge_clips_with_special_characters_in_name(self):

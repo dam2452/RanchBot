@@ -1,8 +1,8 @@
 import pytest
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 import bot.responses.not_sending_videos.my_clips_handler_responses as myclips_msg
+import bot.responses.not_sending_videos.save_clip_handler_responses as msg
 from bot.settings import settings as sb
 from bot.tests.base_test import BaseTest
 
@@ -16,28 +16,19 @@ class TestSaveClipHandler(BaseTest):
         self.send_command("/klip geniusz")
         self.expect_command_result_contains(
             f'/zapisz {clip_name}',
-            [
-                await self.get_response(
-                    RK.CLIP_SAVED_SUCCESSFULLY,
-                    args=[clip_name],
-                ),
-            ],
+            [msg.get_clip_saved_successfully_message(clip_name)],
         )
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
         self.expect_command_result_contains(
             '/mojeklipy',
-            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0" , await self.get_season_info()), 4)],
+            [self.remove_n_lines(myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0" , await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
     async def test_save_clip_without_name(self):
         self.expect_command_result_contains(
             '/zapisz',
-            [
-                await self.get_response(
-                    RK.CLIP_NAME_NOT_PROVIDED,
-                ),
-            ],
+            [msg.get_clip_name_not_provided_message()],
         )
 
     @pytest.mark.asyncio
@@ -46,17 +37,12 @@ class TestSaveClipHandler(BaseTest):
         self.send_command("/klip geniusz")
         self.expect_command_result_contains(
             f'/zapisz {clip_name}',
-            [
-                await self.get_response(
-                    RK.CLIP_SAVED_SUCCESSFULLY,
-                    args=[clip_name],
-                ),
-            ],
+            [msg.get_clip_saved_successfully_message(clip_name)],
         )
         clips = await DatabaseManager.get_saved_clips(self.default_admin)
         self.expect_command_result_contains(
             '/mojeklipy',
-            [self.remove_n_lines(await myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)],
+            [self.remove_n_lines(myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)],
         )
 
     @pytest.mark.asyncio
@@ -65,21 +51,11 @@ class TestSaveClipHandler(BaseTest):
         self.send_command("/klip geniusz")
         self.expect_command_result_contains(
             f'/zapisz {clip_name}',
-            [
-                await self.get_response(
-                    RK.CLIP_SAVED_SUCCESSFULLY,
-                    args=[clip_name],
-                ),
-            ],
+            [msg.get_clip_saved_successfully_message(clip_name)],
         )
         self.expect_command_result_contains(
             f'/zapisz {clip_name}',
-            [
-                await self.get_response(
-                    RK.CLIP_NAME_EXISTS,
-                    args=[clip_name],
-                ),
-            ],
+            [msg.get_clip_name_exists_message(clip_name)],
         )
 
     @pytest.mark.asyncio
@@ -87,11 +63,7 @@ class TestSaveClipHandler(BaseTest):
         response = self.send_command('/zapisz klip_bez_segmentu')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                    RK.NO_SEGMENT_SELECTED,
-                ),
-            ],
+            [msg.get_no_segment_selected_message()],
         )
 
     @pytest.mark.asyncio
@@ -100,9 +72,5 @@ class TestSaveClipHandler(BaseTest):
         response = self.send_command(f'/zapisz {long_name}')
         self.assert_response_contains(
             response,
-            [
-                await self.get_response(
-                    RK.CLIP_NAME_LENGTH_EXCEEDED,
-                ),
-            ],
+            [msg.get_clip_name_length_exceeded_message()],
         )

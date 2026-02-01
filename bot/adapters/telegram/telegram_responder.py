@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Optional
 
 from aiogram.types import (
     BufferedInputFile,
@@ -8,6 +9,8 @@ from aiogram.types import (
 )
 
 from bot.interfaces.responder import AbstractResponder
+from bot.settings import settings
+from bot.utils.functions import RESOLUTIONS
 
 
 class TelegramResponder(AbstractResponder):
@@ -30,9 +33,22 @@ class TelegramResponder(AbstractResponder):
             disable_notification=True,
         )
 
-    async def send_video(self, file_path: Path, delete_after_send: bool = True) -> None:
+    async def send_video(
+        self,
+        file_path: Path,
+        delete_after_send: bool = True,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+    ) -> None:
+        if width is None or height is None:
+            resolution = RESOLUTIONS[settings.DEFAULT_RESOLUTION_KEY]
+            width = resolution.width
+            height = resolution.height
+
         await self._message.answer_video(
             video=FSInputFile(file_path),
+            width=width,
+            height=height,
             supports_streaming=True,
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
@@ -40,12 +56,14 @@ class TelegramResponder(AbstractResponder):
         if delete_after_send:
             file_path.unlink()
 
-    async def send_document(self, file_path: Path, caption: str) -> None:
+    async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True) -> None:
         await self._message.answer_document(
             document=FSInputFile(file_path),
             caption=caption,
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )
+        if delete_after_send:
+            file_path.unlink()
     async def send_json(self, data: json) -> None:
         raise NotImplementedError("JSON mode not supported for TelegramResponder")

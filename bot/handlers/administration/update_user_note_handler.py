@@ -3,14 +3,16 @@ import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.administration.update_user_note_handler_responses import (
+    get_invalid_user_id_message,
     get_log_invalid_user_id_message,
     get_log_note_updated_message,
+    get_no_note_provided_message,
+    get_note_updated_message,
 )
 
 
@@ -25,9 +27,7 @@ class UpdateUserNoteHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message, 2, await self.get_response(RK.NO_NOTE_PROVIDED), math.inf,
-        )
+        return await self._validate_argument_count(self._message, 2, get_no_note_provided_message(), math.inf)
 
     async def __check_user_id(self) -> bool:
         user_id_str = self._message.get_text().split(maxsplit=2)[1]
@@ -43,7 +43,7 @@ class UpdateUserNoteHandler(BotMessageHandler):
         await self.__update_user_note(user_id, note)
 
     async def __reply_invalid_user_id(self, user_id_str: str) -> None:
-        await self.reply_error(RK.INVALID_USER_ID, args=[user_id_str])
+        await self.reply_error(get_invalid_user_id_message(user_id_str))
         await self._log_system_message(
             logging.INFO,
             get_log_invalid_user_id_message(self._message.get_username(), user_id_str),
@@ -51,8 +51,5 @@ class UpdateUserNoteHandler(BotMessageHandler):
 
     async def __update_user_note(self, user_id: int, note: str) -> None:
         await DatabaseManager.update_user_note(user_id, note)
-        await self.reply(RK.NOTE_UPDATED)
-        await self._log_system_message(
-            logging.INFO,
-            get_log_note_updated_message(self._message.get_username(), user_id, note),
-        )
+        await self.reply(get_note_updated_message())
+        await self._log_system_message(logging.INFO, get_log_note_updated_message(self._message.get_username(), user_id, note))

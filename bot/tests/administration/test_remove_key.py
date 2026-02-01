@@ -1,7 +1,7 @@
 import pytest
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.administration.remove_key_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -13,20 +13,26 @@ class TestRemoveKeyHandler(BaseTest):
         key = "tajny_klucz"
         await DatabaseManager.create_subscription_key(30, key)
 
-        success_message = await self.get_response(RK.REMOVE_KEY_SUCCESS, [key])
-        self.expect_command_result_contains(f'/removekey {key}', [success_message])
+        self.expect_command_result_contains(
+            f'/removekey {key}',
+            [msg.get_remove_key_success_message(key)],
+        )
 
     @pytest.mark.asyncio
     async def test_remove_nonexistent_key(self):
         key = "nieistniejacy_klucz"
 
-        failure_message = await self.get_response(RK.REMOVE_KEY_FAILURE, [key])
-        self.expect_command_result_contains(f'/removekey {key}', [failure_message])
+        self.expect_command_result_contains(
+            f'/removekey {key}',
+            [msg.get_remove_key_failure_message(key)],
+        )
 
     @pytest.mark.asyncio
     async def test_remove_key_no_argument(self):
-        usage_message = await self.get_response(RK.REMOVE_KEY_USAGE)
-        self.expect_command_result_contains('/removekey', [usage_message])
+        self.expect_command_result_contains(
+            '/removekey',
+            [msg.get_remove_key_usage_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_remove_key_with_special_characters(self):
@@ -34,7 +40,7 @@ class TestRemoveKeyHandler(BaseTest):
         await DatabaseManager.create_subscription_key(30, key)
         self.expect_command_result_contains(
             f'/removekey {key}',
-            [await self.get_response(RK.REMOVE_KEY_SUCCESS, [key])],
+            [msg.get_remove_key_success_message(key)],
         )
 
     @pytest.mark.asyncio
@@ -43,9 +49,9 @@ class TestRemoveKeyHandler(BaseTest):
         await DatabaseManager.create_subscription_key(30, key)
         self.expect_command_result_contains(
             f'/removekey {key}',
-            [await self.get_response(RK.REMOVE_KEY_SUCCESS, [key])],
+            [msg.get_remove_key_success_message(key)],
         )
         self.expect_command_result_contains(
             f'/removekey {key}',
-            [await self.get_response(RK.REMOVE_KEY_FAILURE, [key])],
+            [msg.get_remove_key_failure_message(key)],
         )

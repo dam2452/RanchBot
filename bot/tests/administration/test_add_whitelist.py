@@ -1,7 +1,7 @@
 import pytest
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
+import bot.responses.administration.add_whitelist_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 
@@ -18,10 +18,9 @@ class TestAddWhitelistHandler(BaseTest):
             subscription_days=None,
         )
 
-        expected_add_message = await self.get_response(RK.USER_ADDED, [str(user_id)])
         self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
-            [expected_add_message],
+            [msg.get_user_added_message(str(user_id))],
         )
 
     @pytest.mark.asyncio
@@ -29,17 +28,16 @@ class TestAddWhitelistHandler(BaseTest):
         user_id = 99999999999
         self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
-            [await self.get_response(RK.USER_ADDED, [str(user_id)])],
+            [msg.get_user_added_message(str(user_id))],
         )
 
     @pytest.mark.asyncio
     async def test_add_whitelist_invalid_user_id_format(self):
         user_id_invalid = "invalid_id"
-        expected_message = await self.get_response(RK.NO_USER_ID_PROVIDED)
 
         self.expect_command_result_contains(
             f'/addwhitelist {user_id_invalid}',
-            [expected_message],
+            [msg.get_no_user_id_provided_message()],
         )
 
     @pytest.mark.asyncio
@@ -55,5 +53,5 @@ class TestAddWhitelistHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addwhitelist {user_id}',
-            [await self.get_response(RK.USER_ADDED, [str(user_id)])],
+            [msg.get_user_added_message(str(user_id))],
         )

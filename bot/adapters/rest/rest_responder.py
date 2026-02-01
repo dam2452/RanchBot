@@ -42,7 +42,13 @@ class RestResponder(AbstractResponder):
             ),
         )
 
-    async def send_video(self, file_path: Path, delete_after_send: bool = True) -> None:
+    async def send_video(
+        self,
+        file_path: Path,
+        delete_after_send: bool = True,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+    ) -> None:
         background = BackgroundTask(file_path.unlink) if delete_after_send else None
         self.__set_response(
             FileResponse(
@@ -57,8 +63,9 @@ class RestResponder(AbstractResponder):
         self,
         file_path: Path,
         caption: str,
-        background: Optional[BackgroundTask] = None,
+        delete_after_send: bool = True,
     ) -> None:
+        background = BackgroundTask(file_path.unlink) if delete_after_send else None
         self.__set_response(
             FileResponse(
                 path=str(file_path),

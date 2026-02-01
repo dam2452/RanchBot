@@ -10,10 +10,9 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.response_keys import ResponseKey as RK
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
-from bot.responses.bot_message_handler_responses import get_response
+from bot.responses.bot_message_handler_responses import get_limit_exceeded_message
 from bot.settings import settings
 
 
@@ -51,8 +50,7 @@ class BotMiddleware(ABC):
         if not is_admin_or_moderator:
             limited = await DatabaseManager.is_command_limited(user_id, settings.MESSAGE_LIMIT, settings.LIMIT_DURATION)
             if limited:
-                text = await get_response(RK.LIMIT_EXCEEDED, "BotMessageHandler")
-                await responder.send_text(text)
+                await responder.send_text(get_limit_exceeded_message())
                 return False
 
         return True
