@@ -90,23 +90,23 @@ class InlineClipHandler(BotMessageHandler):
 
             if segments_to_send:
                 season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-                self._logger.info(f"Processing {len(segments_to_send)} segments for inline")
+                await log_system_message(logging.INFO, f"Processing {len(segments_to_send)} segments for inline", self._logger)
                 for i, segment in enumerate(segments_to_send, start=1):
                     result = await self.__create_segment_result(user_id, segment, i, season_info, bot)
                     if result:
                         results.append(result)
                     else:
-                        self._logger.warning(f"Segment {i} returned None result")
+                        await log_system_message(logging.WARNING, f"Segment {i} returned None result", self._logger)
 
-            self._logger.info(f"Total results generated: {len(results)}")
+            await log_system_message(logging.INFO, f"Total results generated: {len(results)}", self._logger)
             if not results:
-                self._logger.warning("No results, returning no_results_response")
+                await log_system_message(logging.WARNING, "No results, returning no_results_response", self._logger)
                 return [self.__create_no_results_response(query)]
 
-            self._logger.info("Logging command usage")
+            await log_system_message(logging.INFO, "Logging command usage", self._logger)
             await DatabaseManager.log_command_usage(user_id)
 
-            self._logger.info(f"Inline query handled for user {user_id}: '{query}' - {len(results)} results")
+            await log_system_message(logging.INFO, f"Inline query handled for user {user_id}: '{query}' - {len(results)} results", self._logger)
 
             return results
 
@@ -221,7 +221,7 @@ class InlineClipHandler(BotMessageHandler):
             )
 
             if not sent_message or not sent_message.video or not sent_message.video.file_id:
-                self._logger.error(f"Invalid sent_message for segment {index}: sent_message={sent_message}")
+                await log_system_message(logging.ERROR, f"Invalid sent_message for segment {index}: sent_message={sent_message}", self._logger)
                 return None
 
             return InlineQueryResultCachedVideo(
