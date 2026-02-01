@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import math
 from pathlib import Path
 import tempfile
@@ -16,7 +15,6 @@ from aiogram.types import (
     FSInputFile,
     InlineQueryResultArticle,
     InlineQueryResultCachedVideo,
-    InputTextMessageContent,
 )
 
 from bot.database.database_manager import DatabaseManager
@@ -25,15 +23,12 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.bot_message_handler_responses import get_general_error_message
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
 from bot.utils.functions import format_segment
-from bot.utils.log import (
-    log_system_message,
-    log_user_activity,
-)
+from bot.utils.inline_telegram import generate_error_result
+from bot.utils.log import log_user_activity
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
 
@@ -71,52 +66,45 @@ class InlineClipHandler(BotMessageHandler):
         for segment in segments_to_send:
             await self.__send_segment_clip(segment)
 
-    async def handle_inline(self, query: str, bot: Bot, user_id: int) -> List[InlineQueryResult]:
-        try:  # pylint: disable=too-many-try-statements
-            await log_user_activity(user_id, f"Inline query: {query}", self._logger)
-            if not query.strip():
-                return []
+    async def handle_inline(self, bot: Bot) -> List[InlineQueryResult]:
+        query = self._message.get_text().split()[0]
+        await log_user_activity(self._message.get_user_id(), f"Inline query: {query}", self._logger)
+        if not query:
+            return []
 
-            saved_clip, segments_to_send = await self.__get_clips_to_send(user_id, query.strip())
+        saved_clip, segments_to_send = await self.__get_clips_to_send(self._message.get_user_id(), query)
 
-            if not saved_clip and not segments_to_send:
-                return [self.__create_no_results_response(query)]
+        if not saved_clip and not segments_to_send:
+            return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
-            results: List[InlineQueryResult] = []
+        results: List[InlineQueryResult] = []
 
-            if saved_clip:
-                saved_clip_result = await self.__upload_saved_clip_to_cache(saved_clip, bot)
-                if saved_clip_result:
-                    results.append(saved_clip_result)
+        if saved_clip:
+            saved_clip_result = await self.__upload_saved_clip_to_cache(saved_clip, bot)
+            if saved_clip_result:
+                results.append(saved_clip_result)
 
-            if segments_to_send:
-                season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+        if segments_to_send:
+            season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
 
-                tasks = [
-                    self.__create_segment_result(user_id, segment, i, season_info, bot)
-                    for i, segment in enumerate(segments_to_send, start=1)
-                ]
-                segment_results = await asyncio.gather(*tasks, return_exceptions=False)
+            tasks = [
+                self.__create_segment_result(self._message.get_user_id(), segment, i, season_info, bot)
+                for i, segment in enumerate(segments_to_send, start=1)
+            ]
+            segment_results = await asyncio.gather(*tasks, return_exceptions=False)
 
-                for result in segment_results:
-                    if result:
-                        results.append(result)
+            for result in segment_results:
+                if result:
+                    results.append(result)
 
-            if not results:
-                return [self.__create_no_results_response(query)]
+        if not results:
+            return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
-            await DatabaseManager.log_command_usage(user_id)
-            self._logger.info(f"Inline query handled: '{query}' - {len(results)} results")
+        await DatabaseManager.log_command_usage(self._message.get_user_id())
+        self._logger.info(f"Inline query handled: '{query}' - {len(results)} results")
 
-            return results
+        return results
 
-        except Exception as e:
-            await log_system_message(
-                logging.ERROR,
-                f"{type(e)} Error in inline query for user '{user_id}': {e}",
-                self._logger,
-            )
-            return [self.__create_error_response()]
 
     async def __get_clips_to_send(
         self,
@@ -126,7 +114,7 @@ class InlineClipHandler(BotMessageHandler):
         saved_clip = await DatabaseManager.get_clip_by_name(user_id, query)
 
         search_count = 4 if saved_clip else 5
-        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, return_all=True)
+        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, size=search_count)
         segments_to_send = segments[:search_count] if segments else []
 
         return saved_clip, segments_to_send
@@ -169,17 +157,11 @@ class InlineClipHandler(BotMessageHandler):
         temp_file.write_bytes(saved_clip.video_data)
 
         try:
-            sent_message = await bot.send_video(
-                chat_id=settings.INLINE_CACHE_CHANNEL_ID,
-                video=FSInputFile(temp_file),
-                supports_streaming=True,
-            )
-
-            return InlineQueryResultCachedVideo(
-                id=str(uuid4()),
-                video_file_id=sent_message.video.file_id,
+            return await self.__cache_video(
                 title=f"💾 Zapisany klip: {saved_clip.name}",
                 description=f"Sezon {saved_clip.season}, Odcinek {saved_clip.episode_number} | Czas: {saved_clip.duration:.1f}s",
+                output_filename=temp_file,
+                bot=bot,
             )
         except Exception as e:
             self._logger.error(f"Error uploading saved clip: {e}")
@@ -214,44 +196,36 @@ class InlineClipHandler(BotMessageHandler):
                 self._logger,
             )
 
-            sent_message = await bot.send_video(
-                chat_id=settings.INLINE_CACHE_CHANNEL_ID,
-                video=FSInputFile(output_filename),
-                supports_streaming=True,
-            )
-
-            return InlineQueryResultCachedVideo(
-                id=str(uuid4()),
-                video_file_id=sent_message.video.file_id,
+            return await self.__cache_video(
                 title=f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
-                description=f"{segment_info.episode_title}",
+                description=segment_info.episode_title,
+                output_filename=output_filename,
+                bot=bot,
             )
 
         except Exception as e:
-            self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {type(e).__name__}: {e}")
+            self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {e}")
             return None
         finally:
             if output_filename and output_filename.exists():
                 output_filename.unlink()
 
     @staticmethod
-    def __create_no_results_response(query: str) -> InlineQueryResultArticle:
-        return InlineQueryResultArticle(
-            id=str(uuid4()),
-            title=f'Nie znaleziono klipu dla: "{query}"',
-            description="Spróbuj innego wyszukiwania",
-            input_message_content=InputTextMessageContent(
-                message_text=f"Nie znaleziono klipu dla: {query}",
-            ),
+    async def __cache_video(
+            title: str,
+            description: str,
+            output_filename: Path,
+            bot: Bot,
+    ) -> InlineQueryResultCachedVideo:
+        sent_message = await bot.send_video(
+            chat_id=settings.INLINE_CACHE_CHANNEL_ID,
+            video=FSInputFile(output_filename),
+            supports_streaming=True,
         )
 
-    @staticmethod
-    def __create_error_response() -> InlineQueryResultArticle:
-        return InlineQueryResultArticle(
+        return InlineQueryResultCachedVideo(
             id=str(uuid4()),
-            title="Wystąpił błąd",
-            description="Spróbuj ponownie później",
-            input_message_content=InputTextMessageContent(
-                message_text=get_general_error_message(),
-            ),
+            video_file_id=sent_message.video.file_id,
+            title=title,
+            description=description,
         )
