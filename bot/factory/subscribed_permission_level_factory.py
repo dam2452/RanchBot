@@ -16,7 +16,6 @@ from aiogram.types import (
 
 from bot.database.database_manager import DatabaseManager
 from bot.factory.permission_level_factory import PermissionLevelFactory
-from bot.utils.log import log_system_message
 from bot.handlers import (
     AdjustVideoClipHandler,
     BotMessageHandler,
@@ -39,6 +38,7 @@ from bot.middlewares import (
     BotMiddleware,
     SubscriberMiddleware,
 )
+from bot.utils.log import log_system_message
 
 
 class SubscribedPermissionLevelFactory(PermissionLevelFactory):
