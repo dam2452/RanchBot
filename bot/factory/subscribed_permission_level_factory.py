@@ -1,3 +1,4 @@
+import logging
 from typing import (
     Awaitable,
     Callable,
@@ -15,6 +16,7 @@ from aiogram.types import (
 
 from bot.database.database_manager import DatabaseManager
 from bot.factory.permission_level_factory import PermissionLevelFactory
+from bot.utils.log import log_system_message
 from bot.handlers import (
     AdjustVideoClipHandler,
     BotMessageHandler,
@@ -70,7 +72,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                 user_id = inline_query.from_user.id
 
                 if not await DatabaseManager.is_user_subscribed(user_id):
-                    self._logger.warning(f"Unauthorized inline query from user {user_id}")
+                    await log_system_message(logging.WARNING, f"Unauthorized inline query from user {user_id}", self._logger)
                     unauthorized_result = InlineQueryResultArticle(
                         id=str(uuid4()),
                         title="❌ Brak uprawnień",
@@ -91,13 +93,15 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                 handler = InlineClipHandler(message=None, responder=None, logger=self._logger)
                 results = await handler.handle_inline(query, self._bot, user_id)
 
+                await log_system_message(logging.INFO, f"About to answer inline query with {len(results)} results", self._logger)
                 await inline_query.answer(
                     results=results,
-                    cache_time=3600,
+                    cache_time=0,
                     is_personal=True,
                 )
+                await log_system_message(logging.INFO, "Successfully answered inline query", self._logger)
             except Exception as e:
-                self._logger.error(f"Failed to handle inline query: {type(e).__name__}: {e}")
+                await log_system_message(logging.ERROR, f"Failed to handle inline query: {type(e).__name__}: {e}", self._logger)
                 try:
                     error_result = InlineQueryResultArticle(
                         id=str(uuid4()),
