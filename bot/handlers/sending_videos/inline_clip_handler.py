@@ -96,11 +96,14 @@ class InlineClipHandler(BotMessageHandler):
                         results.append(result)
 
             if not results:
+                self._logger.warning(f"No results generated for query '{query}', returning no results response")
                 return [self.__create_no_results_response(query)]
 
+            self._logger.info(f"Generated {len(results)} results, logging command usage")
             await DatabaseManager.log_command_usage(user_id)
 
             self._logger.info(f"Inline query handled for user {user_id}: '{query}' - {len(results)} results")
+            self._logger.info(f"Returning {len(results)} results to factory")
 
             return results
 
@@ -208,18 +211,26 @@ class InlineClipHandler(BotMessageHandler):
                 self._logger,
             )
 
+            self._logger.info(f"About to upload segment {index} to cache channel {settings.INLINE_CACHE_CHANNEL_ID}")
             sent_message = await bot.send_video(
                 chat_id=settings.INLINE_CACHE_CHANNEL_ID,
                 video=FSInputFile(output_filename),
                 supports_streaming=True,
             )
+            self._logger.info(f"Successfully uploaded segment {index}, creating inline result")
 
-            return InlineQueryResultCachedVideo(
+            if not sent_message.video or not sent_message.video.file_id:
+                self._logger.error(f"Sent message has no video or file_id for segment {index}")
+                return None
+
+            result = InlineQueryResultCachedVideo(
                 id=str(uuid4()),
                 video_file_id=sent_message.video.file_id,
                 title=f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 description=f"{segment_info.episode_title}",
             )
+            self._logger.info(f"Created inline result for segment {index}")
+            return result
 
         except Exception as e:
             self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {type(e).__name__}: {e}")

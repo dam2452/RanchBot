@@ -24,9 +24,12 @@ async def run_telegram_bot():
 
     if inline_handlers:
         async def combined_inline_handler(inline_query):
-            for handler in inline_handlers:
-                await handler(inline_query)
-                break
+            try:
+                for handler in inline_handlers:
+                    await handler(inline_query)
+                    break
+            except Exception as e:
+                logger.error(f"Error in combined inline handler: {type(e).__name__}: {e}", exc_info=True)
 
         dp.inline_query.register(combined_inline_handler)
         logger.info("Combined inline handler registered")
