@@ -69,6 +69,9 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             try:
                 user_id = inline_query.from_user.id
 
+                if not inline_query.query:
+                    return
+
                 if not await DatabaseManager.is_user_subscribed(user_id):
                     await log_system_message(logging.WARNING, f"Unauthorized inline query from user {user_id}", self._logger)
                     await answer_error(
@@ -94,7 +97,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                         text=get_general_error_message(),
                         inline_query=inline_query,
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    await log_system_message(logging.ERROR, f"Failed to report inline error: {exc}", self._logger)
 
         return inline_handler
