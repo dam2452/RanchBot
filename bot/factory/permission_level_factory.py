@@ -22,8 +22,6 @@ from aiogram.types import (
     Message as AiogramMessage,
 )
 
-from bot.adapters.telegram.telegram_inline_message import TelegramInlineMessage
-from bot.adapters.telegram.telegram_inline_responder import TelegramInlineResponder
 from bot.adapters.telegram.telegram_message import TelegramMessage
 from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.handlers import BotMessageHandler
