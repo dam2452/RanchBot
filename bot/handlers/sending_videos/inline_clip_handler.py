@@ -289,25 +289,20 @@ class InlineClipHandler(BotMessageHandler):
             ffmpeg_time = time.time() - t_ffmpeg
             file_size_mb = output_filename.stat().st_size / (1024 * 1024)
 
-            t_read = time.time()
-            file_data = await asyncio.to_thread(output_filename.read_bytes)
-            read_time = time.time() - t_read
-
             t_upload = time.time()
-            result = await self.__cache_video_from_bytes(
+            result = await self.__cache_video_direct(
                 title=f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 description=segment_info.episode_title,
-                file_data=file_data,
-                filename=output_filename.name,
+                output_filename=output_filename,
                 bot=bot,
             )
             upload_time = time.time() - t_upload
 
-            await log_system_message(logging.INFO, f"⏱️  Clip {index}: size={file_size_mb:.2f}MB, ffmpeg={ffmpeg_time:.2f}s, read={read_time:.2f}s, upload={upload_time:.2f}s, total={ffmpeg_time+read_time+upload_time:.2f}s", self._logger)
+            await log_system_message(logging.INFO, f"⏱️  Clip {index}: size={file_size_mb:.2f}MB, ffmpeg={ffmpeg_time:.2f}s, upload={upload_time:.2f}s, total={ffmpeg_time+upload_time:.2f}s", self._logger)
             return result
 
         except Exception as e:
-            self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {e}")
+            await log_system_message(logging.ERROR, f"❌ Clip {index} FAILED for segment {segment.get('id', 'unknown')}: {type(e).__name__}: {e}", self._logger)
             return None
         finally:
             if output_filename and output_filename.exists():
@@ -346,7 +341,25 @@ class InlineClipHandler(BotMessageHandler):
         sent_message = await bot.send_video(
             chat_id=settings.INLINE_CACHE_CHANNEL_ID,
             video=BufferedInputFile(file_data, filename=filename),
-            supports_streaming=True,
+        )
+
+        return InlineQueryResultCachedVideo(
+            id=str(uuid4()),
+            video_file_id=sent_message.video.file_id,
+            title=title,
+            description=description,
+        )
+
+    @staticmethod
+    async def __cache_video_direct(
+            title: str,
+            description: str,
+            output_filename: Path,
+            bot: Bot,
+    ) -> InlineQueryResultCachedVideo:
+        sent_message = await bot.send_video(
+            chat_id=settings.INLINE_CACHE_CHANNEL_ID,
+            video=FSInputFile(output_filename),
         )
 
         return InlineQueryResultCachedVideo(
