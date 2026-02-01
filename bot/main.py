@@ -87,7 +87,7 @@ async def initialize_common_and_set_admin():
             logger.info("Default admin set using Telegram data.")
         except TelegramAPIError as e_tg:
             logger.error(f"Telegram API error while setting default admin for user ID {admin_user_id}: {e_tg}")
-        except Exception as e_other: # pylint: disable=broad-exception-caught
+        except Exception as e_other:
             logger.error(f"Unexpected error while setting default admin using Telegram API for user ID {admin_user_id}: {e_other}")
         finally:
             if bot_instance:

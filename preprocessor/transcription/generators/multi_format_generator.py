@@ -75,7 +75,7 @@ class MultiFormatGenerator:
             self.__generate_srt(transcription, season_dir, episode_info.season, episode_info.relative_episode)
             self.__generate_txt(transcription, season_dir, episode_info.season, episode_info.relative_episode)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Error processing file {transcription_file}: {e}")
 
     def __generate_full_json(self, data: Dict[str, Any], season_dir: str, season: int, episode: int) -> None:

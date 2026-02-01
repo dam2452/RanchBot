@@ -55,7 +55,7 @@ class JsonGenerator:
 
                 self.__logger.info(f"Processed file: {file_path}")
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error formatting JSON file {file_path}: {e}")
 
     def __process_json_segment(self, segment: Dict[str, Any]) -> Dict[str, Any]:

@@ -220,5 +220,5 @@ class ElasticSearchIndexer(BaseProcessor):
             if "timestamp" in document:
                 console.print(f"  Timestamp: {document['timestamp']}")
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Failed to retrieve sample document: {e}")

@@ -5,6 +5,7 @@ import tempfile
 from typing import (
     List,
     Optional,
+    Tuple,
     Union,
 )
 from uuid import uuid4
@@ -55,25 +56,19 @@ class InlineClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         query = " ".join(self._message.get_text().split()[1:])
+        user_id = self._message.get_user_id()
 
-        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, return_all=True)
+        saved_clip, segments_to_send = await self.__get_clips_to_send(user_id, query)
 
-        if not segments:
+        if not saved_clip and not segments_to_send:
             await self._answer(f'Nie znaleziono klipów dla zapytania: "{query}"')
             return
 
-        response_lines = [f'Znaleziono {len(segments)} klip(ów) dla: "{query}"\n']
+        if saved_clip:
+            await self.__send_saved_clip(saved_clip)
 
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-
-        for i, segment in enumerate(segments[:10], start=1):
-            segment_info = format_segment(segment, season_info)
-            response_lines.append(
-                f"{i}. {segment_info.episode_formatted} | {segment_info.time_formatted}\n"
-                f"   {segment_info.episode_title}",
-            )
-
-        await self._answer_markdown("\n".join(response_lines))
+        for segment in segments_to_send:
+            await self.__send_segment_clip(segment)
 
     async def handle_inline(self, query: str, bot: Bot, user_id: int) -> List[InlineQueryResult]:
         try:  # pylint: disable=too-many-try-statements
@@ -81,17 +76,24 @@ class InlineClipHandler(BotMessageHandler):
             if not query.strip():
                 return []
 
+            saved_clip, segments_to_send = await self.__get_clips_to_send(user_id, query.strip())
+
+            if not saved_clip and not segments_to_send:
+                return [self.__create_no_results_response(query)]
+
             results: List[InlineQueryResult] = []
 
-            saved_clip_result = await self.__get_saved_clip_result(user_id, query.strip(), bot)
+            if saved_clip:
+                saved_clip_result = await self.__upload_saved_clip_to_cache(saved_clip, bot)
+                if saved_clip_result:
+                    results.append(saved_clip_result)
 
-            search_count = 5
-            if saved_clip_result:
-                results.append(saved_clip_result)
-                search_count = 4
-
-            search_results = await self.__get_search_results(user_id, query, bot, search_count)
-            results.extend(search_results)
+            if segments_to_send:
+                season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+                for i, segment in enumerate(segments_to_send, start=1):
+                    result = await self.__create_segment_result(user_id, segment, i, season_info, bot)
+                    if result:
+                        results.append(result)
 
             if not results:
                 return [self.__create_no_results_response(query)]
@@ -101,7 +103,7 @@ class InlineClipHandler(BotMessageHandler):
 
             return results
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             await log_system_message(
                 logging.ERROR,
                 f"{type(e)} Error in inline query for user '{user_id}': {e}",
@@ -109,17 +111,47 @@ class InlineClipHandler(BotMessageHandler):
             )
             return [self.__create_error_response()]
 
-    async def __get_saved_clip_result(
+    async def __get_clips_to_send(
         self,
         user_id: int,
         query: str,
-        bot: Bot,
-    ) -> Optional[InlineQueryResultCachedVideo]:
+    ) -> Tuple[Optional[VideoClip], List[dict]]:
         saved_clip = await DatabaseManager.get_clip_by_name(user_id, query)
-        if not saved_clip:
+
+        search_count = 4 if saved_clip else 5
+        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, return_all=True)
+        segments_to_send = segments[:search_count] if segments else []
+
+        return saved_clip, segments_to_send
+
+    async def __send_saved_clip(self, saved_clip: VideoClip) -> None:
+        temp_file = Path(tempfile.gettempdir()) / f"saved_clip_{saved_clip.id}.mp4"
+        temp_file.write_bytes(saved_clip.video_data)
+
+        try:
+            await self._answer_video(temp_file)
+        except Exception as e:
+            self._logger.error(f"Error sending saved clip: {e}")
+            if temp_file.exists():
+                temp_file.unlink()
+
+    async def __send_segment_clip(self, segment: dict) -> None:
+        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
+        end_time = segment["end"] + settings.EXTEND_AFTER
+
+        if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None
 
-        return await self.__upload_saved_clip_to_cache(saved_clip, bot)
+        try:
+            output_filename = await ClipsExtractor.extract_clip(
+                segment["video_path"],
+                start_time,
+                end_time,
+                self._logger,
+            )
+            await self._answer_video(output_filename)
+        except FFMpegException as e:
+            self._logger.error(f"Error generating clip for segment {segment['id']}: {e}")
 
     async def __upload_saved_clip_to_cache(
         self,
@@ -143,32 +175,11 @@ class InlineClipHandler(BotMessageHandler):
                 title=f"💾 Zapisany klip: {saved_clip.name}",
                 description=f"Sezon {saved_clip.season}, Odcinek {saved_clip.episode_number} | Czas: {saved_clip.duration:.1f}s",
             )
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self._logger.error(f"Error uploading saved clip: {e}")
             if temp_file.exists():
                 temp_file.unlink()
             return None
-
-    async def __get_search_results(
-        self,
-        user_id: int,
-        query: str,
-        bot: Bot,
-        count: int,
-    ) -> List[InlineQueryResultCachedVideo]:
-        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, return_all=True)
-        if not segments:
-            return []
-
-        results: List[InlineQueryResultCachedVideo] = []
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-
-        for i, segment in enumerate(segments[:count], start=1):
-            result = await self.__create_segment_result(user_id, segment, i, season_info, bot)
-            if result:
-                results.append(result)
-
-        return results
 
     async def __create_segment_result(
         self,

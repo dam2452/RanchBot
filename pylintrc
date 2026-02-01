@@ -105,7 +105,8 @@ disable=
     import-error,
     logging-fstring-interpolation,
     consider-alternative-union-syntax,
-    too-many-positional-arguments
+    too-many-positional-arguments,
+    broad-exception-caught
 
 [REPORTS]
 

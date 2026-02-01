@@ -295,7 +295,7 @@ class Qwen3VLEmbedder():
                 conversations, image_patch_size=16,
                 return_video_metadata=True, return_video_kwargs=True,
             )
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             logger.error(f"Error in processing vision info: {e}")
             images = None
             video_inputs = None

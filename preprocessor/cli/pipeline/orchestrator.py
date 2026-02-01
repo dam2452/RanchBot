@@ -125,7 +125,7 @@ class PipelineOrchestrator:
                         with open(metadata_file, "r", encoding="utf-8") as f:
                             data = json.load(f)
                             total_frames += data.get("statistics", {}).get("total_frames", 0)
-                    except Exception:  # pylint: disable=broad-exception-caught
+                    except Exception:
                         pass
                 stats["total_frames_extracted"] = total_frames
 
@@ -152,7 +152,7 @@ class PipelineOrchestrator:
                     "video_embeddings": len(video_emb_files),
                 }
 
-        except Exception: # pylint: disable=broad-exception-caught
+        except Exception:
             pass
 
         return stats

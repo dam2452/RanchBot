@@ -49,7 +49,7 @@ class BotMessageHandler(ABC):
                     return
 
             await self._do_handle()
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:
             await self._responder.send_text(get_general_error_message())
             await self._log_system_message(
                 logging.ERROR,

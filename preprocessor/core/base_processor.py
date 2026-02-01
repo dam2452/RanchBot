@@ -75,7 +75,7 @@ class BaseProcessor(ABC):
         except KeyboardInterrupt:
             console.print("\n[yellow]Process interrupted by user[/yellow]")
             return 130
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"{self.__class__.__name__} failed: {e}")
         return self.logger.finalize()
 
@@ -236,7 +236,7 @@ class BaseProcessor(ABC):
                         if self.state_manager:
                             self.state_manager.mark_step_completed(step_name, item.episode_id)
 
-                    except Exception as e:  # pylint: disable=broad-exception-caught
+                    except Exception as e:
                         self.logger.error(f"Failed to process {item.episode_id}: {e}")
                     finally:
                         progress.advance(task)

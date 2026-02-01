@@ -22,7 +22,7 @@ class PerceptualHasher:
             images_tensor = self.__pil_to_tensor_batch(pil_images)
             hashes = self.__compute_phash_tensor(images_tensor)
             return hashes
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Failed to compute pHash: {e}")
             return ["0" * 16] * len(pil_images)
 

@@ -215,7 +215,7 @@ class LLMProvider:
             data = self.__extract_json(content)
             return response_model(**data)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             console.print(f"[red]LLM {error_context}: {e}[/red]")
             return None
 
