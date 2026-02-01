@@ -99,6 +99,7 @@ class InlineClipHandler(BotMessageHandler):
                 return [self.__create_no_results_response(query)]
 
             await DatabaseManager.log_command_usage(user_id)
+
             self._logger.info(f"Inline query handled for user {user_id}: '{query}' - {len(results)} results")
 
             return results
@@ -167,7 +168,6 @@ class InlineClipHandler(BotMessageHandler):
                 video=FSInputFile(temp_file),
                 supports_streaming=True,
             )
-            temp_file.unlink()
 
             return InlineQueryResultCachedVideo(
                 id=str(uuid4()),
@@ -177,9 +177,10 @@ class InlineClipHandler(BotMessageHandler):
             )
         except Exception as e:
             self._logger.error(f"Error uploading saved clip: {e}")
+            return None
+        finally:
             if temp_file.exists():
                 temp_file.unlink()
-            return None
 
     async def __create_segment_result(
         self,
@@ -198,6 +199,7 @@ class InlineClipHandler(BotMessageHandler):
         if not await DatabaseManager.is_admin_or_moderator(user_id) and clip_duration > settings.MAX_CLIP_DURATION:
             return None
 
+        output_filename = None
         try:
             output_filename = await ClipsExtractor.extract_clip(
                 segment["video_path"],
@@ -212,8 +214,6 @@ class InlineClipHandler(BotMessageHandler):
                 supports_streaming=True,
             )
 
-            output_filename.unlink()
-
             return InlineQueryResultCachedVideo(
                 id=str(uuid4()),
                 video_file_id=sent_message.video.file_id,
@@ -221,9 +221,12 @@ class InlineClipHandler(BotMessageHandler):
                 description=f"{segment_info.episode_title}",
             )
 
-        except FFMpegException as e:
-            self._logger.error(f"Error generating clip for segment {segment['id']}: {e}")
+        except Exception as e:
+            self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {type(e).__name__}: {e}")
             return None
+        finally:
+            if output_filename and output_filename.exists():
+                output_filename.unlink()
 
     @staticmethod
     def __create_no_results_response(query: str) -> InlineQueryResultArticle:

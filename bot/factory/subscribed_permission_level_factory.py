@@ -66,34 +66,54 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
 
     def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
         async def inline_handler(inline_query: InlineQuery):
-            user_id = inline_query.from_user.id
+            try:
+                user_id = inline_query.from_user.id
 
-            if not await DatabaseManager.is_user_subscribed(user_id):
-                self._logger.warning(f"Unauthorized inline query from user {user_id}")
-                unauthorized_result = InlineQueryResultArticle(
-                    id=str(uuid4()),
-                    title="❌ Brak uprawnień",
-                    description="Musisz być subskrybentem, moderatorem lub adminem, aby używać inline mode",
-                    input_message_content=InputTextMessageContent(
-                        message_text="❌ Brak uprawnień do używania inline mode",
-                    ),
-                )
+                if not await DatabaseManager.is_user_subscribed(user_id):
+                    self._logger.warning(f"Unauthorized inline query from user {user_id}")
+                    unauthorized_result = InlineQueryResultArticle(
+                        id=str(uuid4()),
+                        title="❌ Brak uprawnień",
+                        description="Musisz być subskrybentem, moderatorem lub adminem, aby używać inline mode",
+                        input_message_content=InputTextMessageContent(
+                            message_text="❌ Brak uprawnień do używania inline mode",
+                        ),
+                    )
+                    await inline_query.answer(
+                        results=[unauthorized_result],
+                        cache_time=0,
+                        is_personal=True,
+                    )
+                    return
+
+                query = inline_query.query.strip()
+
+                handler = InlineClipHandler(message=None, responder=None, logger=self._logger)
+                results = await handler.handle_inline(query, self._bot, user_id)
+
                 await inline_query.answer(
-                    results=[unauthorized_result],
-                    cache_time=0,
+                    results=results,
+                    cache_time=3600,
                     is_personal=True,
                 )
-                return
 
-            query = inline_query.query.strip()
-
-            handler = InlineClipHandler(message=None, responder=None, logger=self._logger)
-            results = await handler.handle_inline(query, self._bot, user_id)
-
-            await inline_query.answer(
-                results=results,
-                cache_time=3600,
-                is_personal=True,
-            )
+            except Exception as e:
+                self._logger.error(f"Critical error in inline handler: {type(e).__name__}: {e}")
+                try:
+                    error_result = InlineQueryResultArticle(
+                        id=str(uuid4()),
+                        title="Wystąpił błąd",
+                        description="Spróbuj ponownie później",
+                        input_message_content=InputTextMessageContent(
+                            message_text="❌ Wystąpił nieoczekiwany błąd",
+                        ),
+                    )
+                    await inline_query.answer(
+                        results=[error_result],
+                        cache_time=0,
+                        is_personal=True,
+                    )
+                except Exception as answer_error:
+                    self._logger.error(f"Failed to send error response: {answer_error}")
 
         return inline_handler
