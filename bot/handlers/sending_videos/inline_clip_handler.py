@@ -68,39 +68,72 @@ class InlineClipHandler(BotMessageHandler):
 
     async def handle_inline(self, bot: Bot) -> List[InlineQueryResult]:
         query = self._message.get_text().split()[0]
-        await log_user_activity(self._message.get_user_id(), f"Inline query: {query}", self._logger)
+        user_id = self._message.get_user_id()
+        await log_user_activity(user_id, f"Inline query: {query}", self._logger)
         if not query:
             return []
 
-        saved_clip, segments_to_send = await self.__get_clips_to_send(self._message.get_user_id(), query)
+        saved_clip, segments_to_send = await self.__get_clips_to_send(user_id, query)
 
         if not saved_clip and not segments_to_send:
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
-        results: List[InlineQueryResult] = []
-
-        if saved_clip:
-            saved_clip_result = await self.__upload_saved_clip_to_cache(saved_clip, bot)
-            if saved_clip_result:
-                results.append(saved_clip_result)
+        parallel_tasks = []
 
         if segments_to_send:
-            season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+            is_admin_task = DatabaseManager.is_admin_or_moderator(user_id)
+            season_info_task = TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+            parallel_tasks.extend([is_admin_task, season_info_task])
 
-            tasks = [
-                self.__create_segment_result(self._message.get_user_id(), segment, i, season_info, bot)
+        if saved_clip:
+            saved_clip_task = self.__upload_saved_clip_to_cache(saved_clip, bot)
+            parallel_tasks.append(saved_clip_task)
+
+        if not parallel_tasks:
+            return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
+
+        parallel_results = await asyncio.gather(*parallel_tasks, return_exceptions=True)
+
+        results: List[InlineQueryResult] = []
+        is_admin = None
+        season_info = None
+
+        result_idx = 0
+        if segments_to_send:
+            is_admin_result = parallel_results[result_idx]
+            is_admin = is_admin_result if not isinstance(is_admin_result, Exception) else False
+            result_idx += 1
+
+            season_info_result = parallel_results[result_idx]
+            season_info = season_info_result if not isinstance(season_info_result, Exception) else None
+            result_idx += 1
+
+        if saved_clip:
+            saved_clip_result = parallel_results[result_idx]
+            if not isinstance(saved_clip_result, Exception) and saved_clip_result:
+                results.append(saved_clip_result)
+            elif isinstance(saved_clip_result, Exception):
+                self._logger.error(f"Error uploading saved clip: {saved_clip_result}")
+
+        if segments_to_send and season_info:
+            segment_tasks = [
+                self.__create_segment_result_optimized(
+                    user_id, segment, i, season_info, bot, is_admin
+                )
                 for i, segment in enumerate(segments_to_send, start=1)
             ]
-            segment_results = await asyncio.gather(*tasks, return_exceptions=False)
+            segment_results = await asyncio.gather(*segment_tasks, return_exceptions=True)
 
             for result in segment_results:
-                if result:
+                if isinstance(result, Exception):
+                    self._logger.error(f"Error creating segment result: {result}")
+                elif result:
                     results.append(result)
 
         if not results:
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
-        await DatabaseManager.log_command_usage(self._message.get_user_id())
+        asyncio.create_task(DatabaseManager.log_command_usage(user_id))
         self._logger.info(f"Inline query handled: '{query}' - {len(results)} results")
 
         return results
@@ -111,10 +144,12 @@ class InlineClipHandler(BotMessageHandler):
         user_id: int,
         query: str,
     ) -> Tuple[Optional[VideoClip], List[dict]]:
-        saved_clip = await DatabaseManager.get_clip_by_name(user_id, query)
+        saved_clip_task = DatabaseManager.get_clip_by_name(user_id, query)
+        segments_task = TranscriptionFinder.find_segment_by_quote(query, self._logger, size=5)
+
+        saved_clip, segments = await asyncio.gather(saved_clip_task, segments_task)
 
         search_count = 4 if saved_clip else 5
-        segments = await TranscriptionFinder.find_segment_by_quote(query, self._logger, size=search_count)
         segments_to_send = segments[:search_count] if segments else []
 
         return saved_clip, segments_to_send
@@ -154,7 +189,7 @@ class InlineClipHandler(BotMessageHandler):
         bot: Bot,
     ) -> Optional[InlineQueryResultCachedVideo]:
         temp_file = Path(tempfile.gettempdir()) / f"saved_clip_{saved_clip.id}.mp4"
-        temp_file.write_bytes(saved_clip.video_data)
+        await asyncio.to_thread(temp_file.write_bytes, saved_clip.video_data)
 
         try:
             return await self.__cache_video(
@@ -168,7 +203,7 @@ class InlineClipHandler(BotMessageHandler):
             return None
         finally:
             if temp_file.exists():
-                temp_file.unlink()
+                await asyncio.to_thread(temp_file.unlink)
 
     async def __create_segment_result(
         self,
@@ -209,6 +244,47 @@ class InlineClipHandler(BotMessageHandler):
         finally:
             if output_filename and output_filename.exists():
                 output_filename.unlink()
+
+    async def __create_segment_result_optimized(
+        self,
+        user_id: int,
+        segment: dict,
+        index: int,
+        season_info: dict,
+        bot: Bot,
+        is_admin: bool,
+    ) -> Optional[InlineQueryResultCachedVideo]:
+        segment_info = format_segment(segment, season_info)
+
+        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
+        end_time = segment["end"] + settings.EXTEND_AFTER
+        clip_duration = end_time - start_time
+
+        if not is_admin and clip_duration > settings.MAX_CLIP_DURATION:
+            return None
+
+        output_filename = None
+        try:
+            output_filename = await ClipsExtractor.extract_clip(
+                segment["video_path"],
+                start_time,
+                end_time,
+                self._logger,
+            )
+
+            return await self.__cache_video(
+                title=f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
+                description=segment_info.episode_title,
+                output_filename=output_filename,
+                bot=bot,
+            )
+
+        except Exception as e:
+            self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {e}")
+            return None
+        finally:
+            if output_filename and output_filename.exists():
+                await asyncio.to_thread(output_filename.unlink)
 
     @staticmethod
     async def __cache_video(
