@@ -22,10 +22,10 @@ from aiogram.types import (
     Message as AiogramMessage,
 )
 
-from bot.adapters.telegram.telegram_message import TelegramMessage
 from bot.adapters.telegram.telegram_inline_message import TelegramInlineMessage
-from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.adapters.telegram.telegram_inline_responder import TelegramInlineResponder
+from bot.adapters.telegram.telegram_message import TelegramMessage
+from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.handlers import BotMessageHandler
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
@@ -88,18 +88,6 @@ class PermissionLevelFactory(ABC):
             await handler.handle()
         return wrapper
 
-    @staticmethod
-    def __wrap_telegram_inline_handler(
-        handler_cls: Type[BotMessageHandler],
-        logger: logging.Logger,
-    ) -> Callable[[InlineQuery], Awaitable[None]]:
-        async def wrapper(query: InlineQuery):
-            abstract_msg: AbstractMessage = TelegramInlineMessage(query)
-            responder: AbstractResponder = TelegramInlineResponder(query)
-            handler = handler_cls(abstract_msg, responder, logger)
-            await handler.handle()
-        return wrapper
-
     @abstractmethod
     def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         pass
@@ -109,31 +97,4 @@ class PermissionLevelFactory(ABC):
         pass
 
     def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
-        handlers_with_inline = [
-            handler_cls
-            for handler_cls in self.create_handler_classes()
-            if handler_cls(message=None, responder=None, logger=self._logger).supports_inline_mode()
-        ]
-
-        if not handlers_with_inline:
-            return None
-
-        async def inline_handler(inline_query: InlineQuery):
-            query = inline_query.query.strip()
-            all_results = []
-
-            for handler_cls in handlers_with_inline:
-                handler = handler_cls(message=None, responder=None, logger=self._logger)
-                results = await handler.handle_inline_query(query, self._bot, inline_query.from_user.id)
-                if results:
-                    all_results.extend(results)
-
-            await inline_query.answer(
-                results=all_results,
-                cache_time=3600,
-                is_personal=True,
-            )
-
-            self._logger.info(f"Inline query handled for user {inline_query.from_user.id}: '{query}'")
-
-        return inline_handler
+        return None

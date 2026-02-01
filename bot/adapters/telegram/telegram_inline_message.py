@@ -2,7 +2,7 @@ from aiogram.types import InlineQuery
 
 from bot.interfaces.message import AbstractMessage
 
-# TODO FIXME IMPLEMENT
+
 class TelegramInlineMessage(AbstractMessage):
     def __init__(self, message: InlineQuery):
         self._message = message
@@ -14,10 +14,10 @@ class TelegramInlineMessage(AbstractMessage):
         return self._message.from_user.username or "unknown"
 
     def get_text(self) -> str:
-        return self._message.text or ""
+        return self._message.query or ""
 
     def get_chat_id(self) -> int:
-        return self._message.chat.id
+        return self._message.from_user.id
 
     def get_sender_id(self) -> int:
         return self._message.from_user.id

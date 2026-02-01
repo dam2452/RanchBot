@@ -1,12 +1,9 @@
 from pathlib import Path
 import tempfile
-from typing import (
-    Any,
-    List,
-    Optional,
-)
+from typing import List
 from uuid import uuid4
 
+from aiogram import Bot
 from aiogram.types import (
     FSInputFile,
     InlineQueryResultArticle,
@@ -22,6 +19,7 @@ from bot.handlers.bot_message_handler import (
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
 from bot.utils.functions import format_segment
+from bot.utils.log import log_user_activity
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
 
@@ -34,6 +32,11 @@ class InlineClipHandler(BotMessageHandler):
         return []
 
     async def _do_handle(self) -> None:
+        raise NotImplementedError("InlineClipHandler should use handle_inline() instead of handle()")
+
+    async def handle_inline(self, query: str, bot: Bot, user_id: int) -> List:
+        await log_user_activity(user_id, f"Inline query: {query}", self._logger)
+
         if not query.strip():
             return []
 
@@ -89,7 +92,8 @@ class InlineClipHandler(BotMessageHandler):
                 clip_duration = end_time - start_time
 
                 if not await DatabaseManager.is_admin_or_moderator(
-                        user_id) and clip_duration > settings.MAX_CLIP_DURATION:
+                        user_id,
+                ) and clip_duration > settings.MAX_CLIP_DURATION:
                     continue
 
                 try:
@@ -132,5 +136,8 @@ class InlineClipHandler(BotMessageHandler):
                     ),
                 ),
             )
+
+        await DatabaseManager.log_command_usage(user_id)
+        self._logger.info(f"Inline query handled for user {user_id}: '{query}' - {len(results)} results")
 
         return results
