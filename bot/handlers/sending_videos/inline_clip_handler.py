@@ -91,7 +91,6 @@ class InlineClipHandler(BotMessageHandler):
 
             if segments_to_send:
                 season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-                await log_system_message(logging.INFO, f"Processing {len(segments_to_send)} segments for inline (parallel)", self._logger)
 
                 tasks = [
                     self.__create_segment_result(user_id, segment, i, season_info, bot)
@@ -99,21 +98,15 @@ class InlineClipHandler(BotMessageHandler):
                 ]
                 segment_results = await asyncio.gather(*tasks, return_exceptions=False)
 
-                for i, result in enumerate(segment_results, start=1):
+                for result in segment_results:
                     if result:
                         results.append(result)
-                    else:
-                        await log_system_message(logging.WARNING, f"Segment {i} returned None result", self._logger)
 
-            await log_system_message(logging.INFO, f"Total results generated: {len(results)}", self._logger)
             if not results:
-                await log_system_message(logging.WARNING, "No results, returning no_results_response", self._logger)
                 return [self.__create_no_results_response(query)]
 
-            await log_system_message(logging.INFO, "Logging command usage", self._logger)
             await DatabaseManager.log_command_usage(user_id)
-
-            await log_system_message(logging.INFO, f"Inline query handled for user {user_id}: '{query}' - {len(results)} results", self._logger)
+            self._logger.info(f"Inline query handled: '{query}' - {len(results)} results")
 
             return results
 
@@ -226,10 +219,6 @@ class InlineClipHandler(BotMessageHandler):
                 video=FSInputFile(output_filename),
                 supports_streaming=True,
             )
-
-            if not sent_message or not sent_message.video or not sent_message.video.file_id:
-                await log_system_message(logging.ERROR, f"Invalid sent_message for segment {index}: sent_message={sent_message}", self._logger)
-                return None
 
             return InlineQueryResultCachedVideo(
                 id=str(uuid4()),

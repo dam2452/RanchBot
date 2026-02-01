@@ -93,13 +93,11 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                 handler = InlineClipHandler(message=None, responder=None, logger=self._logger)
                 results = await handler.handle_inline(query, self._bot, user_id)
 
-                await log_system_message(logging.INFO, f"About to answer inline query with {len(results)} results", self._logger)
                 await inline_query.answer(
                     results=results,
-                    cache_time=0,
+                    cache_time=300,
                     is_personal=True,
                 )
-                await log_system_message(logging.INFO, "Successfully answered inline query", self._logger)
             except Exception as e:
                 await log_system_message(logging.ERROR, f"Failed to handle inline query: {type(e).__name__}: {e}", self._logger)
                 try:
