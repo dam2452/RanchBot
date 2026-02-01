@@ -11,6 +11,7 @@ from typing import (
     Union,
 )
 from uuid import uuid4
+import zipfile
 
 from aiogram import Bot
 from aiogram.types import (
@@ -66,11 +67,53 @@ class InlineClipHandler(BotMessageHandler):
             await self._answer(f'Nie znaleziono klipów dla zapytania: "{query}"')
             return
 
-        if saved_clip:
-            await self.__send_saved_clip(saved_clip)
+        video_files = []
+        temp_dir = Path(tempfile.mkdtemp())
 
-        for segment in segments_to_send:
-            await self.__send_segment_clip(segment)
+        try:
+            if saved_clip:
+                saved_file = temp_dir / f"1_saved_{saved_clip.name}.mp4"
+                saved_file.write_bytes(saved_clip.video_data)
+                video_files.append(saved_file)
+
+            for idx, segment in enumerate(segments_to_send, start=2 if saved_clip else 1):
+                start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
+                end_time = segment["end"] + settings.EXTEND_AFTER
+
+                if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
+                    continue
+
+                try:
+                    output_filename = await ClipsExtractor.extract_clip(
+                        segment["video_path"],
+                        start_time,
+                        end_time,
+                        self._logger,
+                    )
+                    final_file = temp_dir / f"{idx}_search_{segment.get('id', idx)}.mp4"
+                    output_filename.rename(final_file)
+                    video_files.append(final_file)
+                except FFMpegException as e:
+                    self._logger.error(f"Error generating clip for segment {segment['id']}: {e}")
+
+            if not video_files:
+                await self._answer(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
+                return
+
+            zip_path = temp_dir / f"inline_results_{query[:20]}.zip"
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for video_file in video_files:
+                    zipf.write(video_file, video_file.name)
+
+            await self._answer_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)')
+
+        finally:
+            for video_file in video_files:
+                if video_file.exists():
+                    video_file.unlink()
+            if temp_dir.exists():
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
     async def handle_inline(self, bot: Bot) -> List[InlineQueryResult]:
         t_total = time.time()
