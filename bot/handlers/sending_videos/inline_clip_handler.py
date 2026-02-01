@@ -1,7 +1,9 @@
 import asyncio
+import logging
 import math
 from pathlib import Path
 import tempfile
+import time
 from typing import (
     List,
     Optional,
@@ -28,7 +30,10 @@ from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
 from bot.utils.functions import format_segment
 from bot.utils.inline_telegram import generate_error_result
-from bot.utils.log import log_user_activity
+from bot.utils.log import (
+    log_system_message,
+    log_user_activity,
+)
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
 
@@ -67,13 +72,17 @@ class InlineClipHandler(BotMessageHandler):
             await self.__send_segment_clip(segment)
 
     async def handle_inline(self, bot: Bot) -> List[InlineQueryResult]:
+        t_total = time.time()
+
         query = self._message.get_text().split()[0]
         user_id = self._message.get_user_id()
         await log_user_activity(user_id, f"Inline query: {query}", self._logger)
         if not query:
             return []
 
+        t1 = time.time()
         saved_clip, segments_to_send = await self.__get_clips_to_send(user_id, query)
+        await log_system_message(logging.INFO, f"⏱️  get_clips_to_send: {time.time() - t1:.2f}s", self._logger)
 
         if not saved_clip and not segments_to_send:
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
@@ -92,7 +101,9 @@ class InlineClipHandler(BotMessageHandler):
         if not parallel_tasks:
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
+        t2 = time.time()
         parallel_results = await asyncio.gather(*parallel_tasks, return_exceptions=True)
+        await log_system_message(logging.INFO, f"⏱️  parallel_tasks (is_admin + season_info + saved_clip): {time.time() - t2:.2f}s", self._logger)
 
         results: List[InlineQueryResult] = []
         is_admin = None
@@ -118,11 +129,13 @@ class InlineClipHandler(BotMessageHandler):
         if segments_to_send and season_info:
             segment_tasks = [
                 self.__create_segment_result_optimized(
-                    user_id, segment, i, season_info, bot, is_admin
+                    user_id, segment, i, season_info, bot, is_admin,
                 )
                 for i, segment in enumerate(segments_to_send, start=1)
             ]
+            t3 = time.time()
             segment_results = await asyncio.gather(*segment_tasks, return_exceptions=True)
+            await log_system_message(logging.INFO, f"⏱️  segment generation + upload ({len(segment_tasks)} clips): {time.time() - t3:.2f}s", self._logger)
 
             for result in segment_results:
                 if isinstance(result, Exception):
@@ -134,7 +147,7 @@ class InlineClipHandler(BotMessageHandler):
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
         asyncio.create_task(DatabaseManager.log_command_usage(user_id))
-        self._logger.info(f"Inline query handled: '{query}' - {len(results)} results")
+        await log_system_message(logging.INFO, f"⏱️  TOTAL inline query: {time.time() - t_total:.2f}s - '{query}' - {len(results)} results", self._logger)
 
         return results
 
@@ -254,6 +267,8 @@ class InlineClipHandler(BotMessageHandler):
         bot: Bot,
         is_admin: bool,
     ) -> Optional[InlineQueryResultCachedVideo]:
+        import logging
+        import time
         segment_info = format_segment(segment, season_info)
 
         start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
@@ -265,19 +280,27 @@ class InlineClipHandler(BotMessageHandler):
 
         output_filename = None
         try:
+            t_ffmpeg = time.time()
             output_filename = await ClipsExtractor.extract_clip(
                 segment["video_path"],
                 start_time,
                 end_time,
                 self._logger,
             )
+            ffmpeg_time = time.time() - t_ffmpeg
+            file_size_mb = output_filename.stat().st_size / (1024 * 1024)
 
-            return await self.__cache_video(
+            t_upload = time.time()
+            result = await self.__cache_video(
                 title=f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 description=segment_info.episode_title,
                 output_filename=output_filename,
                 bot=bot,
             )
+            upload_time = time.time() - t_upload
+
+            await log_system_message(logging.INFO, f"⏱️  Clip {index}: size={file_size_mb:.2f}MB, ffmpeg={ffmpeg_time:.2f}s, upload={upload_time:.2f}s, total={ffmpeg_time+upload_time:.2f}s", self._logger)
+            return result
 
         except Exception as e:
             self._logger.error(f"Error creating segment result for segment {segment.get('id', 'unknown')}: {e}")
