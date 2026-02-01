@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import math
 from pathlib import Path
@@ -90,9 +91,15 @@ class InlineClipHandler(BotMessageHandler):
 
             if segments_to_send:
                 season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-                await log_system_message(logging.INFO, f"Processing {len(segments_to_send)} segments for inline", self._logger)
-                for i, segment in enumerate(segments_to_send, start=1):
-                    result = await self.__create_segment_result(user_id, segment, i, season_info, bot)
+                await log_system_message(logging.INFO, f"Processing {len(segments_to_send)} segments for inline (parallel)", self._logger)
+
+                tasks = [
+                    self.__create_segment_result(user_id, segment, i, season_info, bot)
+                    for i, segment in enumerate(segments_to_send, start=1)
+                ]
+                segment_results = await asyncio.gather(*tasks, return_exceptions=False)
+
+                for i, result in enumerate(segment_results, start=1):
                     if result:
                         results.append(result)
                     else:
