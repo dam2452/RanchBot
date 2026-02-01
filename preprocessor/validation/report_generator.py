@@ -30,7 +30,8 @@ class ReportGenerator:
         self.__save_report(report, output_path)
         return report
 
-    def __save_report(self, report: Dict, output_path: Path):
+    @staticmethod
+    def __save_report(report: Dict, output_path: Path):
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w", encoding="utf-8") as f:

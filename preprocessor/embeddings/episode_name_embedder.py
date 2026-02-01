@@ -91,9 +91,9 @@ class EpisodeNameEmbedder:
             self.logger.error(f"Failed to generate embedding for title '{title}': {e}")
             return None
 
+    @staticmethod
     def save_episode_name_embedding(
-        self,
-        season: int,
+            season: int,
         episode: int,
         embedding_data: Dict[str, Any],
     ) -> Path:

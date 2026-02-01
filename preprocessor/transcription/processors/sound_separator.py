@@ -193,7 +193,8 @@ class SoundEventSeparator(BaseProcessor):
             return "sound_event"
         return "dialogue"
 
-    def __is_sound_event(self, word: Dict) -> bool:
+    @staticmethod
+    def __is_sound_event(word: Dict) -> bool:
         if word.get("type") == "audio_event":
             return True
 
@@ -237,9 +238,9 @@ class SoundEventSeparator(BaseProcessor):
 
         return dialogue_sequences, sound_sequences
 
+    @staticmethod
     def __finalize_sequence(
-        self,
-        seq_type: str,
+            seq_type: str,
         words: List[Dict],
         dialogue_sequences: List[Dict],
         sound_sequences: List[Dict],
@@ -273,7 +274,8 @@ class SoundEventSeparator(BaseProcessor):
         else:
             sound_sequences.append(new_segment)
 
-    def __clean_segment_text(self, segment: Dict) -> Dict:
+    @staticmethod
+    def __clean_segment_text(segment: Dict) -> Dict:
         cleaned = segment.copy()
         if "text" in cleaned:
             text = cleaned["text"]
@@ -292,7 +294,8 @@ class SoundEventSeparator(BaseProcessor):
 
         return cleaned
 
-    def __enrich_sound_event(self, segment: Dict) -> Dict:
+    @staticmethod
+    def __enrich_sound_event(segment: Dict) -> Dict:
         enriched = segment.copy()
         enriched["sound_type"] = "sound"
         return enriched

@@ -25,17 +25,20 @@ class FileNamingConventions:
         ext = FILE_EXTENSIONS.get(extension, f".{extension}")
         return f"{base}{suffix_str}{ext}"
 
-    def parse_base_filename(self, filename: str) -> str:
+    @staticmethod
+    def parse_base_filename(filename: str) -> str:
         name = Path(filename).stem
         for suffix_value in FILE_SUFFIXES.values():
             if name.endswith(suffix_value):
                 return name[:-len(suffix_value)]
         return name
 
-    def add_suffix_to_filename(self, filename: str, suffix: str) -> str:
+    @staticmethod
+    def add_suffix_to_filename(filename: str, suffix: str) -> str:
         path = Path(filename)
         suffix_str = FILE_SUFFIXES.get(suffix, suffix) if suffix else ""
         return str(path.parent / f"{path.stem}{suffix_str}{path.suffix}")
 
-    def get_suffix(self, suffix_key: str) -> str:
+    @staticmethod
+    def get_suffix(suffix_key: str) -> str:
         return FILE_SUFFIXES.get(suffix_key, "")

@@ -20,7 +20,8 @@ class EpisodeFileFinder:
     def __init__(self, series_name: str):
         self.file_naming = FileNamingConventions(series_name)
 
-    def find_video_file(self, episode_info, search_dir: Path) -> Optional[Path]:
+    @staticmethod
+    def find_video_file(episode_info, search_dir: Path) -> Optional[Path]:
         if not search_dir.exists():
             return None
 
@@ -71,7 +72,8 @@ class EpisodeFileFinder:
 
         return None
 
-    def find_scene_timestamps_file(self, episode_info, search_dir: Path) -> Optional[Path]:
+    @staticmethod
+    def find_scene_timestamps_file(episode_info, search_dir: Path) -> Optional[Path]:
         if not search_dir.exists():
             return None
 
