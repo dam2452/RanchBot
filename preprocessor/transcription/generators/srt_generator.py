@@ -4,6 +4,7 @@ from typing import (
     Dict,
 )
 
+from preprocessor.core.constants import FILE_EXTENSIONS
 from preprocessor.transcription.generators.base_generator import BaseTranscriptionGenerator
 
 
@@ -12,7 +13,7 @@ class SrtGenerator(BaseTranscriptionGenerator):
         pass
 
     def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(".json", ".srt")
+        return json_file.name.replace(FILE_EXTENSIONS["json"], FILE_EXTENSIONS["srt"])
 
     def convert_to_srt_format(self, data: Dict[str, Any]) -> str:
         segments = data.get("segments", [])

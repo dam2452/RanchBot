@@ -4,6 +4,10 @@ from typing import (
     Dict,
 )
 
+from preprocessor.core.constants import (
+    FILE_EXTENSIONS,
+    FILE_SUFFIXES,
+)
 from preprocessor.transcription.generators.base_generator import BaseTranscriptionGenerator
 
 
@@ -12,7 +16,7 @@ class SimpleJsonGenerator(BaseTranscriptionGenerator):
         pass
 
     def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(".json", "_simple.json")
+        return json_file.name.replace(FILE_EXTENSIONS["json"], f"{FILE_SUFFIXES['simple']}{FILE_EXTENSIONS['json']}")
 
     @staticmethod
     def convert_to_simple_format(data: Dict[str, Any]) -> Dict[str, Any]:

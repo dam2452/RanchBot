@@ -14,7 +14,7 @@ from typing import (
 from PIL import Image
 
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.console import console
 from preprocessor.utils.frame_utils import load_frames_from_requests
 from preprocessor.utils.time_utils import format_time_hms

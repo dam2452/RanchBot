@@ -20,8 +20,10 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import (
     compute_embeddings_in_batches,
     compute_hashes_in_batches,
@@ -32,6 +34,7 @@ from preprocessor.utils.detection_io import (
     save_character_detections,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
 from preprocessor.video.frame_processor import FrameSubProcessor
@@ -54,7 +57,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
 
     def cleanup(self) -> None:
         self.hasher = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -62,11 +65,15 @@ class ImageHashSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        hash_output_dir = Path(settings.image_hash.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        hash_episode_dir = hash_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        hash_output = hash_episode_dir / "image_hashes.json"
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
+        series_name = item.metadata["series_name"]
+        file_naming = FileNamingConventions(series_name)
+        hash_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = episode_dir / hash_filename
         return [OutputSpec(path=hash_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -88,14 +95,12 @@ class ImageHashSubProcessor(FrameSubProcessor):
             return
 
         hash_results = compute_hashes_in_batches(ramdisk_frames_dir, frame_requests, self.hasher, self.batch_size)
-        self.__save_hashes(episode_info, hash_results)
+        series_name = item.metadata["series_name"]
+        self.__save_hashes(episode_info, hash_results, series_name)
 
-    def __save_hashes(self, episode_info, hash_results: List[Dict[str, Any]]) -> None:
-        hash_output_dir = Path(settings.image_hash.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        hash_episode_dir = hash_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        hash_episode_dir.mkdir(parents=True, exist_ok=True)
+    def __save_hashes(self, episode_info, hash_results: List[Dict[str, Any]], series_name: str) -> None:
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
+        episode_dir.mkdir(parents=True, exist_ok=True)
 
         hash_data = create_processing_metadata(
             episode_info=episode_info,
@@ -112,14 +117,19 @@ class ImageHashSubProcessor(FrameSubProcessor):
             results_data=hash_results,
         )
 
-        hash_output = hash_episode_dir / "image_hashes.json"
-        with open(hash_output, "w", encoding="utf-8") as f:
-            json.dump(hash_data, f, indent=2, ensure_ascii=False)
+        file_naming = FileNamingConventions(series_name)
+        hash_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = episode_dir / hash_filename
+        atomic_write_json(hash_output, hash_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved hashes to: {hash_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -142,7 +152,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             console.print(f"[cyan]Loading embedding model: {self.model_name}[/cyan]")
             self.model = Qwen3VLEmbedder(
                 model_name_or_path=self.model_name,
-                dtype=torch.float16,
+                torch_dtype=torch.bfloat16,
             )
             self.gpu_processor = GPUBatchProcessor(
                 self.model,
@@ -156,7 +166,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
     def cleanup(self) -> None:
         self.model = None
         self.gpu_processor = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -164,11 +174,15 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        embeddings_output_dir = Path(settings.embedding.default_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        video_output = embeddings_episode_dir / "embeddings_video.json"
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+        series_name = item.metadata["series_name"]
+        file_naming = FileNamingConventions(series_name)
+        video_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="embeddings_video",
+        )
+        video_output = episode_dir / video_filename
         return [OutputSpec(path=video_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -189,11 +203,8 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
             return
 
-        embeddings_output_dir = Path(settings.embedding.default_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        checkpoint_file = embeddings_episode_dir / "embeddings_video_checkpoint.json"
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+        checkpoint_file = episode_dir / "embeddings_video_checkpoint.json"
 
         image_hashes = load_image_hashes_for_episode(
             {"season": episode_info.season, "episode_number": episode_info.relative_episode},
@@ -209,14 +220,12 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             checkpoint_interval=20,
             prefetch_count=settings.embedding.prefetch_chunks,
         )
-        self.__save_embeddings(episode_info, video_embeddings)
+        series_name = item.metadata["series_name"]
+        self.__save_embeddings(episode_info, video_embeddings, series_name)
 
-    def __save_embeddings(self, episode_info, video_embeddings: List[Dict[str, Any]]) -> None:
-        embeddings_output_dir = Path(settings.embedding.default_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        embeddings_episode_dir = embeddings_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        embeddings_episode_dir.mkdir(parents=True, exist_ok=True)
+    def __save_embeddings(self, episode_info, video_embeddings: List[Dict[str, Any]], series_name: str) -> None:
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+        episode_dir.mkdir(parents=True, exist_ok=True)
 
         video_data = create_processing_metadata(
             episode_info=episode_info,
@@ -234,15 +243,19 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             results_key="video_embeddings",
             results_data=video_embeddings,
         )
-
-        video_output = embeddings_episode_dir / "embeddings_video.json"
-        with open(video_output, "w", encoding="utf-8") as f:
-            json.dump(video_data, f, indent=2, ensure_ascii=False)
+        file_naming = FileNamingConventions(series_name)
+        video_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="embeddings_video",
+        )
+        video_output = episode_dir / video_filename
+        atomic_write_json(video_output, video_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved embeddings to: {video_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -275,11 +288,15 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        detections_output_dir = Path(settings.character.detections_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        detections_output = episode_dir / "detections.json"
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        series_name = item.metadata["series_name"]
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="character_detections",
+        )
+        detections_output = episode_dir / detections_filename
         return [OutputSpec(path=detections_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -301,18 +318,21 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
         frame_files = sorted([
             f for f in ramdisk_frames_dir.glob("*.jpg")
-            if f.is_file() and f.name.startswith("frame_")
+            if f.is_file() and "frame_" in f.name
         ])
 
         console.print(f"[cyan]Detecting characters in {len(frame_files)} frames[/cyan]")
+
+        fps = 25.0
 
         results = process_frames_for_detection(
             frame_files,
             self.face_app,
             self.character_vectors,
             self.threshold,
+            fps=fps,
         )
-        save_character_detections(episode_info, results)
+        save_character_detections(episode_info, results, fps=fps)
 
 
 class ObjectDetectionSubProcessor(FrameSubProcessor):
@@ -343,7 +363,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
     def cleanup(self) -> None:
         self.model = None
         self.image_processor = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def finalize(self) -> None:
         if hasattr(self, 'logger'):
@@ -351,11 +371,15 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        detections_output_dir = Path(settings.object_detection.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
-        detections_output = episode_dir / "detections.json"
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        series_name = item.metadata["series_name"]
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_object_detections",
+        )
+        detections_output = episode_dir / detections_filename
         return [OutputSpec(path=detections_output, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
@@ -371,7 +395,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
         frame_files = sorted([
             f for f in ramdisk_frames_dir.glob("*.jpg")
-            if f.is_file() and f.name.startswith("frame_")
+            if f.is_file() and "frame_" in f.name
         ])
 
         if not frame_files:
@@ -381,15 +405,19 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         console.print(f"[cyan]Detecting objects in {len(frame_files)} frames[/cyan]")
 
         detections_data = {
-            "episode_code": f"S{episode_info.season:02d}E{episode_info.relative_episode:02d}",
+            "episode_code": episode_info.episode_code(),
             "model": self.model_name,
             "confidence_threshold": self.conf_threshold,
             "frames": [],
         }
 
-        for frame_path in frame_files:
-            image = Image.open(frame_path)
-            inputs = self.image_processor(images=image, return_tensors="pt")
+        batch_size = 8
+        for batch_start in range(0, len(frame_files), batch_size):
+            batch_paths = frame_files[batch_start:batch_start + batch_size]
+            batch_images = [Image.open(fp) for fp in batch_paths]
+            target_sizes = [(img.height, img.width) for img in batch_images]
+
+            inputs = self.image_processor(images=batch_images, return_tensors="pt")
             inputs = {k: v.to("cuda") for k, v in inputs.items()}
 
             with torch.no_grad():
@@ -397,16 +425,16 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
             results = self.image_processor.post_process_object_detection(
                 outputs,
-                target_sizes=[(image.height, image.width)],
+                target_sizes=target_sizes,
                 threshold=self.conf_threshold,
             )
 
-            frame_result = {
-                "frame_name": frame_path.name,
-                "detections": [],
-            }
+            for frame_path, result in zip(batch_paths, results):
+                frame_result = {
+                    "frame_name": frame_path.name,
+                    "detections": [],
+                }
 
-            for result in results:
                 for score, label_id, box in zip(result["scores"], result["labels"], result["boxes"]):
                     score_value = score.item()
                     label = label_id.item()
@@ -425,8 +453,11 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
                     }
                     frame_result["detections"].append(detection)
 
-            frame_result["detection_count"] = len(frame_result["detections"])
-            detections_data["frames"].append(frame_result)
+                frame_result["detection_count"] = len(frame_result["detections"])
+                detections_data["frames"].append(frame_result)
+
+            for img in batch_images:
+                img.close()
 
         total_detections = sum(f['detection_count'] for f in detections_data['frames'])
         frames_with_detections = len([f for f in detections_data['frames'] if f['detection_count'] > 0])
@@ -444,13 +475,11 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             top_classes = sorted(class_counts.items(), key=lambda x: x[1], reverse=True)[:5]
             console.print(f"[cyan]Top 5 classes: {', '.join(f'{cls}:{cnt}' for cls, cnt in top_classes)}[/cyan]")
 
-        self.__save_detections(episode_info, detections_data)
+        series_name = item.metadata["series_name"]
+        self.__save_detections(episode_info, detections_data, series_name)
 
-    def __save_detections(self, episode_info, detections_data: Dict[str, Any]) -> None:
-        detections_output_dir = Path(settings.object_detection.output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_dir = detections_output_dir / f"S{season:02d}" / f"E{episode:02d}"
+    def __save_detections(self, episode_info, detections_data: Dict[str, Any], series_name: str) -> None:
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         output_data = create_processing_metadata(
@@ -467,15 +496,19 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
             results_key="detections",
             results_data=detections_data["frames"],
         )
-
-        detections_output = episode_dir / "detections.json"
-        with open(detections_output, "w", encoding="utf-8") as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        file_naming = FileNamingConventions(series_name)
+        detections_filename = file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="_object_detections",
+        )
+        detections_output = episode_dir / detections_filename
+        atomic_write_json(detections_output, output_data, indent=2, ensure_ascii=False)
 
         console.print(f"[green]✓ Saved object detections to: {detections_output}[/green]")
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -496,75 +529,65 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         if hasattr(self, 'logger'):
             self.logger.finalize()
 
+    def needs_ramdisk(self) -> bool:
+        return False
+
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_code = f"S{season:02d}E{episode:02d}"
-        output_episode_dir = visualized_output_dir / episode_code
-        marker_file = output_episode_dir / ".visualization_complete"
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_visualizations)
+        marker_file = episode_dir / ".visualization_complete"
         return [OutputSpec(path=marker_file, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_files = list(detection_dir.glob("*_object_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
-            console.print(f"[yellow]No object detections found for {episode_info.episode_code}, skipping visualization[/yellow]")
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No object detections found for {episode_info.episode_code()}, skipping visualization[/yellow]")
             return False
 
         expected = self.get_expected_outputs(item)
         return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals,too-many-statements
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         import cv2  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        episode_code = f"S{season:02d}E{episode:02d}"
+        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_files = list(detection_dir.glob("*_object_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        detection_file = Path(settings.object_detection.output_dir) / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
-        frames_source_dir = Path(settings.frame_export.output_dir) / f"S{season:02d}" / f"E{episode:02d}"
-
-        if not detection_file.exists():
-            console.print(f"[yellow]No detections JSON found: {detection_file}[/yellow]")
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No detections JSON found in {detection_dir}[/yellow]")
             return
 
-        if not frames_source_dir.exists():
-            console.print(f"[yellow]No frames directory found: {frames_source_dir}[/yellow]")
+        if not ramdisk_frames_dir.exists():
+            console.print(f"[yellow]No frames directory found: {ramdisk_frames_dir}[/yellow]")
             return
 
         with open(detection_file, 'r', encoding='utf-8') as f:
             detection_data = json.load(f)
 
-        detections_frames = detection_data.get("detections", [])
-        frames_with_detections = [f for f in detections_frames if f['detection_count'] > 0]
-
+        frames_with_detections = [f for f in detection_data.get("detections", []) if f['detection_count'] > 0]
         if not frames_with_detections:
-            console.print(f"[yellow]No frames with detections for {episode_code}[/yellow]")
+            console.print(f"[yellow]No frames with detections for {episode_info.episode_code()}[/yellow]")
             return
 
-        visualized_output_dir = Path(settings.object_detection.visualized_output_dir)
-        output_episode_dir = visualized_output_dir / episode_code
-        output_episode_dir.mkdir(parents=True, exist_ok=True)
-
-        colors = self._generate_colors()
+        output_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_visualizations)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        colors = self.__generate_colors()
         conf_threshold = detection_data.get("processing_params", {}).get("confidence_threshold", 0.25)
 
-        console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames with detections for {episode_code}[/cyan]")
+        console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames for {episode_info.episode_code()}[/cyan]")
 
         for frame_data in frames_with_detections:
-            frame_name = frame_data['frame_name']
-            frame_path = frames_source_dir / frame_name
-            output_path = output_episode_dir / frame_name
-
+            output_path = output_dir / frame_data['frame_name']
             if output_path.exists():
                 continue
 
+            frame_path = ramdisk_frames_dir / frame_data['frame_name']
             if not frame_path.exists():
                 continue
 
@@ -572,54 +595,173 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             if img is None:
                 continue
 
-            for detection in frame_data['detections']:
-                if detection['confidence'] < conf_threshold:
-                    continue
-
-                class_id = detection['class_id']
-                class_name = detection['class_name']
-                confidence = detection['confidence']
-                bbox = detection['bbox']
-
-                x1, y1 = int(bbox['x1']), int(bbox['y1'])
-                x2, y2 = int(bbox['x2']), int(bbox['y2'])
-
-                color = colors.get(class_id, (0, 255, 0))
-
-                cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
-
-                label = f"{class_name} {confidence:.2f}"
-                label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-                label_y1 = max(y1 - 10, label_size[1])
-
-                cv2.rectangle(
-                    img,
-                    (x1, label_y1 - label_size[1] - 5),
-                    (x1 + label_size[0], label_y1),
-                    color,
-                    -1,
-                )
-
-                cv2.putText(
-                    img,
-                    label,
-                    (x1, label_y1 - 2),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    (255, 255, 255),
-                    1,
-                )
-
+            self.__draw_detections_on_frame(img, frame_data['detections'], colors, conf_threshold)
             cv2.imwrite(str(output_path), img)
 
-        marker_file = output_episode_dir / ".visualization_complete"
-        marker_file.touch()
+        marker_file = output_dir / ".visualization_complete"
+        marker_file.write_text(f"completed: {len(frames_with_detections)} frames")
+        console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
 
-        console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_episode_dir}[/green]")
+    @staticmethod
+    def __draw_detections_on_frame(img, detections: List[Dict], colors: Dict[int, tuple], conf_threshold: float) -> None:
+        import cv2  # pylint: disable=import-outside-toplevel
 
-    def _generate_colors(self, num_colors: int = 80) -> Dict[int, tuple]:
+        for detection in detections:
+            if detection['confidence'] < conf_threshold:
+                continue
+
+            class_id = detection['class_id']
+            bbox = detection['bbox']
+            x1, y1 = int(bbox['x1']), int(bbox['y1'])
+            x2, y2 = int(bbox['x2']), int(bbox['y2'])
+            color = colors.get(class_id, (0, 255, 0))
+
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+
+            label = f"{detection['class_name']} {detection['confidence']:.2f}"
+            label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            label_y1 = max(y1 - 10, label_size[1])
+
+            cv2.rectangle(img, (x1, label_y1 - label_size[1] - 5), (x1 + label_size[0], label_y1), color, -1)
+            cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+    @staticmethod
+    def __generate_colors(num_colors: int = 80) -> Dict[int, tuple]:
         np.random.seed(42)
         colors = {}
         for i in range(num_colors):
             colors[i] = tuple(int(x) for x in np.random.randint(50, 255, 3))
+        return colors
+
+
+class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
+    def __init__(self):
+        super().__init__("Character Detection Visualization")
+        self.logger = ErrorHandlingLogger("CharacterDetectionVisualizationSubProcessor", logging.DEBUG, 15)
+
+    def initialize(self) -> None:
+        pass
+
+    def cleanup(self) -> None:
+        pass
+
+    def finalize(self) -> None:
+        if hasattr(self, 'logger'):
+            self.logger.finalize()
+
+    def needs_ramdisk(self) -> bool:
+        return False
+
+    def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        episode_info = item.metadata["episode_info"]
+        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_visualizations)
+        marker_file = episode_dir / ".visualization_complete"
+        return [OutputSpec(path=marker_file, required=True)]
+
+    def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
+        episode_info = item.metadata["episode_info"]
+        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_files = list(detection_dir.glob("*_character_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
+
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No character detections found for {episode_info.episode_code()}, skipping visualization[/yellow]")
+            return False
+
+        expected = self.get_expected_outputs(item)
+        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
+
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
+        import cv2  # pylint: disable=import-outside-toplevel
+
+        episode_info = item.metadata["episode_info"]
+        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_files = list(detection_dir.glob("*_character_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
+
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No detections JSON found in {detection_dir}[/yellow]")
+            return
+
+        if not ramdisk_frames_dir.exists():
+            console.print(f"[yellow]No frames directory found: {ramdisk_frames_dir}[/yellow]")
+            return
+
+        with open(detection_file, 'r', encoding='utf-8') as f:
+            detection_data = json.load(f)
+
+        frames_with_detections = [f for f in detection_data.get("detections", []) if f.get('characters')]
+        if not frames_with_detections:
+            console.print(f"[yellow]No frames with character detections for {episode_info.episode_code()}[/yellow]")
+            return
+
+        output_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_visualizations)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        all_character_names = set()
+        for frame_data in frames_with_detections:
+            for char in frame_data.get('characters', []):
+                all_character_names.add(char['name'])
+        colors = self.__generate_character_colors(all_character_names)
+
+        console.print(f"[cyan]Visualizing {len(frames_with_detections)} frames with characters for {episode_info.episode_code()}[/cyan]")
+
+        for frame_data in frames_with_detections:
+            frame_name = frame_data.get('frame_file') or frame_data.get('frame')
+            if not frame_name:
+                continue
+
+            output_path = output_dir / frame_name
+            if output_path.exists():
+                continue
+
+            frame_path = ramdisk_frames_dir / frame_name
+            if not frame_path.exists():
+                continue
+
+            img = cv2.imread(str(frame_path))
+            if img is None:
+                continue
+
+            self.__draw_characters_on_frame(img, frame_data['characters'], colors)
+            cv2.imwrite(str(output_path), img)
+
+        marker_file = output_dir / ".visualization_complete"
+        marker_file.write_text(f"completed: {len(frames_with_detections)} frames")
+        console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
+
+    @staticmethod
+    def __draw_characters_on_frame(img, characters: List[Dict], colors: Dict[str, tuple]) -> None:
+        import cv2  # pylint: disable=import-outside-toplevel
+
+        for character in characters:
+            name = character['name']
+            confidence = character['confidence']
+            bbox = character['bbox']
+
+            x1, y1 = bbox['x1'], bbox['y1']
+            x2, y2 = bbox['x2'], bbox['y2']
+            color = colors.get(name, (0, 255, 0))
+
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+
+            label = f"{name} {confidence:.2f}"
+            if "emotion" in character:
+                emotion_label = character["emotion"]["label"]
+                emotion_conf = character["emotion"]["confidence"]
+                label += f" | {emotion_label} {emotion_conf:.2f}"
+
+            label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            label_y1 = max(y1 - 10, label_size[1])
+
+            cv2.rectangle(img, (x1, label_y1 - label_size[1] - 5), (x1 + label_size[0], label_y1), color, -1)
+            cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+    @staticmethod
+    def __generate_character_colors(character_names: set) -> Dict[str, tuple]:
+        np.random.seed(42)
+        colors = {}
+        sorted_names = sorted(character_names)
+        for _, name in enumerate(sorted_names):
+            colors[name] = tuple(int(x) for x in np.random.randint(50, 255, 3))
         return colors

@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import (
     Any,
@@ -11,6 +10,7 @@ from patchright.sync_api import sync_playwright  # noqa: F401  # pylint: disable
 
 from preprocessor.scraping.base_scraper import BaseScraper
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 
 
 class EpisodeScraper(BaseScraper):
@@ -32,17 +32,16 @@ class EpisodeScraper(BaseScraper):
         }
 
         self.output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+        atomic_write_json(self.output_file, result, indent=2, ensure_ascii=False)
 
         total_episodes = sum(len(season.episodes) for season in all_seasons)
         console.print(f"[green]✓ Extracted {len(all_seasons)} seasons, {total_episodes} episodes[/green]")
         console.print(f"[green]✓ Saved to: {self.output_file}[/green]")
 
-        self._validate_episode_coverage(total_episodes)
+        self.__validate_episode_coverage(total_episodes)
 
-    def _validate_episode_coverage(self, scraped_episodes_count: int) -> None:
-        expected_count = self._get_expected_episodes_count()
+    def __validate_episode_coverage(self, scraped_episodes_count: int) -> None:
+        expected_count = self.__get_expected_episodes_count()
 
         if expected_count is None:
             console.print("\n[yellow]⚠ Coverage validation:[/yellow]")
@@ -69,16 +68,16 @@ class EpisodeScraper(BaseScraper):
         else:
             console.print("\n[green]✓ Perfect coverage - all video files have metadata![/green]\n")
 
-    def _get_expected_episodes_count(self) -> Optional[int]:
+    def __get_expected_episodes_count(self) -> Optional[int]:
         if self.expected_episodes_count is not None:
             return self.expected_episodes_count
 
         if self.videos_dir and self.videos_dir.exists():
-            return self._count_video_files(self.videos_dir)
+            return self.__count_video_files(self.videos_dir)
 
         return None
 
-    def _count_video_files(self, directory: Path) -> int:
+    def __count_video_files(self, directory: Path) -> int:
         count = 0
         for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
             count += len(list(directory.rglob(f"*{ext}")))

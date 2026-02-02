@@ -22,8 +22,6 @@ class ElevenLabsEngine(TranscriptionEngine):
         model_id: Optional[str] = None,
         language_code: Optional[str] = None,
         diarize: Optional[bool] = None,
-        diarization_threshold: Optional[float] = None,
-        temperature: Optional[float] = None,
         polling_interval: Optional[int] = None,
     ):
         if not settings.elevenlabs.api_key:
@@ -35,8 +33,6 @@ class ElevenLabsEngine(TranscriptionEngine):
         self.model_id = model_id or settings.elevenlabs.model_id
         self.language_code = language_code or settings.elevenlabs.language_code
         self.diarize = diarize if diarize is not None else settings.elevenlabs.diarize
-        self.diarization_threshold = diarization_threshold or settings.elevenlabs.diarization_threshold
-        self.temperature = temperature if temperature is not None else settings.elevenlabs.temperature
         self.polling_interval = polling_interval or settings.elevenlabs.polling_interval
 
         self.additional_formats = [
@@ -76,8 +72,6 @@ class ElevenLabsEngine(TranscriptionEngine):
                 model_id=self.model_id,
                 language_code=self.language_code,
                 tag_audio_events=True,
-                diarization_threshold=self.diarization_threshold,
-                temperature=self.temperature,
                 timestamps_granularity="character",
                 diarize=self.diarize,
                 use_multi_channel=False,

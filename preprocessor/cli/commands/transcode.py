@@ -23,22 +23,13 @@ from preprocessor.video.transcoder import VideoTranscoder
 )
 @click.option(
     "--resolution",
-    type=click.Choice(["360p", "480p", "720p", "1080p", "1440p", "2160p"]),
-    default="1080p",
+    type=click.Choice(Resolution.get_all_choices()),
+    default="720p",
     help="Target resolution for videos",
 )
 @click.option(
     "--codec",
     help="Video codec: h264_nvenc (GPU), libx264 (CPU)",
-)
-@click.option(
-    "--preset",
-    help="FFmpeg preset: slow, medium, fast",
-)
-@click.option(
-    "--crf",
-    type=int,
-    help="Quality (CRF): 0=best 51=worst, 18-28 recommended",
 )
 @click.option(
     "--gop-size",
@@ -57,8 +48,6 @@ def transcode(
     transcoded_videos: Path,
     resolution: str,
     codec: str,
-    preset: str,
-    crf: int,
     gop_size: float,
     episodes_info_json: Path,
     name: str,
@@ -69,24 +58,28 @@ def transcode(
         transcoded_videos = settings.transcode.output_dir
     if codec is None:
         codec = settings.transcode.codec
-    if preset is None:
-        preset = settings.transcode.preset
-    if crf is None:
-        crf = settings.transcode.crf
     if gop_size is None:
         gop_size = settings.transcode.gop_size
 
     state_manager = create_state_manager(name, no_state)
+
+    video_bitrate_mbps = settings.transcode.calculate_video_bitrate_mbps()
+    minrate_mbps = settings.transcode.calculate_minrate_mbps()
+    maxrate_mbps = settings.transcode.calculate_maxrate_mbps()
+    bufsize_mbps = settings.transcode.calculate_bufsize_mbps()
 
     config = TranscodeConfig(
         videos=videos,
         transcoded_videos=transcoded_videos,
         resolution=Resolution.from_str(resolution),
         codec=codec,
-        preset=preset,
-        crf=crf,
         gop_size=gop_size,
         episodes_info_json=episodes_info_json,
+        video_bitrate_mbps=video_bitrate_mbps,
+        minrate_mbps=minrate_mbps,
+        maxrate_mbps=maxrate_mbps,
+        bufsize_mbps=bufsize_mbps,
+        audio_bitrate_kbps=settings.transcode.audio_bitrate_kbps,
     )
     config_dict = config.to_dict()
     config_dict["state_manager"] = state_manager

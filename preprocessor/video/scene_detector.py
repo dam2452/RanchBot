@@ -1,5 +1,4 @@
 import gc
-import json
 import logging
 from pathlib import Path
 from typing import (
@@ -21,7 +20,9 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 
 
 class SceneDetector(BaseProcessor):
@@ -71,27 +72,29 @@ class SceneDetector(BaseProcessor):
         episode_info = item.metadata.get("episode_info")
 
         if episode_info:
-            output_filename = f"{self.episode_manager.series_name}_{episode_info.episode_code()}_scenes.json"
+            output_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="scenes",
+            )
+            output_path = OutputPathBuilder.build_scene_path(episode_info, output_filename)
         else:
             output_filename = f"{item.input_path.stem}_scenes.json"
-
-        output_path = self.output_dir / output_filename
+            output_path = OutputPathBuilder.get_episode_dir(None, settings.output_subdirs.scenes) / output_filename
 
         return [OutputSpec(path=output_path, required=True)]
 
-    def _execute_processing(self, items: List[ProcessingItem]) -> None:
-        console.print("[cyan]Scene detection using TransNetV2 on CUDA[/cyan]")
-        self._load_model()
-        super()._execute_processing(items)
-        console.print("[green]Scene detection completed[/green]")
+    def _get_processing_info(self) -> List[str]:
+        return ["[cyan]Scene detection using TransNetV2 on CUDA[/cyan]"]
 
-    def _load_model(self) -> None:
+    def _load_resources(self) -> bool:
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. TransNetV2 requires GPU.")
 
         console.print("[cyan]Loading TransNetV2 model on CUDA...[/cyan]")
         self.model = TransNetV2().cuda()
         console.print("[green]✓ TransNetV2 ready on CUDA[/green]")
+        return True
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         video_file = item.input_path
@@ -123,8 +126,7 @@ class SceneDetector(BaseProcessor):
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+        atomic_write_json(output_file, result, indent=2, ensure_ascii=False)
 
         console.print(f"[green]{video_file.name}: {len(scene_list)} scenes -> {output_file}[/green]")
 

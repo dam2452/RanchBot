@@ -10,11 +10,12 @@ from elasticsearch import AsyncElasticsearch
 from qwen_vl_utils import process_vision_info
 import torch
 from transformers import (
+    AutoModelForVision2Seq,
     AutoProcessor,
-    Qwen2VLForConditionalGeneration,
 )
 
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.config.config import settings
+from preprocessor.hashing.image_hasher import PerceptualHasher
 
 _model = None
 _processor = None
@@ -31,10 +32,10 @@ def load_model():
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required but not available. This pipeline requires GPU.")
 
-    model_name = "Alibaba-NLP/gme-Qwen2-VL-2B-Instruct"
+    model_name = settings.embedding_model.model_name
     _device = "cuda"
 
-    _model = Qwen2VLForConditionalGeneration.from_pretrained(
+    _model = AutoModelForVision2Seq.from_pretrained(
         model_name,
         dtype=torch.bfloat16,
         device_map="auto",
@@ -182,7 +183,12 @@ async def search_video_semantic(es_client, image_path, season=None, episode=None
     if episode is not None:
         filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
     if character:
-        filter_clauses.append({"term": {"character_appearances": character}})
+        filter_clauses.append({
+            "nested": {
+                "path": "character_appearances",
+                "query": {"term": {"character_appearances.name": character}},
+            },
+        })
 
     knn_query = {
         "field": "video_embedding",
@@ -194,7 +200,7 @@ async def search_video_semantic(es_client, image_path, season=None, episode=None
         knn_query["filter"] = filter_clauses
 
     return await es_client.search(
-        index="ranczo_video_embeddings",
+        index="ranczo_video_frames",
         knn=knn_query,
         size=limit,
         _source=[
@@ -213,7 +219,12 @@ async def search_text_to_video(es_client, text, season=None, episode=None, chara
     if episode is not None:
         filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
     if character:
-        filter_clauses.append({"term": {"character_appearances": character}})
+        filter_clauses.append({
+            "nested": {
+                "path": "character_appearances",
+                "query": {"term": {"character_appearances.name": character}},
+            },
+        })
 
     knn_query = {
         "field": "video_embedding",
@@ -225,7 +236,7 @@ async def search_text_to_video(es_client, text, season=None, episode=None, chara
         knn_query["filter"] = filter_clauses
 
     return await es_client.search(
-        index="ranczo_video_embeddings",
+        index="ranczo_video_frames",
         knn=knn_query,
         size=limit,
         _source=[
@@ -236,16 +247,69 @@ async def search_text_to_video(es_client, text, season=None, episode=None, chara
 
 
 async def search_by_character(es_client, character, season=None, episode=None, limit=20):
-    filter_clauses = [{"term": {"character_appearances": character}}]
+    must_clauses = [{
+        "nested": {
+            "path": "character_appearances",
+            "query": {"term": {"character_appearances.name": character}},
+        },
+    }]
 
     if season is not None:
-        filter_clauses.append({"term": {"episode_metadata.season": season}})
+        must_clauses.append({"term": {"episode_metadata.season": season}})
     if episode is not None:
-        filter_clauses.append({"term": {"episode_metadata.episode_number": episode}})
+        must_clauses.append({"term": {"episode_metadata.episode_number": episode}})
 
     return await es_client.search(
-        index="ranczo_video_embeddings",
-        query={"bool": {"filter": filter_clauses}},
+        index="ranczo_video_frames",
+        query={"bool": {"must": must_clauses}},
+        size=limit,
+        _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "character_appearances", "scene_info"],
+    )
+
+
+async def search_by_emotion(es_client, emotion, season=None, episode=None, character=None, limit=20):
+    nested_must = [{"term": {"character_appearances.emotion.label": emotion}}]
+    if character:
+        nested_must.append({"term": {"character_appearances.name": character}})
+
+    must_clauses = [{
+        "nested": {
+            "path": "character_appearances",
+            "query": {"bool": {"must": nested_must}},
+        },
+    }]
+
+    if season is not None:
+        must_clauses.append({"term": {"episode_metadata.season": season}})
+    if episode is not None:
+        must_clauses.append({"term": {"episode_metadata.episode_number": episode}})
+
+    nested_filter = {"term": {"character_appearances.emotion.label": emotion}}
+    if character:
+        nested_filter = {
+            "bool": {
+                "must": [
+                    {"term": {"character_appearances.emotion.label": emotion}},
+                    {"term": {"character_appearances.name": character}},
+                ],
+            },
+        }
+
+    return await es_client.search(
+        index="ranczo_video_frames",
+        query={"bool": {"must": must_clauses}},
+        sort=[
+            {
+                "character_appearances.emotion.confidence": {
+                    "order": "desc",
+                    "nested": {
+                        "path": "character_appearances",
+                        "filter": nested_filter,
+                    },
+                },
+            },
+        ],
+        track_scores=True,
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "character_appearances", "scene_info"],
     )
@@ -326,9 +390,23 @@ async def search_by_object(es_client, object_query, season=None, episode=None, l
         },
     }
 
+    object_class = object_query.split(":")[0].strip() if ":" in object_query else object_query.strip()
+
     return await es_client.search(
-        index="ranczo_video_embeddings",
+        index="ranczo_video_frames",
         query=query_body,
+        sort=[
+            {
+                "detected_objects.count": {
+                    "order": "desc",
+                    "nested": {
+                        "path": "detected_objects",
+                        "filter": {"term": {"detected_objects.class": object_class}},
+                    },
+                },
+            },
+        ],
+        track_scores=True,
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "detected_objects", "character_appearances", "video_path", "episode_metadata", "scene_info"],
     )
@@ -336,7 +414,7 @@ async def search_by_object(es_client, object_query, season=None, episode=None, l
 
 async def search_perceptual_hash(es_client, phash, limit=10):
     return await es_client.search(
-        index="ranczo_video_embeddings",
+        index="ranczo_video_frames",
         query={"term": {"perceptual_hash": phash}},
         size=limit,
         _source=["episode_id", "frame_number", "timestamp", "video_path", "episode_metadata", "perceptual_hash", "scene_info"],
@@ -345,11 +423,39 @@ async def search_perceptual_hash(es_client, phash, limit=10):
 
 async def list_characters(es_client):
     result = await es_client.search(
-        index="ranczo_video_embeddings",
+        index="ranczo_video_frames",
         size=0,
-        aggs={"characters": {"terms": {"field": "character_appearances", "size": 1000}}},
+        aggs={
+            "characters_nested": {
+                "nested": {"path": "character_appearances"},
+                "aggs": {
+                    "character_names": {
+                        "terms": {"field": "character_appearances.name", "size": 1000},
+                    },
+                },
+            },
+        },
     )
-    buckets = result["aggregations"]["characters"]["buckets"]
+    buckets = result["aggregations"]["characters_nested"]["character_names"]["buckets"]
+    return [(b["key"], b["doc_count"]) for b in buckets]
+
+
+async def list_objects(es_client):
+    result = await es_client.search(
+        index="ranczo_video_frames",
+        size=0,
+        aggs={
+            "objects_nested": {
+                "nested": {"path": "detected_objects"},
+                "aggs": {
+                    "object_classes": {
+                        "terms": {"field": "detected_objects.class", "size": 1000},
+                    },
+                },
+            },
+        },
+    )
+    buckets = result["aggregations"]["objects_nested"]["object_classes"]["buckets"]
     return [(b["key"], b["doc_count"]) for b in buckets]
 
 
@@ -403,18 +509,26 @@ async def get_stats(es_client):
     return {
         "segments": (await es_client.count(index="ranczo_segments"))["count"],
         "text_embeddings": (await es_client.count(index="ranczo_text_embeddings"))["count"],
-        "video_embeddings": (await es_client.count(index="ranczo_video_embeddings"))["count"],
+        "video_embeddings": (await es_client.count(index="ranczo_video_frames"))["count"],
         "episode_names": (await es_client.count(index="ranczo_episode_names"))["count"],
     }
+
+
+def format_timestamp(seconds):
+    minutes = int(seconds // 60)
+    secs = seconds % 60
+    return f"{minutes}m {secs:.1f}s"
 
 
 def format_scene_context(scene_info):
     if not scene_info:
         return ""
-    return f" [Scene {scene_info.get('scene_number', '?')}: {scene_info.get('scene_start_time', 0):.1f}s - {scene_info.get('scene_end_time', 0):.1f}s]"
+    start = format_timestamp(scene_info.get('scene_start_time', 0))
+    end = format_timestamp(scene_info.get('scene_end_time', 0))
+    return f" [Scene {scene_info.get('scene_number', '?')}: {start} - {end}]"
 
 
-def print_results(result, result_type="text"):
+def print_results(result, result_type="text"):  # pylint: disable=too-many-locals
     total = result["hits"]["total"]["value"]
     hits = result["hits"]["hits"]
 
@@ -428,11 +542,14 @@ def print_results(result, result_type="text"):
         scene_ctx = format_scene_context(source.get("scene_info"))
 
         click.echo(f"\n[{i}] Score: {score:.2f}")
-        click.echo(f"Episode: S{meta['season']:02d}E{meta['episode_number']:02d} - {meta.get('title', 'N/A')}")
+        season_code = "S00" if meta['season'] == 0 else f"S{meta['season']:02d}"
+        click.echo(f"Episode: {season_code}E{meta['episode_number']:02d} - {meta.get('title', 'N/A')}")
 
         if result_type == "text":
             click.echo(f"Segment ID: {source.get('segment_id', 'N/A')}")
-            click.echo(f"Time: {source['start_time']:.2f}s - {source['end_time']:.2f}s{scene_ctx}")
+            start_time = format_timestamp(source['start_time'])
+            end_time = format_timestamp(source['end_time'])
+            click.echo(f"Time: {start_time} - {end_time}{scene_ctx}")
             click.echo(f"Speaker: {source.get('speaker', 'N/A')}")
             click.echo(f"Text: {source['text']}")
         elif result_type == "text_semantic":
@@ -442,7 +559,8 @@ def print_results(result, result_type="text"):
         elif result_type == "episode_name":
             click.echo(f"Episode Title: {source.get('title', 'N/A')}")
         else:
-            click.echo(f"Frame: {source['frame_number']} @ {source['timestamp']:.2f}s{scene_ctx}")
+            timestamp = format_timestamp(source['timestamp'])
+            click.echo(f"Frame: {source['frame_number']} @ {timestamp}{scene_ctx}")
             if "frame_type" in source:
                 click.echo(f"Type: {source['frame_type']}")
             if "scene_number" in source:
@@ -450,7 +568,15 @@ def print_results(result, result_type="text"):
             if "perceptual_hash" in source:
                 click.echo(f"Hash: {source['perceptual_hash']}")
             if source.get("character_appearances"):
-                click.echo(f"Characters: {', '.join(source['character_appearances'])}")
+                chars_strs = []
+                for char in source['character_appearances']:
+                    char_str = char.get('name', 'Unknown')
+                    if char.get('emotion'):
+                        emotion_label = char['emotion'].get('label', '?')
+                        emotion_conf = char['emotion'].get('confidence', 0)
+                        char_str += f" ({emotion_label} {emotion_conf:.2f})"
+                    chars_strs.append(char_str)
+                click.echo(f"Characters: {', '.join(chars_strs)}")
             if source.get("detected_objects"):
                 objects_str = ", ".join([f"{obj['class']}:{obj['count']}" for obj in source['detected_objects']])
                 click.echo(f"Objects: {objects_str}")
@@ -465,24 +591,29 @@ def print_results(result, result_type="text"):
 @click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search po video embeddings")
 @click.option("--hash", "phash", type=str, help="Szukaj po perceptual hash (podaj hash string lub sciezke do obrazka)")
 @click.option("--character", type=str, help="Szukaj po postaci")
+@click.option("--emotion", type=str, help="Szukaj po emocji (neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)")
 @click.option("--object", "object_query", type=str, help="Szukaj po wykrytych obiektach (np. 'dog', 'person:5+', 'chair:2-4')")
 @click.option("--episode-name", type=str, help="Fuzzy search po nazwach odcinkow")
 @click.option("--episode-name-semantic", type=str, help="Semantic search po nazwach odcinkow")
 @click.option("--list-characters", "list_chars_flag", is_flag=True, help="Lista wszystkich postaci")
+@click.option("--list-objects", "list_objects_flag", is_flag=True, help="Lista wszystkich klas obiektow")
 @click.option("--season", type=int, help="Filtruj po sezonie")
 @click.option("--episode", type=int, help="Filtruj po odcinku")
 @click.option("--limit", type=int, default=20, help="Limit wynikow")
 @click.option("--stats", is_flag=True, help="Pokaz statystyki indeksow")
 @click.option("--json-output", is_flag=True, help="Output w formacie JSON")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
-def search(
-    text, text_semantic, text_to_video, image, phash, character, object_query, episode_name,
-    episode_name_semantic, list_chars_flag, season, episode, limit,
+def search(  # pylint: disable=too-many-locals
+    text, text_semantic, text_to_video, image, phash, character, emotion, object_query, episode_name,
+    episode_name_semantic, list_chars_flag, list_objects_flag, season, episode, limit,
     stats, json_output, host,
 ):
     """Search tool - comprehensive Elasticsearch search"""
 
-    if not any([text, text_semantic, text_to_video, image, phash, character, object_query, episode_name, episode_name_semantic, list_chars_flag, stats]):
+    if not any([
+        text, text_semantic, text_to_video, image, phash, character, emotion,
+        object_query, episode_name, episode_name_semantic, list_chars_flag, list_objects_flag, stats,
+    ]):
         click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
         sys.exit(1)
 
@@ -505,8 +636,10 @@ def search(
 
         try:
             await es_client.ping()
-        except ConnectionError as e:
-            click.echo(f"Blad polaczenia z Elasticsearch: {e}", err=True)
+        except Exception:  # pylint: disable=broad-exception-caught
+            click.echo(f"✗ Cannot connect to Elasticsearch at {host}", err=True)
+            click.echo("Make sure Elasticsearch is running:", err=True)
+            click.echo("  docker-compose -f docker-compose.test.yml up -d", err=True)
             sys.exit(1)
 
         try:
@@ -529,6 +662,15 @@ def search(
                     click.echo(f"\nZnaleziono {len(chars)} postaci:")
                     for char, count in sorted(chars, key=lambda x: -x[1]):
                         click.echo(f"  {char}: {count:,} wystapien")
+
+            elif list_objects_flag:
+                objects = await list_objects(es_client)
+                if json_output:
+                    click.echo(json.dumps(objects, indent=2))
+                else:
+                    click.echo(f"\nZnaleziono {len(objects)} klas obiektow:")
+                    for obj, count in sorted(objects, key=lambda x: -x[1]):
+                        click.echo(f"  {obj}: {count:,} wystapien")
 
             elif text:
                 result = await search_text_query(es_client, text, season, episode, limit)
@@ -553,6 +695,13 @@ def search(
 
             elif image:
                 result = await search_video_semantic(es_client, str(image), season, episode, character, limit)
+                if json_output:
+                    click.echo(json.dumps(result["hits"], indent=2))
+                else:
+                    print_results(result, "video")
+
+            elif emotion:
+                result = await search_by_emotion(es_client, emotion, season, episode, character, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:

@@ -18,7 +18,8 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.embeddings.image_hasher import PerceptualHasher
+from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
 from preprocessor.utils.metadata_utils import create_processing_metadata
@@ -53,32 +54,41 @@ class ImageHashProcessor(BaseProcessor):
     def cleanup(self) -> None:
         console.print("[cyan]Unloading image hasher...[/cyan]")
         self.hasher = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
         console.print("[green]✓ Hasher unloaded[/green]")
 
     # pylint: disable=duplicate-code
     def _get_processing_items(self) -> List[ProcessingItem]:
         return self._get_episode_processing_items_from_metadata(
-            "**/frame_metadata.json",
+            "**/*_frame_metadata.json",
             self.frames_dir,
             self.episode_manager,
         )
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = self._build_episode_output_dir(episode_info, self.output_dir)
-        hash_output = episode_dir / "image_hashes.json"
+        hash_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = OutputPathBuilder.build_output_path(
+            episode_info,
+            settings.output_subdirs.image_hashes,
+            hash_filename,
+        )
         return [OutputSpec(path=hash_output, required=True)]
     # pylint: enable=duplicate-code
 
-    def _execute_processing(self, items: List[ProcessingItem]) -> None:
-        console.print(f"[cyan]Device: {self.device}[/cyan]")
-        console.print(f"[cyan]Batch size: {self.batch_size}[/cyan]")
+    def _get_processing_info(self) -> List[str]:
+        return [
+            f"[cyan]Device: {self.device}[/cyan]",
+            f"[cyan]Batch size: {self.batch_size}[/cyan]",
+        ]
 
+    def _load_resources(self) -> bool:
         self.hasher = PerceptualHasher(device=self.device, hash_size=8)
-
-        super()._execute_processing(items)
-        console.print("[green]Image hashing completed[/green]")
+        return True
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         metadata_file = item.input_path
@@ -97,12 +107,10 @@ class ImageHashProcessor(BaseProcessor):
 
         episode_dir = self.__get_episode_output_dir(episode_info)
         self.__save_hashes(episode_dir, episode_info, hash_results)
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     def __get_episode_output_dir(self, episode_info) -> Path:
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        return self.output_dir / f"S{season:02d}" / f"E{episode:02d}"
+        return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
 
     def __save_hashes(self, episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
         episode_dir.mkdir(parents=True, exist_ok=True)
@@ -122,12 +130,17 @@ class ImageHashProcessor(BaseProcessor):
             results_data=hash_results,
         )
 
-        hash_output = episode_dir / "image_hashes.json"
+        hash_filename = self.episode_manager.file_naming.build_filename(
+            episode_info,
+            extension="json",
+            suffix="image_hashes",
+        )
+        hash_output = episode_dir / hash_filename
         with open(hash_output, "w", encoding="utf-8") as f:
             json.dump(hash_data, f, indent=2, ensure_ascii=False)
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()

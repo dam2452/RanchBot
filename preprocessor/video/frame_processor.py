@@ -42,7 +42,7 @@ class FrameProcessor(BaseProcessor):
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         return self._get_episode_processing_items_from_metadata(
-            "**/frame_metadata.json",
+            "**/*_frame_metadata.json",
             self.frames_dir,
             self.episode_manager,
         )
@@ -76,26 +76,38 @@ class FrameProcessor(BaseProcessor):
                 console.print(f"[yellow]Skipping: {sub_processor.name} (output exists)[/yellow]")
             return
 
-        ramdisk_episode_dir = self.ramdisk_path / "frames" / f"S{season:02d}" / f"E{episode:02d}"
+        any_sub_processor_needs_ramdisk = any(
+            sub_processor.should_run(item, missing_outputs) and sub_processor.needs_ramdisk()
+            for sub_processor in self.sub_processors
+        )
 
-        try:
-            self.__copy_frames_to_ramdisk(frames_episode_dir, ramdisk_episode_dir)
+        if any_sub_processor_needs_ramdisk:
+            ramdisk_episode_dir = self.ramdisk_path / "frames" / f"S{season:02d}" / f"E{episode:02d}"
+            try:
+                self.__copy_frames_to_ramdisk(frames_episode_dir, ramdisk_episode_dir)
 
+                for sub_processor in self.sub_processors:
+                    if sub_processor.should_run(item, missing_outputs):
+                        console.print(f"[cyan]Running: {sub_processor.name}[/cyan]")
+                        sub_processor.process(item, ramdisk_episode_dir)
+                    else:
+                        console.print(f"[yellow]Skipping: {sub_processor.name} (output exists)[/yellow]")
+
+            finally:
+                self.__cleanup_ramdisk(ramdisk_episode_dir)
+        else:
             for sub_processor in self.sub_processors:
                 if sub_processor.should_run(item, missing_outputs):
                     console.print(f"[cyan]Running: {sub_processor.name}[/cyan]")
-                    sub_processor.process(item, ramdisk_episode_dir)
+                    sub_processor.process(item, frames_episode_dir)
                 else:
                     console.print(f"[yellow]Skipping: {sub_processor.name} (output exists)[/yellow]")
-
-        finally:
-            self.__cleanup_ramdisk(ramdisk_episode_dir)
 
     @staticmethod
     def __copy_frames_to_ramdisk(source_dir: Path, dest_dir: Path) -> None:
         dest_dir.mkdir(parents=True, exist_ok=True)
 
-        frame_files = list(source_dir.glob("frame_*.jpg"))
+        frame_files = list(source_dir.glob("*frame_*.jpg"))
         console.print(f"[cyan]Copying {len(frame_files)} frames to RAMdisk: {dest_dir}[/cyan]")
 
         for frame_file in frame_files:
@@ -119,6 +131,9 @@ class FrameSubProcessor:
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         raise NotImplementedError
+
+    def needs_ramdisk(self) -> bool:
+        return True
 
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         raise NotImplementedError

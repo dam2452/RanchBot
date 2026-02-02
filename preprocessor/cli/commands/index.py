@@ -18,7 +18,7 @@ from preprocessor.indexing.elasticsearch import ElasticSearchIndexer
 @click.option("--dry-run", is_flag=True, help="Validate without sending to Elasticsearch")
 @click.option("--append", is_flag=True, help="Append to existing indices instead of recreating")
 def index(name: str, elastic_documents_dir: Path, dry_run: bool, append: bool):
-    """Index documents into Elasticsearch (creates 3 indices: segments, text_embeddings, video_embeddings)."""
+    """Index documents into Elasticsearch (creates 3 indices: segments, text_embeddings, video_frames)."""
     indexer = ElasticSearchIndexer({
         "name": name,
         "elastic_documents_dir": elastic_documents_dir,
