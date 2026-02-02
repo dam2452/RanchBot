@@ -105,15 +105,13 @@ class InlineClipHandler(BotMessageHandler):
                 for video_file in video_files:
                     zipf.write(video_file, video_file.name)
 
-            await self._answer_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)')
+            await self._answer_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir)
 
-        finally:
-            for video_file in video_files:
-                if video_file.exists():
-                    video_file.unlink()
+        except Exception:
             if temp_dir.exists():
                 import shutil
                 shutil.rmtree(temp_dir, ignore_errors=True)
+            raise
 
     async def handle_inline(self, bot: Bot) -> List[InlineQueryResult]:
         t_total = time.time()

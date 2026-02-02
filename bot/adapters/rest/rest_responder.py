@@ -64,8 +64,15 @@ class RestResponder(AbstractResponder):
         file_path: Path,
         caption: str,
         delete_after_send: bool = True,
+        cleanup_dir: Optional[Path] = None,
     ) -> None:
-        background = BackgroundTask(file_path.unlink) if delete_after_send else None
+        background = None
+        if cleanup_dir:
+            import shutil
+            background = BackgroundTask(shutil.rmtree, cleanup_dir, ignore_errors=True)
+        elif delete_after_send:
+            background = BackgroundTask(file_path.unlink)
+
         self.__set_response(
             FileResponse(
                 path=str(file_path),
