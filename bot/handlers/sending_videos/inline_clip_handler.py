@@ -177,8 +177,8 @@ class InlineClipHandler(BotMessageHandler):
         try:
             segment_info = format_segment(segment, season_info)
             return await self.__cache_video(
-                f"{convert_number_to_emoji(index)}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
-                segment_info.episode_title,
+                f"{convert_number_to_emoji(index)} {segment_info.episode_formatted} | {segment_info.time_formatted}",
+                f"👉🏻 {segment_info.episode_title}",
                 video_path,
                 bot,
             )
