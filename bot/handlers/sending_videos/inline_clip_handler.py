@@ -49,9 +49,7 @@ class InlineClipHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(
-            self._message, 1, get_no_quote_provided_message(), math.inf,
-        )
+        return await self._validate_argument_count(self._message, 1, get_no_quote_provided_message(), math.inf)
 
     async def _do_handle(self) -> None:
         query = " ".join(self._message.get_text().split()[1:])
@@ -65,18 +63,14 @@ class InlineClipHandler(BotMessageHandler):
 
         temp_dir = Path(tempfile.mkdtemp())
         try:
-            video_files = await self.__extract_clips_to_files(
-                saved_clip, segments, season_info, temp_dir, is_admin=True,
-            )
+            video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True)
 
             if not video_files:
                 await self._answer(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
                 return
 
             zip_path = await self.__create_zip(video_files, temp_dir, query)
-            await self._answer_document(
-                zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir,
-            )
+            await self._answer_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir)
         except Exception:
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
@@ -105,9 +99,7 @@ class InlineClipHandler(BotMessageHandler):
         await DatabaseManager.log_command_usage(user_id)
         return results
 
-    async def __fetch_data(
-        self, user_id: int, query: str,
-    ) -> Tuple[Optional[VideoClip], List[dict], Optional[dict], bool]:
+    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[dict], Optional[dict], bool]:
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
             TranscriptionFinder.find_segment_by_quote(query, self._logger, size=5),
@@ -121,17 +113,10 @@ class InlineClipHandler(BotMessageHandler):
         season_info = season_info_result if not isinstance(season_info_result, Exception) else None
         is_admin = is_admin_result if not isinstance(is_admin_result, Exception) else False
 
-        segments_to_send = segments[: 4 if saved_clip else 5] if segments else []
-
-        return saved_clip, segments_to_send, season_info, is_admin
+        return saved_clip, segments[: 4 if saved_clip else 5] if segments else [], season_info, is_admin
 
     async def __extract_clips_to_files(
-        self,
-        saved_clip: Optional[VideoClip],
-        segments: List[dict],
-        season_info: Optional[dict],
-        temp_dir: Path,
-        is_admin: bool,
+        self, saved_clip: Optional[VideoClip], segments: List[dict], season_info: Optional[dict], temp_dir: Path, is_admin: bool,
     ) -> List[Path]:
         video_files = []
 
@@ -143,71 +128,53 @@ class InlineClipHandler(BotMessageHandler):
         for idx, segment in enumerate(segments, start=2 if saved_clip else 1):
             start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
             end_time = segment["end"] + settings.EXTEND_AFTER
-            duration = end_time - start_time
 
-            if not is_admin and duration > settings.MAX_CLIP_DURATION:
+            if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
                 continue
 
             try:
                 segment_info = format_segment(segment, season_info) if season_info else None
                 episode_code = segment_info.episode_formatted if segment_info else str(idx)
-
-                output_path = await ClipsExtractor.extract_clip(
-                    segment["video_path"], start_time, end_time, self._logger,
-                )
+                output_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
                 final_path = temp_dir / f"{idx}_search_{episode_code}.mp4"
                 output_path.rename(final_path)
                 video_files.append(final_path)
             except FFMpegException as e:
-                await log_system_message(
-                    logging.ERROR, f"FFmpeg error for segment {segment.get('id', 'unknown')}: {e}", self._logger,
-                )
+                await log_system_message(logging.ERROR, f"FFmpeg error for segment {segment.get('id', 'unknown')}: {e}", self._logger)
 
         return video_files
 
     async def __create_inline_results(
-        self,
-        saved_clip: Optional[VideoClip],
-        segments: List[dict],
-        season_info: Optional[dict],
-        bot: Bot,
-        is_admin: bool,
+        self, saved_clip: Optional[VideoClip], segments: List[dict], season_info: Optional[dict], bot: Bot, is_admin: bool,
     ) -> List[InlineQueryResult]:
         results = []
 
         if saved_clip:
-            saved_result = await self.__upload_saved_clip(saved_clip, bot)
-            if saved_result:
-                results.append(saved_result)
+            results.append(
+                await self.__upload_clip_with_cleanup(
+                    saved_clip.video_data,
+                    f"💾 Zapisany klip: {saved_clip.name}", f"Sezon {saved_clip.season}, Odcinek {saved_clip.episode_number} | Czas: {saved_clip.duration:.1f}s",
+                    bot,
+                ),
+            )
 
         if segments and season_info:
             segment_results = await asyncio.gather(
-                *[self.__upload_segment(seg, i, season_info, bot, is_admin) for i, seg in enumerate(segments, 1)],
-                return_exceptions=True,
+                *[self.__upload_segment(seg, i, season_info, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
             )
-
-            for result in segment_results:
-                if isinstance(result, Exception):
-                    await log_system_message(logging.ERROR, f"Error creating segment result: {result}", self._logger)
-                elif result:
-                    results.append(result)
+            results.extend([r for r in segment_results if not isinstance(r, Exception) and r])
 
         return results
 
-    async def __upload_segment(
-        self, segment: dict, index: int, season_info: dict, bot: Bot, is_admin: bool,
-    ) -> Optional[InlineQueryResultCachedVideo]:
+    async def __upload_segment(self, segment: dict, index: int, season_info: dict, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
         start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
         end_time = segment["end"] + settings.EXTEND_AFTER
-        duration = end_time - start_time
 
-        if not is_admin and duration > settings.MAX_CLIP_DURATION:
+        if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
             return None
 
-        video_path = None
+        video_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
         try:
-            video_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-
             segment_info = format_segment(segment, season_info)
             return await self.__cache_video(
                 f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
@@ -215,41 +182,19 @@ class InlineClipHandler(BotMessageHandler):
                 video_path,
                 bot,
             )
-        except Exception as e:
-            await log_system_message(
-                logging.ERROR,
-                f"Clip {index} failed for segment {segment.get('id', 'unknown')}: {type(e).__name__}: {e}",
-                self._logger,
-            )
-            return None
         finally:
-            if video_path and video_path.exists():
-                await asyncio.to_thread(video_path.unlink)
+            video_path.unlink(missing_ok=True)
 
-    async def __upload_saved_clip(self, saved_clip: VideoClip, bot: Bot) -> Optional[InlineQueryResultCachedVideo]:
-        temp_file = Path(tempfile.gettempdir()) / f"saved_clip_{saved_clip.id}.mp4"
-        await asyncio.to_thread(temp_file.write_bytes, saved_clip.video_data)
-
-        try:
-            return await self.__cache_video(
-                f"💾 Zapisany klip: {saved_clip.name}",
-                f"Sezon {saved_clip.season}, Odcinek {saved_clip.episode_number} | Czas: {saved_clip.duration:.1f}s",
-                temp_file,
-                bot,
-            )
-        except Exception as e:
-            await log_system_message(logging.ERROR, f"Error uploading saved clip: {e}", self._logger)
-            return None
-        finally:
-            if temp_file.exists():
-                await asyncio.to_thread(temp_file.unlink)
+    async def __upload_clip_with_cleanup(self, video_data: bytes, title: str, description: str, bot: Bot) -> InlineQueryResultCachedVideo:
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=True) as tmp:
+            await asyncio.to_thread(tmp.write_bytes, video_data)
+            tmp.flush()
+            return await self.__cache_video(title, description, Path(tmp.name), bot)
 
     @staticmethod
     async def __cache_video(title: str, description: str, video_path: Path, bot: Bot) -> InlineQueryResultCachedVideo:
         sent_message = await bot.send_video(chat_id=settings.INLINE_CACHE_CHANNEL_ID, video=FSInputFile(video_path))
-        return InlineQueryResultCachedVideo(
-            id=str(uuid4()), video_file_id=sent_message.video.file_id, title=title, description=description,
-        )
+        return InlineQueryResultCachedVideo(id=str(uuid4()), video_file_id=sent_message.video.file_id, title=title, description=description)
 
     @staticmethod
     async def __create_zip(video_files: List[Path], temp_dir: Path, query: str) -> Path:
