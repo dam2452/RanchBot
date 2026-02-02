@@ -29,7 +29,7 @@ from bot.handlers.bot_message_handler import (
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
-from bot.utils.functions import format_segment
+from bot.utils.functions import format_segment, convert_number_to_emoji
 from bot.utils.inline_telegram import generate_error_result
 from bot.utils.log import (
     log_system_message,
@@ -177,7 +177,7 @@ class InlineClipHandler(BotMessageHandler):
         try:
             segment_info = format_segment(segment, season_info)
             return await self.__cache_video(
-                f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
+                f"{convert_number_to_emoji(index)}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 segment_info.episode_title,
                 video_path,
                 bot,
