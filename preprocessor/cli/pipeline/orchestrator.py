@@ -18,6 +18,8 @@ from preprocessor.core.processing_metadata import ProcessingMetadata
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
 
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
+
 
 @dataclass
 class PipelineStep:
@@ -43,17 +45,17 @@ class PipelineOrchestrator:
             self.metadata = ProcessingMetadata(series_name=self.series_name, params=params)
 
         try:
-            exit_code = self._run_all_steps(params)
+            exit_code = self.__run_all_steps(params)
             if self.state_manager:
                 self.state_manager.cleanup()
-            self._finalize_metadata(exit_code)
+            self.__finalize_metadata(exit_code)
             return exit_code
         except KeyboardInterrupt:
             console.print("\n[yellow]Pipeline interrupted by user[/yellow]")
-            self._finalize_metadata(130)
+            self.__finalize_metadata(130)
             return 130
 
-    def _run_all_steps(self, params: Dict[str, Any]) -> int:
+    def __run_all_steps(self, params: Dict[str, Any]) -> int:
         for step in self.steps:
             step_metadata = None
             if self.metadata:
@@ -88,7 +90,7 @@ class PipelineOrchestrator:
 
         return 0
 
-    def _finalize_metadata(self, exit_code: int):
+    def __finalize_metadata(self, exit_code: int):
         if self.metadata:
             additional_stats = self.__collect_additional_statistics()
             self.metadata.finish_processing(exit_code, additional_stats)
@@ -117,7 +119,7 @@ class PipelineOrchestrator:
 
             output_frames_dir = Path(settings.frame_export.output_dir)
             if output_frames_dir.exists():
-                frame_metadata_files = list(output_frames_dir.rglob("frame_metadata.json"))
+                frame_metadata_files = list(output_frames_dir.rglob("*_frame_metadata.json"))
                 stats["processed_episodes_count"] = len(frame_metadata_files)
                 total_frames = 0
                 for metadata_file in frame_metadata_files:
@@ -131,25 +133,25 @@ class PipelineOrchestrator:
 
             embeddings_dir = Path(settings.embedding.default_output_dir)
             if embeddings_dir.exists():
-                text_embedding_files = list(embeddings_dir.rglob("embeddings_text.json"))
-                video_embedding_files = list(embeddings_dir.rglob("embeddings_video.json"))
+                text_embedding_files = list(embeddings_dir.rglob("*_embeddings_text.json"))
+                video_embedding_files = list(embeddings_dir.rglob("*_embeddings_video.json"))
                 stats["text_embedding_files_count"] = len(text_embedding_files)
                 stats["video_embedding_files_count"] = len(video_embedding_files)
 
             image_hashes_dir = Path(settings.image_hash.output_dir)
             if image_hashes_dir.exists():
-                hash_files = list(image_hashes_dir.rglob("image_hashes.json"))
+                hash_files = list(image_hashes_dir.rglob("*_image_hashes.json"))
                 stats["image_hash_files_count"] = len(hash_files)
 
             elastic_docs_dir = get_output_path("elastic_documents")
             if elastic_docs_dir.exists():
-                segment_files = list((elastic_docs_dir / "segments").rglob("*.jsonl"))
-                text_emb_files = list((elastic_docs_dir / "text_embeddings").rglob("*.jsonl"))
-                video_emb_files = list((elastic_docs_dir / "video_embeddings").rglob("*.jsonl"))
+                segment_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.text_segments).rglob("*.jsonl"))
+                text_emb_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.text_embeddings).rglob("*.jsonl"))
+                video_frame_files = list((elastic_docs_dir / ELASTIC_SUBDIRS.video_frames).rglob("*.jsonl"))
                 stats["elastic_documents"] = {
-                    "segments": len(segment_files),
-                    "text_embeddings": len(text_emb_files),
-                    "video_embeddings": len(video_emb_files),
+                    ELASTIC_SUBDIRS.text_segments: len(segment_files),
+                    ELASTIC_SUBDIRS.text_embeddings: len(text_emb_files),
+                    ELASTIC_SUBDIRS.video_frames: len(video_frame_files),
                 }
 
         except Exception:

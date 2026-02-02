@@ -6,6 +6,8 @@ from elasticsearch import (
 )
 import urllib3
 
+from preprocessor.config.config import settings
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # pylint: disable=duplicate-code
@@ -161,7 +163,7 @@ class ElasticSearchManager:
                 "text": {"type": "text"},
                 "text_embedding": {
                     "type": "dense_vector",
-                    "dims": 2048,
+                    "dims": settings.embedding_model.embedding_dim,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -189,14 +191,26 @@ class ElasticSearchManager:
                 "scene_number": {"type": "integer"},
                 "video_embedding": {
                     "type": "dense_vector",
-                    "dims": 2048,
+                    "dims": settings.embedding_model.embedding_dim,
                     "index": True,
                     "similarity": "cosine",
                 },
                 "perceptual_hash": {"type": "keyword"},
                 "perceptual_hash_int": {"type": "unsigned_long"},
                 "video_path": {"type": "keyword"},
-                "character_appearances": {"type": "keyword"},
+                "character_appearances": {
+                    "type": "nested",
+                    "properties": {
+                        "name": {"type": "keyword"},
+                        "confidence": {"type": "float"},
+                        "emotion": {
+                            "properties": {
+                                "label": {"type": "keyword"},
+                                "confidence": {"type": "float"},
+                            },
+                        },
+                    },
+                },
                 "detected_objects": {
                     "type": "nested",
                     "properties": {
@@ -239,7 +253,90 @@ class ElasticSearchManager:
                 },
                 "title_embedding": {
                     "type": "dense_vector",
-                    "dims": 2048,
+                    "dims": settings.embedding_model.embedding_dim,
+                    "index": True,
+                    "similarity": "cosine",
+                },
+                "video_path": {"type": "keyword"},
+            },
+        },
+    }
+
+    FULL_EPISODE_EMBEDDINGS_INDEX_MAPPING: json = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+                        "premiere_date": {"type": "date", "format": "dd.MM.yyyy||d.MM.yyyy||d.M.yyyy||yyyy-MM-dd||strict_date_optional_time||epoch_millis"},
+                        "series_name": {"type": "keyword"},
+                        "viewership": {"type": "keyword"},
+                    },
+                },
+                "full_transcript": {"type": "text"},
+                "transcript_length": {"type": "integer"},
+                "full_episode_embedding": {
+                    "type": "dense_vector",
+                    "dims": settings.embedding_model.embedding_dim,
+                    "index": True,
+                    "similarity": "cosine",
+                },
+                "video_path": {"type": "keyword"},
+            },
+        },
+    }
+
+    SOUND_EVENTS_INDEX_MAPPING = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                    },
+                },
+                "segment_id": {"type": "integer"},
+                "text": {"type": "text", "analyzer": "standard"},
+                "sound_type": {"type": "keyword"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "video_path": {"type": "keyword"},
+                "scene_info": {
+                    "properties": {
+                        "scene_id": {"type": "integer"},
+                        "scene_start": {"type": "float"},
+                        "scene_end": {"type": "float"},
+                    },
+                },
+            },
+        },
+    }
+
+    SOUND_EVENT_EMBEDDINGS_INDEX_MAPPING = {
+        "mappings": {
+            "properties": {
+                "episode_id": {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                    },
+                },
+                "embedding_id": {"type": "integer"},
+                "segment_range": {"type": "integer_range"},
+                "text": {"type": "text"},
+                "sound_types": {"type": "keyword"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "sound_event_embedding": {
+                    "type": "dense_vector",
+                    "dims": settings.embedding_model.embedding_dim,
                     "index": True,
                     "similarity": "cosine",
                 },
@@ -266,10 +363,14 @@ class ElasticSearchManager:
         es = AsyncElasticsearch(**es_config)
         try:
             if not await es.ping():
-                raise es_exceptions.ConnectionError("Failed to connect to Elasticsearch.")
-            logger.info("Connected to Elasticsearch.")
+                raise es_exceptions.ConnectionError("Failed to connect to Elasticsearch")
+            logger.info(f"Connected to Elasticsearch at {es_host}")
             return es
-        except es_exceptions.ConnectionError as e:
-            logger.info(f"Connection error: {str(e)}")
-            raise
+        except (es_exceptions.ConnectionError, Exception) as e:
+            error_msg = f"Cannot connect to Elasticsearch at {es_host}"
+            if "Connection refused" in str(e) or "Failed to establish" in str(e):
+                logger.error(f"{error_msg} - is Elasticsearch running?")
+            else:
+                logger.error(f"{error_msg}: {str(e)}")
+            raise es_exceptions.ConnectionError(error_msg) from e
 # pylint: enable=duplicate-code

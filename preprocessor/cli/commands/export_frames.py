@@ -5,6 +5,7 @@ import click
 
 from preprocessor.cli.utils import create_state_manager
 from preprocessor.config.config import settings
+from preprocessor.utils.resolution import Resolution
 from preprocessor.video.frame_exporter import FrameExporter
 
 
@@ -29,10 +30,10 @@ from preprocessor.video.frame_exporter import FrameExporter
     help="Output directory for exported frames",
 )
 @click.option(
-    "--frame-height",
-    type=int,
-    default=480,
-    help="Height of exported frames in pixels",
+    "--resolution",
+    type=click.Choice(Resolution.get_all_choices()),
+    default="1080p",
+    help="Target resolution for exported frames",
 )
 @click.option("--name", required=True, help="Series name")
 @click.option("--no-state", is_flag=True, help="Disable state management (no resume on interrupt)")
@@ -41,19 +42,21 @@ def export_frames(
     episodes_info_json: Path,
     scene_timestamps_dir: Path,
     output_frames: Path,
-    frame_height: int,
+    resolution: str,
     name: str,
     no_state: bool,
 ):
-    """Export keyframes at 480p resolution based on configured keyframe strategy."""
+    """Export keyframes at target resolution based on configured keyframe strategy."""
     state_manager = create_state_manager(name, no_state)
+
+    res = Resolution.from_str(resolution)
 
     exporter = FrameExporter(
         {
             "transcoded_videos": transcoded_videos,
             "scene_timestamps_dir": scene_timestamps_dir,
             "output_frames": output_frames,
-            "frame_height": frame_height,
+            "resolution": res,
             "series_name": name,
             "episodes_info_json": episodes_info_json,
             "state_manager": state_manager,

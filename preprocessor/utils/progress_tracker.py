@@ -55,10 +55,10 @@ class OperationTracker:
         )
 
         if should_report and completed != self.last_report:
-            self._report_progress()
+            self.__report_progress()
             self.last_report = completed
 
-    def _report_progress(self):
+    def __report_progress(self):
         elapsed = time.time() - self.start_time
         percent = (self.completed / self.total * 100) if self.total > 0 else 0
 

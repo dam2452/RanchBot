@@ -4,6 +4,7 @@ from typing import (
     Dict,
 )
 
+from preprocessor.core.constants import FILE_EXTENSIONS
 from preprocessor.transcription.generators.base_generator import BaseTranscriptionGenerator
 
 
@@ -12,7 +13,7 @@ class TxtGenerator(BaseTranscriptionGenerator):
         pass
 
     def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(".json", ".txt")
+        return json_file.name.replace(FILE_EXTENSIONS["json"], FILE_EXTENSIONS["txt"])
 
     @staticmethod
     def convert_to_txt_format(data: Dict[str, Any]) -> str:

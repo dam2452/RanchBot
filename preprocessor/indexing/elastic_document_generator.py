@@ -8,14 +8,22 @@ from typing import (
     Optional,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.core.constants import (
+    FILE_EXTENSIONS,
+    FILE_SUFFIXES,
+)
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.utils.console import console
+
+ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
 
 class ElasticDocumentGenerator(BaseProcessor):
@@ -42,7 +50,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             raise ValueError("transcription_jsons is required")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        all_transcription_files = list(self.transcription_jsons.glob("**/*_segmented.json"))
+        all_transcription_files = list(self.transcription_jsons.glob("**/raw/*_segmented.json"))
         items = []
 
         for trans_file in all_transcription_files:
@@ -50,66 +58,152 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         return items
 
-    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:  # pylint: disable=too-many-locals,too-many-statements
         base_name = item.metadata["base_name"]
-        season_dir = item.input_path.parent.name
+        episode_info = self.episode_manager.parse_filename(item.input_path)
 
-        outputs = [
-            OutputSpec(
-                path=self.output_dir / "segments" / season_dir / f"{base_name}_segments.jsonl",
-                required=True,
-            ),
-        ]
+        outputs = []
 
-        if self.embeddings_dir:
-            episode_info = self.episode_manager.parse_filename(item.input_path)
-            if episode_info:
-                episode_emb_dir = self.embeddings_dir / f"S{episode_info.season:02d}" / f"E{episode_info.relative_episode:02d}"
-                text_emb_file = episode_emb_dir / "embeddings_text.json"
-                video_emb_file = episode_emb_dir / "embeddings_video.json"
-            else:
-                text_emb_file = self.embeddings_dir / f"{base_name}_text.json"
-                video_emb_file = self.embeddings_dir / f"{base_name}_video.json"
+        if episode_info:
+            segments_filename = f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
+            segments_file = OutputPathBuilder.build_elastic_document_path(
+                episode_info,
+                ELASTIC_SUBDIRS.text_segments,
+                segments_filename,
+            )
+            outputs.append(OutputSpec(path=segments_file, required=True))
 
-            if text_emb_file.exists():
-                outputs.append(
-                    OutputSpec(
-                        path=self.output_dir / "text_embeddings" / season_dir / f"{base_name}_text_embeddings.jsonl",
-                        required=True,
-                    ),
+            trans_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.transcriptions)
+            sound_events_dir = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
+            sound_events_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="sound_events",
+            )
+            sound_events_json = sound_events_dir / sound_events_filename
+            if sound_events_json.exists():
+                sound_events_elastic = f"{base_name}_sound_events.jsonl"
+                sound_events_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.sound_events,
+                    sound_events_elastic,
                 )
+                outputs.append(OutputSpec(path=sound_events_file, required=False))
+        else:
+            season_dir = item.input_path.parent.name
+            filename = f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
+            path = self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / filename
+            outputs.append(
+                OutputSpec(
+                    path=path,
+                    required=True,
+                ),
+            )
 
-            if video_emb_file.exists():
-                outputs.append(
-                    OutputSpec(
-                        path=self.output_dir / "video_embeddings" / season_dir / f"{base_name}_video_embeddings.jsonl",
-                        required=True,
-                    ),
-                )
+        if self.embeddings_dir and episode_info:
+            episode_emb_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.embeddings)
+            text_emb_files = list(episode_emb_dir.glob("*_embeddings_text.json"))
+            text_emb_file = text_emb_files[0] if text_emb_files else None
+            video_emb_files = list(episode_emb_dir.glob("*_embeddings_video.json"))
+            video_emb_file = video_emb_files[0] if video_emb_files else None
 
-            if episode_info:
-                episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
-                    episode_info.season,
-                    episode_info.relative_episode,
+            if text_emb_file and text_emb_file.exists():
+                text_embeddings_filename = f"{base_name}_text_embeddings.jsonl"
+                text_embeddings_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.text_embeddings,
+                    text_embeddings_filename,
                 )
-                if episode_name_emb:
-                    outputs.append(
-                        OutputSpec(
-                            path=self.output_dir / "episode_names" / season_dir / f"{base_name}_episode_name.jsonl",
-                            required=True,
-                        ),
-                    )
+                outputs.append(OutputSpec(path=text_embeddings_file, required=True))
+
+            if video_emb_file and video_emb_file.exists():
+                video_frames_filename = f"{base_name}_video_frames.jsonl"
+                video_frames_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.video_frames,
+                    video_frames_filename,
+                )
+                outputs.append(OutputSpec(path=video_frames_file, required=True))
+
+            episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
+                episode_info.season,
+                episode_info.relative_episode,
+                output_dir=self.embeddings_dir,
+            )
+            if episode_name_emb:
+                episode_name_filename = f"{base_name}_episode_name.jsonl"
+                episode_name_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.episode_names,
+                    episode_name_filename,
+                )
+                outputs.append(OutputSpec(path=episode_name_file, required=True))
+
+            trans_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.transcriptions)
+            clean_dir = trans_dir / settings.output_subdirs.transcription_subdirs.clean
+            text_stats_filename = f"{base_name}_text_stats.json"
+            text_stats_file = clean_dir / text_stats_filename
+            if text_stats_file.exists():
+                text_stats_elastic_filename = f"{base_name}_text_statistics.jsonl"
+                text_stats_elastic_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.text_statistics,
+                    text_stats_elastic_filename,
+                )
+                outputs.append(OutputSpec(path=text_stats_elastic_file, required=True))
+
+            full_episode_emb_file = episode_emb_dir / f"{base_name}_embeddings_full_episode.json"
+            if full_episode_emb_file.exists():
+                full_episode_elastic_filename = f"{base_name}_full_episode_embedding.jsonl"
+                full_episode_elastic_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.full_episode_embeddings,
+                    full_episode_elastic_filename,
+                )
+                outputs.append(OutputSpec(path=full_episode_elastic_file, required=True))
+
+            sound_event_emb_file = episode_emb_dir / f"{base_name}_embeddings_sound_events.json"
+            if sound_event_emb_file.exists():
+                sound_event_elastic_filename = f"{base_name}_sound_event_embeddings.jsonl"
+                sound_event_elastic_file = OutputPathBuilder.build_elastic_document_path(
+                    episode_info,
+                    ELASTIC_SUBDIRS.sound_event_embeddings,
+                    sound_event_elastic_filename,
+                )
+                outputs.append(OutputSpec(path=sound_event_elastic_file, required=False))
 
         return outputs
 
-    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None: # pylint: disable=too-many-locals
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None: # pylint: disable=too-many-locals,too-many-statements
         trans_file = item.input_path
         base_name = item.metadata["base_name"]
         season_dir = trans_file.parent.name
 
         console.print(f"[cyan]Processing: {trans_file.name}[/cyan]")
 
-        with open(trans_file, "r", encoding="utf-8") as f:
+        episode_dir = trans_file.parent.parent
+        clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
+
+        base_name_for_clean = trans_file.stem
+        suffixes = (FILE_SUFFIXES["segmented"], FILE_SUFFIXES["sound_events"], FILE_SUFFIXES["clean"], FILE_SUFFIXES["clean_alt"])
+        while True:
+            removed = False
+            for suffix in suffixes:
+                if base_name_for_clean.endswith(suffix):
+                    base_name_for_clean = base_name_for_clean[:-len(suffix)]
+                    removed = True
+                    break
+            if not removed:
+                break
+
+        clean_transcription_file = clean_dir / f"{base_name_for_clean}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['json']}"
+
+        if not clean_transcription_file.exists():
+            self.logger.warning(f"Clean transcription not found: {clean_transcription_file}, skipping")
+            return
+        trans_file_for_segments = clean_transcription_file
+
+        with open(trans_file_for_segments, "r", encoding="utf-8") as f:
             transcription_data = json.load(f)
 
         episode_info_dict = transcription_data.get("episode_info", {})
@@ -126,14 +220,14 @@ class ElasticDocumentGenerator(BaseProcessor):
             return
 
         episode_metadata = self.__build_episode_metadata(episode_info)
-        episode_id = f"S{season:02d}E{episode_number:02d}"
+        episode_id = episode_info.episode_code()
         video_path = self.episode_manager.build_video_path_for_elastic(episode_info)
 
         scene_timestamps = self.__load_scene_timestamps(episode_info)
         character_detections = self.__load_character_detections(episode_info)
         object_detections = self.__load_object_detections(episode_info)
 
-        if any("_segments.jsonl" in str(o.path) for o in missing_outputs):
+        if any(f"{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}" in str(o.path) for o in missing_outputs):
             self.__generate_segments(
                 transcription_data,
                 episode_id,
@@ -144,28 +238,43 @@ class ElasticDocumentGenerator(BaseProcessor):
                 base_name,
             )
 
-        if self.embeddings_dir:
-            episode_emb_dir = self.embeddings_dir / f"S{season:02d}" / f"E{episode_number:02d}"
-            text_emb_file = episode_emb_dir / "embeddings_text.json"
-            if not text_emb_file.exists():
-                text_emb_file = self.embeddings_dir / f"{base_name}_text.json"
+        trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
+        sound_events_dir = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
+        sound_events_json = sound_events_dir / f"{base_name}_sound_events.json"
+        if sound_events_json.exists() and any("_sound_events.jsonl" in str(o.path) for o in missing_outputs):
+            with open(sound_events_json, "r", encoding="utf-8") as f:
+                sound_events_data = json.load(f)
 
-            if text_emb_file.exists() and any("_text_embeddings.jsonl" in str(o.path) for o in missing_outputs):
+            self.__generate_sound_events(
+                sound_events_data,
+                episode_id,
+                episode_metadata,
+                video_path,
+                scene_timestamps,
+                episode_info,
+                base_name,
+            )
+
+        if self.embeddings_dir:
+            episode_emb_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+            text_emb_files = list(episode_emb_dir.glob("*_embeddings_text.json"))
+            text_emb_file = text_emb_files[0] if text_emb_files else None
+
+            if text_emb_file and text_emb_file.exists() and any("_text_embeddings.jsonl" in str(o.path) for o in missing_outputs):
                 self.__generate_text_embeddings(
                     text_emb_file,
                     episode_id,
                     episode_metadata,
                     video_path,
-                    season_dir,
+                    episode_info,
                     base_name,
                 )
 
-            video_emb_file = episode_emb_dir / "embeddings_video.json"
-            if not video_emb_file.exists():
-                video_emb_file = self.embeddings_dir / f"{base_name}_video.json"
+            video_emb_files = list(episode_emb_dir.glob("*_embeddings_video.json"))
+            video_emb_file = video_emb_files[0] if video_emb_files else None
 
-            if video_emb_file.exists() and any("_video_embeddings.jsonl" in str(o.path) for o in missing_outputs):
-                self.__generate_video_embeddings(
+            if video_emb_file and video_emb_file.exists() and any("_video_frames.jsonl" in str(o.path) for o in missing_outputs):
+                self.__generate_video_frames(
                     video_emb_file,
                     episode_id,
                     episode_metadata,
@@ -173,20 +282,63 @@ class ElasticDocumentGenerator(BaseProcessor):
                     scene_timestamps,
                     character_detections,
                     object_detections,
-                    season_dir,
+                    episode_info,
                     base_name,
                 )
 
-        episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(season, episode_number)
+        episode_name_emb = EpisodeNameEmbedder.load_episode_name_embedding(
+            season,
+            episode_number,
+            output_dir=self.embeddings_dir,
+        )
         if episode_name_emb and any("_episode_name.jsonl" in str(o.path) for o in missing_outputs):
             self.__generate_episode_name_document(
                 episode_name_emb,
                 episode_id,
                 episode_metadata,
                 video_path,
-                season_dir,
+                episode_info,
                 base_name,
             )
+
+        trans_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.transcriptions)
+        clean_dir = trans_dir / settings.output_subdirs.transcription_subdirs.clean
+        text_stats_file = clean_dir / f"{base_name}_text_stats.json"
+        if text_stats_file.exists() and any("_text_statistics.jsonl" in str(o.path) for o in missing_outputs):
+            self.__generate_text_statistics_document(
+                text_stats_file,
+                episode_id,
+                episode_metadata,
+                video_path,
+                episode_info,
+                base_name,
+            )
+
+        if self.embeddings_dir:
+            episode_emb_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+            full_episode_emb_file = episode_emb_dir / f"{base_name}_embeddings_full_episode.json"
+
+            if full_episode_emb_file.exists() and any("_full_episode_embedding.jsonl" in str(o.path) for o in missing_outputs):
+                self.__generate_full_episode_embedding_document(
+                    full_episode_emb_file,
+                    episode_id,
+                    episode_metadata,
+                    video_path,
+                    episode_info,
+                    base_name,
+                )
+
+            sound_event_emb_file = episode_emb_dir / f"{base_name}_embeddings_sound_events.json"
+
+            if sound_event_emb_file.exists() and any("_sound_event_embeddings.jsonl" in str(o.path) for o in missing_outputs):
+                self.__generate_sound_event_embeddings_document(
+                    sound_event_emb_file,
+                    episode_id,
+                    episode_metadata,
+                    video_path,
+                    episode_info,
+                    base_name,
+                )
 
         console.print(f"[green]Completed: {trans_file.name}[/green]")
 
@@ -204,15 +356,15 @@ class ElasticDocumentGenerator(BaseProcessor):
     def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-    def __load_character_detections(self, episode_info) -> Dict[str, List[Dict[str, Any]]]:
+    def __load_character_detections(self, episode_info) -> Dict[int, List[Dict[str, Any]]]:
         if not self.character_detections_dir:
             return {}
 
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        detection_file = self.character_detections_dir / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+        detection_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_files = list(detection_dir.glob("*_character_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
+        if not detection_file or not detection_file.exists():
             return {}
 
         try:
@@ -221,8 +373,12 @@ class ElasticDocumentGenerator(BaseProcessor):
 
             detections_dict = {}
             for detection in data.get("detections", []):
-                frame_path = detection["frame"]
-                detections_dict[frame_path] = detection["characters"]
+                frame_number = detection.get("frame_number")
+                if frame_number is not None:
+                    detections_dict[frame_number] = detection.get("characters", [])
+                elif "frame" in detection:
+                    frame_file = detection["frame"]
+                    detections_dict[frame_file] = detection.get("characters", [])
 
             return detections_dict
         except Exception as e:
@@ -233,11 +389,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         if not self.object_detections_dir:
             return {}
 
-        season = episode_info.season
-        episode = episode_info.relative_episode
-        detection_file = self.object_detections_dir / f"S{season:02d}" / f"E{episode:02d}" / "detections.json"
+        detection_dir = self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_files = list(detection_dir.glob("*_object_detections.json"))
+        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file.exists():
+        if not detection_file or not detection_file.exists():
             return {}
 
         try:
@@ -255,9 +411,28 @@ class ElasticDocumentGenerator(BaseProcessor):
             return {}
 
     @staticmethod
-    def __get_characters_for_frame(frame_path: str, character_detections: Dict[str, List[Dict[str, Any]]]) -> List[str]:
-        characters = character_detections.get(frame_path, [])
-        return [char["name"] for char in characters]
+    def __get_characters_for_frame(
+        frame_identifier,
+        character_detections: Dict,
+    ) -> List[Dict[str, Any]]:
+        characters = character_detections.get(frame_identifier, [])
+
+        character_list = []
+        for char in characters:
+            char_data = {
+                "name": char["name"],
+                "confidence": char.get("confidence"),
+            }
+
+            if "emotion" in char:
+                char_data["emotion"] = {
+                    "label": char["emotion"]["label"],
+                    "confidence": char["emotion"]["confidence"],
+                }
+
+            character_list.append(char_data)
+
+        return character_list
 
     @staticmethod
     def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -282,6 +457,9 @@ class ElasticDocumentGenerator(BaseProcessor):
             start_time = scene["start"]["seconds"]
             end_time = scene["end"]["seconds"]
 
+            if start_time is None or end_time is None:
+                continue
+
             if start_time <= timestamp < end_time:
                 return {
                     "scene_number": scene["scene_number"],
@@ -293,7 +471,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         return None
 
-    def __generate_segments(
+    def __generate_segments(  # pylint: disable=too-many-locals
         self,
         transcription_data: Dict[str, Any],
         episode_id: str,
@@ -307,21 +485,37 @@ class ElasticDocumentGenerator(BaseProcessor):
         if not segments:
             return
 
-        output_file = self.output_dir / "segments" / season_dir / f"{base_name}_segments.jsonl"
+        season = episode_metadata.get("season")
+        episode = episode_metadata.get("episode_number")
+        episode_info = self.episode_manager.get_episode_by_season_and_relative(season, episode)
+
+        if episode_info:
+            output_file = self.episode_manager.build_episode_output_path(
+                episode_info,
+                f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_segments}",
+                f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}",
+            )
+        else:
+            filename = f"{base_name}{FILE_SUFFIXES['text_segments']}{FILE_EXTENSIONS['jsonl']}"
+            output_file = self.output_dir / ELASTIC_SUBDIRS.text_segments / season_dir / filename
+
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
             for i, segment in enumerate(segments):
-                if "text" not in segment:
+                text = segment.get("text", "").strip()
+                if not text:
                     continue
 
                 words = segment.get("words", [])
-                if not words:
-                    continue
-
-                start_time = words[0].get("start", 0.0)
-                end_time = words[-1].get("end", 0.0)
-                speaker = words[0].get("speaker_id", "unknown")
+                if words:
+                    start_time = words[0].get("start") or 0.0
+                    end_time = words[-1].get("end") or 0.0
+                    speaker = words[0].get("speaker_id", "unknown")
+                else:
+                    start_time = segment.get("start", 0.0)
+                    end_time = segment.get("end", 0.0)
+                    speaker = segment.get("speaker", "unknown")
 
                 scene_info = self.__find_scene_for_timestamp(start_time, scene_timestamps)
 
@@ -329,7 +523,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "episode_id": episode_id,
                     "episode_metadata": episode_metadata,
                     "segment_id": i,
-                    "text": segment.get("text", ""),
+                    "text": text,
                     "start_time": start_time,
                     "end_time": end_time,
                     "speaker": speaker,
@@ -343,13 +537,67 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated {len(segments)} segment documents → {output_file.name}[/green]")
 
+    def __generate_sound_events(
+        self,
+        sound_events_data: Dict[str, Any],
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        scene_timestamps: Optional[Dict[str, Any]],
+        episode_info,
+        base_name: str,
+    ) -> None:
+        segments = sound_events_data.get("segments", [])
+        if not segments:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.sound_events}",
+            f"{base_name}_sound_events.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            for i, segment in enumerate(segments):
+                if "text" not in segment:
+                    continue
+
+                words = segment.get("words", [])
+                if not words:
+                    start_time = segment.get("start") or 0.0
+                    end_time = segment.get("end") or 0.0
+                else:
+                    start_time = words[0].get("start") or 0.0
+                    end_time = words[-1].get("end") or 0.0
+
+                scene_info = self.__find_scene_for_timestamp(start_time, scene_timestamps)
+
+                doc = {
+                    "episode_id": episode_id,
+                    "episode_metadata": episode_metadata,
+                    "segment_id": i,
+                    "text": segment.get("text", ""),
+                    "sound_type": segment.get("sound_type", "sound"),
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "video_path": video_path,
+                }
+
+                if scene_info:
+                    doc["scene_info"] = scene_info
+
+                f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated {len(segments)} sound event documents → {output_file.name}[/green]")
+
     def __generate_text_embeddings(
         self,
         text_emb_file: Path,
         episode_id: str,
         episode_metadata: Dict[str, Any],
         video_path: str,
-        season_dir: str,
+        episode_info,
         base_name: str,
     ) -> None:
         with open(text_emb_file, "r", encoding="utf-8") as f:
@@ -359,7 +607,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         if not text_embeddings:
             return
 
-        output_file = self.output_dir / "text_embeddings" / season_dir / f"{base_name}_text_embeddings.jsonl"
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_embeddings}",
+            f"{base_name}_text_embeddings.jsonl",
+        )
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
@@ -375,7 +627,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "episode_id": episode_id,
                     "episode_metadata": episode_metadata,
                     "embedding_id": i,
-                    "segment_range": segment_range,
+                    "segment_range": segment_range[0] if segment_range else 0,
                     "text": text,
                     "text_embedding": embedding,
                     "video_path": video_path,
@@ -385,7 +637,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Generated {len(text_embeddings)} text embedding documents → {output_file.name}[/green]")
 
-    def __generate_video_embeddings( # pylint: disable=too-many-locals
+    def __generate_video_frames( # pylint: disable=too-many-locals
         self,
         video_emb_file: Path,
         episode_id: str,
@@ -394,7 +646,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         scene_timestamps: Optional[Dict[str, Any]],
         character_detections: Dict[str, List[Dict[str, Any]]],
         object_detections: Dict[str, List[Dict[str, Any]]],
-        season_dir: str,
+        episode_info,
         base_name: str,
     ) -> None:
         with open(video_emb_file, "r", encoding="utf-8") as f:
@@ -404,7 +656,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         if not video_embeddings:
             return
 
-        output_file = self.output_dir / "video_embeddings" / season_dir / f"{base_name}_video_embeddings.jsonl"
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.video_frames}",
+            f"{base_name}_video_frames.jsonl",
+        )
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:
@@ -431,11 +687,12 @@ class ElasticDocumentGenerator(BaseProcessor):
                     "video_embedding": embedding,
                 }
 
-                if frame_path:
-                    characters = self.__get_characters_for_frame(frame_path, character_detections)
+                if frame_number is not None:
+                    characters = self.__get_characters_for_frame(frame_number, character_detections)
                     if characters:
                         doc["character_appearances"] = characters
 
+                if frame_path:
                     frame_name = Path(frame_path).name if isinstance(frame_path, str) else frame_path
                     objects = self.__get_objects_for_frame(frame_name, object_detections)
                     if objects:
@@ -456,7 +713,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
-        console.print(f"[green]Generated {len(video_embeddings)} video embedding documents → {output_file.name}[/green]")
+        console.print(f"[green]Generated {len(video_embeddings)} video frame documents → {output_file.name}[/green]")
 
     def __generate_episode_name_document(
         self,
@@ -464,10 +721,14 @@ class ElasticDocumentGenerator(BaseProcessor):
         episode_id: str,
         episode_metadata: Dict[str, Any],
         video_path: str,
-        season_dir: str,
+        episode_info,
         base_name: str,
     ) -> None:
-        output_file = self.output_dir / "episode_names" / season_dir / f"{base_name}_episode_name.jsonl"
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.episode_names}",
+            f"{base_name}_episode_name.jsonl",
+        )
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         title_embedding = episode_name_emb.get("title_embedding", [])
@@ -486,3 +747,138 @@ class ElasticDocumentGenerator(BaseProcessor):
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
         console.print(f"[green]Generated episode name document → {output_file.name}[/green]")
+
+    def __generate_text_statistics_document(
+        self,
+        text_stats_file: Path,
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        episode_info,
+        base_name: str,
+    ) -> None:
+        with open(text_stats_file, "r", encoding="utf-8") as f:
+            stats_data = json.load(f)
+
+        basic_stats = stats_data.get("basic_statistics", {})
+        advanced_stats = stats_data.get("advanced_statistics", {})
+
+        if not basic_stats:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.text_statistics}",
+            f"{base_name}_text_statistics.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        doc = {
+            "episode_id": episode_id,
+            "episode_metadata": episode_metadata,
+            "video_path": video_path,
+            "language": stats_data.get("metadata", {}).get("language", "pl"),
+            "analyzed_at": stats_data.get("metadata", {}).get("analyzed_at"),
+            "basic_statistics": basic_stats,
+            "advanced_statistics": advanced_stats,
+            "word_frequency": stats_data.get("word_frequency", [])[:20],
+            "bigrams": stats_data.get("bigrams", [])[:10],
+            "trigrams": stats_data.get("trigrams", [])[:10],
+        }
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated text statistics document → {output_file.name}[/green]")
+
+    def __generate_full_episode_embedding_document(
+        self,
+        full_episode_emb_file: Path,
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        episode_info,
+        base_name: str,
+    ) -> None:
+        with open(full_episode_emb_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        full_episode_embedding_data = data.get("full_episode_embedding", {})
+        if not full_episode_embedding_data or "embedding" not in full_episode_embedding_data:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.full_episode_embeddings}",
+            f"{base_name}_full_episode_embedding.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        doc = {
+            "episode_id": episode_id,
+            "episode_metadata": episode_metadata,
+            "full_transcript": full_episode_embedding_data.get("text", ""),
+            "transcript_length": full_episode_embedding_data.get("transcript_length", 0),
+            "full_episode_embedding": full_episode_embedding_data.get("embedding", []),
+            "video_path": video_path,
+        }
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated full episode embedding document → {output_file.name}[/green]")
+
+    def __generate_sound_event_embeddings_document(  # pylint: disable=too-many-locals
+        self,
+        sound_event_emb_file: Path,
+        episode_id: str,
+        episode_metadata: Dict[str, Any],
+        video_path: str,
+        episode_info,
+        base_name: str,
+    ) -> None:
+        with open(sound_event_emb_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        sound_event_embeddings = data.get("sound_event_embeddings", [])
+        if not sound_event_embeddings:
+            return
+
+        output_file = self.episode_manager.build_episode_output_path(
+            episode_info,
+            f"{settings.output_subdirs.elastic_documents}/{ELASTIC_SUBDIRS.sound_event_embeddings}",
+            f"{base_name}_sound_event_embeddings.jsonl",
+        )
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            for i, emb in enumerate(sound_event_embeddings):
+                segment_range = emb.get("segment_range", [])
+                text = emb.get("text", "")
+                embedding = emb.get("embedding", [])
+                sound_types = emb.get("sound_types", [])
+                start_time = emb.get("start_time", 0.0)
+                end_time = emb.get("end_time", 0.0)
+
+                if not embedding:
+                    continue
+
+                if isinstance(segment_range, list) and len(segment_range) == 2:
+                    segment_range = {"gte": segment_range[0], "lte": segment_range[1]}
+
+                doc = {
+                    "episode_id": episode_id,
+                    "episode_metadata": episode_metadata,
+                    "embedding_id": i,
+                    "segment_range": segment_range,
+                    "text": text,
+                    "sound_types": sound_types,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "sound_event_embedding": embedding,
+                    "video_path": video_path,
+                }
+
+                f.write(json.dumps(doc, ensure_ascii=False) + "\n")
+
+        console.print(f"[green]Generated {len(sound_event_embeddings)} sound event embedding documents → {output_file.name}[/green]")

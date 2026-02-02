@@ -1,733 +1,289 @@
 # Video Preprocessing Pipeline
 
-Aplikacja Docker do przetwarzania wideo z akceleracją GPU (NVIDIA): transkodowanie, transkrypcja (Whisper/ElevenLabs), detekcja scen, eksport klatek, wykrywanie postaci, generowanie embeddingów i indeksowanie w Elasticsearch.
+Docker pipeline do przetwarzania wideo z GPU: transkodowanie, transkrypcja, detekcja scen, rozpoznawanie postaci, embeddingi → Elasticsearch.
 
----
-
-## ⚠️ Wymagania sprzętowe
-
-> **UWAGA: Ta aplikacja została zaprojektowana, zoptymalizowana i przetestowana WYŁĄCZNIE na RTX 3090 (24GB VRAM) + 64GB RAM.**
->
-> Wszystkie domyślne ustawienia (batch size=28, VRAM usage, cache) są skalibrowane pod tę konkretną konfigurację.
-> Uruchomienie na innym sprzęcie wymaga manualnego dostosowania parametrów i może nie działać poprawnie.
-
-| Komponent | **Konfiguracja testowa (jedyna wspierana)** |
-|-----------|-------------------------------------------|
-| **GPU** | **RTX 3090 24GB** |
-| **VRAM** | **24GB** |
-| **RAM** | **64GB** |
-| **Dysk** | **150GB+ SSD NVMe** |
-
-**Aplikacja działa TYLKO na GPU NVIDIA. Brak fallbacku na CPU.**
-
-### Specyfikacja RTX 3090 + 64GB RAM
-
-- **Batch size 28** dla embeddingów wykorzystuje ~10GB z 24GB VRAM
-- **Pełne cache modeli** (~25GB) trzymane w RAMie bez swapowania
-- **Bez OOM** przy równoczesnym działaniu Ollamy i preprocessora
-- **NVENC hardware encoding** dla 1080p h264
-
-### Zużycie VRAM (RTX 3090 - 24GB)
-
-| Operacja                       | VRAM | Konfiguracja |
-|--------------------------------|------|--------------|
-| Transcode (NVENC)              | ~2GB | h264_nvenc preset slow |
-| Whisper large-v3-turbo         | ~3GB | CTranslate2 float16 |
-| TransNetV2                     | ~2GB | PyTorch CUDA |
-| **Embeddings (batch_size=28)** | **~10GB** | **Domyślne dla RTX 3090** |
-| InsightFace (buffalo_l)        | ~1GB | ArcFace face recognition |
-| LLM scraping (Qwen 8-bit)      | ~8GB | Ollama 8-bit quantization |
-| **Peak łącznie**               | **~12GB** | **Połowa VRAM 3090 = margines bezpieczeństwa** |
+**Wymagania:** GPU z CUDA (RTX 3090 24GB zalecane) • NVIDIA Container Toolkit • Docker Compose
 
 ---
 
 ## Quick Start
 
-### Pełny pipeline (od zera)
-
 ```bash
 cd preprocessor
 mkdir -p input_data/videos output_data
 cp /twoje/wideo/*.mp4 input_data/videos/
+docker compose build
 
-docker-compose build
-
+# Pełny pipeline z scrapingiem
 ./run-preprocessor.sh run-all /input_data/videos \
-  --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
-  --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
-  --series-name ranczo
+  --scrape-urls https://example.com/wiki/Seria \
+  --character-urls https://example.com/wiki/Postacie \
+  --series-name nazwa_serii
 
-docker logs ranchbot-preprocessing-app -f
-```
-
-### Z gotową transkrypcją i transkodowaniem
-
-**Zalecane (używa run-all z skip flagami):**
-
-```bash
-./run-preprocessor.sh run-all /input_data/transcoded_videos \
+# Z gotowymi metadanymi
+./run-preprocessor.sh run-all /input_data/videos \
   --episodes-info-json /input_data/episodes.json \
-  --series-name ranczo \
+  --series-name nazwa_serii
+
+# Pomiń transkodowanie i transkrypcję (użyj istniejących)
+./run-preprocessor.sh run-all /input_data/videos \
+  --episodes-info-json /input_data/episodes.json \
+  --series-name nazwa_serii \
   --skip-transcode \
   --skip-transcribe
-```
 
-**Alternatywnie (manualne CLI komendy):**
-
-> ⚠️ **UWAGA:** Character detection i object detection są dostępne tylko w `run-all`.
-> Poniższe komendy pomijają te kroki.
-
-```bash
-./run-preprocessor.sh detect-scenes /input_data/transcoded_videos
-
-./run-preprocessor.sh export-frames /input_data/transcoded_videos \
-  --episodes-info-json /input_data/episodes.json \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --name ranczo
-
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p \
-  --generate-text \
-  --no-video
-
-./run-preprocessor.sh image-hashing \
-  --frames-dir /app/output_data/frames_480p \
-  --episodes-info-json /input_data/episodes.json \
-  --name ranczo
-
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p \
-  --no-text \
-  --generate-video
-
-./run-preprocessor.sh generate-elastic-documents \
-  --transcription-jsons /app/output_data/transcriptions \
-  --embeddings-dir /app/output_data/embeddings \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --name ranczo
-
-./run-preprocessor.sh index --name ranczo \
-  --elastic-documents-dir /app/output_data/elastic_documents
-```
-
----
-
-## Architektura pipeline
-
-```
-┌───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                         run-all Pipeline (11 kroków)                                       │
-├───────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                            │
-│  [0a/9] scrape episodes   →  [1/9] transcode  →  [2/9] transcribe  →  [3/9] detect scenes                │
-│         (Qwen + crawl4ai)      (NVENC)             (Whisper)            (TransNetV2)                      │
-│                                                                                                            │
-│  [0b/9] scrape characters →  [0c/9] download references                                                   │
-│         (Qwen + crawl4ai)       (DuckDuckGo + InsightFace)                                                │
-│                                                                                                            │
-│  [4/9] export frames  →  [5/9] text embeddings  →  [6/9] frame processing (5 sub-kroków):                │
-│        (480p JPG)             (Qwen2-VL)                 [6a] image hashing (perceptual hash)             │
-│                                                          [6b] video embeddings (Qwen2-VL per-frame)       │
-│                                                          [6c] character detection (InsightFace)           │
-│                                                          [6d] object detection (D-FINE-X)                 │
-│                                                          [6e] object visualization (annotated frames)     │
-│                                                                                                            │
-│  [7/9] generate elastic docs  →  [8/9] index                                                              │
-│        (JSON merging)                  (Elasticsearch)                                                    │
-│                                                                                                            │
-│  Całkowicie SEKWENCYJNE przetwarzanie (pipeline + pliki w każdej fazie)                                   │
-│  Optymalizacja dla jednego GPU bez strat wydajności                                                       │
-│                                                                                                            │
-└───────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Czas przetwarzania (RTX 3090 + 64GB RAM)
-
-| Faza                           | Czas (45 min odcinek) |
-|--------------------------------|----------------------|
-| Transcode (1/9)                | ~2 min |
-| Transcribe (2/9)               | ~5 min |
-| Scene detection (3/9)          | ~3 min |
-| Export frames (4/9)            | ~2 min |
-| Text embeddings (5/9)          | ~3-5 min |
-| Frame processing (6/9)         | ~12-15 min |
-| - Image hashing (6a)           | ~1 min |
-| - Video embeddings (6b)        | ~5-7 min |
-| - Character detection (6c)     | ~2 min |
-| - Object detection (6d)        | ~2-3 min |
-| - Object visualization (6e)    | ~1-2 min |
-| Generate elastic docs (7/9)    | ~1 min |
-| Index (8/9)                    | ~2 min |
-| **Łącznie**                    | **~28-32 min** |
-
-**Throughput:** ~2-3 odcinki (45 min każdy) na godzinę przetwarzania.
-
-**Jednorazowo (na całą serię):**
-- Scrape episodes: ~1-2 min (wszystkie sezony)
-- Scrape characters: ~1-2 min (wszystkie postacie)
-- Download references: ~5-10 min (zależnie od liczby postaci)
-
----
-
-## Struktura projektu
-
-```
-preprocessor/
-├── cli/                     # Interfejs CLI (modularny)
-│   ├── commands/           # Komendy CLI (16 modułów)
-│   ├── options/            # Wspólne opcje CLI
-│   ├── pipeline/           # Orchestrator pipeline
-│   └── utils.py
-├── config/                  # Konfiguracja aplikacji
-├── core/                    # BaseProcessor, StateManager
-├── video/                   # Przetwarzanie wideo
-│   ├── transcoder.py       # FFmpeg + NVENC
-│   ├── scene_detector.py   # TransNetV2
-│   └── frame_exporter.py   # Eksport klatek (480p)
-├── transcription/           # Transkrypcja audio
-│   ├── engines/            # Whisper, ElevenLabs
-│   ├── generators/         # JSON, SRT, TXT
-│   └── processors/         # Normalizacja audio
-├── scraping/                # Scrapowanie metadanych
-│   ├── episode_scraper.py  # crawl4ai + Ollama (odcinki)
-│   ├── character_scraper.py # crawl4ai + Ollama (postacie)
-│   └── crawl4ai.py
-├── characters/              # Wykrywanie postaci
-│   ├── detector.py         # InsightFace face recognition
-│   └── reference_downloader.py # DuckDuckGo image search
-├── hashing/                 # Perceptual hashing
-│   └── image_hash_processor.py
-├── embeddings/              # Generowanie embeddingów
-│   ├── generator.py        # Qwen2-VL
-│   ├── episode_name_embedder.py # Embeddingi nazw odcinków
-│   └── strategies/         # Frame selection
-├── indexing/                # Elasticsearch
-│   ├── elastic_document_generator.py
-│   └── indexer.py
-├── search/                  # elastic_manager
-├── providers/               # LLM (Ollama)
-├── input_data/              # [volume] Dane wejściowe (read-only)
-├── output_data/             # [volume] Dane wygenerowane
-└── docker-compose.yml
-```
-
-### Wolumeny Docker
-
-| Host | Container | Tryb |
-|------|-----------|------|
-| `input_data/` | `/input_data` | read-only |
-| `output_data/` | `/app/output_data` | read-write |
-| `ml_models` (named) | `/models` | persistent (~25GB) |
-
----
-
-## Komendy CLI
-
-Wszystkie komendy: `./run-preprocessor.sh <komenda> [args]` (z folderu `preprocessor`)
-
-Pomoc: `./run-preprocessor.sh --help`
-
-### run-all
-
-Pełny pipeline ze wszystkimi krokami (11 kroków: 0a-0c, 1-8).
-
-```bash
-# Z automatycznym scrapingiem metadanych (odcinki + postacie)
+# Tryb premium (Gemini + ElevenLabs + Google Images)
 ./run-preprocessor.sh run-all /input_data/videos \
-  --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
-  --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
-  --series-name ranczo
-
-# Z istniejącym episodes.json
-./run-preprocessor.sh run-all /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name ranczo
-
-# Pominięcie wybranych kroków
-./run-preprocessor.sh run-all /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name ranczo \
-  --skip-transcode \
-  --skip-frame-export \
-  --skip-image-hashing \
-  --skip-video-embeddings \
-  --skip-character-detection \
-  --skip-object-detection \
-  --skip-object-visualization
-
-# Premium modes (Gemini parser, ElevenLabs transcription, Google Images)
-./run-preprocessor.sh run-all /input_data/videos \
-  --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
-  --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
-  --series-name ranczo \
+  --series-name nazwa_serii \
   --parser-mode premium \
   --transcription-mode premium \
   --search-mode premium
 ```
 
-**Dostępne flagi skip:**
-- `--skip-transcode` - Krok 1/9: Transkodowanie
-- `--skip-transcribe` - Krok 2/9: Transkrypcja
-- `--skip-scenes` - Krok 3/9: Detekcja scen
-- `--skip-frame-export` - Krok 4/9: Eksport klatek
-- `--skip-embeddings` - Krok 5/9: Text embeddings
-- `--skip-frame-processing` - Krok 6/9: Frame processing (wszystkie sub-kroki)
-- `--skip-image-hashing` - Krok 6a: Image hashing (sub-krok)
-- `--skip-video-embeddings` - Krok 6b: Video embeddings (sub-krok)
-- `--skip-character-detection` - Krok 6c: Character detection (sub-krok)
-- `--skip-object-detection` - Krok 6d: Object detection (sub-krok)
-- `--skip-object-visualization` - Krok 6e: Object visualization (sub-krok)
-- `--skip-elastic-documents` - Krok 7/9: Generowanie dokumentów Elasticsearch
-- `--skip-index` - Krok 8/9: Indeksowanie
+---
 
-**Premium modes:**
-- `--parser-mode premium` - Gemini 2.5 Flash zamiast Qwen (scraping)
-- `--transcription-mode premium` - ElevenLabs API zamiast Whisper
-- `--search-mode premium` - Google Images API zamiast DuckDuckGo
+## Pipeline (13 kroków)
 
-### scrape-episodes
-
-Batch scraping metadanych odcinków.
-
-**Flow:** URLe → crawl4ai (markdown) → Qwen2.5-Coder-7B (128K context) → JSON
-
-```bash
-./run-preprocessor.sh scrape-episodes \
-  --urls https://ranczo.fandom.com/wiki/Seria_I \
-  --urls https://ranczo.fandom.com/wiki/Seria_II \
-  --output-file /input_data/episodes.json
-
-# Z premium parser mode (Gemini 2.5 Flash)
-./run-preprocessor.sh scrape-episodes \
-  --urls https://ranczo.fandom.com/wiki/Seria_I \
-  --output-file /input_data/episodes.json \
-  --parser-mode premium
 ```
-
-**Uwaga:** Scraping postaci (`--character-urls`) i pobieranie ich referencyjnych zdjęć dzieje się automatycznie w ramach `run-all` pipeline. Brak osobnych komend CLI dla tych operacji.
-
-### transcode
-
-Transkodowanie wideo (Jellyfin FFmpeg 7 + NVENC).
-
-```bash
-./run-preprocessor.sh transcode /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --resolution 1080p
+SCRAPING          PROCESSING                              INDEXING
+───────────────────────────────────────────────────────────────────────
+[0a] episodes  ─┬→ [1] transcode → [2] transcribe → [3] separate sounds
+[0b] characters │  [4] analyze text
+[0c] download   │  [5] detect scenes → [6] export frames
+[0d] process   ─┘  [7] text embeddings
+                   [8] frame processing (8a-8f)
+                   [9] elastic docs → [10] archives → [11] index → [12] validate
 ```
-
-### transcribe
-
-Transkrypcja audio (Whisper large-v3-turbo).
-
-```bash
-./run-preprocessor.sh transcribe /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --name ranczo \
-  --model large-v3-turbo
-```
-
-### transcribe-elevenlabs
-
-Transkrypcja przez ElevenLabs API (płatne, speaker diarization).
-
-```bash
-export ELEVEN_API_KEY=your_key
-./run-preprocessor.sh transcribe-elevenlabs /input_data/videos \
-  --name ranczo \
-  --episodes-info-json /input_data/episodes.json
-```
-
-### import-transcriptions
-
-Import istniejących transkrypcji.
-
-```bash
-./run-preprocessor.sh import-transcriptions \
-  --source-dir /input_data/11labs_output \
-  --name ranczo \
-  --format-type 11labs_segmented
-```
-
-### detect-scenes
-
-Detekcja scen (TransNetV2).
-
-```bash
-./run-preprocessor.sh detect-scenes /input_data/transcoded_videos \
-  --threshold 0.5
-```
-
-### export-frames
-
-Eksport klatek wideo (480p) na podstawie scene timestamps.
-
-```bash
-./run-preprocessor.sh export-frames /input_data/transcoded_videos \
-  --episodes-info-json /input_data/episodes.json \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --name ranczo \
-  --frame-height 480
-```
-
-### image-hashing
-
-Generowanie perceptual hashes dla wyeksportowanych klatek.
-
-```bash
-./run-preprocessor.sh image-hashing \
-  --frames-dir /app/output_data/frames_480p \
-  --episodes-info-json /input_data/episodes.json \
-  --name ranczo \
-  --batch-size 28
-```
-
-### generate-embeddings
-
-Generowanie embeddingów tekstowych i wideo (gme-Qwen2-VL-2B).
-
-**UWAGA:** Domyślnie generuje **zarówno text jak i video embeddings**.
-W pipeline `run-all` są one rozdzielone:
-- Krok 5/9: text embeddings (szybkie, małe)
-- Krok 6b/9: video embeddings (długie, w ramach frame processing)
-
-**Text embedding chunking:**
-
-Domyślnie używa **sentence-based chunking** z następującymi parametrami:
-- **8 zdań** na chunk (konfigurowalne)
-- **3 zdania overlapa** między chunkami (~37.5%)
-- **Normalizacja interpunkcji**: `...` → `.`, `!!!` → `!`, `???` → `?`
-- **Minimalna długość**: 30 znaków (łączy krótkie fragmenty)
-- **Finalne chunki**: ~240-480 znaków kontekstu
-
-```bash
-# Text embeddings z sentence-based chunking (domyślnie)
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p \
-  --batch-size 28
-
-# Dostosowanie parametrów sentence chunking
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p \
-  --sentences-per-chunk 10 \
-  --chunk-overlap 4
-
-# Stary sposób (segment-based chunking po 5 segmentów)
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p \
-  --segment-chunking
-
-# Text + video embeddings (ręcznie)
-./run-preprocessor.sh generate-embeddings \
-  --transcription-jsons /app/output_data/transcriptions \
-  --frames-dir /app/output_data/frames_480p \
-  --batch-size 28 \
-  --generate-text \
-  --generate-video
-```
-
-**Zalety sentence-based chunking:**
-- ✅ Lepszy kontekst semantyczny (dzieli po naturalnych granicach)
-- ✅ Overlap chroni przed gubieniem kontekstu na granicach
-- ✅ Normalizacja interpunkcji eliminuje artefakty transkrypcji
-- ✅ Łączenie krótkich fragmentów zapewnia minimalny kontekst
-
-### generate-elastic-documents
-
-Generowanie dokumentów Elasticsearch (łączenie transkrypcji, embeddingów, scen, postaci).
-
-```bash
-./run-preprocessor.sh generate-elastic-documents \
-  --transcription-jsons /app/output_data/transcriptions \
-  --embeddings-dir /app/output_data/embeddings \
-  --scene-timestamps-dir /app/output_data/scene_timestamps \
-  --name ranczo \
-  --output-dir /app/output_data/elastic_documents
-```
-
-### index
-
-Indeksowanie w Elasticsearch (tworzy 4 indeksy: segments, text_embeddings, video_embeddings, episode_names).
-
-```bash
-# Nowy indeks
-./run-preprocessor.sh index \
-  --name ranczo \
-  --elastic-documents-dir /app/output_data/elastic_documents
-
-# Append do istniejącego
-./run-preprocessor.sh index \
-  --name ranczo \
-  --elastic-documents-dir /app/output_data/elastic_documents \
-  --append
-
-# Dry run (walidacja bez wysyłania do ES)
-./run-preprocessor.sh index \
-  --name ranczo \
-  --elastic-documents-dir /app/output_data/elastic_documents \
-  --dry-run
-```
-
-### search
-
-Kompleksowe narzędzie do przeszukiwania zaindeksowanych danych w Elasticsearch.
-
-**Tryby wyszukiwania:**
-- Full-text search (BM25) - wyszukiwanie w transkrypcjach
-- Semantic text search - wyszukiwanie po embedingach tekstowych (kNN + HNSW)
-- Semantic image search - wyszukiwanie podobnych scen po obrazku (kNN + HNSW)
-- Cross-modal search - wyszukiwanie video po zapytaniu tekstowym (kNN + HNSW)
-- Character search - wyszukiwanie po wykrytych postaciach
-- Episode name search - wyszukiwanie po nazwach odcinków (fuzzy + semantic kNN)
-- Perceptual hash - znajdowanie duplikatów/podobnych klatek
-
-**Semantic search:**
-Wszystkie semantic search wykorzystują **kNN query z HNSW index** zamiast brute-force `script_score`:
-- ✅ **~10-100x szybsze** wyszukiwanie
-- ✅ **Approximate nearest neighbors** (dokładność ~95%+)
-- ✅ **Skalowalne** dla dużych zbiorów danych
-- ⚠️ Trade-off: speed vs perfect accuracy (optymalne zamiast perfekcyjne)
-
-```bash
-# Statystyki i lista postaci
-./run-preprocessor.sh search --stats
-./run-preprocessor.sh search --list-characters
-
-# Wyszukiwanie tekstowe
-./run-preprocessor.sh search --text "Kto tu rządzi" --limit 5
-
-# Semantic search
-./run-preprocessor.sh search --text-semantic "wesele" --season 10
-
-# Image search (semantic)
-./run-preprocessor.sh search --image /input_data/screenshot.jpg --character "Lucy"
-
-# Cross-modal search (text → video)
-./run-preprocessor.sh search --text-to-video "Lucy w stodole" --limit 10
-
-# Episode name search (fuzzy)
-./run-preprocessor.sh search --episode-name "Spadek"
-./run-preprocessor.sh search --episode-name "Wielkie wybory" --season 1
-
-# Episode name search (semantic)
-./run-preprocessor.sh search --episode-name-semantic "wesele"
-./run-preprocessor.sh search --episode-name-semantic "święta" --limit 10
-
-# Perceptual hash (string lub ścieżka do obrazka)
-./run-preprocessor.sh search --hash "191b075b6d0363cf"
-./run-preprocessor.sh search --hash /input_data/frame.jpg
-```
-
-**📖 Pełna dokumentacja:** [SEARCH_GUIDE.md](SEARCH_GUIDE.md)
 
 ---
 
-## Scenariusze użycia
+## Flagi Skip
 
-### 1. Pełny pipeline od zera (11 kroków)
+| Flaga | Krok |
+|-------|------|
+| `--skip-transcode` | 1: Transkodowanie |
+| `--skip-transcribe` | 2-3: Transkrypcja + separacja |
+| `--skip-text-analysis` | 4: Analiza tekstu |
+| `--skip-scenes` | 5: Detekcja scen |
+| `--skip-frame-export` | 6: Eksport klatek |
+| `--skip-embeddings` | 7: Text embeddings |
+| `--skip-character-reference-processing` | 0d: Przetwarzanie referencji postaci |
+| `--skip-elastic-documents` | 9: Dokumenty ES |
+| `--skip-archives` | 10: Archiwizacja ZIP |
+| `--skip-index` | 11: Indeksowanie |
+| `--skip-validation` | 12: Walidacja |
+
+<details>
+<summary>Flagi frame processing (8a-8f)</summary>
+
+| Flaga | Krok |
+|-------|------|
+| `--skip-image-hashing` | 8a: Image hashing |
+| `--skip-video-embeddings` | 8b: Video embeddings |
+| `--skip-character-detection` | 8c: Character detection |
+| `--skip-emotion-detection` | 8d: Emotion detection |
+| `--skip-face-clustering` | 8e: Face clustering |
+| `--skip-object-detection` | 8f: Object detection |
+
+**Uwaga:** Wizualizacje są domyślnie wyłączone. Użyj `--debug-visualizations` aby je włączyć.
+
+</details>
+
+**Premium modes:** `--parser-mode premium` (Gemini 2.5 Flash) • `--transcription-mode premium` (ElevenLabs) • `--search-mode premium` (Google Images)
+
+---
+
+## Główne komendy
 
 ```bash
-cd preprocessor
-mkdir -p input_data/videos output_data
-cp /ścieżka/do/*.mp4 input_data/videos/
+# Pełny pipeline
+./run-preprocessor.sh run-all /input_data/videos --series-name nazwa_serii [OPTIONS]
 
-docker-compose build
+# Pojedyncze kroki
+./run-preprocessor.sh scrape-episodes --urls URL --output-file /input_data/episodes.json
+./run-preprocessor.sh transcode /input_data/videos [--episodes-info-json FILE] [--resolution 720p]
+./run-preprocessor.sh transcribe /input_data/videos --name series --episodes-info-json FILE
+./run-preprocessor.sh transcribe-elevenlabs /input_data/videos --name series --episodes-info-json FILE
+./run-preprocessor.sh separate-sounds --transcription-jsons /app/output_data/transcriptions
+./run-preprocessor.sh analyze-text --season S10 --language pl
+./run-preprocessor.sh detect-scenes /input_data/videos [--threshold 0.5]
+./run-preprocessor.sh export-frames /input_data/videos
+./run-preprocessor.sh process-character-references --name series
+./run-preprocessor.sh image-hashing --frames-dir /app/output_data/exported_frames
+./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions
+./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
+./run-preprocessor.sh generate-archives --series-name nazwa_serii
+./run-preprocessor.sh index --name nazwa_serii
+./run-preprocessor.sh validate --season S01 --series-name nazwa_serii
 
-./run-preprocessor.sh run-all /input_data/videos \
-  --scrape-urls https://ranczo.fandom.com/wiki/Seria_I \
-  --character-urls https://ranczo.fandom.com/wiki/Lista_postaci \
-  --series-name ranczo
+# Narzędzia
+./run-preprocessor.sh search --text "query"
+./run-preprocessor.sh search --text-semantic "query"
+./run-preprocessor.sh search --image /path/to/image.jpg
+./run-preprocessor.sh search --character "Nazwa"
+./run-preprocessor.sh search --emotion "happiness"
+./run-preprocessor.sh search --stats
+./run-preprocessor.sh fix-unicode --transcription-jsons DIR --episodes-info-json FILE --name series
+./run-preprocessor.sh import-transcriptions --input-dir DIR --episodes-info-json FILE --name series
 ```
 
-### 2. Z gotową transkrypcją i transkodowaniem
+---
 
-```bash
-./run-preprocessor.sh run-all /input_data/transcoded_videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name ranczo \
-  --skip-transcode \
-  --skip-transcribe
+## Struktura output
+
 ```
-
-### 3. Z gotowym episodes.json
-
-```bash
-./run-preprocessor.sh run-all /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name ranczo
-```
-
-### 4. Pominięcie niektórych kroków (skip flags)
-
-```bash
-./run-preprocessor.sh run-all /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name ranczo \
-  --skip-transcode \
-  --skip-transcribe \
-  --skip-frame-export \
-  --skip-character-detection
-```
-
-### 5. Tylko transkrypcja (bez embeddings i wykrywania postaci)
-
-```bash
-./run-preprocessor.sh transcode /input_data/videos \
-  --episodes-info-json /input_data/episodes.json
-
-./run-preprocessor.sh transcribe /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --name ranczo
+output_data/
+├── transcoded_videos/          # MP4 h264_nvenc (720p)
+├── transcriptions/             # raw/ • clean/ • sound_events/
+├── scene_timestamps/           # JSON z timestampami scen
+├── exported_frames/            # JPG 1080p (domyślnie)
+├── embeddings/                 # text • video • sound_events • full_episode
+├── image_hashes/               # perceptual hashes klatek
+├── character_detections/       # detections.json + visualizations/ (opcjonalne)
+├── character_references_processed/  # face vectors postaci
+├── characters/                 # pobrane obrazy referencyjne
+├── face_clusters/              # HDBSCAN clusters
+├── object_detections/          # D-FINE detections + visualizations/ (opcjonalne)
+├── elastic_documents/          # JSONL per typ dokumentu
+├── archives/                   # ZIP per odcinek
+├── validation_reports/         # JSON raporty walidacji
+├── processing_metadata/        # metadata kroków pipeline
+└── scraped_pages/              # zapisane strony wiki
 ```
 
 ---
 
 ## Technologie
 
-| Komponent | Technologia | Opis |
-|-----------|-------------|------|
-| Transkodowanie | Jellyfin FFmpeg 7 + NVENC | GPU encoding h264_nvenc |
-| Transkrypcja | Whisper large-v3-turbo | CTranslate2 GPU (~3GB) |
-| Detekcja scen | TransNetV2 | PyTorch GPU (~1GB) |
-| Eksport klatek | FFmpeg | 480p JPG extraction |
-| Perceptual hashing | ImageHash | pHash algorithm |
-| Embeddingi | Qwen3-VL-Embedding-2B | float16 (~5GB) |
-| Face recognition | InsightFace (buffalo_l) | ArcFace embeddings (~1GB) |
-| Object detection | D-FINE-X (obj2coco) | DETR-based, 59.3% AP (~0.5GB) |
-| Image search | DuckDuckGo (DDGS) | Reference images download |
-| LLM scraping | Qwen2.5-Coder-7B-Instruct | 8-bit, 128K context (~8GB) |
-| Video decoding | Decord | GPU (5-10x szybsze niż OpenCV) |
-| Search | Elasticsearch | Full-text + vector indexing |
-| Web scraping | crawl4ai | Markdown extraction |
-
-**Cache modeli:** ~25-30GB w wolumenie `ranchbot-ai-models` (persistent)
-
-**Modele pobierane automatycznie:**
-- Whisper large-v3-turbo (~1.5GB)
-- gme-Qwen2-VL-2B-Instruct (~5GB)
-- D-FINE-X xlarge-obj2coco (~250MB)
-- TransNetV2 (~200MB)
-- InsightFace buffalo_l (~1GB)
-- Qwen2.5-Coder-7B-Instruct (przez Ollama, ~8GB)
-- Playwright Chromium (~300MB)
+| Komponent | Stack |
+|-----------|-------|
+| Transkodowanie | FFmpeg + h264_nvenc (GPU) |
+| Transkrypcja | Whisper large-v3-turbo / ElevenLabs Scribe v1 |
+| Sceny | TransNetV2 |
+| Embeddingi | Qwen/Qwen3-VL-Embedding-8B (4096-dim) |
+| Twarze | InsightFace buffalo_l (112x112) |
+| Emocje | EmoNet enet_b2_8 (ONNX) |
+| Clustering | HDBSCAN (cuML) |
+| Obiekty | D-FINE-X (ustc-community/dfine-xlarge-obj2coco) |
+| Image Hashing | Perceptual hashing (pHash) |
+| Scraping | Qwen2.5-Coder-7B / Gemini 2.5 Flash |
+| Search | Elasticsearch kNN (cosine similarity) |
 
 ---
 
-## Format plików wideo
+## Użycie VRAM
 
-### Wspierane formaty
+**Target:** ~21GB VRAM (85% z 24GB dla modelu embeddingowego)
 
-Pipeline wspiera wszystkie popularne formaty wideo (transkoder konwertuje wszystko do MP4):
+**Batch sizes:**
+- Video embeddings: 32 (domyślnie), progress sub-batch: 100
+- Text embeddings: 64 (domyślnie)
+- Object detection: 8
+- Emotion detection: 32
 
-**Wejście:** `.mp4`, `.avi`, `.mkv`, `.mov`, `.flv`, `.wmv`, `.webm`
-**Wyjście:** `.mp4` (h264_nvenc, AAC audio)
+**Auto-optymalizacja:** Pipeline automatycznie sugeruje optymalny batch size dla 21GB VRAM target
 
-### Nazewnictwo plików
-
-Pipeline ekstraktuje kod odcinka z nazwy pliku:
-
-| Format | Przykład | Uwagi |
-|--------|----------|-------|
-| `S01E01` | Ranczo S01E12.mp4 | Zalecane |
-| `s01e12` | s01e12.mp4 | Case-insensitive |
-| `E012` | E012.mp4 | Wymaga episodes.json |
-
-**Przykład transformacji:**
-- Input: `Sezon 1/Ranczo S01E12.F012.Netflix.mkv`
-- Output: `ranczo_S01E12.mp4`
-
-Pliki bez rozpoznawalnego kodu będą pominięte.
+Faktyczne użycie VRAM zależy od:
+- Rozdzielczości klatek (domyślnie 1080p dla export, 720p dla transcode)
+- Batch size
+- Modelu embeddingowego (Qwen3-VL-Embedding-8B z `gpu_memory_utilization=0.85`)
+- Concurrent operations
 
 ---
 
-## episodes.json
+## Wolumeny Docker
 
-Automatycznie generowany przez LLM z wielu URLi naraz.
+| Host | Container | Opis |
+|------|-----------|------|
+| `./input_data` | `/input_data` | Input (read-only) |
+| `./output_data` | `/app/output_data` | Output (read-write) |
+| `ml_models` (named volume) | `/models` | Modele ML |
 
-**Proces:**
-1. Podajesz 1-10 URLi
-2. crawl4ai pobiera wszystkie strony → markdown
-3. Qwen2.5-Coder-7B (128K context) → JSON
+**Named volume:** `ranchbot-ai-models` - cache dla:
+- HuggingFace (`HF_HOME=/models/huggingface`)
+- Torch (`TORCH_HOME=/models/torch`)
+- Whisper (`WHISPER_CACHE=/models/whisper`)
+- InsightFace (`INSIGHTFACE_HOME=/models/insightface`)
+- Ultralytics (`YOLO_CONFIG_DIR=/models/ultralytics`)
+- Emotion Model (`EMOTION_MODEL_HOME=/models/emotion_model`)
 
-**Format:**
-
-```json
-{
-  "sources": [
-    "https://ranczo.fandom.com/wiki/Seria_I",
-    "https://filmweb.pl/serial/Ranczo-2006"
-  ],
-  "seasons": [
-    {
-      "season_number": 1,
-      "episodes": [
-        {
-          "episode_number": 1,
-          "title": "Pilot",
-          "premiere_date": "2006-03-05",
-          "viewership": 4500000
-        }
-      ]
-    }
-  ]
-}
-```
+**Shared memory:** `shm_size: 4gb` (dla PyTorch DataLoader i multiprocessing)
 
 ---
 
-## characters.json
+## Formaty plików
 
-Automatycznie generowany przez LLM przy użyciu `--character-urls`.
+**Input:** `.mp4` `.avi` `.mkv` `.mov` `.flv` `.wmv` `.webm`
+**Output wideo:** `.mp4` (h264_nvenc, 720p domyślnie)
+**Output klatki:** `.jpg` (1080p domyślnie)
+**Nazewnictwo odcinków:** `S01E01`, `s01e12`, `S10E05` (case-insensitive)
+**Nazewnictwo folderów:** `S01`, `Sezon 1`, `Season 10` → autonormalizacja do `SXX`
+**Metadane:** JSON (episodes.json, characters.json)
+**Elastic docs:** JSONL per typ (text_segments, video_frames, etc.)
 
-**Proces:**
-1. Podajesz URLe z listami postaci
-2. crawl4ai pobiera strony → markdown
-3. Qwen2.5-Coder-7B (128K context) → JSON z imionami i nazwiskami
-4. DuckDuckGo wyszukuje referencyjne zdjęcia (automatycznie)
-5. InsightFace weryfikuje twarze na zdjęciach (1 twarz = OK)
+---
 
-**Format:**
+## Parametry konfiguracyjne
 
-```json
-{
-  "sources": [
-    "https://ranczo.fandom.com/wiki/Lista_postaci"
-  ],
-  "characters": [
-    {
-      "name": "Lucy Wilska",
-      "role": "główna"
-    },
-    {
-      "name": "Wicek Wilski",
-      "role": "główna"
-    }
-  ]
-}
-```
+**Transkodowanie:**
+- Target file size: 50MB per 100s
+- Audio bitrate: 128 kbps
+- GOP size: 0.5s
 
-**Referencyjne zdjęcia:** Zapisywane w `output_data/characters/{nazwa_postaci}/00.jpg`, `01.jpg`, ...
+**Scene detection:**
+- Threshold: 0.5
+- Min scene length: 10 frames
+
+**Text chunking:**
+- Segments per embedding: 5
+- Sentences per chunk: 8
+- Chunk overlap: 3
+
+**Character detection:**
+- Reference images per character: 3
+- Normalized face size: 112x112
+- Face detection threshold: 0.2
+- Reference matching threshold: 0.50
+- Frame detection threshold: 0.55
+
+**Object detection:**
+- Confidence threshold: 0.30
+
+**Embeddings:**
+- Dimension: 4096
+- Max model length: 8192 tokens
+- Chunked prefill: enabled
+
+---
+
+## Dodatkowe opcje
+
+**State management:**
+- `--no-state` - wyłącz zapisywanie stanu (brak wznowienia po przerwaniu)
+- Domyślnie pipeline zapisuje stan i można wznowić po Ctrl+C
+
+**Ramdisk:**
+- `--ramdisk-path /mnt/ramdisk` - użyj RAMdisk dla tymczasowych plików (szybsze przetwarzanie)
+- Domyślnie: `/dev/shm` (shared memory, 4GB z docker-compose)
+- RAMdisk używany do: kopiowania klatek podczas frame processing, tymczasowych plików transkrypcji
+
+**Interaktywny tryb:**
+- `--interactive-character-processing` - manualna selekcja twarzy przy przetwarzaniu referencji postaci
+
+**Debug:**
+- `--debug-visualizations` - włącz wizualizacje dla detekcji postaci i obiektów (wyłączone domyślnie)
+- `--dry-run` - test indeksowania bez wysyłania do Elasticsearch
+
+**Embeddingi:**
+- `--skip-full-episode` - pomiń generowanie embeddingów całych odcinków (tylko text, video, sound events)
+- `--batch-size N` - rozmiar batcha dla embeddingów (domyślnie 32 dla video, 64 dla text)
 
 ---
 
 ## Instalacja
 
-### Wymagania software
-
-- Docker 20.10+
-- Docker Compose 1.29+
-- NVIDIA Container Toolkit (WYMAGANE)
-- NVIDIA Driver 525+ (CUDA 12.1)
-- Linux (Ubuntu 22.04) lub WSL2
-
-### Instalacja NVIDIA Container Toolkit
-
 ```bash
+# NVIDIA Container Toolkit
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
 curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
@@ -735,105 +291,36 @@ curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.li
 sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
 sudo systemctl restart docker
 
-# Weryfikacja
+# Test
 docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
 ```
-
----
-
-## Monitoring
-
-```bash
-# Logi w czasie rzeczywistym
-docker logs ranchbot-preprocessing-app -f
-
-# Wejście do kontenera
-docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor bash
-
-# Sprawdzenie GPU
-nvidia-smi
-
-# Sprawdzenie NVENC
-ffmpeg -encoders | grep nvenc
-```
-
----
-
-## Changelog
-
-### 2026-01-03 - Optymalizacje search i embeddings
-
-**Search (kNN + HNSW):**
-- ✅ Zamiana `script_score` na **kNN query** dla wszystkich semantic search
-- ✅ ~10-100x szybsze wyszukiwanie (approximate nearest neighbors)
-- ✅ HNSW index już był w mappingach, teraz faktycznie wykorzystywany
-
-**Text embeddings (sentence-based chunking):**
-- ✅ Domyślnie **8 zdań + 3 overlap** (było: 5 segmentów bez overlapa)
-- ✅ Normalizacja interpunkcji: `...` → `.`, `!!!` → `!`, `???` → `?`
-- ✅ Łączenie krótkich fragmentów (min 30 znaków)
-- ✅ Przełączniki CLI: `--sentence-chunking/--segment-chunking`
-- ✅ Parametry: `--sentences-per-chunk`, `--chunk-overlap`
-- ✅ Finalne chunki: ~240-480 znaków kontekstu
-
-**Bugfixy:**
-- ✅ Naprawiono błąd `LoggerNotFinalizedException` w frame sub-procesorach
 
 ---
 
 ## Troubleshooting
 
-### Sprawdzenie GPU i NVENC
-
 ```bash
+# Logi
+docker logs ranchbot-preprocessing-app -f
+
+# GPU check
+nvidia-smi
 docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
-docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor ffmpeg -encoders | grep nvenc
-```
 
-### Brak miejsca na dysku
+# OOM na GPU → zmniejsz batch size
+./run-preprocessor.sh generate-embeddings --batch-size 16  # domyślnie 32
 
-```bash
-cd preprocessor
+# Brak miejsca na dysku
 docker system prune -a
 docker volume prune
+du -sh output_data/*  # sprawdź co zajmuje miejsce
 
-# Uwaga: re-download modeli przy następnym uruchomieniu (~30GB)
+# Wznów pipeline po przerwaniu
+./run-preprocessor.sh run-all /input_data/videos --series-name nazwa_serii --name nazwa_serii
+
+# Reset całego named volume z modelami
 docker volume rm ranchbot-ai-models
+
+# Shell w kontenerze
+./run-preprocessor.sh bash
 ```
-
-### Out of memory (CUDA OOM)
-
-```bash
-# Aplikacja domyślnie używa batch_size=28 (RTX 3090 24GB)
-# Jeśli masz inną kartę, musisz dostosować ręcznie:
-./run-preprocessor.sh generate-embeddings --batch-size 14  # dla ~16GB VRAM
-./run-preprocessor.sh generate-embeddings --batch-size 7   # dla ~12GB VRAM
-
-# Dla run-all: brak możliwości ustawienia batch-size przez flagę
-# Należy edytować config/config.py → settings.embedding.batch_size
-```
-
-### Kontener się crashuje
-
-```bash
-docker logs ranchbot-preprocessing-app --tail 200
-docker-compose -f preprocessor/docker-compose.yml run --rm preprocessor bash
-```
-
----
-
-## Wydajność (RTX 3090 + 64GB RAM)
-
-**Konfiguracja testowa (jedyna wspierana):**
-
-| Metryka | Wartość                         |
-|---------|---------------------------------|
-| **GPU** | **RTX 3090 24GB**               |
-| **RAM** | **64GB**                        |
-| **Throughput** | **~3-4 odcinki/godzinę**        |
-| **Batch size** | **28 (default)**                |
-| **Peak VRAM** | **~12GB (~50% wykorzystania)**  |
-| **Peak RAM** | **~32GB (~50% wykorzystania)**  |
-| **Przetwarzanie** | **Sekwencyjne (1 plik na raz)** |
-
-Pipeline sekwencyjny (jeden plik na raz w każdej fazie) maksymalnie wykorzystuje GPU bez marnotrawstwa zasobów na równoległość.

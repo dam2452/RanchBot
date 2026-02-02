@@ -38,7 +38,7 @@ class SimpleProgress:
             'start_time': time.time(),
             'last_print': 0,
         }
-        self._print_progress(task_id)
+        self.__print_progress(task_id)
         return task_id
 
     def advance(self, task_id: int, advance: int = 1):
@@ -50,10 +50,10 @@ class SimpleProgress:
 
         current_time = time.time()
         if current_time - task['last_print'] >= 1.0 or task['completed'] >= task['total']:
-            self._print_progress(task_id)
+            self.__print_progress(task_id)
             task['last_print'] = current_time
 
-    def _print_progress(self, task_id: int):
+    def __print_progress(self, task_id: int):
         task = self.tasks[task_id]
         completed = task['completed']
         total = task['total']

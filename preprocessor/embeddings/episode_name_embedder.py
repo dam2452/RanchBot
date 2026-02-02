@@ -12,6 +12,7 @@ import numpy as np
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
+from preprocessor.utils.file_utils import atomic_write_json
 
 
 class EpisodeNameEmbedder:
@@ -38,7 +39,9 @@ class EpisodeNameEmbedder:
         episode_number = episode_info_dict.get("episode_number")
 
         if season is None or episode_number is None:
-            self.logger.warning("Missing season or episode_number in transcription data")
+            self.logger.warning(
+                f"Missing season or episode_number in transcription data: episode_info={episode_info_dict}",
+            )
             return None
 
         episode_info = self.episode_manager.get_episode_by_season_and_relative(
@@ -46,25 +49,21 @@ class EpisodeNameEmbedder:
             episode_number,
         )
         if not episode_info:
-            self.logger.warning(
-                f"Cannot find episode info for S{season:02d}E{episode_number:02d}",
-            )
+            self.logger.warning(f"Cannot find episode info for S{season:02d}E{episode_number:02d}")
             return None
 
         metadata = self.episode_manager.get_metadata(episode_info)
         title = metadata.get("title")
 
         if not title:
-            self.logger.warning(
-                f"No title found for S{season:02d}E{episode_number:02d}",
-            )
+            self.logger.warning(f"No title found for {episode_info.episode_code()}")
             return None
 
-        embedding = self._generate_title_embedding(title)
+        embedding = self.__generate_title_embedding(title)
         if embedding is None:
             return None
 
-        episode_id = f"S{season:02d}E{episode_number:02d}"
+        episode_id = episode_info.episode_code()
 
         result = {
             "episode_id": episode_id,
@@ -82,7 +81,7 @@ class EpisodeNameEmbedder:
 
         return result
 
-    def _generate_title_embedding(self, title: str) -> Optional[np.ndarray]:
+    def __generate_title_embedding(self, title: str) -> Optional[np.ndarray]:
         try:
             embeddings_tensor = self.model.get_text_embeddings(texts=[title])
             embedding = embeddings_tensor[0].cpu().numpy()
@@ -92,17 +91,24 @@ class EpisodeNameEmbedder:
             self.logger.error(f"Failed to generate embedding for title '{title}': {e}")
             return None
 
+    @staticmethod
     def save_episode_name_embedding(
-        self,
-        season: int,
+            season: int,
         episode: int,
         embedding_data: Dict[str, Any],
     ) -> Path:
-        output_file = self.output_dir / f"S{season:02d}" / f"E{episode:02d}" / "episode_name_embedding.json"
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+        from preprocessor.core.episode_manager import EpisodeInfo  # pylint: disable=import-outside-toplevel
+        from preprocessor.core.output_path_builder import OutputPathBuilder  # pylint: disable=import-outside-toplevel
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(embedding_data, f, indent=2, ensure_ascii=False)
+        episode_info = EpisodeInfo(
+            absolute_episode=0,
+            season=season,
+            relative_episode=episode,
+            title="",
+        )
+        output_file = OutputPathBuilder.build_embedding_path(episode_info, "episode_name_embedding.json")
+
+        atomic_write_json(output_file, embedding_data, indent=2, ensure_ascii=False)
 
         return output_file
 
@@ -130,10 +136,19 @@ class EpisodeNameEmbedder:
         episode: int,
         output_dir: Optional[Path] = None,
     ) -> Optional[Dict[str, Any]]:
+        from preprocessor.core.episode_manager import EpisodeInfo  # pylint: disable=import-outside-toplevel
+        from preprocessor.core.output_path_builder import OutputPathBuilder  # pylint: disable=import-outside-toplevel
+
         if output_dir is None:
             output_dir = settings.embedding.default_output_dir
 
-        embedding_file = output_dir / f"S{season:02d}" / f"E{episode:02d}" / "episode_name_embedding.json"
+        episode_info = EpisodeInfo(
+            absolute_episode=0,
+            season=season,
+            relative_episode=episode,
+            title="",
+        )
+        embedding_file = OutputPathBuilder.build_embedding_path(episode_info, "episode_name_embedding.json")
 
         if not embedding_file.exists():
             return None

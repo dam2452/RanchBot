@@ -1,7 +1,11 @@
 import gc
 import json
 from pathlib import Path
-from typing import Tuple
+from typing import (
+    List,
+    Optional,
+    Tuple,
+)
 
 from faster_whisper import WhisperModel
 import torch
@@ -24,10 +28,12 @@ class NormalizedAudioProcessor:
         language: str,
         model: str,
         device: str,
+        audio_files: Optional[List[Path]] = None,
     ):
         self.__input_audios: Path = input_audios
         self.__output_dir: Path = output_dir
         self.__logger: ErrorHandlingLogger = logger
+        self.__audio_files: Optional[List[Path]] = audio_files
 
         self.__language: str = language
 
@@ -42,16 +48,19 @@ class NormalizedAudioProcessor:
         self.__whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
 
     def __call__(self) -> None:
-        for audio in self.__input_audios.rglob("*"):
-            if audio.suffix.lower() in self.SUPPORTED_AUDIO_EXTENSIONS:
+        if self.__audio_files is not None:
+            for audio in self.__audio_files:
                 self.__process_normalized_audio(audio)
+        else:
+            for audio in self.__input_audios.rglob("*"):
+                if audio.suffix.lower() in self.SUPPORTED_AUDIO_EXTENSIONS:
+                    self.__process_normalized_audio(audio)
 
     def __process_normalized_audio(self, normalized_audio: Path) -> None:
         try:
             output_file = self.__output_dir / normalized_audio.with_suffix(".json").name
 
             if output_file.exists():
-                self.__logger.info(f"Skipping (transcription already exists): {normalized_audio.name}")
                 return
 
             language_code = get_language_code(self.__language)

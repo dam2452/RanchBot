@@ -4,6 +4,10 @@ from typing import (
     Dict,
 )
 
+from preprocessor.core.constants import (
+    FILE_EXTENSIONS,
+    FILE_SUFFIXES,
+)
 from preprocessor.transcription.generators.base_generator import BaseTranscriptionGenerator
 from preprocessor.utils.transcription_utils import convert_words_list
 
@@ -13,7 +17,7 @@ class SegmentedJsonGenerator(BaseTranscriptionGenerator):
         pass
 
     def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(".json", "_segmented.json")
+        return json_file.name.replace(FILE_EXTENSIONS["json"], f"{FILE_SUFFIXES['segmented']}{FILE_EXTENSIONS['json']}")
 
     @staticmethod
     def convert_to_segmented_format(data: Dict[str, Any]) -> Dict[str, Any]:

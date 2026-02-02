@@ -58,7 +58,7 @@ class EpisodeInfoProcessor:
             return json.load(f)
 
     def __write_episode_json(self, transcription: Dict[str, Any], episode_info) -> Tuple[Path, str]:
-        new_json_name = f"{self.__series_name}_{episode_info.episode_code()}.json"
+        new_json_name = self.__episode_manager.file_naming.build_filename(episode_info, extension="json")
         output_path = self.__episode_manager.build_output_path(episode_info, self.__output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 

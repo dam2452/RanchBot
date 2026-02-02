@@ -35,13 +35,13 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
 )
 @click.option(
     "--model",
-    default=settings.embedding.model_name,
+    default=settings.embedding_model.model_name,
     help="Model name",
 )
 @click.option(
     "--segments-per-embedding",
     type=int,
-    default=settings.embedding.segments_per_embedding,
+    default=settings.text_chunking.segments_per_embedding,
     help="Segments to group for text embeddings",
 )
 @click.option(
@@ -53,6 +53,21 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     "--generate-video/--no-video",
     default=True,
     help="Generate video embeddings",
+)
+@click.option(
+    "--generate-episode-names/--no-episode-names",
+    default=True,
+    help="Generate episode name embeddings",
+)
+@click.option(
+    "--generate-full-episode/--no-full-episode",
+    default=True,
+    help="Generate full episode embeddings",
+)
+@click.option(
+    "--generate-sound-events/--no-sound-events",
+    default=True,
+    help="Generate sound event embeddings",
 )
 @click.option(
     "--device",
@@ -67,20 +82,15 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     help="Batch size for GPU inference. Reduce if OOM errors occur",
 )
 @click.option(
-    "--sentence-chunking/--segment-chunking",
-    default=settings.embedding.use_sentence_based_chunking,
-    help="Use sentence-based chunking (smart, with overlap) or segment-based chunking (simple)",
-)
-@click.option(
     "--sentences-per-chunk",
     type=int,
-    default=settings.embedding.text_sentences_per_chunk,
+    default=settings.text_chunking.text_sentences_per_chunk,
     help="Number of sentences per chunk (only for --sentence-chunking)",
 )
 @click.option(
     "--chunk-overlap",
     type=int,
-    default=settings.embedding.text_chunk_overlap,
+    default=settings.text_chunking.text_chunk_overlap,
     help="Number of overlapping sentences between chunks (only for --sentence-chunking)",
 )
 def generate_embeddings(  # pylint: disable=too-many-arguments
@@ -92,9 +102,11 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
     segments_per_embedding: int,
     generate_text: bool,
     generate_video: bool,
+    generate_episode_names: bool,
+    generate_full_episode: bool,
+    generate_sound_events: bool,
     device: str,
     batch_size: int,
-    sentence_chunking: bool,
     sentences_per_chunk: int,
     chunk_overlap: int,
 ):
@@ -110,9 +122,11 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
                 "segments_per_embedding": segments_per_embedding,
                 "generate_text": generate_text,
                 "generate_video": generate_video,
+                "generate_episode_names": generate_episode_names,
+                "generate_full_episode": generate_full_episode,
+                "generate_sound_events": generate_sound_events,
                 "device": device,
                 "batch_size": batch_size,
-                "use_sentence_based_chunking": sentence_chunking,
                 "text_sentences_per_chunk": sentences_per_chunk,
                 "text_chunk_overlap": chunk_overlap,
             },

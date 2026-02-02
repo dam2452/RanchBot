@@ -13,9 +13,11 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcription.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcription.processors.normalized_audio_processor import NormalizedAudioProcessor
+from preprocessor.transcription.processors.unicode_fixer import TranscriptionUnicodeFixer
 
 
 class TranscriptionGenerator(BaseProcessor):
@@ -36,6 +38,7 @@ class TranscriptionGenerator(BaseProcessor):
         self.audio_normalizer = None
         self.audio_processor = None
         self.multi_format_generator = None
+        self.unicode_fixer = None
         self.final_output_dir = None
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
@@ -49,7 +52,7 @@ class TranscriptionGenerator(BaseProcessor):
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
 
     def _get_processing_items(self) -> List[ProcessingItem]:
-        if self._check_all_transcriptions_exist():
+        if self.__check_all_transcriptions_exist():
             return []
 
         return [
@@ -64,7 +67,6 @@ class TranscriptionGenerator(BaseProcessor):
         video_files = []
         for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
             video_files.extend(self.input_videos.rglob(f"*{ext}"))
-        transcription_jsons = Path(self._args["transcription_jsons"])
         outputs = []
 
         for video_file in video_files:
@@ -72,12 +74,26 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            expected_file = self.episode_manager.build_output_path(
+            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            expected_file = OutputPathBuilder.build_transcription_path(
                 episode_info,
-                transcription_jsons / "json",
-                ".json",
+                filename,
+                subdir="raw",
             )
-            outputs.append(OutputSpec(path=expected_file, required=True))
+
+            segmented_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_segmented",
+            )
+            segmented_file = OutputPathBuilder.build_transcription_path(
+                episode_info,
+                segmented_filename,
+                subdir="raw",
+            )
+
+            if not expected_file.exists() and not segmented_file.exists():
+                outputs.append(OutputSpec(path=expected_file, required=True))
 
         return outputs
 
@@ -89,7 +105,8 @@ class TranscriptionGenerator(BaseProcessor):
             self.temp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            self._init_workers(self._args)
+            missing_video_files = self.__get_missing_video_files(missing_outputs)
+            self.__init_workers(self._args, missing_video_files)
 
             self.logger.info("Step 1/3: Normalizing audio from videos...")
             self.audio_normalizer()
@@ -100,8 +117,11 @@ class TranscriptionGenerator(BaseProcessor):
             self.logger.info("Cleaning up Whisper model...")
             self.audio_processor.cleanup()
 
-            self.logger.info("Step 3/3: Generating multi-format output...")
+            self.logger.info("Step 3/4: Generating multi-format output...")
             self.multi_format_generator()
+
+            self.logger.info("Step 4/4: Fixing unicode escapes in transcriptions...")
+            self.unicode_fixer()
 
         except (RuntimeError, OSError, ValueError) as e:
             self.logger.error(f"Error generating transcriptions: {e}")
@@ -109,7 +129,7 @@ class TranscriptionGenerator(BaseProcessor):
             if self.temp_dir:
                 self.temp_dir.cleanup()
 
-    def _check_all_transcriptions_exist(self) -> bool:
+    def __check_all_transcriptions_exist(self) -> bool:
         if not self.episodes_info_json.exists():
             self.logger.debug(f"Episodes info JSON not found: {self.episodes_info_json}")
             return False
@@ -121,20 +141,31 @@ class TranscriptionGenerator(BaseProcessor):
             self.logger.debug("No video files found to check")
             return False
 
-        transcription_jsons = Path(self._args["transcription_jsons"])
         missing_files = []
         for video_file in video_files:
             episode_info = self.episode_manager.parse_filename(video_file)
             if not episode_info:
                 continue
 
-            expected_file = self.episode_manager.build_output_path(
+            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            expected_file = OutputPathBuilder.build_transcription_path(
                 episode_info,
-                transcription_jsons / "json",
-                ".json",
+                filename,
+                subdir="raw",
             )
 
-            if not expected_file.exists():
+            segmented_filename = self.episode_manager.file_naming.build_filename(
+                episode_info,
+                extension="json",
+                suffix="_segmented",
+            )
+            segmented_file = OutputPathBuilder.build_transcription_path(
+                episode_info,
+                segmented_filename,
+                subdir="raw",
+            )
+
+            if not expected_file.exists() and not segmented_file.exists():
                 missing_files.append(f"{video_file.name} -> {expected_file}")
 
         if missing_files:
@@ -144,17 +175,44 @@ class TranscriptionGenerator(BaseProcessor):
         self.logger.info(f"All transcriptions already exist for {len(video_files)} video(s)")
         return True
 
-    def _init_workers(self, args: Dict[str, Any]) -> None:
+    def __get_missing_video_files(self, missing_outputs: List[OutputSpec]) -> List[Path]:
+        video_files = []
+        for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
+            video_files.extend(self.input_videos.rglob(f"*{ext}"))
+
+        missing_video_files = []
+
+        for video_file in video_files:
+            episode_info = self.episode_manager.parse_filename(video_file)
+            if not episode_info:
+                continue
+
+            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            expected_file = OutputPathBuilder.build_transcription_path(
+                episode_info,
+                filename,
+                subdir="raw",
+            )
+
+            if any(expected_file == output.path for output in missing_outputs):
+                missing_video_files.append(video_file)
+
+        return missing_video_files
+
+    def __init_workers(self, args: Dict[str, Any], video_files: List[Path]) -> None:
         temp_dir_path: Path = Path(self.temp_dir.name) / "transcription_generator"
         normalizer_output: Path = temp_dir_path / "normalizer"
         processor_output: Path = temp_dir_path / "processor"
 
         self.final_output_dir: Path = Path(args["transcription_jsons"])
 
+        audio_files = [normalizer_output / video.with_suffix(".wav").name for video in video_files]
+
         self.audio_normalizer: AudioNormalizer = AudioNormalizer(
             input_videos=self.input_videos,
             output_dir=normalizer_output,
             logger=self.logger,
+            video_files=video_files if video_files else None,
         )
 
         self.audio_processor: NormalizedAudioProcessor = NormalizedAudioProcessor(
@@ -164,6 +222,7 @@ class TranscriptionGenerator(BaseProcessor):
             language=args["language"],
             model=args["model"],
             device=args["device"],
+            audio_files=audio_files if audio_files else None,
         )
 
         self.multi_format_generator: MultiFormatGenerator = MultiFormatGenerator(
@@ -173,3 +232,9 @@ class TranscriptionGenerator(BaseProcessor):
             logger=self.logger,
             series_name=args["name"],
         )
+
+        self.unicode_fixer: TranscriptionUnicodeFixer = TranscriptionUnicodeFixer({
+            "transcription_jsons": self.final_output_dir,
+            "episodes_info_json": self.episodes_info_json,
+            "name": args["name"],
+        })

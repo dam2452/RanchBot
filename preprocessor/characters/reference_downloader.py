@@ -48,19 +48,19 @@ class CharacterReferenceDownloader(BaseProcessor):
             "images_per_character",
             settings.character.reference_images_per_character,
         )
-        self.max_results: int = settings.face_recognition.max_results_to_scrape
-        self.min_width: int = settings.face_recognition.min_image_width
-        self.min_height: int = settings.face_recognition.min_image_height
-        self.use_gpu: bool = settings.face_recognition.use_gpu
+        self.max_results: int = settings.image_scraper.max_results_to_scrape
+        self.min_width: int = settings.image_scraper.min_image_width
+        self.min_height: int = settings.image_scraper.min_image_height
+        self.use_gpu: bool = True
         self.search_mode: str = self._args.get("search_mode", "normal")
 
-        self.search_engine: BaseImageSearch = self._create_search_engine()
+        self.search_engine: BaseImageSearch = self.__create_search_engine()
         self.face_app: FaceAnalysis = None
         self.browser_context: Optional[BrowserContext] = None
 
-    def _create_search_engine(self) -> BaseImageSearch:
+    def __create_search_engine(self) -> BaseImageSearch:
         if self.search_mode == "premium":
-            serpapi_key = settings.face_recognition.serpapi_key
+            serpapi_key = settings.image_scraper.serpapi_key
             return GoogleImageSearch(api_key=serpapi_key, max_results=self.max_results)
         return DuckDuckGoImageSearch(max_results=self.max_results)
 
@@ -70,7 +70,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         if "series_name" not in args:
             raise ValueError("series_name is required")
 
-    def _all_references_exist(self, characters: list) -> bool:
+    def __all_references_exist(self, characters: list) -> bool:
         for char in characters:
             char_name = char["name"]
             output_folder = self.output_dir / char_name.replace(" ", "_").lower()
@@ -92,7 +92,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             console.print("[yellow]No characters found in JSON[/yellow]")
             return
 
-        if self._all_references_exist(characters):
+        if self.__all_references_exist(characters):
             console.print(f"[green]✓ All reference images already exist for {len(characters)} characters (skipping)[/green]")
             return
 
@@ -117,17 +117,18 @@ class CharacterReferenceDownloader(BaseProcessor):
 
                 for i, char in enumerate(characters):
                     char_name = char["name"]
+                    downloaded = False
                     try:
-                        self._download_character_references(char_name, progress)
-                    except Exception as e:
+                        downloaded = self.__download_character_references(char_name, progress)
+                    except Exception as e:  # pylint: disable=broad-exception-caught
                         self.logger.error(f"Failed to download references for {char_name}: {e}")
                     finally:
                         progress.advance(task)
 
-                    if i < len(characters) - 1:
+                    if downloaded and i < len(characters) - 1:
                         delay = random.uniform(
-                            settings.face_recognition.request_delay_min,
-                            settings.face_recognition.request_delay_max,
+                            settings.image_scraper.request_delay_min,
+                            settings.image_scraper.request_delay_max,
                         )
                         time.sleep(delay)
 
@@ -135,7 +136,7 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         console.print("[green]✓ Reference download completed[/green]")
 
-    def _count_faces(self, img) -> int:
+    def __count_faces(self, img) -> int:
         faces = self.face_app.get(img)
         return len(faces)
 
@@ -156,11 +157,11 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         return img
 
-    def _download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
+    def __download_image_with_browser(self, img_url: str, page: Page) -> np.ndarray | None:
         try:  # pylint: disable=too-many-try-statements
             response = page.goto(
                 img_url,
-                timeout=settings.face_recognition.page_navigation_timeout,
+                timeout=settings.image_scraper.page_navigation_timeout,
                 wait_until="domcontentloaded",
             )
             if not response or response.status != 200:
@@ -190,14 +191,14 @@ class CharacterReferenceDownloader(BaseProcessor):
         except TimeoutError:
             self.logger.debug(f"Timeout downloading image {img_url}")
             return None
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             if "net::ERR_CONNECTION_CLOSED" in str(e) or "Navigation" in str(e):
                 self.logger.debug(f"Connection/navigation error for {img_url}: {e}")
             else:
                 self.logger.debug(f"Failed to download image {img_url}: {e}")
             return None
 
-    def _download_character_references(self, char_name: str, progress):  # pylint: disable=too-many-locals,too-many-statements
+    def __download_character_references(self, char_name: str, progress) -> bool:  # pylint: disable=too-many-locals,too-many-statements
         search_query = f"Serial {self.series_name} {char_name} postać"
         output_folder = self.output_dir / char_name.replace(" ", "_").lower()
         output_folder.mkdir(parents=True, exist_ok=True)
@@ -207,14 +208,14 @@ class CharacterReferenceDownloader(BaseProcessor):
             progress.console.print(
                 f"[green]✓ {char_name}: {len(existing_images)} images already exist (skipping)[/green]",
             )
-            return
+            return False
 
         progress.console.print(f"[cyan]Searching [{self.search_engine.name}]: {search_query}[/cyan]")
 
         saved_count = len(existing_images)
         processed = 0
 
-        for attempt in range(settings.face_recognition.retry_attempts):  # pylint: disable=too-many-nested-blocks
+        for attempt in range(settings.image_scraper.retry_attempts):  # pylint: disable=too-many-nested-blocks
             try:
                 results = self.search_engine.search(search_query)
 
@@ -237,7 +238,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                         processed += 1
 
                         try:
-                            img = self._download_image_with_browser(img_url, page)
+                            img = self.__download_image_with_browser(img_url, page)
 
                             if img is None:
                                 continue
@@ -251,8 +252,8 @@ class CharacterReferenceDownloader(BaseProcessor):
                                 continue
 
                             try:
-                                face_count = self._count_faces(img)
-                            except Exception as face_err:
+                                face_count = self.__count_faces(img)
+                            except Exception as face_err:  # pylint: disable=broad-exception-caught
                                 self.logger.debug(f"Face detection failed for {img_url}: {face_err}")
                                 continue
 
@@ -262,7 +263,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                                 cv2.imwrite(str(path), img)
                                 saved_count += 1
 
-                        except Exception as e:
+                        except Exception as e:  # pylint: disable=broad-exception-caught
                             self.logger.debug(f"Error processing image: {e}")
                             continue
 
@@ -274,9 +275,9 @@ class CharacterReferenceDownloader(BaseProcessor):
             except KeyboardInterrupt:
                 progress.console.print("\n[yellow]Download interrupted[/yellow]")
                 raise
-            except Exception as e:
-                if attempt < settings.face_recognition.retry_attempts - 1:
-                    delay = settings.face_recognition.retry_delay * (2 ** attempt)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                if attempt < settings.image_scraper.retry_attempts - 1:
+                    delay = settings.image_scraper.retry_delay * (2 ** attempt)
                     self.logger.warning(
                         f"Attempt {attempt + 1} failed for {char_name}, retrying in {delay}s: {e}",
                     )
@@ -294,3 +295,5 @@ class CharacterReferenceDownloader(BaseProcessor):
             )
         else:
             progress.console.print(f"[red]✗[/red] {char_name}: No suitable images found")
+
+        return True
