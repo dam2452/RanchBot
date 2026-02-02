@@ -15,7 +15,7 @@ class TestInlineClipHandler(BaseTest):
         response = self.send_command('/inline duda')
 
         self.assert_command_result_file_matches(
-            response, "duda.zip",
+            response, "inline_duda.zip",
         )
 
     @pytest.mark.asyncio
@@ -26,7 +26,7 @@ class TestInlineClipHandler(BaseTest):
         response = self.send_command('/inline ksiądz')
 
         self.assert_command_result_file_matches(
-            response, "ksiadz.zip",
+            response, "inline_ksiadz.zip",
         )
 
     @pytest.mark.asyncio
