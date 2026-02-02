@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 from typing import Optional
 
 from aiogram.types import (
@@ -64,7 +65,6 @@ class TelegramResponder(AbstractResponder):
             disable_notification=True,
         )
         if cleanup_dir:
-            import shutil
             shutil.rmtree(cleanup_dir, ignore_errors=True)
         elif delete_after_send:
             file_path.unlink()

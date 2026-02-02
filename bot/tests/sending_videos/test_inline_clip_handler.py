@@ -1,9 +1,5 @@
-import io
-import zipfile
-
 import pytest
 
-import bot.responses.sending_videos.clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
 

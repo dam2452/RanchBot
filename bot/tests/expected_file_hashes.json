@@ -17,6 +17,8 @@
   "cut_S07E06_40:00.00_41:00.00.mp4": "496862199c3de585126f0e75423167f1a3f7d0819217d5472a3fea595d9a96ba",
   "episode_list_season_3_long.message": "55c796e5a47048b63a8bff288606d1609e684bc708f4394fe13838c2dc382039",
   "episode_list_season_4.message": "1338592dec17e307056d3de302c3ddf68eb916c186d9034a67fe1b2fe5393822",
+  "inline_duda.zip": "2df5f0ca499a92c1f4f56a3f96cf206f93e0b870f3abcc19def751a8b7a6688b",
+  "inline_ksiadz.zip": "7524062f3bb4cd7a7db41e6904a366de0da2a2856e7a605797ea5660c254af32",
   "klip1.mp4": "329c5b795c852de8080e4bb8f9f1120e263f37e3a51eeff76f7c1926ba05b454",
   "klip@specjalny!.mp4": "329c5b795c852de8080e4bb8f9f1120e263f37e3a51eeff76f7c1926ba05b454",
   "klip_geniusz.mp4": "329c5b795c852de8080e4bb8f9f1120e263f37e3a51eeff76f7c1926ba05b454",
@@ -44,7 +46,5 @@
   "transcription_quote_gabinetu.message": "832fc845dceae653d95aa1afe8875a0a52576de93b7f54e5feb3eb6dd69919aa",
   "transcription_quote_geniusz.message": "0e58321a6eacbd74fba1a6ea5fe06c6a43911c74476a6a6b31f8ba085dfadf6c",
   "transcription_quote_multiple_results.message": "e7ba0788278514520d84436d7b752f7829b2f2637da42b3e766788e460100584",
-  "transcription_quote_not_found.message": "0273e1ab67c104fce909153f10a9fc33042a9b3ad80e063a6852de0a7b8d8d94",
-  "inline_duda.zip": "2df5f0ca499a92c1f4f56a3f96cf206f93e0b870f3abcc19def751a8b7a6688b",
-  "inline_ksiadz.zip": "7524062f3bb4cd7a7db41e6904a366de0da2a2856e7a605797ea5660c254af32"
+  "transcription_quote_not_found.message": "0273e1ab67c104fce909153f10a9fc33042a9b3ad80e063a6852de0a7b8d8d94"
 }

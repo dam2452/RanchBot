@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 from typing import (
     Optional,
     Union,
@@ -68,7 +69,6 @@ class RestResponder(AbstractResponder):
     ) -> None:
         background = None
         if cleanup_dir:
-            import shutil
             background = BackgroundTask(shutil.rmtree, cleanup_dir, ignore_errors=True)
         elif delete_after_send:
             background = BackgroundTask(file_path.unlink)
