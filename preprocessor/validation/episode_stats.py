@@ -137,7 +137,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                 segments = data.get("segments", [])
                 if segments and segments[-1].get("end"):
                     self.transcription_duration = segments[-1].get("end", 0.0)
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.errors.append(f"Error reading transcription: {e}")
 
     def __validate_clean_transcription(self, clean_transcription_file):
@@ -234,7 +234,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             if scenes:
                 durations = [scene.get("duration", 0) for scene in scenes]
                 self.scenes_avg_duration = round(sum(durations) / len(durations), 2)
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.errors.append(f"Error reading scenes: {e}")
 
     def __validate_image_hashes(self):
@@ -325,7 +325,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
             self.face_clusters_total_faces = total_faces
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.errors.append(f"Error reading face clustering metadata: {e}")
 
     def __validate_object_detections(self):
@@ -404,7 +404,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                                     f"{embedding_field} has {actual_dim} dimensions, expected {expected_dim}",
                                 )
                                 return
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.errors.append(f"Error validating embeddings in {jsonl_file.name}: {e}")
 
     def __check_size_anomalies(self, sizes: List[int], folder_name: str, threshold: float = 0.2):

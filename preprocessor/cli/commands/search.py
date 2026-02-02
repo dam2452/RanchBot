@@ -636,7 +636,7 @@ def search(  # pylint: disable=too-many-locals
 
         try:
             await es_client.ping()
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception:
             click.echo(f"✗ Cannot connect to Elasticsearch at {host}", err=True)
             click.echo("Make sure Elasticsearch is running:", err=True)
             click.echo("  docker-compose -f docker-compose.test.yml up -d", err=True)

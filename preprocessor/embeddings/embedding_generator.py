@@ -138,7 +138,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                             f"Empty clean transcription (no segments) for {episode_id}, skipping",
                         )
                     return True, [], f"[yellow]Skipping (empty transcription): {episode_id}[/yellow]"
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except Exception as e:
                 self.logger.error(f"Failed to read {clean_transcription_file}: {e}")
 
         return super()._should_skip_item(item)
@@ -415,7 +415,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         try:
             with open(sound_events_file, "r", encoding="utf-8") as f:
                 sound_events_data = json.load(f)
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Failed to load sound events file {sound_events_file}: {e}")
             return []
 
@@ -629,7 +629,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                 "transcript_length": len(full_text),
             }
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Failed to generate full episode embedding: {e}")
             return None
 

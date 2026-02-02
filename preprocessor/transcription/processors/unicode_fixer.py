@@ -55,5 +55,5 @@ class TranscriptionUnicodeFixer(BaseProcessor):
                 self.logger.info(f"Fixed unicode escapes in: {trans_file.name}")
             else:
                 self.logger.debug(f"No unicode escapes found in: {trans_file.name}")
-        except Exception as e: #pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Error fixing unicode in {trans_file.name}: {e}")
