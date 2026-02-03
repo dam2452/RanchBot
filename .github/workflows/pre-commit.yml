@@ -1,6 +1,9 @@
 name: Pre-commit checks
 
-on: push
+on:
+  push:
+
+  workflow_dispatch:
 
 jobs:
   pre-commit:
