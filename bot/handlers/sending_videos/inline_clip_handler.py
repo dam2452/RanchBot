@@ -29,7 +29,10 @@ from bot.handlers.bot_message_handler import (
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
-from bot.utils.functions import format_segment
+from bot.utils.functions import (
+    convert_number_to_emoji,
+    format_segment,
+)
 from bot.utils.inline_telegram import generate_error_result
 from bot.utils.log import (
     log_system_message,
@@ -150,10 +153,12 @@ class InlineClipHandler(BotMessageHandler):
         results = []
 
         if saved_clip:
+            episode_code = f"S{saved_clip.season:02d}E{saved_clip.episode_number:02d}"
             results.append(
                 await self.__upload_clip_with_cleanup(
                     saved_clip.video_data,
-                    f"💾 Zapisany klip: {saved_clip.name}", f"Sezon {saved_clip.season}, Odcinek {saved_clip.episode_number} | Czas: {saved_clip.duration:.1f}s",
+                    f"💾 Zapisany klip: {saved_clip.name}",
+                    f"{episode_code} | Czas: {saved_clip.duration:.1f}s",
                     bot,
                 ),
             )
@@ -167,8 +172,8 @@ class InlineClipHandler(BotMessageHandler):
         return results
 
     async def __upload_segment(self, segment: dict, index: int, season_info: dict, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
-        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-        end_time = segment["end"] + settings.EXTEND_AFTER
+        start_time = max(0, segment["start_time"] - settings.EXTEND_BEFORE)
+        end_time = segment["end_time"] + settings.EXTEND_AFTER
 
         if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
             return None
@@ -177,8 +182,8 @@ class InlineClipHandler(BotMessageHandler):
         try:
             segment_info = format_segment(segment, season_info)
             return await self.__cache_video(
-                f"{index}. {segment_info.episode_formatted} | {segment_info.time_formatted}",
-                segment_info.episode_title,
+                f"{convert_number_to_emoji(index)} {segment_info.episode_formatted} | {segment_info.time_formatted}",
+                f"👉🏻 {segment_info.episode_title}",
                 video_path,
                 bot,
             )
@@ -187,7 +192,7 @@ class InlineClipHandler(BotMessageHandler):
 
     async def __upload_clip_with_cleanup(self, video_data: bytes, title: str, description: str, bot: Bot) -> InlineQueryResultCachedVideo:
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=True) as tmp:
-            await asyncio.to_thread(tmp.write_bytes, video_data)
+            tmp.write(video_data)
             tmp.flush()
             return await self.__cache_video(title, description, Path(tmp.name), bot)
 
