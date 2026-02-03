@@ -57,7 +57,7 @@ class TranscriptionFinder:
                         },
                     },
                     "filter": [
-                        {"term": {"episode_metadata.series_name": series_name}}
+                        {"term": {"episode_metadata.series_name": series_name}},
                     ],
                 },
             },

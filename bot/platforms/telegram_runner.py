@@ -8,6 +8,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.factory import create_all_factories
+from bot.middlewares.aiogram_middleware_adapter import AiogramMiddlewareAdapter
 from bot.middlewares.serial_context_middleware import SerialContextMiddleware
 from bot.settings import settings
 
@@ -31,9 +32,8 @@ async def run_telegram_bot():
     )
     dp = Dispatcher(storage=MemoryStorage())
 
-    from bot.middlewares.aiogram_middleware_adapter import AiogramMiddlewareAdapter
     dp.message.middleware.register(
-        AiogramMiddlewareAdapter(SerialContextMiddleware(logger))
+        AiogramMiddlewareAdapter(SerialContextMiddleware(logger)),
     )
 
     factories = create_all_factories(logger, bot)
