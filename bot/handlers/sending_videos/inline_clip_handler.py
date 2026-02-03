@@ -153,10 +153,12 @@ class InlineClipHandler(BotMessageHandler):
         results = []
 
         if saved_clip:
+            episode_code = f"S{saved_clip.season:02d}E{saved_clip.episode_number:02d}"
             results.append(
                 await self.__upload_clip_with_cleanup(
                     saved_clip.video_data,
-                    f"💾 Zapisany klip: {saved_clip.name}", f"Sezon {saved_clip.season}, Odcinek {saved_clip.episode_number} | Czas: {saved_clip.duration:.1f}s",
+                    f"💾 Zapisany klip: {saved_clip.name}",
+                    f"{episode_code} | Czas: {saved_clip.duration:.1f}s",
                     bot,
                 ),
             )
