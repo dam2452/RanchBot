@@ -24,24 +24,26 @@ class TranscriptionFinder:
 
         return (
                 previous_segment and
-                previous_segment.get("episode_info", {}).get("season") == segment["episode_info"]["season"] and
-                previous_segment.get("episode_info", {}).get("episode_number") == segment["episode_info"][
+                previous_segment.get("episode_metadata", {}).get("season") == segment["episode_metadata"]["season"] and
+                previous_segment.get("episode_metadata", {}).get("episode_number") == segment["episode_metadata"][
                     "episode_number"
                 ] and
-                start_time <= previous_segment.get("end", 0)
+                start_time <= previous_segment.get("end_time", previous_segment.get("end", 0))
         )
     @staticmethod
     async def find_segment_by_quote(
-            quote: str, logger: logging.Logger, season_filter: Optional[int] = None,
+            quote: str, logger: logging.Logger, series_name: str = "ranczo", season_filter: Optional[int] = None,
             episode_filter: Optional[int] = None,
-            index: str = settings.ES_TRANSCRIPTION_INDEX, size: int = 1,
+            size: int = 1,
     ) -> Optional[Union[List[ObjectApiResponse], ObjectApiResponse]]:
         await log_system_message(
             logging.INFO,
-            f"Searching for quote: '{quote}' with filters - Season: {season_filter}, Episode: {episode_filter}",
+            f"Searching for quote: '{quote}' in series '{series_name}' with filters - Season: {season_filter}, Episode: {episode_filter}",
             logger,
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+
+        index = f"{series_name}_segments"
 
         query = {
             "query": {
@@ -54,16 +56,18 @@ class TranscriptionFinder:
                             },
                         },
                     },
-                    "filter": [],
+                    "filter": [
+                        {"term": {"episode_metadata.series_name": series_name}}
+                    ],
                 },
             },
         }
 
         if season_filter:
-            query["query"]["bool"]["filter"].append({"term": {"episode_info.season": season_filter}})
+            query["query"]["bool"]["filter"].append({"term": {"episode_metadata.season": season_filter}})
 
         if episode_filter:
-            query["query"]["bool"]["filter"].append({"term": {"episode_info.episode_number": episode_filter}})
+            query["query"]["bool"]["filter"].append({"term": {"episode_metadata.episode_number": episode_filter}})
 
         hits = (await es.search(index=index, body=query, size=size))["hits"]["hits"]
 
@@ -76,11 +80,11 @@ class TranscriptionFinder:
 
         for hit in hits:
             segment = hit["_source"]
-            start_time = segment["start"] - settings.EXTEND_BEFORE
-            end_time = segment["end"] + settings.EXTEND_AFTER
+            start_time = segment["start_time"] - settings.EXTEND_BEFORE
+            end_time = segment["end_time"] + settings.EXTEND_AFTER
 
             if TranscriptionFinder.is_segment_overlap(previous_segment, segment, start_time):
-                previous_segment["end"] = max(previous_segment["end"], end_time)
+                previous_segment["end_time"] = max(previous_segment.get("end_time", 0), end_time)
             else:
                 unique_segments.append(segment)
                 previous_segment = segment

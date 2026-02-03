@@ -251,3 +251,48 @@ CREATE TABLE IF NOT EXISTS user_credentials (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_credentials_user_id ON user_credentials(user_id);
+
+CREATE TABLE IF NOT EXISTS user_series_context (
+    user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    active_series VARCHAR(50) NOT NULL DEFAULT 'ranczo',
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_series_name CHECK (active_series ~ '^[a-z0-9_-]+$')
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_series_context_user_id
+    ON user_series_context(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series
+    ON user_series_context(active_series);
+
+CREATE OR REPLACE FUNCTION update_series_context_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_updated = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_series_context_timestamp
+BEFORE UPDATE ON user_series_context
+FOR EACH ROW
+EXECUTE FUNCTION update_series_context_timestamp();
+
+CREATE OR REPLACE FUNCTION ensure_user_series_context()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_series_context (user_id, active_series)
+    VALUES (NEW.user_id, 'ranczo')
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_ensure_user_series_context
+AFTER INSERT ON user_profiles
+FOR EACH ROW
+EXECUTE FUNCTION ensure_user_series_context();
+
+INSERT INTO user_series_context (user_id, active_series)
+SELECT user_id, 'ranczo'
+FROM user_profiles
+ON CONFLICT (user_id) DO NOTHING;

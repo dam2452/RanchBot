@@ -21,6 +21,7 @@ from bot.responses.sending_videos.clip_handler_responses import (
     get_no_segments_found_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
@@ -52,13 +53,16 @@ class ClipHandler(BotMessageHandler):
         content = msg.get_text().split()
         quote = " ".join(content[1:])
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger)
+        serial_manager = SerialContextManager(self._logger)
+        active_series = await serial_manager.get_user_active_series(msg.get_user_id())
+
+        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 
         segment = segments[0] if isinstance(segments, list) else segments
-        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-        end_time = segment["end"] + settings.EXTEND_AFTER
+        start_time = max(0, segment["start_time"] - settings.EXTEND_BEFORE)
+        end_time = segment["end_time"] + settings.EXTEND_AFTER
 
         clip_duration = end_time - start_time
         if await self._handle_clip_duration_limit_exceeded(clip_duration):

@@ -105,3 +105,9 @@ class ClipInfo(Serializable):
     is_compilation: bool
     season: Optional[int]
     episode_number: Optional[int]
+
+@dataclass
+class SeriesContext(Serializable):
+    user_id: int
+    active_series: str
+    last_updated: datetime

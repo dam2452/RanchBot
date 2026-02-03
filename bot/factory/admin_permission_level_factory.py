@@ -9,6 +9,7 @@ from bot.handlers import (
     AddWhitelistHandler,
     CreateKeyHandler,
     ListKeysHandler,
+    ReindexHandler,
     RemoveKeyHandler,
     RemoveSubscriptionHandler,
     RemoveWhitelistHandler,
@@ -27,6 +28,7 @@ class AdminPermissionLevelFactory(PermissionLevelFactory):
             CreateKeyHandler,
             RemoveKeyHandler,
             ListKeysHandler,
+            ReindexHandler,
         ]
 
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:

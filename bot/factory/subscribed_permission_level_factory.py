@@ -29,6 +29,7 @@ from bot.handlers import (
     SearchListHandler,
     SelectClipHandler,
     SendClipHandler,
+    SerialContextHandler,
 )
 from bot.middlewares import (
     BotMiddleware,
@@ -57,6 +58,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             SearchListHandler,
             SelectClipHandler,
             SendClipHandler,
+            SerialContextHandler,
         ]
 
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:

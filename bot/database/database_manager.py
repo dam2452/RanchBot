@@ -944,3 +944,24 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     note=row["note"],
                 )
             return None
+
+    @staticmethod
+    async def get_user_active_series(user_id: int) -> str:
+        async with DatabaseManager.get_db_connection() as conn:
+            result = await conn.fetchval(
+                "SELECT active_series FROM user_series_context WHERE user_id = $1",
+                user_id,
+            )
+            return result if result else "ranczo"
+
+    @staticmethod
+    async def set_user_active_series(user_id: int, series_name: str) -> None:
+        async with DatabaseManager.get_db_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO user_series_context (user_id, active_series)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id) DO UPDATE SET active_series = $2
+                """,
+                user_id, series_name,
+            )
