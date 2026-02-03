@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     ES_PASS: SecretStr = Field(...)
     ES_TRANSCRIPTION_INDEX: str = Field(...)
 
+    VIDEO_DATA_DIR: str = Field(...)
+
     EXTEND_BEFORE: float = Field(5)
     EXTEND_AFTER: float = Field(5)
 
