@@ -186,10 +186,14 @@ class InlineClipHandler(BotMessageHandler):
             video_path.unlink(missing_ok=True)
 
     async def __upload_clip_with_cleanup(self, video_data: bytes, title: str, description: str, bot: Bot) -> InlineQueryResultCachedVideo:
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=True) as tmp:
-            await asyncio.to_thread(tmp.write_bytes, video_data)
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp.write(video_data)
             tmp.flush()
-            return await self.__cache_video(title, description, Path(tmp.name), bot)
+            tmp_path = Path(tmp.name)
+        try:
+            return await self.__cache_video(title, description, tmp_path, bot)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     @staticmethod
     async def __cache_video(title: str, description: str, video_path: Path, bot: Bot) -> InlineQueryResultCachedVideo:
