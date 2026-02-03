@@ -33,7 +33,7 @@ class BaseTranscriptionGenerator(ABC):
 
                 self._process_file(json_file, data)
 
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except Exception as e:
                 self.logger.error(f"Failed to generate output for {json_file}: {e}")
 
     @abstractmethod

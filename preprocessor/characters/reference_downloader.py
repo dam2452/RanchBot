@@ -120,7 +120,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                     downloaded = False
                     try:
                         downloaded = self.__download_character_references(char_name, progress)
-                    except Exception as e:  # pylint: disable=broad-exception-caught
+                    except Exception as e:
                         self.logger.error(f"Failed to download references for {char_name}: {e}")
                     finally:
                         progress.advance(task)
@@ -191,7 +191,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         except TimeoutError:
             self.logger.debug(f"Timeout downloading image {img_url}")
             return None
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             if "net::ERR_CONNECTION_CLOSED" in str(e) or "Navigation" in str(e):
                 self.logger.debug(f"Connection/navigation error for {img_url}: {e}")
             else:
@@ -253,7 +253,7 @@ class CharacterReferenceDownloader(BaseProcessor):
 
                             try:
                                 face_count = self.__count_faces(img)
-                            except Exception as face_err:  # pylint: disable=broad-exception-caught
+                            except Exception as face_err:
                                 self.logger.debug(f"Face detection failed for {img_url}: {face_err}")
                                 continue
 
@@ -263,7 +263,7 @@ class CharacterReferenceDownloader(BaseProcessor):
                                 cv2.imwrite(str(path), img)
                                 saved_count += 1
 
-                        except Exception as e:  # pylint: disable=broad-exception-caught
+                        except Exception as e:
                             self.logger.debug(f"Error processing image: {e}")
                             continue
 
@@ -275,7 +275,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             except KeyboardInterrupt:
                 progress.console.print("\n[yellow]Download interrupted[/yellow]")
                 raise
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except Exception as e:
                 if attempt < settings.image_scraper.retry_attempts - 1:
                     delay = settings.image_scraper.retry_delay * (2 ** attempt)
                     self.logger.warning(

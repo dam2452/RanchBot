@@ -49,7 +49,7 @@ class EpisodeInfoProcessor:
             _, new_json_name = self.__write_episode_json(transcription, episode_info)
             self.__rename_original_file(transcription_file, new_json_name)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error processing file {transcription_file}: {e}")
 
     @staticmethod

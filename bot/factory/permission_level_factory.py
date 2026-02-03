@@ -17,7 +17,10 @@ from aiogram import (
     Dispatcher,
 )
 from aiogram.filters import Command
-from aiogram.types import Message as AiogramMessage
+from aiogram.types import (
+    InlineQuery,
+    Message as AiogramMessage,
+)
 
 from bot.adapters.telegram.telegram_message import TelegramMessage
 from bot.adapters.telegram.telegram_responder import TelegramResponder
@@ -90,3 +93,6 @@ class PermissionLevelFactory(ABC):
     @abstractmethod
     def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         pass
+
+    def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
+        return None

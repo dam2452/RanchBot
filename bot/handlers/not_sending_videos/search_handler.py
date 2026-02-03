@@ -49,7 +49,7 @@ class SearchHandler(BotMessageHandler):
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, return_all=True)
+        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, size=10000)
         if not segments:
             await self.__reply_no_segments_found(quote)
             return

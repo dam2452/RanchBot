@@ -61,7 +61,7 @@ def copy_and_fix_file(source_dir: Path, filename_base: str, season: int, episode
         print(f"  Created: {txt_dst}")
 
         return True
-    except Exception as e: # pylint: disable=broad-exception-caught
+    except Exception as e:
         print(f"  ERROR: {e}")
         return False
 

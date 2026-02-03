@@ -49,7 +49,7 @@ class BotMessageHandler(ABC):
                     return
 
             await self._do_handle()
-        except Exception as e: # pylint: disable=broad-exception-caught
+        except Exception as e:
             await self._responder.send_text(get_general_error_message())
             await self._log_system_message(
                 logging.ERROR,
@@ -102,8 +102,8 @@ class BotMessageHandler(ABC):
             await self._responder.send_video(file_path)
             await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
 
-    async def _answer_document(self, file_path: Path, caption: str) -> None:
-        await self._responder.send_document(file_path, caption)
+    async def _answer_document(self, file_path: Path, caption: str, cleanup_dir: Optional[Path] = None) -> None:
+        await self._responder.send_document(file_path, caption, cleanup_dir=cleanup_dir)
         await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
 
     @abstractmethod

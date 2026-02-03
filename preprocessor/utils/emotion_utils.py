@@ -78,7 +78,7 @@ def crop_face_from_frame(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np
 
         return face_crop
 
-    except Exception: # pylint: disable=broad-exception-caught
+    except Exception:
         return None
 
 
@@ -110,7 +110,7 @@ def detect_emotions_batch(
 
                 results.append((dominant_emotion, confidence, emotion_scores))
 
-        except Exception: # pylint: disable=broad-exception-caught
+        except Exception:
             for face_img in batch:
                 try:
                     emotion, scores = model.predict_emotions(face_img, logits=False)
@@ -121,7 +121,7 @@ def detect_emotions_batch(
                     confidence = float(max(scores))
                     dominant_emotion = emotion.lower()
                     results.append((dominant_emotion, confidence, emotion_scores))
-                except Exception: # pylint: disable=broad-exception-caught
+                except Exception:
                     results.append(None)
 
     return results

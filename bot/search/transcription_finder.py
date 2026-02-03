@@ -34,7 +34,7 @@ class TranscriptionFinder:
     async def find_segment_by_quote(
             quote: str, logger: logging.Logger, season_filter: Optional[int] = None,
             episode_filter: Optional[int] = None,
-            index: str = settings.ES_TRANSCRIPTION_INDEX, return_all: bool = False,
+            index: str = settings.ES_TRANSCRIPTION_INDEX, size: int = 1,
     ) -> Optional[Union[List[ObjectApiResponse], ObjectApiResponse]]:
         await log_system_message(
             logging.INFO,
@@ -65,7 +65,7 @@ class TranscriptionFinder:
         if episode_filter:
             query["query"]["bool"]["filter"].append({"term": {"episode_info.episode_number": episode_filter}})
 
-        hits = (await es.search(index=index, body=query, size=(10000 if return_all else 1)))["hits"]["hits"]
+        hits = (await es.search(index=index, body=query, size=size))["hits"]["hits"]
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
@@ -90,11 +90,10 @@ class TranscriptionFinder:
             logger,
         )
 
-        if return_all:
-            return unique_segments
+        if unique_segments:
+            return unique_segments[0] if size == 1 else unique_segments
 
-        return unique_segments[0] if unique_segments else None
-
+        return None
 
 
     @staticmethod
@@ -110,7 +109,7 @@ class TranscriptionFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, season_filter, episode_filter, index, return_all=False)
+        segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, season_filter, episode_filter, index)
         if not segment:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None

@@ -50,7 +50,7 @@ class AudioNormalizer:
 
             self.__normalize(video=video, audio_idx=audio_idx, output=output_path)
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error processing video {video}: {e}")
 
     def __get_best_audio_stream(self, video: Path) -> Optional[int]:

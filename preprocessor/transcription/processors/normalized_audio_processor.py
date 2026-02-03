@@ -84,7 +84,7 @@ class NormalizedAudioProcessor:
                 json.dump(result, f, ensure_ascii=False, indent=2)
 
             self.__logger.info(f"Processed: {normalized_audio}")
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.__logger.error(f"Error processing file {normalized_audio}: {e}")
 
     def cleanup(self) -> None:

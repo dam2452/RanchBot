@@ -87,7 +87,7 @@ class EpisodeNameEmbedder:
             embedding = embeddings_tensor[0].cpu().numpy()
             del embeddings_tensor
             return embedding
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Failed to generate embedding for title '{title}': {e}")
             return None
 

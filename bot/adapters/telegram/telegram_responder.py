@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 from typing import Optional
 
 from aiogram.types import (
@@ -56,14 +57,16 @@ class TelegramResponder(AbstractResponder):
         if delete_after_send:
             file_path.unlink()
 
-    async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True) -> None:
+    async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True, cleanup_dir: Optional[Path] = None) -> None:
         await self._message.answer_document(
             document=FSInputFile(file_path),
             caption=caption,
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )
-        if delete_after_send:
+        if cleanup_dir:
+            shutil.rmtree(cleanup_dir, ignore_errors=True)
+        elif delete_after_send:
             file_path.unlink()
     async def send_json(self, data: json) -> None:
         raise NotImplementedError("JSON mode not supported for TelegramResponder")

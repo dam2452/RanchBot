@@ -59,6 +59,6 @@ class ScraperCrawl4AI:
                 logger.error(f"Crawl4AI failed: {result.error_message}")
                 return None
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             logger.error(f"Crawl4AI error: {e}")
             return None

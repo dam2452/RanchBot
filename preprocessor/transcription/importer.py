@@ -75,7 +75,7 @@ class TranscriptionImporter(BaseProcessor):
                         self.__import_single_file(json_file)
                         if self.state_manager:
                             self.state_manager.mark_step_completed("import", episode_id)
-                    except Exception as e:  # pylint: disable=broad-exception-caught
+                    except Exception as e:
                         self.logger.error(f"Failed to import {json_file.name}: {e}")
 
                     progress.advance(task)

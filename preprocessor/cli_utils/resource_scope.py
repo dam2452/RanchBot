@@ -15,5 +15,5 @@ class ResourceScope:
                 try:
                     torch.cuda.synchronize()
                     torch.cuda.empty_cache()
-                except Exception:   # pylint: disable=broad-exception-caught
+                except Exception:
                     pass

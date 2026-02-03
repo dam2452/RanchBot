@@ -48,7 +48,7 @@ def load_image_hashes_for_episode(episode_info_dict: Dict[str, Any], logger=None
                 hash_map[frame_num] = phash
 
         return hash_map
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         if logger:
             logger.error(f"Failed to load image hashes: {e}")
         return {}

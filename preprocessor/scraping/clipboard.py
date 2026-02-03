@@ -32,6 +32,6 @@ class ScraperClipboard:
                 browser.close()
                 return clipboard_text
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             logger.error(f"Clipboard scraping failed: {e}")
             return None

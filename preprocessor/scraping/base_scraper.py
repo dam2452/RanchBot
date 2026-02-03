@@ -67,7 +67,7 @@ class BaseScraper(BaseProcessor):
 
         try:
             self._process_scraped_pages(scraped_pages)
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"LLM processing failed: {e}")
 
     def _scrape_all_urls(self) -> List[Dict[str, Any]]:
@@ -87,7 +87,7 @@ class BaseScraper(BaseProcessor):
                             progress.console.print(f"[green]✓[/green] {url}: {len(page_text)} chars")
                         else:
                             self.logger.error(f"Failed to scrape {url}")
-                    except Exception as e:  # pylint: disable=broad-exception-caught
+                    except Exception as e:
                         self.logger.error(f"Error scraping {url}: {e}")
                     finally:
                         progress.advance(task)

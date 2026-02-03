@@ -381,7 +381,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                     detections_dict[frame_file] = detection.get("characters", [])
 
             return detections_dict
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Error loading character detections: {e}")
             return {}
 
@@ -406,7 +406,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 detections_dict[frame_name] = frame_data.get("detections", [])
 
             return detections_dict
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             self.logger.error(f"Error loading object detections: {e}")
             return {}
 

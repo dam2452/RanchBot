@@ -52,7 +52,7 @@ class ClipHandler(BotMessageHandler):
         content = msg.get_text().split()
         quote = " ".join(content[1:])
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, return_all=False)
+        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 

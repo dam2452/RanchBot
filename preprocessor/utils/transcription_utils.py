@@ -29,7 +29,7 @@ def fix_unicode_escapes(text: str) -> str:
         unicode_str = match.group(0)
         try:
             return codecs.decode(unicode_str, 'unicode_escape')
-        except Exception: #pylint: disable=broad-exception-caught
+        except Exception:
             return unicode_str
 
     pattern = r'\\u[0-9a-fA-F]{4}'
@@ -53,5 +53,5 @@ def fix_transcription_file_unicode(file_path: Path) -> bool:
             return True
 
         return False
-    except Exception: #pylint: disable=broad-exception-caught
+    except Exception:
         return False
