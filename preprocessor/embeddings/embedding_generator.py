@@ -131,13 +131,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                     data = json.load(f)
                 segments = data.get("segments", [])
                 if not segments:
-                    episode_info = self.episode_manager.parse_filename(trans_file)
                     episode_id = item.episode_id
-                    if episode_info:
-                        self.logger.warning(
-                            f"Empty clean transcription (no segments) for {episode_id}, skipping",
-                        )
-                    return True, [], f"[yellow]Skipping (empty transcription): {episode_id}[/yellow]"
+                    self.logger.warning(
+                        f"Empty clean transcription (no text segments) for {episode_id}, "
+                        f"will skip text embeddings but generate other types (sound events, episode names, etc.)",
+                    )
             except Exception as e:
                 self.logger.error(f"Failed to read {clean_transcription_file}: {e}")
 
