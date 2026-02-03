@@ -1,4 +1,5 @@
 import pytest
+
 from bot.database.database_manager import DatabaseManager
 
 
@@ -33,7 +34,7 @@ async def test_trigger_auto_create_context():
     await DatabaseManager.add_user(
         user_id=user_id,
         username="testuser",
-        full_name="Test User"
+        full_name="Test User",
     )
 
     series = await DatabaseManager.get_user_active_series(user_id)

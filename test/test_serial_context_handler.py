@@ -1,5 +1,10 @@
+from unittest.mock import (
+    AsyncMock,
+    MagicMock,
+)
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from bot.handlers.not_sending_videos.serial_context_handler import SerialContextHandler
 
 

@@ -1,9 +1,12 @@
 import io
 import json
 import logging
-import zipfile
 from pathlib import Path
-from typing import Dict, List
+from typing import (
+    Dict,
+    List,
+)
+import zipfile
 
 
 class ZipExtractor:
@@ -50,17 +53,16 @@ class ZipExtractor:
     def _detect_type_from_filename(self, filename: str) -> str:
         if 'text_segments' in filename:
             return 'text_segments'
-        elif 'text_embeddings' in filename:
+        if 'text_embeddings' in filename:
             return 'text_embeddings'
-        elif 'video_frames' in filename:
+        if 'video_frames' in filename:
             return 'video_frames'
-        elif 'episode_name' in filename:
+        if 'episode_name' in filename:
             return 'episode_names'
-        elif 'full_episode_embedding' in filename:
+        if 'full_episode_embedding' in filename:
             return 'full_episode_embeddings'
-        elif 'sound_event_embeddings' in filename:
+        if 'sound_event_embeddings' in filename:
             return 'sound_event_embeddings'
-        elif 'sound_events' in filename:
+        if 'sound_events' in filename:
             return 'sound_events'
-        else:
-            return None
+        return None

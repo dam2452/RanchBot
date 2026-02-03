@@ -1,6 +1,8 @@
-import pytest
-from bot.services.reindex.reindex_service import ReindexService
 import logging
+
+import pytest
+
+from bot.services.reindex.reindex_service import ReindexService
 
 
 @pytest.fixture
@@ -9,13 +11,13 @@ def logger():
 
 
 @pytest.mark.asyncio
-async def test_reindex_single_series(logger):
+async def test_reindex_single_series(logger): # pylint: disable=redefined-outer-name
     pytest.skip("Integration test - requires Elasticsearch")
     service = ReindexService(logger)
 
     progress_messages = []
 
-    async def progress_callback(msg, cur, tot):
+    async def progress_callback(msg, cur, tot): # pylint: disable=unused-argument
         progress_messages.append(msg)
 
     result = await service.reindex_series("ranczo", progress_callback)
@@ -27,10 +29,10 @@ async def test_reindex_single_series(logger):
 
 
 @pytest.mark.asyncio
-async def test_reindex_invalid_series(logger):
+async def test_reindex_invalid_series(logger): # pylint: disable=redefined-outer-name
     service = ReindexService(logger)
 
-    async def progress_callback(msg, cur, tot):
+    async def progress_callback(msg, cur, tot): # pylint: disable=unused-argument
         pass
 
     with pytest.raises(ValueError, match="No zip files found"):
@@ -38,11 +40,11 @@ async def test_reindex_invalid_series(logger):
 
 
 @pytest.mark.asyncio
-async def test_reindex_all_new(logger):
+async def test_reindex_all_new(logger): # pylint: disable=redefined-outer-name
     pytest.skip("Integration test - requires Elasticsearch")
     service = ReindexService(logger)
 
-    async def progress_callback(msg, cur, tot):
+    async def progress_callback(msg, cur, tot): # pylint: disable=unused-argument
         pass
 
     results = await service.reindex_all_new(progress_callback)

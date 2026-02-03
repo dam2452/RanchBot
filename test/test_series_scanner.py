@@ -1,6 +1,8 @@
-import pytest
-from bot.services.reindex.series_scanner import SeriesScanner
 import logging
+
+import pytest
+
+from bot.services.reindex.series_scanner import SeriesScanner
 
 
 @pytest.fixture
@@ -8,7 +10,7 @@ def logger():
     return logging.getLogger("test")
 
 
-def test_scan_all_series(logger):
+def test_scan_all_series(logger): # pylint: disable=redefined-outer-name
     scanner = SeriesScanner(logger)
     series = scanner.scan_all_series()
 
@@ -17,7 +19,7 @@ def test_scan_all_series(logger):
         assert "ranczo" in series
 
 
-def test_detect_series_from_filename(logger):
+def test_detect_series_from_filename(logger): # pylint: disable=redefined-outer-name
     scanner = SeriesScanner(logger)
 
     filename = "ranczo_S01E01_elastic_documents.zip"
@@ -29,7 +31,7 @@ def test_detect_series_from_filename(logger):
     assert series2 == "kiepscy"
 
 
-def test_extract_episode_code(logger):
+def test_extract_episode_code(logger): # pylint: disable=redefined-outer-name
     scanner = SeriesScanner(logger)
 
     filename = "ranczo_S01E01.mp4"
@@ -41,7 +43,7 @@ def test_extract_episode_code(logger):
     assert code2 == "S10E13"
 
 
-def test_scan_series_zips(logger):
+def test_scan_series_zips(logger): # pylint: disable=redefined-outer-name
     scanner = SeriesScanner(logger)
     zips = scanner.scan_series_zips("ranczo")
 
@@ -50,7 +52,7 @@ def test_scan_series_zips(logger):
         assert all("ranczo" in str(z).lower() for z in zips)
 
 
-def test_scan_series_mp4s(logger):
+def test_scan_series_mp4s(logger): # pylint: disable=redefined-outer-name
     scanner = SeriesScanner(logger)
     mp4s = scanner.scan_series_mp4s("ranczo")
 

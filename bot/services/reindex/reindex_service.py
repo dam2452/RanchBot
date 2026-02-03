@@ -1,11 +1,21 @@
+from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Callable, Awaitable, List, Dict, Optional
-from dataclasses import dataclass
+import re
+from typing import (
+    Awaitable,
+    Callable,
+    Dict,
+    List,
+    Optional,
+)
+
+from elasticsearch.helpers import async_bulk
 
 from bot.services.reindex.series_scanner import SeriesScanner
-from bot.services.reindex.zip_extractor import ZipExtractor
 from bot.services.reindex.video_path_transformer import VideoPathTransformer
+from bot.services.reindex.zip_extractor import ZipExtractor
+from bot.settings import settings
 from preprocessor.search.elastic_manager import ElasticSearchManager
 
 
@@ -37,17 +47,16 @@ class ReindexService:
 
     async def _init_elasticsearch(self):
         if self.es_manager is None:
-            from bot.settings import settings
             self.es_manager = await ElasticSearchManager.connect_to_elasticsearch(
                 settings.ES_HOST,
                 settings.ES_USER,
                 settings.ES_PASS.get_secret_value(),
-                self.logger
+                self.logger,
             )
 
     async def reindex_all(
         self,
-        progress_callback: Callable[[str, int, int], Awaitable[None]]
+        progress_callback: Callable[[str, int, int], Awaitable[None]],
     ) -> List[ReindexResult]:
         await self._init_elasticsearch()
 
@@ -59,7 +68,7 @@ class ReindexService:
             await progress_callback(
                 f"Processing series {idx+1}/{total_series}: {series_name}",
                 idx,
-                total_series
+                total_series,
             )
 
             result = await self.reindex_series(series_name, progress_callback)
@@ -69,7 +78,7 @@ class ReindexService:
 
     async def reindex_all_new(
         self,
-        progress_callback: Callable[[str, int, int], Awaitable[None]]
+        progress_callback: Callable[[str, int, int], Awaitable[None]],
     ) -> List[ReindexResult]:
         await self._init_elasticsearch()
 
@@ -78,7 +87,7 @@ class ReindexService:
 
         for series_name in all_series:
             index_exists = await self.es_manager.indices.exists(
-                index=f"{series_name}_segments"
+                index=f"{series_name}_segments",
             )
             if not index_exists:
                 new_series.append(series_name)
@@ -94,7 +103,7 @@ class ReindexService:
             await progress_callback(
                 f"Processing new series {idx+1}/{total_series}: {series_name}",
                 idx,
-                total_series
+                total_series,
             )
 
             result = await self.reindex_series(series_name, progress_callback)
@@ -102,10 +111,10 @@ class ReindexService:
 
         return results
 
-    async def reindex_series(
+    async def reindex_series( # pylint: disable=too-many-locals
         self,
         series_name: str,
-        progress_callback: Callable[[str, int, int], Awaitable[None]]
+        progress_callback: Callable[[str, int, int], Awaitable[None]],
     ) -> ReindexResult:
         await self._init_elasticsearch()
 
@@ -132,7 +141,7 @@ class ReindexService:
                 await progress_callback(
                     f"Processing {episode_code}... ({idx+1}/{total_episodes})",
                     progress_pct,
-                    100
+                    100,
                 )
 
                 mp4_path = mp4_map.get(episode_code)
@@ -150,7 +159,7 @@ class ReindexService:
                     await self._bulk_index_documents(
                         index_name,
                         jsonl_type,
-                        documents
+                        documents,
                     )
 
                     indexed_count += len(documents)
@@ -166,7 +175,7 @@ class ReindexService:
             series_name=series_name,
             episodes_processed=total_episodes - len(errors),
             documents_indexed=indexed_count,
-            errors=errors
+            errors=errors,
         )
 
     async def _delete_series_indices(self, series_name: str):
@@ -177,7 +186,7 @@ class ReindexService:
             "episode_names",
             "full_episode_embeddings",
             "sound_events",
-            "sound_event_embeddings"
+            "sound_event_embeddings",
         ]
 
         for index_type in index_types:
@@ -193,22 +202,20 @@ class ReindexService:
         self,
         index_name: str,
         index_type: str,
-        documents: List[Dict]
+        documents: List[Dict],
     ):
-        from elasticsearch.helpers import async_bulk
-
         mapping = self._get_mapping_for_type(index_type)
 
         if not await self.es_manager.indices.exists(index=index_name):
             await self.es_manager.indices.create(
                 index=index_name,
-                body=mapping
+                body=mapping,
             )
 
         actions = [
             {
                 "_index": index_name,
-                "_source": doc
+                "_source": doc,
             }
             for doc in documents
         ]
@@ -217,7 +224,7 @@ class ReindexService:
             self.es_manager,
             actions,
             chunk_size=50,
-            max_chunk_bytes=5 * 1024 * 1024
+            max_chunk_bytes=5 * 1024 * 1024,
         )
 
         self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
@@ -238,7 +245,6 @@ class ReindexService:
         return f"{series_name}_{jsonl_type}"
 
     def _extract_episode_code(self, zip_path: Path) -> str:
-        import re
         match = re.search(r'(S\d{2}E\d{2})', zip_path.name)
         if match:
             return match.group(1)

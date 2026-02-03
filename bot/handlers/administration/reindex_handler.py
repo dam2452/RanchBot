@@ -6,17 +6,17 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.services.reindex.reindex_service import ReindexService
 from bot.responses.administration.reindex_handler_responses import (
-    get_reindex_usage_message,
-    get_reindex_started_message,
-    get_reindex_progress_message,
-    get_reindex_complete_message,
-    get_reindex_error_message,
+    get_no_new_series_message,
     get_reindex_all_complete_message,
     get_reindex_all_new_complete_message,
-    get_no_new_series_message,
+    get_reindex_complete_message,
+    get_reindex_error_message,
+    get_reindex_progress_message,
+    get_reindex_started_message,
+    get_reindex_usage_message,
 )
+from bot.services.reindex.reindex_service import ReindexService
 
 
 class ReindexHandler(BotMessageHandler):
@@ -36,14 +36,14 @@ class ReindexHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 1, get_reindex_usage_message()
+            self._message, 1, get_reindex_usage_message(),
         )
 
     async def __check_target_valid(self) -> bool:
         args = self._message.get_text().split()
         target = args[1]
 
-        if target in ["all", "all-new"]:
+        if target in {"all", "all-new"}:
             return True
 
         if not target.replace('_', '').replace('-', '').isalnum():
@@ -66,7 +66,7 @@ class ReindexHandler(BotMessageHandler):
                 total_docs = sum(r.documents_indexed for r in results)
                 total_eps = sum(r.episodes_processed for r in results)
                 await self.reply(
-                    get_reindex_all_complete_message(len(results), total_eps, total_docs)
+                    get_reindex_all_complete_message(len(results), total_eps, total_docs),
                 )
             elif target == "all-new":
                 results = await self.reindex_service.reindex_all_new(progress_callback)
@@ -76,24 +76,24 @@ class ReindexHandler(BotMessageHandler):
                 total_docs = sum(r.documents_indexed for r in results)
                 total_eps = sum(r.episodes_processed for r in results)
                 await self.reply(
-                    get_reindex_all_new_complete_message(len(results), total_eps, total_docs)
+                    get_reindex_all_new_complete_message(len(results), total_eps, total_docs),
                 )
             else:
                 result = await self.reindex_service.reindex_series(
-                    target, progress_callback
+                    target, progress_callback,
                 )
                 await self.reply(get_reindex_complete_message(result))
 
             await self._log_system_message(
                 logging.INFO,
-                f"Reindex complete for target: {target}"
+                f"Reindex complete for target: {target}",
             )
         except Exception as e:
             await self.reply_error(get_reindex_error_message(str(e)))
+            self._logger.exception(f"Reindex failed: {e}")
             await self._log_system_message(
                 logging.ERROR,
                 f"Reindex failed: {e}",
-                exc_info=True
             )
 
     def _create_progress_callback(self):

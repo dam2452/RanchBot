@@ -1,5 +1,8 @@
 import logging
-from typing import Any, Callable
+from typing import (
+    Any,
+    Callable,
+)
 
 from aiogram import types
 from aiogram.dispatcher.middlewares.base import BaseMiddleware
@@ -17,7 +20,7 @@ class SerialContextMiddleware(BaseMiddleware):
         self,
         handler: Callable,
         event: types.Message,
-        data: dict
+        data: dict,
     ) -> Any:
         user_id = event.from_user.id
 

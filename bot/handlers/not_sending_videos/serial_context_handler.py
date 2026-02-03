@@ -5,13 +5,13 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.responses.not_sending_videos.serial_context_handler_responses import (
-    get_serial_usage_message,
     get_serial_changed_message,
-    get_serial_invalid_message,
     get_serial_current_message,
+    get_serial_invalid_message,
+    get_serial_usage_message,
 )
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 
 
 class SerialContextHandler(BotMessageHandler):
@@ -42,7 +42,7 @@ class SerialContextHandler(BotMessageHandler):
 
         if len(args) == 1:
             current_series = await self.serial_manager.get_user_active_series(
-                user_id
+                user_id,
             )
             await self.reply(get_serial_current_message(current_series))
             return
@@ -52,7 +52,7 @@ class SerialContextHandler(BotMessageHandler):
         available_series = await self.serial_manager.list_available_series()
         if series_name not in available_series:
             await self.reply_error(
-                get_serial_invalid_message(series_name, available_series)
+                get_serial_invalid_message(series_name, available_series),
             )
             return
 
@@ -61,5 +61,5 @@ class SerialContextHandler(BotMessageHandler):
         await self.reply(get_serial_changed_message(series_name))
         await self._log_system_message(
             logging.INFO,
-            f"User {user_id} changed series to: {series_name}"
+            f"User {user_id} changed series to: {series_name}",
         )
