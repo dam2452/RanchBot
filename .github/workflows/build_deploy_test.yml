@@ -36,19 +36,12 @@ jobs:
         run: |
           echo "$SECRETS" > .env
           docker compose --env-file .env pull --policy always
-          docker compose --env-file .env --project-name bot-test up -d
-
-      - name: Wait for test bot
-        run: |
-          echo "Waiting for services to be healthy..."
-          sleep 10
-          if docker ps --format '{{.Names}}' | grep -qx 'bot-test-bot-1'; then
-              echo The bot has been up an running for the first 10 seconds, OK.
-          else
-              echo The bot crashed
-              docker logs bot-test-bot-1
-              exit 1
+          if ! docker compose --env-file .env --project-name bot-test up -d --wait; then
+            echo "Bot failed to start or become healthy"
+            docker logs bot-test-bot-1
+            exit 1
           fi
+          echo "Bot is healthy and ready"
 
       - name: Set up Python
         uses: actions/setup-python@v6
