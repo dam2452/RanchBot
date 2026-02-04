@@ -13,6 +13,7 @@ on:
 jobs:
   build_and_test_staging:
     runs-on: self-hosted
+    environment: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -33,13 +34,11 @@ jobs:
 
       - name: Deploy test bot
         env:
-          SECRETS: ${{ secrets.BOT_TEST_ENV }}
           IMAGE_TAG: test
           RESTART_POLICY: no
         run: |
-          echo "$SECRETS" > .env
-          docker compose --env-file .env pull --policy always
-          if ! docker compose --env-file .env --project-name bot-test up -d --wait; then
+          docker compose pull --policy always
+          if ! docker compose --project-name bot-test up -d --wait; then
             echo "Bot failed to start or become healthy"
             docker logs bot-test-bot-1
             exit 1
@@ -53,12 +52,10 @@ jobs:
 
       - name: Run E2E Tests
         env:
-          SECRETS: ${{ secrets.BOT_TEST_ENV }}
           PIP_ROOT_USER_ACTION: ignore
         run: |
-          echo "$SECRETS" > .env
           python3 -m pip install -r requirements.txt
-          python3 -m dotenv run pytest
+          python3 -m pytest
 
   build_production:
     needs: build_and_test_staging
