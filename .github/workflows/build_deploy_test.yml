@@ -9,6 +9,12 @@ on:
     types: [submitted]
 
   workflow_dispatch:
+    inputs:
+      disable_tests:
+        description: 'Disable E2E Tests'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build_and_test_staging:
@@ -52,6 +58,7 @@ jobs:
           python-version: '3.12'
 
       - name: Run E2E Tests
+        if: ${{ inputs.disable_tests != true }}
         env:
           SECRETS: ${{ secrets.BOT_TEST_ENV }}
           PIP_ROOT_USER_ACTION: ignore
