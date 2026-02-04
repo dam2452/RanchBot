@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import asyncio
 import logging
 from pathlib import Path
 import re
@@ -227,11 +228,12 @@ class ReindexService:
             await async_bulk(
                 self.es_manager,
                 actions,
-                chunk_size=50,
-                max_chunk_bytes=5 * 1024 * 1024,
+                chunk_size=25,
+                max_chunk_bytes=2 * 1024 * 1024,
                 raise_on_error=False,
             )
             self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
+            await asyncio.sleep(0.1)
         except BulkIndexError as e:
             self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
             for error in e.errors[:3]:
