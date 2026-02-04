@@ -24,6 +24,7 @@ class ReindexHandler(BotMessageHandler):
         super().__init__(message, responder, logger)
         self.reindex_service = ReindexService(logger)
         self.last_progress_time = 0
+        self.progress_message = None
 
     def get_commands(self) -> List[str]:
         return ["reindeksuj", "reindex", "ridx"]
@@ -100,11 +101,16 @@ class ReindexHandler(BotMessageHandler):
         async def callback(message: str, current: int, total: int):
             now = time.time()
 
-            if now - self.last_progress_time < 2:
+            if now - self.last_progress_time < 1:
                 return
 
             self.last_progress_time = now
 
-            await self.reply(get_reindex_progress_message(message, current, total))
+            progress_text = get_reindex_progress_message(message, current, total)
+
+            if hasattr(self._responder, 'edit_text') and self.progress_message:
+                await self._responder.edit_text(self.progress_message, progress_text)
+            else:
+                self.progress_message = await self._responder.send_markdown(progress_text)
 
         return callback

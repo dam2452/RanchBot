@@ -10,7 +10,9 @@ def get_reindex_progress_message(message: str, current: int, total: int) -> str:
     if total == 0:
         return f"🔄 {message}"
     percentage = int((current / total) * 100)
-    return f"🔄 {message} ({percentage}%)"
+    filled = int(percentage / 10)
+    progress_bar = "█" * filled + "░" * (10 - filled)
+    return f"🔄 {message}\n\n{progress_bar} {percentage}%"
 
 
 def get_reindex_complete_message(result) -> str:

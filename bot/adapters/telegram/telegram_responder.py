@@ -18,11 +18,17 @@ class TelegramResponder(AbstractResponder):
     def __init__(self, message: Message) -> None:
         self._message = message
 
-    async def send_text(self, text: str) -> None:
-        await self._message.answer(text, reply_to_message_id=self._message.message_id, disable_notification=True)
+    async def send_text(self, text: str) -> Optional[Message]:
+        return await self._message.answer(text, reply_to_message_id=self._message.message_id, disable_notification=True)
 
-    async def send_markdown(self, text: str) -> None:
-        await self._message.answer(text, parse_mode="Markdown", reply_to_message_id=self._message.message_id, disable_notification=True)
+    async def send_markdown(self, text: str) -> Optional[Message]:
+        return await self._message.answer(text, parse_mode="Markdown", reply_to_message_id=self._message.message_id, disable_notification=True)
+
+    async def edit_text(self, message: Message, text: str) -> None:
+        try:
+            await message.edit_text(text, parse_mode="Markdown")
+        except Exception:
+            pass
 
     async def send_photo(self, image_bytes: bytes, image_path: Path, caption: str) -> None:
         await self._message.answer_photo(
