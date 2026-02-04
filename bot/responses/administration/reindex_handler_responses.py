@@ -9,10 +9,19 @@ def get_reindex_started_message(target: str) -> str:
 def get_reindex_progress_message(message: str, current: int, total: int) -> str:
     if total == 0:
         return f"🔄 {message}"
+
     percentage = int((current / total) * 100)
-    filled = int(percentage / 10)
-    progress_bar = "█" * filled + "░" * (10 - filled)
-    return f"🔄 {message}\n\n{progress_bar} {percentage}%"
+    bar_length = 20
+    filled = int((percentage / 100) * bar_length)
+
+    progress_bar = "🟩" * filled + "⬜" * (bar_length - filled)
+
+    return (
+        f"🔄 *Reindeksowanie w toku*\n\n"
+        f"📝 {message}\n\n"
+        f"{progress_bar}\n\n"
+        f"📊 Postęp: *{percentage}%* ({current}/{total})"
+    )
 
 
 def get_reindex_complete_message(result) -> str:

@@ -10,7 +10,10 @@ from typing import (
     Optional,
 )
 
-from elasticsearch.helpers import async_bulk
+from elasticsearch.helpers import (
+    BulkIndexError,
+    async_bulk,
+)
 
 from bot.services.reindex.series_scanner import SeriesScanner
 from bot.services.reindex.video_path_transformer import VideoPathTransformer
@@ -220,14 +223,20 @@ class ReindexService:
             for doc in documents
         ]
 
-        await async_bulk(
-            self.es_manager,
-            actions,
-            chunk_size=50,
-            max_chunk_bytes=5 * 1024 * 1024,
-        )
-
-        self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
+        try:
+            await async_bulk(
+                self.es_manager,
+                actions,
+                chunk_size=50,
+                max_chunk_bytes=5 * 1024 * 1024,
+                raise_on_error=False,
+            )
+            self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
+        except BulkIndexError as e:
+            self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
+            for error in e.errors[:3]:
+                self.logger.warning(f"Sample error: {error}")
+            raise
 
     def _get_mapping_for_type(self, index_type: str):
         mappings = {

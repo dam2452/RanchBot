@@ -43,7 +43,7 @@ class TranscriptionFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        index = f"{series_name}_segments"
+        index = f"{series_name}_text_segments"
 
         query = {
             "query": {
