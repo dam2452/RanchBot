@@ -19,6 +19,7 @@ from bot.responses.not_sending_videos.search_handler_responses import (
     get_log_search_results_sent_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
 
 
@@ -49,7 +50,14 @@ class SearchHandler(BotMessageHandler):
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, size=10000)
+        serial_manager = SerialContextManager(self._logger)
+        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
+
+        if not active_series:
+            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
+            return
+
+        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series, size=10000)
         if not segments:
             await self.__reply_no_segments_found(quote)
             return
@@ -58,6 +66,7 @@ class SearchHandler(BotMessageHandler):
             chat_id=self._message.get_chat_id(),
             quote=quote,
             segments=json.dumps(segments),
+            series_name=active_series,
         )
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)

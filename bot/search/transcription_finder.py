@@ -32,7 +32,7 @@ class TranscriptionFinder:
         )
     @staticmethod
     async def find_segment_by_quote(
-            quote: str, logger: logging.Logger, series_name: str = "ranczo", season_filter: Optional[int] = None,
+            quote: str, logger: logging.Logger, series_name: str, season_filter: Optional[int] = None,
             episode_filter: Optional[int] = None,
             size: int = 1,
     ) -> Optional[Union[List[ObjectApiResponse], ObjectApiResponse]]:

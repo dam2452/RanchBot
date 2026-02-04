@@ -20,7 +20,7 @@ class SerialContextHandler(BotMessageHandler):
         self.serial_manager = SerialContextManager(logger)
 
     def get_commands(self) -> List[str]:
-        return ["serial", "series" ,"sri"]
+        return ["serial", "series" ,"ser"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [

@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS user_logs (
     id SERIAL,
     user_id BIGINT,
     command TEXT NOT NULL,
+    series_name VARCHAR(50),
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     PRIMARY KEY (id, timestamp)
 ) PARTITION BY RANGE (timestamp);
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS user_logs_2030 PARTITION OF user_logs
     FOR VALUES FROM ('2030-01-01') TO ('2031-01-01');
 
 CREATE INDEX IF NOT EXISTS idx_user_logs_user_id ON user_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_logs_series_name ON user_logs(series_name);
 
 CREATE TABLE IF NOT EXISTS system_logs (
     id SERIAL PRIMARY KEY,
@@ -75,11 +77,13 @@ CREATE TABLE IF NOT EXISTS video_clips (
     duration FLOAT,
     season INT,
     episode_number INT,
-    is_compilation BOOLEAN NOT NULL DEFAULT FALSE
+    is_compilation BOOLEAN NOT NULL DEFAULT FALSE,
+    series_name VARCHAR(50)
 );
 
 CREATE INDEX IF NOT EXISTS idx_video_clips_user_id ON video_clips(user_id);
 CREATE INDEX IF NOT EXISTS idx_video_clips_clip_name ON video_clips(clip_name);
+CREATE INDEX IF NOT EXISTS idx_video_clips_series_name ON video_clips(series_name);
 
 CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,
@@ -95,10 +99,12 @@ CREATE TABLE IF NOT EXISTS search_history (
     chat_id BIGINT NOT NULL,
     quote TEXT NOT NULL,
     segments JSONB NOT NULL,
+    series_name VARCHAR(50),
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_search_history_timestamp ON search_history(timestamp);
+CREATE INDEX IF NOT EXISTS idx_search_history_series_name ON search_history(series_name);
 
 CREATE TABLE IF NOT EXISTS last_clips (
     id SERIAL PRIMARY KEY,
@@ -109,12 +115,14 @@ CREATE TABLE IF NOT EXISTS last_clips (
     adjusted_start_time FLOAT NULL,
     adjusted_end_time FLOAT NULL,
     is_adjusted BOOLEAN DEFAULT FALSE,
+    series_name VARCHAR(50),
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_last_clips_timestamp ON last_clips(timestamp);
 CREATE INDEX IF NOT EXISTS idx_last_clips_id ON last_clips(id);
 CREATE INDEX IF NOT EXISTS idx_last_clips_chat_id ON last_clips(chat_id);
+CREATE INDEX IF NOT EXISTS idx_last_clips_series_name ON last_clips(series_name);
 
 CREATE TABLE IF NOT EXISTS user_command_limits (
     id SERIAL PRIMARY KEY,
@@ -254,9 +262,9 @@ CREATE INDEX IF NOT EXISTS idx_user_credentials_user_id ON user_credentials(user
 
 CREATE TABLE IF NOT EXISTS user_series_context (
     user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
-    active_series VARCHAR(50) NOT NULL DEFAULT 'ranczo',
+    active_series VARCHAR(50),
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT valid_series_name CHECK (active_series ~ '^[a-z0-9_-]+$')
+    CONSTRAINT valid_series_name CHECK (active_series IS NULL OR active_series ~ '^[a-z0-9_-]+$')
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_series_context_user_id
@@ -280,8 +288,8 @@ EXECUTE FUNCTION update_series_context_timestamp();
 CREATE OR REPLACE FUNCTION ensure_user_series_context()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO user_series_context (user_id, active_series)
-    VALUES (NEW.user_id, 'ranczo')
+    INSERT INTO user_series_context (user_id)
+    VALUES (NEW.user_id)
     ON CONFLICT (user_id) DO NOTHING;
     RETURN NEW;
 END;
@@ -292,7 +300,7 @@ AFTER INSERT ON user_profiles
 FOR EACH ROW
 EXECUTE FUNCTION ensure_user_series_context();
 
-INSERT INTO user_series_context (user_id, active_series)
-SELECT user_id, 'ranczo'
+INSERT INTO user_series_context (user_id)
+SELECT user_id
 FROM user_profiles
 ON CONFLICT (user_id) DO NOTHING;

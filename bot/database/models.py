@@ -52,6 +52,7 @@ class VideoClip(Serializable):
     season: Optional[int]
     episode_number: Optional[int]
     is_compilation: bool
+    series_name: Optional[str] = None
 
 
 class ClipType(Enum):
@@ -73,6 +74,7 @@ class LastClip(Serializable):
     adjusted_end_time: Optional[float]
     is_adjusted: bool
     timestamp: date
+    series_name: Optional[str] = None
 
 
 @dataclass
@@ -81,6 +83,7 @@ class SearchHistory(Serializable):
     chat_id: int
     quote: str
     segments: str
+    series_name: Optional[str] = None
 
 
 @dataclass(frozen=True)

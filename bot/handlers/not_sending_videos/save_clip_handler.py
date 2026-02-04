@@ -32,6 +32,7 @@ from bot.responses.not_sending_videos.save_clip_handler_responses import (
     get_log_no_segment_selected_message,
     get_no_segment_selected_message,
 )
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import get_video_duration
@@ -91,7 +92,14 @@ class SaveClipHandler(BotMessageHandler):
         return False
 
     async def __check_last_clip_exists(self) -> bool:
-        last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id())
+        serial_manager = SerialContextManager(self._logger)
+        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
+
+        if not active_series:
+            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
+            return False
+
+        last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id(), active_series)
         if not last_clip:
             await self.__reply_no_segment_selected()
             return False
@@ -99,7 +107,11 @@ class SaveClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         clip_name = self._message.get_text().split(maxsplit=1)[1]
-        last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id())
+
+        serial_manager = SerialContextManager(self._logger)
+        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
+
+        last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id(), active_series)
 
         clip_info = await self.__prepare_clip(last_clip)
 
@@ -119,6 +131,7 @@ class SaveClipHandler(BotMessageHandler):
             is_compilation=clip_info.is_compilation,
             season=clip_info.season,
             episode_number=clip_info.episode_number,
+            series_name=active_series,
         )
 
         await self.__reply_clip_saved_successfully(clip_name)

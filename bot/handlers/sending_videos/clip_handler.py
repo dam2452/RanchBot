@@ -56,6 +56,10 @@ class ClipHandler(BotMessageHandler):
         serial_manager = SerialContextManager(self._logger)
         active_series = await serial_manager.get_user_active_series(msg.get_user_id())
 
+        if not active_series:
+            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
+            return
+
         segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series)
         if not segments:
             return await self.__reply_no_segments_found(quote)
@@ -82,6 +86,7 @@ class ClipHandler(BotMessageHandler):
             adjusted_start_time=start_time,
             adjusted_end_time=end_time,
             is_adjusted=False,
+            series_name=active_series,
         )
 
         return await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())

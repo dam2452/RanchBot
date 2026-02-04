@@ -1,5 +1,8 @@
 import logging
-from typing import List
+from typing import (
+    List,
+    Optional,
+)
 
 from bot.database.database_manager import DatabaseManager
 from bot.services.reindex.series_scanner import SeriesScanner
@@ -10,9 +13,8 @@ class SerialContextManager:
         self.logger = logger
         self.scanner = SeriesScanner(logger)
 
-    async def get_user_active_series(self, user_id: int) -> str:
-        series = await DatabaseManager.get_user_active_series(user_id)
-        return series if series else "ranczo"
+    async def get_user_active_series(self, user_id: int) -> Optional[str]:
+        return await DatabaseManager.get_user_active_series(user_id)
 
     async def set_user_active_series(self, user_id: int, series_name: str) -> None:
         await DatabaseManager.set_user_active_series(user_id, series_name)
