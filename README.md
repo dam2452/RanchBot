@@ -5,7 +5,7 @@
 🎥 Zobacz RanchBot w akcji:
 [![🎬 Zobacz wideo](https://img.youtube.com/vi/3Tp3qJHLFPI/maxresdefault.jpg)](https://www.youtube.com/watch?v=3Tp3qJHLFPI)
 
-**RanchBot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z popularnego serialu "Ranczo". 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści.
+**RanchBot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z różnych seriali. 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści. Bot obsługuje wiele seriali - użytkownicy mogą przełączać się między nimi za pomocą komendy `/serial`.
 
 ## 🇬🇧 English Version
 For the English version of this README, please refer to [README.md](./READMEen.md).
@@ -60,6 +60,31 @@ Pełna lista komend znajduje się w [📚 Dokumentacji Komend](./COMMANDS.md).
 - **Baza danych PostgreSQL**
 - **Elasticsearch**
 - **FFmpeg**
+
+## 📁 Struktura katalogów VIDEO_DATA_DIR
+
+Bot wymaga odpowiedniej struktury katalogów dla plików wideo:
+
+```
+VIDEO_DATA_DIR/
+  serial_name1/
+    S01/
+      episode_S01E01.zip
+      episode_S01E01.mp4
+    S02/
+      episode_S02E01.zip
+      episode_S02E01.mp4
+  serial_name2/
+    S01/
+      episode_S01E01.zip
+      episode_S01E01.mp4
+```
+
+- Każdy serial ma swój katalog (nazwa katalogu = nazwa serialu w systemie)
+- W katalogu serialu znajdują się katalogi sezonów (S01, S02, S03, ...)
+- W katalogach sezonów znajdują się pliki:
+  - `.zip` - archiwa z danymi (transkrypcje, embeddingi, metadane)
+  - `.mp4` - pliki wideo odcinków
 
 ### 📦 Wymagane Biblioteki Python
 - **ffmpeg**
