@@ -27,7 +27,7 @@ services:
       INLINE_CACHE_CHANNEL_ID: ${INLINE_CACHE_CHANNEL_ID}
     restart: ${RESTART_POLICY:-unless-stopped}
     volumes:
-      - /mnt/WD_RED_2TB_MIRROR/RanchBot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO:ro
+      - /mnt/WD_RED_2TB_MIRROR/RanchBot/RANCZO-WIDEO-NEW:/app/bot/RANCZO-WIDEO:ro
     deploy:
       resources:
         limits:
