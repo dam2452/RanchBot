@@ -336,7 +336,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return [DatabaseManager._row_to_video_clip(row) for row in rows] if rows else []
 
     @staticmethod
-    async def save_clip(
+    async def save_clip(  # pylint: disable=too-many-arguments
             chat_id: int, user_id: int, clip_name: str, video_data: bytes, start_time: float,
             end_time: float, duration: float, is_compilation: bool,
             season: Optional[int] = None, episode_number: Optional[int] = None, series_name: Optional[str] = None,
@@ -548,7 +548,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         async with DatabaseManager.get_db_connection() as conn:
             if series_name:
                 row = await conn.fetchrow(
-                    "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_name "
+                    "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
+                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_name "
                     "FROM last_clips "
                     "WHERE chat_id = $1 AND series_name = $2 "
                     "ORDER BY id DESC "
@@ -557,7 +558,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 )
             else:
                 row = await conn.fetchrow(
-                    "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_name "
+                    "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
+                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_name "
                     "FROM last_clips "
                     "WHERE chat_id = $1 "
                     "ORDER BY id DESC "

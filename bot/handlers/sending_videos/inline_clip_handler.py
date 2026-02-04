@@ -103,9 +103,13 @@ class InlineClipHandler(BotMessageHandler):
         return results
 
     async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[dict], Optional[dict], bool]:
+        active_series = await DatabaseManager.get_user_active_series(user_id)
+        if not active_series:
+            return None, [], None, False
+
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
-            TranscriptionFinder.find_segment_by_quote(query, self._logger, size=5),
+            TranscriptionFinder.find_segment_by_quote(query, self._logger, active_series, size=5),
             TranscriptionFinder.get_season_details_from_elastic(logger=self._logger),
             DatabaseManager.is_admin_or_moderator(user_id),
             return_exceptions=True,

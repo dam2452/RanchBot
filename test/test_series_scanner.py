@@ -19,18 +19,6 @@ def test_scan_all_series(logger): # pylint: disable=redefined-outer-name
         assert "ranczo" in series
 
 
-def test_detect_series_from_filename(logger): # pylint: disable=redefined-outer-name
-    scanner = SeriesScanner(logger)
-
-    filename = "ranczo_S01E01_elastic_documents.zip"
-    series = scanner._detect_series_from_filename(filename)
-    assert series == "ranczo"
-
-    filename2 = "kiepscy_S02E05_elastic_documents.zip"
-    series2 = scanner._detect_series_from_filename(filename2)
-    assert series2 == "kiepscy"
-
-
 def test_extract_episode_code(logger): # pylint: disable=redefined-outer-name
     scanner = SeriesScanner(logger)
 

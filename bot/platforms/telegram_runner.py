@@ -8,7 +8,6 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.factory import create_all_factories
-from bot.middlewares.aiogram_middleware_adapter import AiogramMiddlewareAdapter
 from bot.middlewares.serial_context_middleware import SerialContextMiddleware
 from bot.settings import settings
 
