@@ -115,6 +115,10 @@ class InlineClipHandler(BotMessageHandler):
             return_exceptions=True,
         )
 
+        for result in [saved_clip_result, segments_result, season_info_result, is_admin_result]:
+            if isinstance(result, asyncio.CancelledError):
+                raise result
+
         saved_clip = saved_clip_result if not isinstance(saved_clip_result, Exception) else None
         segments = segments_result if not isinstance(segments_result, Exception) else []
         season_info = season_info_result if not isinstance(season_info_result, Exception) else None
@@ -171,7 +175,11 @@ class InlineClipHandler(BotMessageHandler):
             segment_results = await asyncio.gather(
                 *[self.__upload_segment(seg, i, season_info, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
             )
-            results.extend([r for r in segment_results if not isinstance(r, Exception) and r])
+            for r in segment_results:
+                if isinstance(r, asyncio.CancelledError):
+                    raise r
+                if not isinstance(r, Exception) and r:
+                    results.append(r)
 
         return results
 

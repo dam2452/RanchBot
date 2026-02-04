@@ -1,12 +1,15 @@
+import asyncio
 import logging
 from typing import (
     Awaitable,
     Callable,
+    Dict,
     List,
     Optional,
     Type,
 )
 
+from aiogram import Bot
 from aiogram.types import InlineQuery
 
 from bot.adapters.telegram.telegram_inline_query import TelegramInlineQuery
@@ -41,6 +44,10 @@ from bot.utils.log import log_system_message
 
 
 class SubscribedPermissionLevelFactory(PermissionLevelFactory):
+    def __init__(self, logger: logging.Logger, bot: Optional[Bot]):
+        super().__init__(logger, bot)
+        self._inline_user_sessions: Dict[int, asyncio.Task] = {}
+
     def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         return [
             AdjustVideoClipHandler,
@@ -67,10 +74,9 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
         ]
 
     def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
-        async def inline_handler(inline_query: InlineQuery):
+        async def process_inline_query(inline_query: InlineQuery):
+            user_id = inline_query.from_user.id
             try:
-                user_id = inline_query.from_user.id
-
                 if not inline_query.query:
                     return
 
@@ -91,6 +97,9 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                     cache_time=300,
                     is_personal=True,
                 )
+            except asyncio.CancelledError:
+                await log_system_message(logging.INFO, f"Inline query cancelled for user {user_id} (replaced by newer query)", self._logger)
+                raise
             except Exception as e:
                 await log_system_message(logging.ERROR, f"Failed to handle inline query: {e}", self._logger)
                 try:
@@ -101,5 +110,24 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                     )
                 except Exception as exc:
                     await log_system_message(logging.ERROR, f"Failed to report inline error: {exc}", self._logger)
+
+        async def inline_handler(inline_query: InlineQuery):
+            user_id = inline_query.from_user.id
+
+            if user_id in self._inline_user_sessions:
+                old_task = self._inline_user_sessions[user_id]
+                old_task.cancel()
+                await log_system_message(logging.INFO, f"Cancelling previous inline query for user {user_id}", self._logger)
+
+            task = asyncio.create_task(process_inline_query(inline_query))
+            self._inline_user_sessions[user_id] = task
+
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                if self._inline_user_sessions.get(user_id) == task:
+                    del self._inline_user_sessions[user_id]
 
         return inline_handler

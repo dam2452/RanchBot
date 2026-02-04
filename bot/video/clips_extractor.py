@@ -46,7 +46,13 @@ class ClipsExtractor:
             stderr=asyncio.subprocess.PIPE,
         )
 
-        _, stderr = await process.communicate()
+        try:
+            _, stderr = await process.communicate()
+        except asyncio.CancelledError:
+            process.kill()
+            await process.wait()
+            output_filename.unlink(missing_ok=True)
+            raise
 
         if process.returncode != 0:
             raise FFMpegException(stderr.decode())
