@@ -272,10 +272,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_update_series_context_timestamp
-BEFORE UPDATE ON user_series_context
-FOR EACH ROW
-EXECUTE FUNCTION update_series_context_timestamp();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_series_context_timestamp'
+    ) THEN
+        CREATE TRIGGER trigger_update_series_context_timestamp
+        BEFORE UPDATE ON user_series_context
+        FOR EACH ROW
+        EXECUTE FUNCTION update_series_context_timestamp();
+    END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION ensure_user_series_context()
 RETURNS TRIGGER AS $$
@@ -287,10 +294,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_ensure_user_series_context
-AFTER INSERT ON user_profiles
-FOR EACH ROW
-EXECUTE FUNCTION ensure_user_series_context();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_ensure_user_series_context'
+    ) THEN
+        CREATE TRIGGER trigger_ensure_user_series_context
+        AFTER INSERT ON user_profiles
+        FOR EACH ROW
+        EXECUTE FUNCTION ensure_user_series_context();
+    END IF;
+END $$;
 
 INSERT INTO user_series_context (user_id)
 SELECT user_id
