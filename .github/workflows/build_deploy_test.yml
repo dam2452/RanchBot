@@ -2,6 +2,11 @@ name: Deploy bot
 
 on:
   push:
+    branches:
+      - main
+
+  pull_request_review:
+    types: [submitted]
 
   workflow_dispatch:
 
@@ -33,22 +38,13 @@ jobs:
           RESTART_POLICY: no
         run: |
           echo "$SECRETS" > .env
-          # shellcheck disable=SC2046
-          export $(grep -v '^#' .env | xargs)
-          docker compose pull --policy always
-          docker compose --project-name bot-test up -d
-
-      - name: Wait for test bot
-        run: |
-          echo "Waiting for services to be healthy..."
-          sleep 10
-          if docker ps --format '{{.Names}}' | grep -qx 'bot-test-bot-1'; then
-              echo The bot has been up an running for the first 10 seconds, OK.
-          else
-              echo The bot crashed
-              docker logs bot-test-bot-1
-              exit 1
+          docker compose --env-file .env pull --policy always
+          if ! docker compose --env-file .env --project-name bot-test up -d --wait; then
+            echo "Bot failed to start or become healthy"
+            docker logs bot-test-bot-1
+            exit 1
           fi
+          echo "Bot is healthy and ready"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -61,10 +57,8 @@ jobs:
           PIP_ROOT_USER_ACTION: ignore
         run: |
           echo "$SECRETS" > .env
-          # shellcheck disable=SC2046
-          export $(grep -v '^#' .env | xargs)
           python3 -m pip install -r requirements.txt
-          python3 -m pytest
+          python3 -m dotenv run pytest
 
   build_production:
     needs: build_and_test_staging
