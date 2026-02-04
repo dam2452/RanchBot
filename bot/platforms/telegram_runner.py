@@ -32,9 +32,7 @@ async def run_telegram_bot():
     )
     dp = Dispatcher(storage=MemoryStorage())
 
-    dp.message.middleware.register(
-        AiogramMiddlewareAdapter(SerialContextMiddleware(logger)),
-    )
+    dp.message.middleware.register(SerialContextMiddleware(logger))
 
     factories = create_all_factories(logger, bot)
     for factory in factories:
