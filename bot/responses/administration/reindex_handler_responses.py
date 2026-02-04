@@ -18,9 +18,8 @@ def get_reindex_progress_message(message: str, current: int, total: int) -> str:
 def get_reindex_complete_message(result) -> str:
     error_info = ""
     if result.errors:
-        error_info = f"\n\n⚠️ Błędy ({len(result.errors)}):\n" + "\n".join(
-            f"- {err}" for err in result.errors[:3]
-        )
+        error_list = "\n".join(f"- {err}" for err in result.errors[:3])
+        error_info = f"\n\n⚠️ Błędy ({len(result.errors)}):\n```\n{error_list}\n```"
         if len(result.errors) > 3:
             error_info += f"\n... i {len(result.errors) - 3} więcej"
 
@@ -34,7 +33,7 @@ def get_reindex_complete_message(result) -> str:
 
 
 def get_reindex_error_message(error: str) -> str:
-    return f"❌ Błąd reindeksowania:\n{error} ❌"
+    return f"❌ Błąd reindeksowania:\n```\n{error}\n```"
 
 
 def get_reindex_all_complete_message(series_count: int, episodes: int, documents: int) -> str:
