@@ -64,9 +64,11 @@ class SelectClipHandler(BotMessageHandler):
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None
 
+        segment_id = segment.get("segment_id", segment.get("id"))
+
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-            temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
+            temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment_id}.mp4"
             output_filename.replace(temp_file_path)
             await self._responder.send_video(temp_file_path)
 
@@ -95,7 +97,7 @@ class SelectClipHandler(BotMessageHandler):
 
         return await self._log_system_message(
             logging.INFO,
-            get_log_segment_selected_message(segment["id"], self._message.get_username()),
+            get_log_segment_selected_message(segment_id, self._message.get_username()),
         )
 
     async def __reply_no_previous_search(self) -> None:

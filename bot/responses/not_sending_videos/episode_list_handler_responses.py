@@ -40,5 +40,17 @@ def get_log_episode_list_sent_message(season: int, username: str) -> str:
     return f"Sent episode list for season {season} to user '{username}'."
 
 
+def format_season_list_response(season_info: Dict[str, int]) -> str:
+    response = "📃 Lista sezonów:\n\n```\n"
+
+    sorted_seasons = sorted(season_info.items(), key=lambda x: int(x[0]))
+
+    for season_str, episode_count in sorted_seasons:
+        response += f"📺 Sezon {season_str}: {episode_count} odcinków\n"
+
+    response += "```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły odcinków z danego sezonu."
+    return response
+
+
 def get_invalid_args_count_message() -> str:
-    return "📋 Podaj poprawną komendę w formacie: /odcinki <sezon>. Przykład: /odcinki 2"
+    return "📋 Podaj poprawną komendę w formacie: /odcinki [sezon]. Przykład: /odcinki 2 lub /odcinki (lista sezonów)"

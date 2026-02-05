@@ -20,14 +20,15 @@ def get_transcription_response(
     start_time = float(result["overall_start_time"])
     end_time = float(result["overall_end_time"])
 
-    episode_info = result.get("target", {}).get("episode_info", {})
+    target = result.get("target", {})
+    episode_info = target.get("episode_metadata", target.get("episode_info", {}))
 
     season = episode_info.get("season")
     episode_number = episode_info.get("episode_number")
     episode_title = episode_info.get("title")
 
     if not isinstance(season, int) or not isinstance(episode_number, int) or not isinstance(episode_title, str):
-        raise TypeError("Invalid type detected in episode_info. Expected types: int for season and episode_number, str for title.")
+        raise TypeError("Invalid type detected in episode metadata. Expected types: int for season and episode_number, str for title.")
 
     start_minutes, start_seconds = divmod(start_time, 60)
     end_minutes, end_seconds = divmod(end_time, 60)
@@ -44,7 +45,8 @@ def get_transcription_response(
 
     response += f"Cytat: \"{quote}\" \n".replace(" ", "\u00A0")
 
-    target_id = result['target']['id']
+    target = result['target']
+    target_id = target.get('segment_id', target.get('id'))
     for segment in result["context"]:
         segment_id = int(segment['id'])
         if segment_id == target_id:

@@ -11,6 +11,7 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.not_sending_videos.episode_list_handler_responses import (
     format_episode_list_response,
+    format_season_list_response,
     get_invalid_args_count_message,
     get_log_episode_list_sent_message,
     get_log_no_episodes_found_message,
@@ -30,17 +31,36 @@ class EpisodeListHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message())
+        args = self._message.get_text().split()
+        args_count = len(args) - 1
+        if args_count > 1:
+            await self.reply_error(get_invalid_args_count_message())
+            return False
+        return True
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
+        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+
+        if len(args) == 1:
+            if self._message.should_reply_json():
+                await self._responder.send_json({
+                    "season_info": season_info,
+                })
+            else:
+                response = format_season_list_response(season_info)
+                await self._answer_markdown(response)
+
+            return await self._log_system_message(
+                logging.INFO,
+                f"Sent season list to user '{self._message.get_username()}'.",
+            )
 
         try:
             season = int(args[1])
-        except (IndexError, ValueError):
+        except ValueError:
             return await self.reply_error(get_invalid_args_count_message())
 
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
         episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger)
 
         if not episodes:

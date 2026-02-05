@@ -102,37 +102,42 @@ class TranscriptionFinder:
 
     @staticmethod
     async def find_segment_with_context(
-            quote: str, logger: logging.Logger, context_size: int = 30, season_filter: Optional[str] = None,
-            episode_filter: Optional[str] = None,
+            quote: str, logger: logging.Logger, series_name: str, context_size: int = 30,
+            season_filter: Optional[int] = None, episode_filter: Optional[int] = None,
             index: str = settings.ES_TRANSCRIPTION_INDEX,
     ) -> Optional[json]:
         await log_system_message(
             logging.INFO,
-            f"Searching for quote: '{quote}' with context size: {context_size}. Season: {season_filter}, Episode: {episode_filter}",
+            f"Searching for quote: '{quote}' in series '{series_name}' with context size: {context_size}. Season: {season_filter}, Episode: {episode_filter}",
             logger,
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, season_filter, episode_filter, index)
+        segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
         if not segment:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None
 
         segment = segment[0] if isinstance(segment, list) else segment
 
+        episode_data = segment.get("episode_metadata", segment.get("episode_info", {}))
+        segment_id = segment.get("segment_id", segment.get("id"))
+        segment_start = segment.get("start_time", segment.get("start"))
+        segment_end = segment.get("end_time", segment.get("end"))
+
         context_query_before = {
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"episode_info.season": segment["episode_info"]["season"]}},
-                        {"term": {"episode_info.episode_number": segment["episode_info"]["episode_number"]}},
+                        {"term": {"episode_metadata.season": episode_data["season"]}},
+                        {"term": {"episode_metadata.episode_number": episode_data["episode_number"]}},
                     ],
                     "filter": [
-                        {"range": {"id": {"lt": segment["id"]}}},
+                        {"range": {"segment_id": {"lt": segment_id}}},
                     ],
                 },
             },
-            "sort": [{"id": "desc"}],
+            "sort": [{"segment_id": "desc"}],
             "size": context_size,
         }
 
@@ -140,15 +145,15 @@ class TranscriptionFinder:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"episode_info.season": segment["episode_info"]["season"]}},
-                        {"term": {"episode_info.episode_number": segment["episode_info"]["episode_number"]}},
+                        {"term": {"episode_metadata.season": episode_data["season"]}},
+                        {"term": {"episode_metadata.episode_number": episode_data["episode_number"]}},
                     ],
                     "filter": [
-                        {"range": {"id": {"gt": segment["id"]}}},
+                        {"range": {"segment_id": {"gt": segment_id}}},
                     ],
                 },
             },
-            "sort": [{"id": "asc"}],
+            "sort": [{"segment_id": "asc"}],
             "size": context_size,
         }
 
@@ -156,21 +161,24 @@ class TranscriptionFinder:
         context_response_after = await es.search(index=index, body=context_query_after)
 
         context_segments_before = [{
-            "id": hit["_source"]["id"], "text": hit["_source"]["text"], "start": hit["_source"]["start"],
-            "end": hit["_source"]["end"],
-        } for hit in
-                                   context_response_before["hits"]["hits"]]
+            "id": hit["_source"].get("segment_id", hit["_source"].get("id")),
+            "text": hit["_source"]["text"],
+            "start": hit["_source"].get("start_time", hit["_source"].get("start")),
+            "end": hit["_source"].get("end_time", hit["_source"].get("end")),
+        } for hit in context_response_before["hits"]["hits"]]
+
         context_segments_after = [{
-            "id": hit["_source"]["id"], "text": hit["_source"]["text"], "start": hit["_source"]["start"],
-            "end": hit["_source"]["end"],
-        } for hit in
-                                  context_response_after["hits"]["hits"]]
+            "id": hit["_source"].get("segment_id", hit["_source"].get("id")),
+            "text": hit["_source"]["text"],
+            "start": hit["_source"].get("start_time", hit["_source"].get("start")),
+            "end": hit["_source"].get("end_time", hit["_source"].get("end")),
+        } for hit in context_response_after["hits"]["hits"]]
 
         context_segments_before.reverse()
 
         unique_context_segments = []
         for seg in (
-            context_segments_before + [{"id": segment["id"], "text": segment["text"], "start": segment["start"], "end": segment["end"]}] +
+            context_segments_before + [{"id": segment_id, "text": segment["text"], "start": segment_start, "end": segment_end}] +
             context_segments_after
         ):
             if seg not in unique_context_segments:
@@ -204,8 +212,8 @@ class TranscriptionFinder:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"episode_info.season": season}},
-                        {"term": {"episode_info.episode_number": episode_number}},
+                        {"term": {"episode_metadata.season": season}},
+                        {"term": {"episode_metadata.episode_number": episode_number}},
                     ],
                 },
             },
@@ -236,27 +244,27 @@ class TranscriptionFinder:
         query = {
             "size": 0,
             "query": {
-                "term": {"episode_info.season": season},
+                "term": {"episode_metadata.season": season},
             },
             "aggs": {
                 "unique_episodes": {
                     "terms": {
-                        "field": "episode_info.episode_number",
+                        "field": "episode_metadata.episode_number",
                         "size": 1000,
                         "order": {
                             "_key": "asc",
                         },
                     },
                     "aggs": {
-                        "episode_info": {
+                        "episode_metadata": {
                             "top_hits": {
                                 "size": 1,
                                 "_source": {
                                     "includes": [
-                                        "episode_info.title",
-                                        "episode_info.premiere_date",
-                                        "episode_info.viewership",
-                                        "episode_info.episode_number",
+                                        "episode_metadata.title",
+                                        "episode_metadata.premiere_date",
+                                        "episode_metadata.viewership",
+                                        "episode_metadata.episode_number",
                                     ],
                                 },
                             },
@@ -275,12 +283,12 @@ class TranscriptionFinder:
 
         episodes = []
         for bucket in buckets:
-            episode_info = bucket["episode_info"]["hits"]["hits"][0]["_source"]["episode_info"]
+            episode_metadata = bucket["episode_metadata"]["hits"]["hits"][0]["_source"]["episode_metadata"]
             episode = {
-                "episode_number": episode_info.get("episode_number"),
-                "title": episode_info.get("title", "Unknown"),
-                "premiere_date": episode_info.get("premiere_date", "Unknown"),
-                "viewership": episode_info.get("viewership", "Unknown"),
+                "episode_number": episode_metadata.get("episode_number"),
+                "title": episode_metadata.get("title", "Unknown"),
+                "premiere_date": episode_metadata.get("premiere_date", "Unknown"),
+                "viewership": episode_metadata.get("viewership", "Unknown"),
             }
             episodes.append(episode)
 
@@ -299,14 +307,14 @@ class TranscriptionFinder:
             "aggs": {
                 "seasons": {
                     "terms": {
-                        "field": "episode_info.season",
+                        "field": "episode_metadata.season",
                         "size": 1000,
                         "order": {"_key": "asc"},
                     },
                     "aggs": {
                         "unique_episodes": {
                             "cardinality": {
-                                "field": "episode_info.episode_number",
+                                "field": "episode_metadata.episode_number",
                             },
                         },
                     },

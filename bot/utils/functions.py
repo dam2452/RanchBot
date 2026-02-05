@@ -69,7 +69,7 @@ def parse_whitelist_message(
 
 
 def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegmentInfo:
-    episode_info = segment.get("episode_info", {})
+    episode_info = segment.get("episode_metadata", segment.get("episode_info", {}))
     total_episode_number = episode_info.get("episode_number", "Unknown")
 
     if not isinstance(total_episode_number, int):

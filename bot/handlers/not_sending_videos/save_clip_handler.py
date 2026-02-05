@@ -138,7 +138,7 @@ class SaveClipHandler(BotMessageHandler):
 
     async def __prepare_clip(self, last_clip: LastClip) -> ClipInfo:
         segment_json = json.loads(last_clip.segment)
-        episode_info = segment_json.get("episode_info", {})
+        episode_info = segment_json.get("episode_metadata", segment_json.get("episode_info", {}))
         season = episode_info.get("season")
         episode_number = episode_info.get("episode_number")
 

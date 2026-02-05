@@ -117,7 +117,7 @@ class ManualClipHandler(BotMessageHandler):
             "video_path": str(video_path),
             "start": start_seconds,
             "end": end_seconds,
-            "episode_info": {
+            "episode_metadata": {
                 "season": episode.season,
                 "episode_number": episode.number,
             },
