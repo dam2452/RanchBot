@@ -76,7 +76,7 @@ def format_season_list_response(season_info: Dict[str, int]) -> str:
             line = f"Sezon {emoji} - {format_episode_count(episode_count)}"
         season_lines.append(line)
 
-    response = "📺 LISTA SEZONÓW```".replace(" ", "\u00A0") + "\n\n".join(season_lines) + "\n```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły"
+    response = "📺 " + "```LISTA SEZONÓW\n".replace(" ", "\u00A0") + "\n\n".join(season_lines) + "\n```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły"
     return response
 
 
