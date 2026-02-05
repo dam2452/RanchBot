@@ -149,7 +149,7 @@ class ReindexService:
         for idx, zip_path in enumerate(zip_files):
             episode_code = None
             try:
-                if idx > 0 and idx % 20 == 0:
+                if idx > 0 and idx % 10 == 0:
                     self.logger.info(f"Refreshing ES connection after {idx} episodes...")
                     try:
                         if self.es_manager:
@@ -157,6 +157,7 @@ class ReindexService:
                     except Exception:
                         pass
                     self.es_manager = None
+                    await asyncio.sleep(5)
                     await self._init_elasticsearch()
                     await asyncio.sleep(2)
 
@@ -259,15 +260,15 @@ class ReindexService:
             await async_bulk(
                 self.es_manager,
                 actions,
-                chunk_size=10,
-                max_chunk_bytes=1 * 1024 * 1024,
+                chunk_size=5,
+                max_chunk_bytes=512 * 1024,
                 raise_on_error=False,
                 max_retries=2,
                 initial_backoff=1,
                 max_backoff=300,
             )
             self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(2.0)
         except BulkIndexError as e:
             self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
             for error in e.errors[:3]:
