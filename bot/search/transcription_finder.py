@@ -207,7 +207,11 @@ class TranscriptionFinder:
 
     @staticmethod
     def _build_unique_segments(
-            context_segments: Tuple[List[Dict[str, Any]], List[Dict[str, Any]]], segment_id: int, segment: Dict[str, Any], segment_start: float, segment_end: float,
+            context_segments: Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
+            segment_id: int,
+            segment: Dict[str, Any],
+            segment_start: float,
+            segment_end: float,
     ) -> List[Dict[str, Any]]:
         context_segments_before, context_segments_after = context_segments
         unique_context_segments = []

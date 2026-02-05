@@ -1,5 +1,5 @@
 def get_reindex_usage_message() -> str:
-    return """```❌ BŁĄD - BRAK CELU
+    return ("""```❌ BŁĄD - BRAK CELU
 
 📋 Podaj cel reindeksowania:
 • all - wszystkie seriale
@@ -8,7 +8,7 @@ def get_reindex_usage_message() -> str:
 
 💡 Przykład:
    /reindex ranczo
-```"""
+```""").replace(" ", "\u00A0")
 
 
 def get_reindex_started_message(target: str) -> str:

@@ -12,6 +12,8 @@ from typing import (
     Optional,
 )
 
+from aiogram.exceptions import TelegramEntityTooLarge
+
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
 from bot.interfaces.message import AbstractMessage
@@ -36,6 +38,10 @@ from bot.settings import settings
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
+)
+from bot.video.clips_compiler import (
+    ClipsCompiler,
+    process_compiled_clip,
 )
 from bot.video.utils import FFMpegException
 
@@ -180,12 +186,6 @@ class BotMessageHandler(ABC):
         )
 
     async def compile_and_send_video(self, selected_segments: List[Any], total_duration: float, clip_type: Any) -> Optional[bool]:
-        from aiogram.exceptions import TelegramEntityTooLarge
-        from bot.video.clips_compiler import (
-            ClipsCompiler,
-            process_compiled_clip,
-        )
-
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, clip_type)
 

@@ -20,7 +20,7 @@ def get_serial_current_message(series_name: str, available_series: list = None) 
         for s in available_series
     ]) if available_series else "• brak dostępnych seriali"
 
-    return f"""```📺 WYBÓR SERIALU 📺
+    return (f"""```📺 WYBÓR SERIALU 📺
 
 📋 Dostępne seriale:
 {series_list}
@@ -29,4 +29,4 @@ def get_serial_current_message(series_name: str, available_series: list = None) 
    /serial <nazwa>
 
 Przykład: /serial ranczo
-```"""
+```""").replace(" ", "\u00A0")
