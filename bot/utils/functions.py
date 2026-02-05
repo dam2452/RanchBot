@@ -70,24 +70,15 @@ def parse_whitelist_message(
 
 def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegmentInfo:
     episode_info = segment.get("episode_metadata", segment.get("episode_info", {}))
-    total_episode_number = episode_info.get("episode_number", "Unknown")
+    season_number = episode_info.get("season")
+    episode_number_in_season = episode_info.get("episode_number")
 
-    if not isinstance(total_episode_number, int):
+    if not isinstance(season_number, int) or not isinstance(episode_number_in_season, int):
         return FormattedSegmentInfo(
             episode_formatted="Unknown",
             time_formatted="00:00",
             episode_title=episode_info.get("title", "Unknown"),
         )
-
-    season_number = 1
-    episodes_in_previous_seasons = 0
-    for season, episode_count in season_info.items():
-        if total_episode_number <= (episodes_in_previous_seasons + episode_count):
-            break
-        episodes_in_previous_seasons += episode_count
-        season_number += 1
-
-    episode_number_in_season = total_episode_number - episodes_in_previous_seasons
 
     season = str(season_number).zfill(2)
     episode_number = str(episode_number_in_season).zfill(2)

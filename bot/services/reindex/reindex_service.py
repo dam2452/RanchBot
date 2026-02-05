@@ -124,7 +124,7 @@ class ReindexService:
 
         return results
 
-    async def reindex_series( # pylint: disable=too-many-locals
+    async def reindex_series(
         self,
         series_name: str,
         progress_callback: Callable[[str, int, int], Awaitable[None]],
@@ -147,7 +147,6 @@ class ReindexService:
         errors = []
 
         for idx, zip_path in enumerate(zip_files):
-            episode_code = None
             try:
                 if idx > 0 and idx % 10 == 0:
                     await self._refresh_elasticsearch_connection(series_name, idx)

@@ -11,7 +11,6 @@ from typing import (
     Optional,
 )
 
-from aiogram.exceptions import TelegramEntityTooLarge
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
 from bot.interfaces.message import AbstractMessage
@@ -23,8 +22,8 @@ from bot.responses.bot_message_handler_responses import (
     get_extraction_failure_message,
     get_general_error_message,
     get_invalid_args_count_message,
-    get_log_clip_too_large_message,
     get_log_clip_duration_exceeded_message,
+    get_log_clip_too_large_message,
     get_log_compilation_too_large_message,
     get_log_extraction_failure_message,
     get_telegram_clip_too_large_message,

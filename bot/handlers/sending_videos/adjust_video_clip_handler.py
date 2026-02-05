@@ -2,6 +2,8 @@ import json
 import logging
 from typing import List
 
+from aiogram.exceptions import TelegramEntityTooLarge
+
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import (
     ClipType,
@@ -12,8 +14,6 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
-    get_extraction_failure_log,
-    get_extraction_failure_message,
     get_invalid_args_count_message,
     get_invalid_interval_log,
     get_invalid_interval_message,
