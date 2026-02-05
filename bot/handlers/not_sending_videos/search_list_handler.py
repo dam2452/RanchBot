@@ -20,7 +20,7 @@ from bot.settings import settings as s
 
 
 class SearchListHandler(BotMessageHandler):
-    FILE_NAME_TEMPLATE = s.BOT_USERNAME[1:] + "_Lista_{sanitized_search_term}.txt"
+    FILE_NAME_TEMPLATE = s.BOT_USERNAME + "_Lista_{sanitized_search_term}.txt"
 
     def get_commands(self) -> List[str]:
         return ["lista", "list", "l"]
