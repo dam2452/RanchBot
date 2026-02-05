@@ -2,8 +2,6 @@ import json
 import logging
 from typing import List
 
-from aiogram.exceptions import TelegramEntityTooLarge
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import (
     ClipType,
@@ -27,6 +25,7 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_no_quotes_selected_log,
     get_no_quotes_selected_message,
     get_successful_adjustment_message,
+    get_telegram_clip_too_large_for_adjust_message,
     get_updated_segment_info_log,
 )
 from bot.settings import settings
@@ -126,18 +125,12 @@ class AdjustVideoClipHandler(BotMessageHandler):
         except ValueError:
             return await self.__reply_invalid_interval()
         except FFMpegException as e:
-            return await self.__reply_extraction_failure(e)
+            return await self.handle_ffmpeg_exception(e)
         except TelegramEntityTooLarge:
-            clip_duration = end_time - start_time
-            await self.reply_error(
-                f"❌ Klip jest za duży do wysłania ({clip_duration:.1f}s).\n\n"
-                f"Telegram ma limit 50MB dla wideo. Spróbuj:\n"
-                f"• Zmniejszyć rozszerzenie czasowe\n"
-                f"• Wybrać krótszy fragment"
-            )
+            await self.reply_error(get_telegram_clip_too_large_for_adjust_message(end_time - start_time))
             await self._log_system_message(
                 logging.WARNING,
-                f"Clip too large to send via Telegram: {clip_duration:.1f}s for user {msg.get_username()}"
+                f"Clip too large to send via Telegram: {end_time - start_time:.1f}s for user {msg.get_username()}",
             )
             return None
 
@@ -159,10 +152,6 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def __reply_invalid_segment_index(self) -> None:
         await self.reply_error(get_invalid_segment_index_message())
         await self._log_system_message(logging.INFO, get_invalid_segment_log())
-
-    async def __reply_extraction_failure(self, e: Exception) -> None:
-        await self.reply_error(get_extraction_failure_message(e))
-        await self._log_system_message(logging.ERROR, get_extraction_failure_log(e))
 
     async def __is_adjustment_exceeding_limits(self, additional_start_offset: float, additional_end_offset: float) -> bool:
         return (

@@ -11,6 +11,7 @@ from typing import (
     Optional,
 )
 
+from aiogram.exceptions import TelegramEntityTooLarge
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
 from bot.interfaces.message import AbstractMessage
@@ -19,9 +20,15 @@ from bot.responses.bot_message_handler_responses import (
     get_clip_size_exceed_log_message,
     get_clip_size_exceed_message,
     get_clip_size_log_message,
+    get_extraction_failure_message,
     get_general_error_message,
     get_invalid_args_count_message,
+    get_log_clip_too_large_message,
     get_log_clip_duration_exceeded_message,
+    get_log_compilation_too_large_message,
+    get_log_extraction_failure_message,
+    get_telegram_clip_too_large_message,
+    get_telegram_compilation_too_large_message,
     get_video_sent_log_message,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
@@ -30,6 +37,7 @@ from bot.utils.log import (
     log_system_message,
     log_user_activity,
 )
+from bot.video.utils import FFMpegException
 
 ValidatorFunctions = List[Callable[[], Awaitable[bool]]]
 
@@ -152,3 +160,21 @@ class BotMessageHandler(ABC):
 
     async def reply_error(self, message: str, data: Optional[dict] = None):
         await self.reply(message, data, RS.ERROR)
+
+    async def handle_ffmpeg_exception(self, exception: FFMpegException) -> None:
+        await self.reply_error(get_extraction_failure_message())
+        await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
+
+    async def handle_telegram_entity_too_large_for_clip(self, clip_duration: float) -> None:
+        await self.reply_error(get_telegram_clip_too_large_message(clip_duration))
+        await self._log_system_message(
+            logging.WARNING,
+            get_log_clip_too_large_message(clip_duration, self._message.get_username()),
+        )
+
+    async def handle_telegram_entity_too_large_for_compilation(self, total_duration: float) -> None:
+        await self.reply_error(get_telegram_compilation_too_large_message(total_duration))
+        await self._log_system_message(
+            logging.WARNING,
+            get_log_compilation_too_large_message(total_duration, self._message.get_username()),
+        )

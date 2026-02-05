@@ -7,19 +7,15 @@ from typing import (
 
 def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str, int]]], season_info: Dict[str, int]) -> str:
     if season == 0:
-        response = f"📃 Lista odcinków Specjalnych:\n\n```\n"
+        response = "📃 Lista odcinków Specjalnych:\n\n```\n"
     else:
         response = f"📃 Lista odcinków dla sezonu {season}:\n\n```\n"
-
-    season_0_count = season_info.get('0', 0)
 
     episodes_in_previous_seasons_from_1 = sum(
         season_info[str(s)] for s in range(1, season) if str(s) in season_info
     )
 
     for idx, episode in enumerate(episodes, start=1):
-        db_episode_number = episode["episode_number"]
-
         if season == 0:
             absolute_episode_number = f"Spec-{idx}"
             season_episode_number = idx

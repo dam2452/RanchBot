@@ -150,47 +150,18 @@ class ReindexService:
             episode_code = None
             try:
                 if idx > 0 and idx % 10 == 0:
-                    self.logger.info(f"Flushing and refreshing ES after {idx} episodes...")
-                    try:
-                        if self.es_manager:
-                            await self.es_manager.indices.flush(index=f"{series_name}_*", wait_if_ongoing=False, ignore=[404])
-                            await asyncio.sleep(3)
-                            await self.es_manager.close()
-                    except Exception as e:
-                        self.logger.warning(f"Error during flush: {e}")
-                    self.es_manager = None
-                    await asyncio.sleep(5)
-                    await self._init_elasticsearch()
-                    await asyncio.sleep(2)
+                    await self._refresh_elasticsearch_connection(series_name, idx)
 
-                episode_code = self._extract_episode_code(zip_path)
-                progress_pct = 10 + int((idx / total_episodes) * 85)
-
-                await progress_callback(
-                    f"Przetwarzanie {episode_code}... ({idx+1}/{total_episodes})",
-                    progress_pct,
-                    100,
+                episode_code, indexed_in_episode = await self._process_single_episode(
+                    zip_path,
+                    series_name,
+                    mp4_map,
+                    idx,
+                    total_episodes,
+                    progress_callback,
                 )
 
-                mp4_path = mp4_map.get(episode_code)
-
-                jsonl_contents = self.zip_extractor.extract_to_memory(zip_path)
-
-                for jsonl_type, buffer in jsonl_contents.items():
-                    documents = self.zip_extractor.parse_jsonl_from_memory(buffer)
-
-                    for doc in documents:
-                        self.video_transformer.transform_video_path(doc, mp4_path)
-
-                    index_name = self._get_index_name(series_name, jsonl_type)
-
-                    await self._bulk_index_documents(
-                        index_name,
-                        jsonl_type,
-                        documents,
-                    )
-
-                    indexed_count += len(documents)
+                indexed_count += indexed_in_episode
 
             except Exception as e:
                 error_msg = f"Failed to process {zip_path.name}: {str(e)}"
@@ -297,3 +268,61 @@ class ReindexService:
         if match:
             return match.group(1)
         return zip_path.stem
+
+    async def _refresh_elasticsearch_connection(self, series_name: str, idx: int):
+        self.logger.info(f"Flushing and refreshing ES after {idx} episodes...")
+        try:
+            if self.es_manager:
+                await self.es_manager.indices.flush(
+                    index=f"{series_name}_*",
+                    wait_if_ongoing=False,
+                    ignore=[404],
+                )
+                await asyncio.sleep(3)
+                await self.es_manager.close()
+        except Exception as e:
+            self.logger.warning(f"Error during flush: {e}")
+        self.es_manager = None
+        await asyncio.sleep(5)
+        await self._init_elasticsearch()
+        await asyncio.sleep(2)
+
+    async def _process_single_episode(
+        self,
+        zip_path: Path,
+        series_name: str,
+        mp4_map: Dict[str, str],
+        idx: int,
+        total_episodes: int,
+        progress_callback: Callable[[str, int, int], Awaitable[None]],
+    ) -> tuple[str, int]:
+        episode_code = self._extract_episode_code(zip_path)
+        progress_pct = 10 + int((idx / total_episodes) * 85)
+
+        await progress_callback(
+            f"Przetwarzanie {episode_code}... ({idx+1}/{total_episodes})",
+            progress_pct,
+            100,
+        )
+
+        mp4_path = mp4_map.get(episode_code)
+        jsonl_contents = self.zip_extractor.extract_to_memory(zip_path)
+        indexed_count = 0
+
+        for jsonl_type, buffer in jsonl_contents.items():
+            documents = self.zip_extractor.parse_jsonl_from_memory(buffer)
+
+            for doc in documents:
+                self.video_transformer.transform_video_path(doc, mp4_path)
+
+            index_name = self._get_index_name(series_name, jsonl_type)
+
+            await self._bulk_index_documents(
+                index_name,
+                jsonl_type,
+                documents,
+            )
+
+            indexed_count += len(documents)
+
+        return episode_code, indexed_count

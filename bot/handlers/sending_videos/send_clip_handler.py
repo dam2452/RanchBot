@@ -90,11 +90,11 @@ class SendClipHandler(BotMessageHandler):
         except TelegramEntityTooLarge:
             await self.reply_error(
                 f"❌ Klip '{clip.name}' jest za duży do wysłania ({clip.duration:.1f}s).\n\n"
-                f"Telegram ma limit 50MB dla wideo."
+                f"Telegram ma limit 50MB dla wideo.",
             )
             await self._log_system_message(
                 logging.WARNING,
-                f"Clip too large to send via Telegram: {clip.name} ({clip.duration:.1f}s) for user {self._message.get_username()}"
+                f"Clip too large to send via Telegram: {clip.name} ({clip.duration:.1f}s) for user {self._message.get_username()}",
             )
             return None
 

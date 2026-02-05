@@ -1,8 +1,5 @@
 import logging
-from typing import (
-    List,
-    Optional,
-)
+from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.services.reindex.series_scanner import SeriesScanner

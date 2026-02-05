@@ -56,3 +56,12 @@ def get_max_extension_limit_message() -> str:
 
 def get_max_clip_duration_message() -> str:
     return "❌ Przekroczono maksymalny czas trwania klipu.❌"
+
+
+def get_telegram_clip_too_large_for_adjust_message(clip_duration: float) -> str:
+    return (
+        f"❌ Klip jest za duży do wysłania ({clip_duration:.1f}s).\n\n"
+        f"Telegram ma limit 50MB dla wideo. Spróbuj:\n"
+        f"• Zmniejszyć rozszerzenie czasowe\n"
+        f"• Wybrać krótszy fragment"
+    )

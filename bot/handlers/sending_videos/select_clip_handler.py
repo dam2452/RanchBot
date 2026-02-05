@@ -4,17 +4,11 @@ from pathlib import Path
 import tempfile
 from typing import List
 
-from aiogram.exceptions import TelegramEntityTooLarge
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
-)
-from bot.responses.bot_message_handler_responses import (
-    get_extraction_failure_message,
-    get_log_extraction_failure_message,
 )
 from bot.responses.sending_videos.select_clip_handler_responses import (
     get_invalid_args_count_message,
@@ -82,17 +76,9 @@ class SelectClipHandler(BotMessageHandler):
                 is_adjusted=False,
             )
         except FFMpegException as e:
-            return await self.__reply_extraction_failure(e)
+            return await self.handle_ffmpeg_exception(e)
         except TelegramEntityTooLarge:
-            clip_duration = end_time - start_time
-            await self.reply_error(
-                f"❌ Klip jest za duży do wysłania ({clip_duration:.1f}s).\n\n"
-                f"Telegram ma limit 50MB dla wideo. Spróbuj wybrać krótszy fragment."
-            )
-            await self._log_system_message(
-                logging.WARNING,
-                f"Clip too large to send via Telegram: {clip_duration:.1f}s for user {self._message.get_username()}"
-            )
+            await self.handle_telegram_entity_too_large_for_clip(end_time - start_time)
             return None
 
         return await self._log_system_message(
@@ -103,10 +89,6 @@ class SelectClipHandler(BotMessageHandler):
     async def __reply_no_previous_search(self) -> None:
         await self.reply_error(get_no_previous_search_message())
         await self._log_system_message(logging.INFO, get_log_no_previous_search_message())
-
-    async def __reply_extraction_failure(self, exception: FFMpegException) -> None:
-        await self.reply_error(get_extraction_failure_message())
-        await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
     async def __reply_invalid_segment_number(self, segment_number: int) -> None:
         await self.reply_error(get_invalid_segment_number_message())
