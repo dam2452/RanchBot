@@ -147,6 +147,7 @@ class ReindexService:
         errors = []
 
         for idx, zip_path in enumerate(zip_files):
+            episode_code = None
             try:
                 episode_code = self._extract_episode_code(zip_path)
                 progress_pct = 10 + int((idx / total_episodes) * 85)
@@ -156,8 +157,6 @@ class ReindexService:
                     progress_pct,
                     100,
                 )
-
-                await self._init_elasticsearch()
 
                 mp4_path = mp4_map.get(episode_code)
 
@@ -183,6 +182,16 @@ class ReindexService:
                 error_msg = f"Failed to process {zip_path.name}: {str(e)}"
                 self.logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
+
+                if "Cannot connect" in str(e) or "Connection" in str(e):
+                    self.logger.info("Connection error detected, recreating ES connection...")
+                    try:
+                        if self.es_manager:
+                            await self.es_manager.close()
+                    except Exception:
+                        pass
+                    self.es_manager = None
+                    await self._init_elasticsearch()
 
         await progress_callback(f"Reindex of {series_name} complete!", 100, 100)
 
