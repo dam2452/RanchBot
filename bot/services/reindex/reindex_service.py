@@ -150,12 +150,14 @@ class ReindexService:
             episode_code = None
             try:
                 if idx > 0 and idx % 10 == 0:
-                    self.logger.info(f"Refreshing ES connection after {idx} episodes...")
+                    self.logger.info(f"Flushing and refreshing ES after {idx} episodes...")
                     try:
                         if self.es_manager:
+                            await self.es_manager.indices.flush(index=f"{series_name}_*", wait_if_ongoing=False, ignore=[404])
+                            await asyncio.sleep(3)
                             await self.es_manager.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        self.logger.warning(f"Error during flush: {e}")
                     self.es_manager = None
                     await asyncio.sleep(5)
                     await self._init_elasticsearch()
