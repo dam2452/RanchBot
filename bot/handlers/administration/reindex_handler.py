@@ -96,6 +96,8 @@ class ReindexHandler(BotMessageHandler):
                 logging.ERROR,
                 f"Reindex failed: {e}",
             )
+        finally:
+            await self.reindex_service.close()
 
     def _create_progress_callback(self):
         async def callback(message: str, current: int, total: int):

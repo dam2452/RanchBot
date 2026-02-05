@@ -58,6 +58,11 @@ class ReindexService:
                 self.logger,
             )
 
+    async def close(self):
+        if self.es_manager is not None:
+            await self.es_manager.close()
+            self.es_manager = None
+
     async def reindex_all(
         self,
         progress_callback: Callable[[str, int, int], Awaitable[None]],
@@ -231,9 +236,12 @@ class ReindexService:
                 chunk_size=25,
                 max_chunk_bytes=2 * 1024 * 1024,
                 raise_on_error=False,
+                max_retries=3,
+                initial_backoff=2,
+                max_backoff=600,
             )
             self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.5)
         except BulkIndexError as e:
             self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
             for error in e.errors[:3]:
