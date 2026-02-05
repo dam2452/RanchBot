@@ -6,15 +6,24 @@ from typing import (
 
 
 def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str, int]]], season_info: Dict[str, int]) -> str:
-    response = f"📃 Lista odcinków dla sezonu {season}:\n\n```\n"
+    season_label = "Specjalne" if season == 0 else str(season)
+    response = f"📃 Lista odcinków dla sezonu {season_label}:\n\n```\n"
 
-    episodes_in_previous_seasons = sum(
-        season_info[str(s)] for s in range(1, season)
+    season_0_count = season_info.get('0', 0)
+
+    episodes_in_previous_seasons_from_1 = sum(
+        season_info[str(s)] for s in range(1, season) if str(s) in season_info
     )
 
-    for episode in episodes:
-        absolute_episode_number = episode["episode_number"]
-        season_episode_number = absolute_episode_number - episodes_in_previous_seasons
+    for idx, episode in enumerate(episodes, start=1):
+        db_episode_number = episode["episode_number"]
+
+        if season == 0:
+            absolute_episode_number = f"Spec-{idx}"
+            season_episode_number = idx
+        else:
+            absolute_episode_number = episodes_in_previous_seasons_from_1 + idx
+            season_episode_number = idx
 
         viewership = episode.get("viewership")
         if viewership is not None and viewership != "Unknown":
@@ -26,7 +35,8 @@ def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str
         else:
             formatted_viewership = "N/A"
 
-        response += f"🎬 {episode['title']}: S{season:02d}E{season_episode_number:02d} ({absolute_episode_number}) \n"
+        season_code = "S00" if season == 0 else f"S{season:02d}"
+        response += f"🎬 {episode['title']}: {season_code}E{season_episode_number:02d} ({absolute_episode_number}) \n"
         response += f"📅 Data premiery: {episode['premiere_date']}\n"
         response += f"👀 Oglądalność: {formatted_viewership}\n\n"
 
@@ -51,7 +61,8 @@ def format_season_list_response(season_info: Dict[str, int]) -> str:
     sorted_seasons = sorted(season_info.items(), key=lambda x: int(x[0]))
 
     for season_str, episode_count in sorted_seasons:
-        response += f"📺 Sezon {season_str}: {episode_count} odcinków\n"
+        season_label = "Specjalne" if season_str == "0" else season_str
+        response += f"📺 Sezon {season_label}: {episode_count} odcinków\n"
 
     response += "```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły odcinków z danego sezonu."
     return response
