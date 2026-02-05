@@ -6,8 +6,10 @@ from typing import (
 
 
 def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str, int]]], season_info: Dict[str, int]) -> str:
-    season_label = "Specjalne" if season == 0 else str(season)
-    response = f"📃 Lista odcinków dla sezonu {season_label}:\n\n```\n"
+    if season == 0:
+        response = f"📃 Lista odcinków Specjalnych:\n\n```\n"
+    else:
+        response = f"📃 Lista odcinków dla sezonu {season}:\n\n```\n"
 
     season_0_count = season_info.get('0', 0)
 
@@ -61,8 +63,10 @@ def format_season_list_response(season_info: Dict[str, int]) -> str:
     sorted_seasons = sorted(season_info.items(), key=lambda x: int(x[0]))
 
     for season_str, episode_count in sorted_seasons:
-        season_label = "Specjalne" if season_str == "0" else season_str
-        response += f"📺 Sezon {season_label}: {episode_count} odcinków\n"
+        if season_str == "0":
+            response += f"📺 Specjalne: {episode_count} odcinków\n"
+        else:
+            response += f"📺 Sezon {season_str}: {episode_count} odcinków\n"
 
     response += "```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły odcinków z danego sezonu."
     return response
