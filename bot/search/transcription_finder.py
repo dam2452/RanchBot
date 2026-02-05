@@ -43,7 +43,7 @@ class TranscriptionFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        index = f"{series_name}_text_segments"
+        index = f"{series_name}_segments"
 
         query = {
             "query": {
@@ -104,7 +104,7 @@ class TranscriptionFinder:
     async def find_segment_with_context(
             quote: str, logger: logging.Logger, series_name: str, context_size: int = 30,
             season_filter: Optional[int] = None, episode_filter: Optional[int] = None,
-            index: str = settings.ES_TRANSCRIPTION_INDEX,
+            index: str = None,
     ) -> Optional[json]:
         await log_system_message(
             logging.INFO,
@@ -112,6 +112,9 @@ class TranscriptionFinder:
             logger,
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+
+        if index is None:
+            index = f"{series_name}_segments"
 
         segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
         if not segment:

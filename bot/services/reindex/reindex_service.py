@@ -79,7 +79,7 @@ class ReindexService:
         total_series = len(all_series)
         for idx, series_name in enumerate(all_series):
             await progress_callback(
-                f"Processing series {idx+1}/{total_series}: {series_name}",
+                f"Przetwarzanie serialu {idx+1}/{total_series}: {series_name}",
                 idx,
                 total_series,
             )
@@ -106,7 +106,7 @@ class ReindexService:
                 new_series.append(series_name)
 
         if not new_series:
-            await progress_callback("No new series to reindex", 0, 0)
+            await progress_callback("Brak nowych seriali do reindeksowania", 0, 0)
             return []
 
         results = []
@@ -114,7 +114,7 @@ class ReindexService:
 
         for idx, series_name in enumerate(new_series):
             await progress_callback(
-                f"Processing new series {idx+1}/{total_series}: {series_name}",
+                f"Przetwarzanie nowego serialu {idx+1}/{total_series}: {series_name}",
                 idx,
                 total_series,
             )
@@ -131,7 +131,7 @@ class ReindexService:
     ) -> ReindexResult:
         await self._init_elasticsearch()
 
-        await progress_callback(f"Scanning {series_name}...", 0, 100)
+        await progress_callback(f"Skanowanie {series_name}...", 0, 100)
 
         zip_files = self.scanner.scan_series_zips(series_name)
         if not zip_files:
@@ -139,7 +139,7 @@ class ReindexService:
 
         mp4_map = self.scanner.scan_series_mp4s(series_name)
 
-        await progress_callback(f"Deleting old indices for {series_name}...", 5, 100)
+        await progress_callback(f"Usuwanie starych indeksów dla {series_name}...", 5, 100)
         await self._delete_series_indices(series_name)
 
         total_episodes = len(zip_files)
@@ -167,7 +167,7 @@ class ReindexService:
                 progress_pct = 10 + int((idx / total_episodes) * 85)
 
                 await progress_callback(
-                    f"Processing {episode_code}... ({idx+1}/{total_episodes})",
+                    f"Przetwarzanie {episode_code}... ({idx+1}/{total_episodes})",
                     progress_pct,
                     100,
                 )
@@ -207,7 +207,7 @@ class ReindexService:
                     self.es_manager = None
                     await self._init_elasticsearch()
 
-        await progress_callback(f"Reindex of {series_name} complete!", 100, 100)
+        await progress_callback(f"Reindeksowanie {series_name} zakończone!", 100, 100)
 
         return ReindexResult(
             series_name=series_name,

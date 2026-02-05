@@ -11,7 +11,7 @@ def get_reindex_progress_message(message: str, current: int, total: int) -> str:
         return f"🔄 {message}"
 
     percentage = int((current / total) * 100)
-    bar_length = 20
+    bar_length = 10
     filled = int((percentage / 100) * bar_length)
 
     progress_bar = "🟩" * filled + "⬜" * (bar_length - filled)
@@ -20,7 +20,7 @@ def get_reindex_progress_message(message: str, current: int, total: int) -> str:
         f"🔄 *Reindeksowanie w toku*\n\n"
         f"📝 {message}\n\n"
         f"{progress_bar}\n\n"
-        f"📊 Postęp: *{percentage}%* ({current}/{total})"
+        f"📊 Postęp: *{percentage}%*"
     )
 
 

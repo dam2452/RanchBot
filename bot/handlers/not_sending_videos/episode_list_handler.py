@@ -18,6 +18,7 @@ from bot.responses.not_sending_videos.episode_list_handler_responses import (
     get_no_episodes_found_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 
 isSeasonCustomFn = Callable[[dict], bool]
 onCustomSeasonFn = Callable[[], Awaitable[None]]
@@ -40,7 +41,16 @@ class EpisodeListHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+
+        serial_manager = SerialContextManager(self._logger)
+        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
+
+        if not active_series:
+            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
+            return
+
+        index = f"{active_series}_segments"
+        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
 
         if len(args) == 1:
             if self._message.should_reply_json():
@@ -61,7 +71,7 @@ class EpisodeListHandler(BotMessageHandler):
         except ValueError:
             return await self.reply_error(get_invalid_args_count_message())
 
-        episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger)
+        episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger, index=index)
 
         if not episodes:
             return await self.__reply_no_episodes_found(season)
