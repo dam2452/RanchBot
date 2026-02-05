@@ -64,21 +64,19 @@ def format_season_list_response(season_info: Dict[str, int]) -> str:
             return f"{count} odcinki"
         return f"{count} odcinków"
 
-    response = "📺 LISTA SEZONÓW\n\n".replace(" ", "\u00A0") + "```\n"
-
     sorted_seasons = sorted(season_info.items(), key=lambda x: int(x[0]))
     season_lines = []
 
     for season_str, episode_count in sorted_seasons:
         if season_str == "0":
-            line = f"🎬 Specjalne 🎬\n   👉 {format_episode_count(episode_count)}"
+            line = f"🎬 Specjalne 🎬 - {format_episode_count(episode_count)}"
         else:
             season_num = int(season_str)
             emoji = convert_number_to_emoji(season_num)
-            line = f"Sezon {emoji}\n   👉 {format_episode_count(episode_count)}"
+            line = f"Sezon {emoji} - {format_episode_count(episode_count)}"
         season_lines.append(line)
 
-    response += "\n\n".join(season_lines) + "\n```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły"
+    response = "📺 LISTA SEZONÓW```".replace(" ", "\u00A0") + "\n\n".join(season_lines) + "\n```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły"
     return response
 
 
