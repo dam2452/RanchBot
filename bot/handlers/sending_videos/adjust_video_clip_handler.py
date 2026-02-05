@@ -76,8 +76,8 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
             await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
 
-        original_start_time = float(segment_info.get("start", 0))
-        original_end_time = float(segment_info.get("end", 0))
+        original_start_time = float(segment_info.get("start_time", 0))
+        original_end_time = float(segment_info.get("end_time", 0))
 
         try:
             float(content[-2])

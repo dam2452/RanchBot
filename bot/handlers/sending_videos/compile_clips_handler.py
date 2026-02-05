@@ -91,11 +91,11 @@ class CompileClipsHandler(BotMessageHandler):
 
         total_duration = 0
         for segment in selected_segments:
-            duration = (segment["end"] + settings.EXTEND_AFTER) - (segment["start"] - settings.EXTEND_BEFORE)
+            duration = (segment["end_time"] + settings.EXTEND_AFTER) - (segment["start_time"] - settings.EXTEND_BEFORE)
             total_duration += duration
             await self._log_system_message(
                 logging.INFO,
-                get_selected_clip_message(segment["video_path"], segment["start"], segment["end"], duration),
+                get_selected_clip_message(segment["video_path"], segment["start_time"], segment["end_time"], duration),
             )
 
         if await self._check_clip_duration_limit(user_id, total_duration):
@@ -115,8 +115,8 @@ class CompileClipsHandler(BotMessageHandler):
                 selected_segments.extend(
                     {
                         "video_path": s["video_path"],
-                        "start": s["start"],
-                        "end": s["end"],
+                        "start_time": s["start_time"],
+                        "end_time": s["end_time"],
                     }
                     for s in segments
                 )
@@ -153,8 +153,8 @@ class CompileClipsHandler(BotMessageHandler):
                 segment = segments[i - 1]
                 collected.append({
                     "video_path": segment["video_path"],
-                    "start": segment["start"],
-                    "end": segment["end"],
+                    "start_time": segment["start_time"],
+                    "end_time": segment["end_time"],
                 })
             except IndexError:
                 pass
@@ -175,8 +175,8 @@ class CompileClipsHandler(BotMessageHandler):
         segment = segments[idx - 1]
         return {
             "video_path": segment["video_path"],
-            "start": segment["start"],
-            "end": segment["end"],
+            "start_time": segment["start_time"],
+            "end_time": segment["end_time"],
         }
 
     @staticmethod

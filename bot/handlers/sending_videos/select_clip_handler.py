@@ -56,8 +56,8 @@ class SelectClipHandler(BotMessageHandler):
             return await self.__reply_invalid_segment_number(index)
 
         segment = segments[index - 1]
-        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-        end_time = segment["end"] + settings.EXTEND_AFTER
+        start_time = max(0, segment["start_time"] - settings.EXTEND_BEFORE)
+        end_time = segment["end_time"] + settings.EXTEND_AFTER
 
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None

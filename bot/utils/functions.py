@@ -92,7 +92,7 @@ def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegme
     season = str(season_number).zfill(2)
     episode_number = str(episode_number_in_season).zfill(2)
 
-    start_time = int(segment["start"])
+    start_time = int(segment.get("start_time", segment.get("start", 0)))
     minutes, seconds = divmod(start_time, 60)
 
     return FormattedSegmentInfo(

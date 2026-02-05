@@ -133,8 +133,8 @@ class InlineClipHandler(BotMessageHandler):
             video_files.append(saved_file)
 
         for idx, segment in enumerate(segments, start=2 if saved_clip else 1):
-            start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-            end_time = segment["end"] + settings.EXTEND_AFTER
+            start_time = max(0, segment["start_time"] - settings.EXTEND_BEFORE)
+            end_time = segment["end_time"] + settings.EXTEND_AFTER
 
             if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
                 continue

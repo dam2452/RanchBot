@@ -52,8 +52,8 @@ class ClipsCompiler:
         temp_files = []
         try:
             for segment in selected_clips:
-                start_time = segment["start"] - settings.EXTEND_BEFORE_COMPILE
-                end_time = segment["end"] + settings.EXTEND_AFTER_COMPILE
+                start_time = segment["start_time"] - settings.EXTEND_BEFORE_COMPILE
+                end_time = segment["end_time"] + settings.EXTEND_AFTER_COMPILE
 
                 extracted_clip_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, logger)
                 temp_files.append(extracted_clip_path)
