@@ -23,6 +23,7 @@ def get_serial_current_message(series_name: str, available_series: list = None) 
     return (f"""```📺 WYBÓR SERIALU 📺
 
 📋 Dostępne seriale:
+
 {series_list}
 
 💡 Użycie:
