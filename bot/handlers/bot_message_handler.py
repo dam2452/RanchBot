@@ -79,7 +79,7 @@ class BotMessageHandler(ABC):
         await log_user_activity(user_id, message, self._logger)
 
     async def _reply_invalid_args_count(self, response: str) -> None:
-        await self._responder.send_text(response)
+        await self._responder.send_markdown(response)
         await self._log_system_message(logging.INFO, get_invalid_args_count_message(self.get_action_name(), self._message.get_user_id()))
 
     def get_action_name(self) -> str:

@@ -4,6 +4,8 @@ from typing import (
     Union,
 )
 
+from bot.utils.functions import convert_number_to_emoji
+
 
 def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str, int]]], season_info: Dict[str, int]) -> str:
     if season == 0:
@@ -55,17 +57,26 @@ def get_log_episode_list_sent_message(season: int, username: str) -> str:
 
 
 def format_season_list_response(season_info: Dict[str, int]) -> str:
-    response = "📃 Lista sezonów:\n\n```\n"
+    def format_episode_count(count: int) -> str:
+        if count == 1:
+            return "1 odcinek"
+        if 2 <= count <= 4 or (count > 20 and count % 10 in {2, 3, 4}):
+            return f"{count} odcinki"
+        return f"{count} odcinków"
+
+    response = "```\n📺 LISTA SEZONÓW\n" + "─" * 30 + "\n\n"
 
     sorted_seasons = sorted(season_info.items(), key=lambda x: int(x[0]))
 
     for season_str, episode_count in sorted_seasons:
         if season_str == "0":
-            response += f"📺 Specjalne: {episode_count} odcinków\n"
+            response += f"🎬  Specjalne  │  {format_episode_count(episode_count)}\n"
         else:
-            response += f"📺 Sezon {season_str}: {episode_count} odcinków\n"
+            season_num = int(season_str)
+            emoji = convert_number_to_emoji(season_num)
+            response += f"{emoji}  Sezon {season_str}  │  {format_episode_count(episode_count)}\n"
 
-    response += "```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły odcinków z danego sezonu."
+    response += "\n" + "─" * 30 + "\n```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły"
     return response
 
 

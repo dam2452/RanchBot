@@ -32,6 +32,23 @@ class TranscriptionFinder:
                 ] and
                 start_time <= previous_segment.get("end_time", previous_segment.get("end", 0))
         )
+
+    @staticmethod
+    def _merge_overlapping_segment(segment: Dict[str, Any], unique_segments: List[Dict[str, Any]], start_time: float, end_time: float) -> bool:
+        for i, existing_segment in enumerate(unique_segments):
+            existing_start = existing_segment["start_time"] - settings.EXTEND_BEFORE
+            existing_end = existing_segment["end_time"] + settings.EXTEND_AFTER
+
+            if (
+                segment.get("episode_metadata", {}).get("season") == existing_segment.get("episode_metadata", {}).get("season") and
+                segment.get("episode_metadata", {}).get("episode_number") == existing_segment.get("episode_metadata", {}).get("episode_number") and
+                start_time <= existing_end and end_time >= existing_start
+            ):
+                unique_segments[i]["start_time"] = min(existing_segment["start_time"], segment["start_time"])
+                unique_segments[i]["end_time"] = max(existing_segment["end_time"], segment["end_time"])
+                return True
+        return False
+
     @staticmethod
     async def find_segment_by_quote(
             quote: str, logger: logging.Logger, series_name: str, season_filter: Optional[int] = None,
@@ -63,6 +80,11 @@ class TranscriptionFinder:
                     ],
                 },
             },
+            "sort": [
+                {"episode_metadata.season": "asc"},
+                {"episode_metadata.episode_number": "asc"},
+                {"start_time": "asc"},
+            ],
         }
 
         if season_filter:
@@ -78,18 +100,27 @@ class TranscriptionFinder:
             return None
 
         unique_segments = []
-        previous_segment = {}
+        seen_segments = set()
 
         for hit in hits:
             segment = hit["_source"]
-            start_time = segment["start_time"] - settings.EXTEND_BEFORE
-            end_time = segment["end_time"] + settings.EXTEND_AFTER
+            segment_key = (
+                segment.get("episode_metadata", {}).get("season"),
+                segment.get("episode_metadata", {}).get("episode_number"),
+                segment.get("start_time"),
+                segment.get("end_time"),
+            )
 
-            if TranscriptionFinder.is_segment_overlap(previous_segment, segment, start_time):
-                previous_segment["end_time"] = max(previous_segment.get("end_time", 0), end_time)
-            else:
-                unique_segments.append(segment)
-                previous_segment = segment
+            if segment_key not in seen_segments:
+                seen_segments.add(segment_key)
+
+                start_time = segment["start_time"] - settings.EXTEND_BEFORE
+                end_time = segment["end_time"] + settings.EXTEND_AFTER
+
+                is_overlapping = TranscriptionFinder._merge_overlapping_segment(segment, unique_segments, start_time, end_time)
+
+                if not is_overlapping:
+                    unique_segments.append(segment)
 
         await log_system_message(
             logging.INFO, f"Found {len(unique_segments)} unique segments after merging.",
