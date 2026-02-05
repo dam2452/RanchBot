@@ -149,6 +149,17 @@ class ReindexService:
         for idx, zip_path in enumerate(zip_files):
             episode_code = None
             try:
+                if idx > 0 and idx % 20 == 0:
+                    self.logger.info(f"Refreshing ES connection after {idx} episodes...")
+                    try:
+                        if self.es_manager:
+                            await self.es_manager.close()
+                    except Exception:
+                        pass
+                    self.es_manager = None
+                    await self._init_elasticsearch()
+                    await asyncio.sleep(2)
+
                 episode_code = self._extract_episode_code(zip_path)
                 progress_pct = 10 + int((idx / total_episodes) * 85)
 
