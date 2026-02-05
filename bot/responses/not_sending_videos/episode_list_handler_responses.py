@@ -17,9 +17,14 @@ def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str
         season_episode_number = absolute_episode_number - episodes_in_previous_seasons
 
         viewership = episode.get("viewership")
-        formatted_viewership = (
-            f"{viewership:,}".replace(",", ".") if viewership is not None else "N/A"
-        )
+        if viewership is not None and viewership != "Unknown":
+            try:
+                viewership_num = float(str(viewership).replace(",", "").replace(".", ""))
+                formatted_viewership = f"{viewership_num:,.0f}".replace(",", ".")
+            except (ValueError, AttributeError):
+                formatted_viewership = str(viewership)
+        else:
+            formatted_viewership = "N/A"
 
         response += f"🎬 {episode['title']}: S{season:02d}E{season_episode_number:02d} ({absolute_episode_number}) \n"
         response += f"📅 Data premiery: {episode['premiere_date']}\n"
