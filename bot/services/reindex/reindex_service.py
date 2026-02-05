@@ -157,6 +157,8 @@ class ReindexService:
                     100,
                 )
 
+                await self._init_elasticsearch()
+
                 mp4_path = mp4_map.get(episode_code)
 
                 jsonl_contents = self.zip_extractor.extract_to_memory(zip_path)
@@ -217,56 +219,40 @@ class ReindexService:
         index_type: str,
         documents: List[Dict],
     ):
-        max_connection_retries = 3
-        for attempt in range(max_connection_retries):
-            try:
-                if not await self.es_manager.ping():
-                    self.logger.warning(f"ES connection lost, reconnecting... (attempt {attempt + 1}/{max_connection_retries})")
-                    await self.es_manager.close()
-                    self.es_manager = None
-                    await self._init_elasticsearch()
+        mapping = self._get_mapping_for_type(index_type)
 
-                mapping = self._get_mapping_for_type(index_type)
+        if not await self.es_manager.indices.exists(index=index_name):
+            await self.es_manager.indices.create(
+                index=index_name,
+                body=mapping,
+            )
 
-                if not await self.es_manager.indices.exists(index=index_name):
-                    await self.es_manager.indices.create(
-                        index=index_name,
-                        body=mapping,
-                    )
+        actions = [
+            {
+                "_index": index_name,
+                "_source": doc,
+            }
+            for doc in documents
+        ]
 
-                actions = [
-                    {
-                        "_index": index_name,
-                        "_source": doc,
-                    }
-                    for doc in documents
-                ]
-
-                await async_bulk(
-                    self.es_manager,
-                    actions,
-                    chunk_size=25,
-                    max_chunk_bytes=2 * 1024 * 1024,
-                    raise_on_error=False,
-                    max_retries=3,
-                    initial_backoff=2,
-                    max_backoff=600,
-                )
-                self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
-                await asyncio.sleep(0.5)
-                return
-
-            except BulkIndexError as e:
-                self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
-                for error in e.errors[:3]:
-                    self.logger.warning(f"Sample error: {error}")
-                raise
-            except Exception as e:
-                if attempt < max_connection_retries - 1:
-                    self.logger.warning(f"Bulk index failed (attempt {attempt + 1}/{max_connection_retries}): {e}")
-                    await asyncio.sleep(2 ** attempt)
-                else:
-                    raise
+        try:
+            await async_bulk(
+                self.es_manager,
+                actions,
+                chunk_size=25,
+                max_chunk_bytes=2 * 1024 * 1024,
+                raise_on_error=False,
+                max_retries=3,
+                initial_backoff=2,
+                max_backoff=600,
+            )
+            self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
+            await asyncio.sleep(0.3)
+        except BulkIndexError as e:
+            self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
+            for error in e.errors[:3]:
+                self.logger.warning(f"Sample error: {error}")
+            raise
 
     def _get_mapping_for_type(self, index_type: str):
         mappings = {

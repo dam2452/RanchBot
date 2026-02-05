@@ -358,8 +358,6 @@ class ElasticSearchManager:
             "request_timeout": 30,
             "max_retries": 3,
             "retry_on_timeout": True,
-            "http_compress": True,
-            "connections_per_node": 10,
         }
 
         if es_user and es_pass:
