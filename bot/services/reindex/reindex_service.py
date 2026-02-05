@@ -248,15 +248,15 @@ class ReindexService:
             await async_bulk(
                 self.es_manager,
                 actions,
-                chunk_size=25,
-                max_chunk_bytes=2 * 1024 * 1024,
+                chunk_size=10,
+                max_chunk_bytes=1 * 1024 * 1024,
                 raise_on_error=False,
-                max_retries=3,
-                initial_backoff=2,
-                max_backoff=600,
+                max_retries=2,
+                initial_backoff=1,
+                max_backoff=300,
             )
             self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(1.0)
         except BulkIndexError as e:
             self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
             for error in e.errors[:3]:
