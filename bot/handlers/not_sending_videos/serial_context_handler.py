@@ -49,7 +49,8 @@ class SerialContextHandler(BotMessageHandler):
         series_name = args[1].lower()
 
         available_series = await self.serial_manager.list_available_series()
-        if series_name not in available_series:
+        available_series_lower = [s.lower() for s in available_series]
+        if series_name not in available_series_lower:
             await self.reply_error(
                 get_serial_invalid_message(series_name, available_series),
             )

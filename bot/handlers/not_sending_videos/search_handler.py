@@ -65,8 +65,6 @@ class SearchHandler(BotMessageHandler):
             series_name=active_series,
         )
 
-        index = f"{active_series}_text_segments"
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
         response = format_search_response(len(segments), segments, quote)
 
         await self.reply(

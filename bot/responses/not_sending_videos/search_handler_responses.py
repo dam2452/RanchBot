@@ -1,5 +1,3 @@
-import json
-
 from bot.utils.functions import (
     convert_number_to_emoji,
     format_segment,

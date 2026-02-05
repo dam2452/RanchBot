@@ -1,9 +1,11 @@
 import json
 import logging
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -122,12 +124,35 @@ class TranscriptionFinder:
             return None
 
         segment = segment[0] if isinstance(segment, list) else segment
-
         episode_data = segment.get("episode_metadata", segment.get("episode_info", {}))
         segment_id = segment.get("segment_id", segment.get("id"))
+
+        context_segments = await TranscriptionFinder._fetch_context_segments(
+            es, index, episode_data, segment_id, context_size,
+        )
+
         segment_start = segment.get("start_time", segment.get("start"))
         segment_end = segment.get("end_time", segment.get("end"))
+        unique_context_segments = TranscriptionFinder._build_unique_segments(
+            context_segments, segment_id, segment, segment_start, segment_end,
+        )
 
+        await log_system_message(logging.INFO, f"Found {len(unique_context_segments)} unique segments for context.", logger)
+
+        overall_start_time = min(seg['start'] for seg in unique_context_segments)
+        overall_end_time = max(seg['end'] for seg in unique_context_segments)
+
+        return {
+            "target": segment,
+            "context": unique_context_segments,
+            "overall_start_time": overall_start_time,
+            "overall_end_time": overall_end_time,
+        }
+
+    @staticmethod
+    async def _fetch_context_segments(
+            es: ObjectApiResponse, index: str, episode_data: Dict[str, Any], segment_id: int, context_size: int,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         context_query_before = {
             "query": {
                 "bool": {
@@ -178,7 +203,13 @@ class TranscriptionFinder:
         } for hit in context_response_after["hits"]["hits"]]
 
         context_segments_before.reverse()
+        return context_segments_before, context_segments_after
 
+    @staticmethod
+    def _build_unique_segments(
+            context_segments: Tuple[List[Dict[str, Any]], List[Dict[str, Any]]], segment_id: int, segment: Dict[str, Any], segment_start: float, segment_end: float,
+    ) -> List[Dict[str, Any]]:
+        context_segments_before, context_segments_after = context_segments
         unique_context_segments = []
         for seg in (
             context_segments_before + [{"id": segment_id, "text": segment["text"], "start": segment_start, "end": segment_end}] +
@@ -186,18 +217,7 @@ class TranscriptionFinder:
         ):
             if seg not in unique_context_segments:
                 unique_context_segments.append(seg)
-
-        await log_system_message(logging.INFO, f"Found {len(unique_context_segments)} unique segments for context.", logger)
-
-        overall_start_time = min(seg['start'] for seg in unique_context_segments)
-        overall_end_time = max(seg['end'] for seg in unique_context_segments)
-
-        return {
-            "target": segment,
-            "context": unique_context_segments,
-            "overall_start_time": overall_start_time,
-            "overall_end_time": overall_end_time,
-        }
+        return unique_context_segments
 
     @staticmethod
     async def find_video_path_by_episode(

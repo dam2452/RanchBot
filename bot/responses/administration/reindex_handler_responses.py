@@ -1,5 +1,14 @@
 def get_reindex_usage_message() -> str:
-    return "❌ Podaj cel: all, all-new lub nazwę serialu. Przykład: /reindex ranczo ❌"
+    return """```❌ BŁĄD - BRAK CELU
+
+📋 Podaj cel reindeksowania:
+• all - wszystkie seriale
+• all-new - tylko nowe seriale
+• <nazwa> - konkretny serial
+
+💡 Przykład:
+   /reindex ranczo
+```"""
 
 
 def get_reindex_started_message(target: str) -> str:

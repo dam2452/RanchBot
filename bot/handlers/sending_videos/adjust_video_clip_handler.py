@@ -1,6 +1,12 @@
 import json
 import logging
-from typing import List
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+)
 
 from aiogram.exceptions import TelegramEntityTooLarge
 
@@ -53,41 +59,17 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         msg = self._message
         content = msg.get_text().split()
-        segment_info = {}
-        last_clip = None
 
-        if len(content) == 4:
-            last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(msg.get_chat_id())
-            if not last_search:
-                return await self.__reply_no_previous_searches()
-            try:
-                index = int(content[1]) - 1
-                segments = json.loads(last_search.segments)
-                segment_info = segments[index]
-            except (ValueError, IndexError):
-                return await self.__reply_invalid_segment_index()
-        elif len(content) == 3:
-            last_clip = await DatabaseManager.get_last_clip_by_chat_id(msg.get_chat_id())
-            if not last_clip:
-                return await self.__reply_no_quotes_selected()
-
-            segment_info = last_clip.segment
-            if isinstance(segment_info, str):
-                segment_info = json.loads(segment_info)
-
-            await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
+        segment_info, last_clip = await self.__get_segment_and_clip(content, msg.get_chat_id())
+        if segment_info is None:
+            return
 
         original_start_time = float(segment_info.get("start_time", 0))
         original_end_time = float(segment_info.get("end_time", 0))
 
-        try:
-            float(content[-2])
-            float(content[-1])
-        except ValueError:
-            return await self._reply_invalid_args_count(get_invalid_args_count_message())
-
-        additional_start_offset = float(content[-2])
-        additional_end_offset = float(content[-1])
+        additional_start_offset, additional_end_offset = await self.__parse_offsets(content)
+        if additional_start_offset is None:
+            return
 
         is_consecutive_adjustment = content[0].lstrip('/') in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
 
@@ -158,3 +140,43 @@ class AdjustVideoClipHandler(BotMessageHandler):
             not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and
             abs(additional_start_offset) + abs(additional_end_offset) > settings.MAX_ADJUSTMENT_DURATION
         )
+
+    async def __get_segment_and_clip(self, content: List[str], chat_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[Any]]:
+        segment_info = {}
+        last_clip = None
+
+        if len(content) == 4:
+            last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+            if not last_search:
+                await self.__reply_no_previous_searches()
+                return None, None
+            try:
+                index = int(content[1]) - 1
+                segments = json.loads(last_search.segments)
+                segment_info = segments[index]
+            except (ValueError, IndexError):
+                await self.__reply_invalid_segment_index()
+                return None, None
+        elif len(content) == 3:
+            last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
+            if not last_clip:
+                await self.__reply_no_quotes_selected()
+                return None, None
+
+            segment_info = last_clip.segment
+            if isinstance(segment_info, str):
+                segment_info = json.loads(segment_info)
+
+            await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
+
+        return segment_info, last_clip
+
+    async def __parse_offsets(self, content: List[str]) -> Tuple[Optional[float], Optional[float]]:
+        try:
+            float(content[-2])
+            float(content[-1])
+        except ValueError:
+            await self._reply_invalid_args_count(get_invalid_args_count_message())
+            return None, None
+
+        return float(content[-2]), float(content[-1])

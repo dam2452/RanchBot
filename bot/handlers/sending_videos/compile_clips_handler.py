@@ -7,8 +7,6 @@ from typing import (
     Union,
 )
 
-from aiogram.exceptions import TelegramEntityTooLarge
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
@@ -32,10 +30,6 @@ from bot.responses.sending_videos.compile_clips_handler_responses import (
     get_selected_clip_message,
 )
 from bot.settings import settings
-from bot.video.clips_compiler import (
-    ClipsCompiler,
-    process_compiled_clip,
-)
 
 
 class CompileClipsHandler(BotMessageHandler):
@@ -103,13 +97,8 @@ class CompileClipsHandler(BotMessageHandler):
         if await self._check_clip_duration_limit(user_id, total_duration):
             return await self.__reply_clip_duration_exceeded()
 
-        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
-        await process_compiled_clip(self._message, compiled_output, ClipType.COMPILED)
-
-        try:
-            await self._responder.send_video(compiled_output)
-        except TelegramEntityTooLarge:
-            await self.handle_telegram_entity_too_large_for_compilation(total_duration)
+        result = await self.compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED)
+        if result is None:
             return None
 
         return await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))

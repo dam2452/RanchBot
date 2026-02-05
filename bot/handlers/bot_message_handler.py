@@ -5,6 +5,7 @@ from abc import (
 import logging
 from pathlib import Path
 from typing import (
+    Any,
     Awaitable,
     Callable,
     List,
@@ -177,3 +178,20 @@ class BotMessageHandler(ABC):
             logging.WARNING,
             get_log_compilation_too_large_message(total_duration, self._message.get_username()),
         )
+
+    async def compile_and_send_video(self, selected_segments: List[Any], total_duration: float, clip_type: Any) -> Optional[bool]:
+        from aiogram.exceptions import TelegramEntityTooLarge
+        from bot.video.clips_compiler import (
+            ClipsCompiler,
+            process_compiled_clip,
+        )
+
+        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
+        await process_compiled_clip(self._message, compiled_output, clip_type)
+
+        try:
+            await self._responder.send_video(compiled_output)
+            return True
+        except TelegramEntityTooLarge:
+            await self.handle_telegram_entity_too_large_for_compilation(total_duration)
+            return None
