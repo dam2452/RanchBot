@@ -42,13 +42,13 @@ class SerialContextHandler(BotMessageHandler):
 
         if len(args) == 1:
             current_series = await self.serial_manager.get_user_active_series(user_id)
-            available_series = self.serial_manager.list_available_series()
+            available_series = await self.serial_manager.list_available_series()
             await self.reply(get_serial_current_message(current_series, available_series))
             return
 
         series_name = args[1].lower()
 
-        available_series = self.serial_manager.list_available_series()
+        available_series = await self.serial_manager.list_available_series()
         if series_name not in available_series:
             await self.reply_error(
                 get_serial_invalid_message(series_name, available_series),
