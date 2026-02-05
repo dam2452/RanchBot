@@ -9,9 +9,10 @@ from bot.utils.functions import convert_number_to_emoji
 
 def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str, int]]], season_info: Dict[str, int]) -> str:
     if season == 0:
-        response = "📃 Lista odcinków Specjalnych:\n\n```\n"
+        response = "```🎬 Specjalne 🎬 \n".replace(" ", "\u00A0")
     else:
-        response = f"📃 Lista odcinków dla sezonu {season}:\n\n```\n"
+        season_emoji = convert_number_to_emoji(season)
+        response = f"```Sezon {season_emoji} \n".replace(" ", "\u00A0")
 
     episodes_in_previous_seasons_from_1 = sum(
         season_info[str(s)] for s in range(1, season) if str(s) in season_info
