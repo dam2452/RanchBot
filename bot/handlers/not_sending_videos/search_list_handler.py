@@ -58,7 +58,7 @@ class SearchListHandler(BotMessageHandler):
                 "season_info": season_info,
             })
         else:
-            response = format_search_list_response(search_term, segments, season_info)
+            response = format_search_list_response(search_term, segments)
             sanitized_search_term = self.__sanitize_search_term(search_term)
             file_path = Path(tempfile.gettempdir()) / self.FILE_NAME_TEMPLATE.format(
                 sanitized_search_term=sanitized_search_term,

@@ -15,7 +15,7 @@ def get_log_no_previous_search_results_message(chat_id: int) -> str:
     return f"No previous search results found for chat ID {chat_id}."
 
 
-def format_search_list_response(search_term: str, segments: List[Dict[str, Union[str, int]]],season_info: Dict[str, int]) -> str:
+def format_search_list_response(search_term: str, segments: List[Dict[str, Union[str, int]]]) -> str:
     response = f"🔍 Wyniki dla wyszukiwania: '{search_term}' 🔍\n\n"
     response += f"{'Nr':<4} {'Odcinek':<9} {'Czas':<9} {'Tytuł':<9}\n"
     response += "-" * 50 + "\n"

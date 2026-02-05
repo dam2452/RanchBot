@@ -167,13 +167,13 @@ class InlineClipHandler(BotMessageHandler):
 
         if segments and season_info:
             segment_results = await asyncio.gather(
-                *[self.__upload_segment(seg, i, season_info, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
+                *[self.__upload_segment(seg, i, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
             )
             results.extend([r for r in segment_results if not isinstance(r, Exception) and r])
 
         return results
 
-    async def __upload_segment(self, segment: dict, index: int, season_info: dict, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
+    async def __upload_segment(self, segment: dict, index: int, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
         start_time = max(0, segment["start_time"] - settings.EXTEND_BEFORE)
         end_time = segment["end_time"] + settings.EXTEND_AFTER
 

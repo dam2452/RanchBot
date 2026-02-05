@@ -64,7 +64,7 @@ class EpisodeListHandler(BotMessageHandler):
 
         try:
             season_arg = args[1].lower()
-            if season_arg in ["specjalne", "specials", "spec", "s"]:
+            if season_arg in {"specjalne", "specials", "spec", "s"}:
                 season = 0
             else:
                 season = int(args[1])
