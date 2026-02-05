@@ -138,7 +138,7 @@ class InlineClipHandler(BotMessageHandler):
                 continue
 
             try:
-                segment_info = format_segment(segment, season_info) if season_info else None
+                segment_info = format_segment(segment) if season_info else None
                 episode_code = segment_info.episode_formatted if segment_info else str(idx)
                 output_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
                 final_path = temp_dir / f"{idx}_search_{episode_code}.mp4"
@@ -182,7 +182,7 @@ class InlineClipHandler(BotMessageHandler):
 
         video_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
         try:
-            segment_info = format_segment(segment, season_info)
+            segment_info = format_segment(segment)
             return await self.__cache_video(
                 f"{convert_number_to_emoji(index)} {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 f"👉🏻 {segment_info.episode_title}",

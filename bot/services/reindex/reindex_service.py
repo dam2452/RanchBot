@@ -151,7 +151,7 @@ class ReindexService:
                 if idx > 0 and idx % 10 == 0:
                     await self._refresh_elasticsearch_connection(series_name, idx)
 
-                episode_code, indexed_in_episode = await self._process_single_episode(
+                _, indexed_in_episode = await self._process_single_episode(
                     zip_path,
                     series_name,
                     mp4_map,

@@ -68,7 +68,7 @@ def parse_whitelist_message(
     )
 
 
-def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegmentInfo:
+def format_segment(segment: json) -> FormattedSegmentInfo:
     episode_info = segment.get("episode_metadata", segment.get("episode_info", {}))
     season_number = episode_info.get("season")
     episode_number_in_season = episode_info.get("episode_number")

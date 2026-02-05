@@ -21,7 +21,7 @@ def format_search_list_response(search_term: str, segments: List[Dict[str, Union
     response += "-" * 50 + "\n"
 
     for i, segment in enumerate(segments, start=1):
-        segment_info = format_segment(segment, season_info)
+        segment_info = format_segment(segment)
         response += f"{i:<4} {segment_info.episode_formatted:<9} {segment_info.time_formatted:<9} {segment_info.episode_title:<9}\n"
 
     return response

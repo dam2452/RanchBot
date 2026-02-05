@@ -30,17 +30,15 @@ def get_transcription_response(
     if not isinstance(season, int) or not isinstance(episode_number, int) or not isinstance(episode_title, str):
         raise TypeError("Invalid type detected in episode metadata. Expected types: int for season and episode_number, str for title.")
 
-    start_minutes, start_seconds = divmod(start_time, 60)
-    end_minutes, end_seconds = divmod(end_time, 60)
-
     if season == 0:
         episode_display = f"Spec-{episode_number}"
-        absolute_episode_display = f"Spec-{episode_number}"
+        absolute_episode_display = episode_display
     else:
-        episode_number_within_season = episode_number
-        absolute_episode_number = (season - 1) * 13 + episode_number
-        episode_display = f"S{int(season):02d}E{int(episode_number_within_season):02d}"
-        absolute_episode_display = str(absolute_episode_number)
+        episode_display = f"S{int(season):02d}E{int(episode_number):02d}"
+        absolute_episode_display = str((season - 1) * 13 + episode_number)
+
+    start_minutes, start_seconds = divmod(start_time, 60)
+    end_minutes, end_seconds = divmod(end_time, 60)
 
     response = (
         f"📺 *{episode_title}* 📺\n"
