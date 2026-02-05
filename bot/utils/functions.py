@@ -80,14 +80,18 @@ def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegme
             episode_title=episode_info.get("title", "Unknown"),
         )
 
-    season = str(season_number).zfill(2)
-    episode_number = str(episode_number_in_season).zfill(2)
+    if season_number == 0:
+        episode_formatted = f"Spec-{episode_number_in_season}"
+    else:
+        season = str(season_number).zfill(2)
+        episode_number = str(episode_number_in_season).zfill(2)
+        episode_formatted = f"S{season}E{episode_number}"
 
     start_time = int(segment.get("start_time", segment.get("start", 0)))
     minutes, seconds = divmod(start_time, 60)
 
     return FormattedSegmentInfo(
-        episode_formatted=f"S{season}E{episode_number}",
+        episode_formatted=episode_formatted,
         time_formatted=f"{minutes:02}:{seconds:02}",
         episode_title=episode_info.get("title", "Unknown"),
     )

@@ -33,17 +33,18 @@ def get_transcription_response(
     start_minutes, start_seconds = divmod(start_time, 60)
     end_minutes, end_seconds = divmod(end_time, 60)
 
-    episode_number_within_season = episode_number
-
     if season == 0:
+        episode_display = f"Spec-{episode_number}"
         absolute_episode_display = f"Spec-{episode_number}"
     else:
+        episode_number_within_season = episode_number
         absolute_episode_number = (season - 1) * 13 + episode_number
+        episode_display = f"S{int(season):02d}E{int(episode_number_within_season):02d}"
         absolute_episode_display = str(absolute_episode_number)
 
     response = (
         f"📺 *{episode_title}* 📺\n"
-        f"🎬 *S{int(season):02d}E{int(episode_number_within_season):02d} ({absolute_episode_display})* 🎬\n"
+        f"🎬 *{episode_display} ({absolute_episode_display})* 🎬\n"
         f"⏰ *Czas: {int(start_minutes):02d}:{int(start_seconds):02d} - {int(end_minutes):02d}:{int(end_seconds):02d}* ⏰\n\n"
         "```"
     )

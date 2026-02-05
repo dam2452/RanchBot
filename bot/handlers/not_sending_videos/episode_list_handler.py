@@ -63,7 +63,11 @@ class EpisodeListHandler(BotMessageHandler):
             )
 
         try:
-            season = int(args[1])
+            season_arg = args[1].lower()
+            if season_arg in ["specjalne", "specials", "spec", "s"]:
+                season = 0
+            else:
+                season = int(args[1])
         except ValueError:
             return await self.reply_error(get_invalid_args_count_message())
 

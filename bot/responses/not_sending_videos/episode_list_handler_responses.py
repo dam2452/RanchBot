@@ -17,11 +17,12 @@ def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str
 
     for idx, episode in enumerate(episodes, start=1):
         if season == 0:
+            episode_display = f"Spec-{idx}"
             absolute_episode_number = f"Spec-{idx}"
-            season_episode_number = idx
         else:
             absolute_episode_number = episodes_in_previous_seasons_from_1 + idx
             season_episode_number = idx
+            episode_display = f"S{season:02d}E{season_episode_number:02d}"
 
         viewership = episode.get("viewership")
         if viewership is not None and viewership != "Unknown":
@@ -33,8 +34,7 @@ def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str
         else:
             formatted_viewership = "N/A"
 
-        season_code = "S00" if season == 0 else f"S{season:02d}"
-        response += f"🎬 {episode['title']}: {season_code}E{season_episode_number:02d} ({absolute_episode_number}) \n"
+        response += f"🎬 {episode['title']}: {episode_display} ({absolute_episode_number}) \n"
         response += f"📅 Data premiery: {episode['premiere_date']}\n"
         response += f"👀 Oglądalność: {formatted_viewership}\n\n"
 
