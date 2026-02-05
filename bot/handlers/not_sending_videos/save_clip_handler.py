@@ -95,10 +95,6 @@ class SaveClipHandler(BotMessageHandler):
         serial_manager = SerialContextManager(self._logger)
         active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
 
-        if not active_series:
-            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
-            return False
-
         last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id(), active_series)
         if not last_clip:
             await self.__reply_no_segment_selected()

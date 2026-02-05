@@ -47,7 +47,9 @@ class SearchListHandler(BotMessageHandler):
         if not segments or not search_term:
             return await self.__reply_no_previous_search_results()
 
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
+        series_name = last_search.series_name or "ranczo"
+        index = f"{series_name}_text_segments"
+        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
 
         if self._message.should_reply_json():
             await self._responder.send_json({

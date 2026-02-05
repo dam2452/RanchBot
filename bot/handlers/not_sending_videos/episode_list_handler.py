@@ -45,10 +45,6 @@ class EpisodeListHandler(BotMessageHandler):
         serial_manager = SerialContextManager(self._logger)
         active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
 
-        if not active_series:
-            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
-            return
-
         index = f"{active_series}_text_segments"
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
 

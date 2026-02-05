@@ -36,10 +36,6 @@ class TranscriptionHandler(BotMessageHandler):
         serial_manager = SerialContextManager(self._logger)
         active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
 
-        if not active_series:
-            await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
-            return
-
         result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, active_series, context_size=15)
 
         if not result:

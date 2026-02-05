@@ -13,8 +13,9 @@ class SerialContextManager:
         self.logger = logger
         self.scanner = SeriesScanner(logger)
 
-    async def get_user_active_series(self, user_id: int) -> Optional[str]:
-        return await DatabaseManager.get_user_active_series(user_id)
+    async def get_user_active_series(self, user_id: int) -> str:
+        result = await DatabaseManager.get_user_active_series(user_id)
+        return result or "ranczo"
 
     async def set_user_active_series(self, user_id: int, series_name: str) -> None:
         await DatabaseManager.set_user_active_series(user_id, series_name)
