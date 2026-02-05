@@ -7,6 +7,8 @@ from typing import (
     Union,
 )
 
+from aiogram.exceptions import TelegramEntityTooLarge
+
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
@@ -103,7 +105,22 @@ class CompileClipsHandler(BotMessageHandler):
 
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, ClipType.COMPILED)
-        await self._responder.send_video(compiled_output)
+
+        try:
+            await self._responder.send_video(compiled_output)
+        except TelegramEntityTooLarge:
+            await self.reply_error(
+                f"❌ Kompilacja jest za duża do wysłania ({total_duration:.1f}s).\n\n"
+                f"Telegram ma limit 50MB dla wideo. Spróbuj:\n"
+                f"• Wybrać mniej klipów\n"
+                f"• Wybrać krótsze fragmenty"
+            )
+            await self._log_system_message(
+                logging.WARNING,
+                f"Compilation too large to send via Telegram: {total_duration:.1f}s for user {username}"
+            )
+            return None
+
         return await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
 
     async def __parse_segments(

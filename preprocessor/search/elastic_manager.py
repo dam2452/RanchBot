@@ -355,11 +355,11 @@ class ElasticSearchManager:
         es_config = {
             "hosts": [es_host],
             "verify_certs": False,
-            "request_timeout": 60,
-            "max_retries": 5,
+            "request_timeout": 30,
+            "max_retries": 3,
             "retry_on_timeout": True,
             "http_compress": True,
-            "connections_per_node": 20,
+            "connections_per_node": 10,
         }
 
         if es_user and es_pass:

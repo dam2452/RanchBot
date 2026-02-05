@@ -4,6 +4,8 @@ from pathlib import Path
 import tempfile
 from typing import List
 
+from aiogram.exceptions import TelegramEntityTooLarge
+
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
@@ -64,23 +66,32 @@ class SelectClipHandler(BotMessageHandler):
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
+            temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
+            output_filename.replace(temp_file_path)
+            await self._responder.send_video(temp_file_path)
+
+            await DatabaseManager.insert_last_clip(
+                chat_id=self._message.get_chat_id(),
+                segment=segment,
+                compiled_clip=None,
+                clip_type=ClipType.SELECTED,
+                adjusted_start_time=None,
+                adjusted_end_time=None,
+                is_adjusted=False,
+            )
         except FFMpegException as e:
             return await self.__reply_extraction_failure(e)
-
-        temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
-        output_filename.replace(temp_file_path)
-
-        await self._responder.send_video(temp_file_path)
-
-        await DatabaseManager.insert_last_clip(
-            chat_id=self._message.get_chat_id(),
-            segment=segment,
-            compiled_clip=None,
-            clip_type=ClipType.SELECTED,
-            adjusted_start_time=None,
-            adjusted_end_time=None,
-            is_adjusted=False,
-        )
+        except TelegramEntityTooLarge:
+            clip_duration = end_time - start_time
+            await self.reply_error(
+                f"❌ Klip jest za duży do wysłania ({clip_duration:.1f}s).\n\n"
+                f"Telegram ma limit 50MB dla wideo. Spróbuj wybrać krótszy fragment."
+            )
+            await self._log_system_message(
+                logging.WARNING,
+                f"Clip too large to send via Telegram: {clip_duration:.1f}s for user {self._message.get_username()}"
+            )
+            return None
 
         return await self._log_system_message(
             logging.INFO,

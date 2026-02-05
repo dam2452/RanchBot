@@ -2,6 +2,8 @@ import logging
 import math
 from typing import List
 
+from aiogram.exceptions import TelegramEntityTooLarge
+
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
@@ -77,6 +79,16 @@ class ClipHandler(BotMessageHandler):
             await self._responder.send_video(output_filename)
         except FFMpegException as e:
             return await self.__reply_extraction_failed(e)
+        except TelegramEntityTooLarge:
+            await self.reply_error(
+                f"❌ Klip jest za duży do wysłania ({clip_duration:.1f}s).\n\n"
+                f"Telegram ma limit 50MB dla wideo. Spróbuj wyszukać krótszy fragment."
+            )
+            await self._log_system_message(
+                logging.WARNING,
+                f"Clip too large to send via Telegram: {clip_duration:.1f}s for user {msg.get_username()}"
+            )
+            return None
 
         await DatabaseManager.insert_last_clip(
             chat_id=msg.get_chat_id(),

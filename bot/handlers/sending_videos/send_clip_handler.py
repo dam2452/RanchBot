@@ -7,6 +7,8 @@ from typing import (
     Optional,
 )
 
+from aiogram.exceptions import TelegramEntityTooLarge
+
 from bot.database.database_manager import DatabaseManager
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -83,7 +85,18 @@ class SendClipHandler(BotMessageHandler):
         if temp_file_path.stat().st_size == 0:
             return await self.__reply_empty_file_error(clip.name)
 
-        await self._responder.send_video(temp_file_path)
+        try:
+            await self._responder.send_video(temp_file_path)
+        except TelegramEntityTooLarge:
+            await self.reply_error(
+                f"❌ Klip '{clip.name}' jest za duży do wysłania ({clip.duration:.1f}s).\n\n"
+                f"Telegram ma limit 50MB dla wideo."
+            )
+            await self._log_system_message(
+                logging.WARNING,
+                f"Clip too large to send via Telegram: {clip.name} ({clip.duration:.1f}s) for user {self._message.get_username()}"
+            )
+            return None
 
         return await self._log_system_message(
             logging.INFO,
