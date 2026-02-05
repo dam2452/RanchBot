@@ -49,7 +49,7 @@ class EpisodeListHandler(BotMessageHandler):
             await self.reply_error("Nie masz ustawionego aktywnego serialu. Użyj /serial aby go ustawić.")
             return
 
-        index = f"{active_series}_segments"
+        index = f"{active_series}_text_segments"
         season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
 
         if len(args) == 1:

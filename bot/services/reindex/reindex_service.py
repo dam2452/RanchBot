@@ -100,7 +100,7 @@ class ReindexService:
 
         for series_name in all_series:
             index_exists = await self.es_manager.indices.exists(
-                index=f"{series_name}_segments",
+                index=f"{series_name}_text_segments",
             )
             if not index_exists:
                 new_series.append(series_name)
@@ -218,7 +218,7 @@ class ReindexService:
 
     async def _delete_series_indices(self, series_name: str):
         index_types = [
-            "segments",
+            "text_segments",
             "text_embeddings",
             "video_frames",
             "episode_names",

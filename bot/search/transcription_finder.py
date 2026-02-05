@@ -43,7 +43,7 @@ class TranscriptionFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        index = f"{series_name}_segments"
+        index = f"{series_name}_text_segments"
 
         query = {
             "query": {
@@ -114,7 +114,7 @@ class TranscriptionFinder:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
         if index is None:
-            index = f"{series_name}_segments"
+            index = f"{series_name}_text_segments"
 
         segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
         if not segment:
