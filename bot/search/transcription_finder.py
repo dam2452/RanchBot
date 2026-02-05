@@ -46,7 +46,7 @@ class TranscriptionFinder:
             ):
                 unique_segments[i]["start_time"] = min(existing_segment["start_time"], segment["start_time"])
                 unique_segments[i]["end_time"] = max(existing_segment["end_time"], segment["end_time"])
-                unique_segments[i]["_score"] = max(existing_segment.get("_score", 0), segment.get("_score", 0))
+                unique_segments[i]["_score"] = max(existing_segment["_score"], segment["_score"])
                 return True
         return False
 
@@ -82,9 +82,10 @@ class TranscriptionFinder:
                 },
             },
             "sort": [
-                {"episode_metadata.season": "asc"},
-                {"episode_metadata.episode_number": "asc"},
-                {"start_time": "asc"},
+                {"_score": {"order": "desc"}},
+                {"episode_metadata.season": {"order": "asc"}},
+                {"episode_metadata.episode_number": {"order": "asc"}},
+                {"start_time": {"order": "asc"}},
             ],
         }
 
@@ -123,8 +124,6 @@ class TranscriptionFinder:
 
                 if not is_overlapping:
                     unique_segments.append(segment)
-
-        unique_segments.sort(key=lambda x: x.get("_score", 0), reverse=True)
 
         await log_system_message(
             logging.INFO, f"Found {len(unique_segments)} unique segments after merging.",
