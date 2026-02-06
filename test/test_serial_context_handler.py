@@ -13,25 +13,28 @@ async def test_show_current_series():
     message = MagicMock()
     message.get_text.return_value = "/serial"
     message.get_user_id.return_value = 123
+    message.should_reply_json.return_value = False
 
     responder = AsyncMock()
     logger = MagicMock()
 
     handler = SerialContextHandler(message, responder, logger)
     handler.serial_manager.get_user_active_series = AsyncMock(return_value="ranczo")
+    handler.serial_manager.list_available_series = AsyncMock(return_value=["ranczo", "kiepscy"])
 
     await handler._do_handle()
 
-    responder.send_text.assert_called_once()
-    call_args = responder.send_text.call_args[0][0]
+    responder.send_markdown.assert_called_once()
+    call_args = responder.send_markdown.call_args[0][0]
     assert "ranczo" in call_args.lower()
 
 
 @pytest.mark.asyncio
-async def test_change_series_valid():
+async def test_change_series_valid(db_pool):
     message = MagicMock()
     message.get_text.return_value = "/serial kiepscy"
     message.get_user_id.return_value = 123
+    message.should_reply_json.return_value = False
 
     responder = AsyncMock()
     logger = MagicMock()
@@ -50,6 +53,7 @@ async def test_change_series_invalid():
     message = MagicMock()
     message.get_text.return_value = "/serial nonexistent"
     message.get_user_id.return_value = 123
+    message.should_reply_json.return_value = False
 
     responder = AsyncMock()
     logger = MagicMock()
@@ -59,6 +63,6 @@ async def test_change_series_invalid():
 
     await handler._do_handle()
 
-    responder.send_text.assert_called_once()
-    call_args = responder.send_text.call_args[0][0]
+    responder.send_markdown.assert_called_once()
+    call_args = responder.send_markdown.call_args[0][0]
     assert "invalid" in call_args.lower() or "available" in call_args.lower()

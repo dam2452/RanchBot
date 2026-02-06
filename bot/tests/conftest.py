@@ -11,6 +11,12 @@ from bot.tests.settings import settings as s
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+def override_es_index():
+    from bot.settings import settings as bot_settings
+    bot_settings.ES_TRANSCRIPTION_INDEX = "ranczo_text_segments"
+    yield
+
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def db_pool():
     await DatabaseManager.init_pool(
