@@ -30,7 +30,7 @@ async def test_show_current_series():
 
 
 @pytest.mark.asyncio
-async def test_change_series_valid(db_pool):
+async def test_change_series_valid(db_pool):  # pylint: disable=unused-argument
     message = MagicMock()
     message.get_text.return_value = "/serial kiepscy"
     message.get_user_id.return_value = 123

@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import pytest_asyncio
@@ -9,7 +8,7 @@ from bot.tests.settings import settings as s
 logger = logging.getLogger(__name__)
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def db_pool():
+async def db_pool():  # pylint: disable=duplicate-code
     await DatabaseManager.init_pool(
         host=s.TEST_POSTGRES_HOST,
         port=s.TEST_POSTGRES_PORT,

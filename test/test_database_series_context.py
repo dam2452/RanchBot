@@ -4,7 +4,7 @@ from bot.database.database_manager import DatabaseManager
 
 
 @pytest.mark.asyncio
-async def test_get_user_active_series_default(db_pool):
+async def test_get_user_active_series_default(db_pool):  # pylint: disable=unused-argument
     user_id = 999999
     await DatabaseManager.add_user(user_id, "test_user", "Test User")
     series = await DatabaseManager.get_user_active_series(user_id)
@@ -13,7 +13,7 @@ async def test_get_user_active_series_default(db_pool):
 
 
 @pytest.mark.asyncio
-async def test_set_and_get_user_active_series(db_pool):
+async def test_set_and_get_user_active_series(db_pool):  # pylint: disable=unused-argument
     user_id = 999999
     await DatabaseManager.add_user(user_id, "test_user", "Test User")
     await DatabaseManager.set_user_active_series(user_id, "kiepscy")
@@ -23,7 +23,7 @@ async def test_set_and_get_user_active_series(db_pool):
 
 
 @pytest.mark.asyncio
-async def test_update_existing_series_context(db_pool):
+async def test_update_existing_series_context(db_pool):  # pylint: disable=unused-argument
     user_id = 999999
     await DatabaseManager.add_user(user_id, "test_user", "Test User")
     await DatabaseManager.set_user_active_series(user_id, "ranczo")
