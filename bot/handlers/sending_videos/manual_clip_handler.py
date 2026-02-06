@@ -82,7 +82,7 @@ class ManualClipHandler(BotMessageHandler):
 
         video_path_str = await TranscriptionFinder.find_video_path_by_episode(
             episode.season,
-            episode.get_absolute_episode_number(),
+            episode.number,
             self._logger,
         )
         if not video_path_str:
