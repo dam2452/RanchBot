@@ -17,8 +17,9 @@ def override_es_index():
     bot_settings.ES_TRANSCRIPTION_INDEX = "ranczo_text_segments"
     yield
 
+# pylint: disable=duplicate-code
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def db_pool():  # pylint: disable=duplicate-code
+async def db_pool():
     await DatabaseManager.init_pool(
         host=s.TEST_POSTGRES_HOST,
         port=s.TEST_POSTGRES_PORT,
@@ -31,6 +32,7 @@ async def db_pool():  # pylint: disable=duplicate-code
     yield
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
+# pylint: enable=duplicate-code
 
 
 class APIClient(requests.Session):
