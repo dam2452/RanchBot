@@ -10,7 +10,7 @@ class TestSerialContextHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_serial_without_args(self):
         response = self.send_command('/serial')
-        self.assert_message_hash_matches(response, expected_key="serial_current_list.message")
+        self.assert_response_contains(response, ["WYBÓR SERIALU", "Dostępne seriale"])
 
     @pytest.mark.asyncio
     async def test_serial_change_to_ranczo(self):
