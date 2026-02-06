@@ -1,6 +1,5 @@
 import pytest
 
-import bot.responses.bot_message_handler_responses as base_msg
 import bot.responses.sending_videos.manual_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
@@ -37,7 +36,7 @@ class TestManualClipHandler(BaseTest):
         start_time = "00:00.00"
         end_time = "00:10.00"
 
-        expected_message = base_msg.get_general_error_message()
+        expected_message = msg.get_video_file_not_exist_message()
 
         command = f"/wytnij {episode} {start_time} {end_time}"
         response = self.send_command(command)

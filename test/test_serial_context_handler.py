@@ -65,4 +65,4 @@ async def test_change_series_invalid():
 
     responder.send_markdown.assert_called_once()
     call_args = responder.send_markdown.call_args[0][0]
-    assert "invalid" in call_args.lower() or "available" in call_args.lower()
+    assert "nieznany" in call_args.lower() or "dostępne" in call_args.lower()
