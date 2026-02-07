@@ -24,32 +24,27 @@ class SerialContextHandler(BotMessageHandler):
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
-            self.__check_argument_count,
+            lambda: self._validate_argument_count(
+                self._message,
+                min_args=0,
+                max_args=1,
+                error_message=get_serial_usage_message(),
+            ),
         ]
-
-    async def __check_argument_count(self) -> bool:
-        args = self._message.get_text().split()
-
-        if len(args) > 2:
-            await self.reply_error(get_serial_usage_message())
-            return False
-
-        return True
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
         user_id = self._message.get_user_id()
+        available_series = await self.serial_manager.list_available_series()
 
         if len(args) == 1:
             current_series = await self.serial_manager.get_user_active_series(user_id)
-            available_series = await self.serial_manager.list_available_series()
             await self.reply(get_serial_current_message(current_series, available_series))
             return
 
         series_name = args[1].lower()
-
-        available_series = await self.serial_manager.list_available_series()
         available_series_lower = [s.lower() for s in available_series]
+
         if series_name not in available_series_lower:
             await self.reply_error(
                 get_serial_invalid_message(series_name, available_series),

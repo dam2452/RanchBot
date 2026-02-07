@@ -1,5 +1,5 @@
 def get_reindex_usage_message() -> str:
-    return ("""```❌ BŁĄD - BRAK CELU
+    return ("""```❌ BŁĄD - BRAK TARGETU
 
 📋 Podaj cel reindeksowania:
 • all - wszystkie seriale

@@ -1,22 +1,11 @@
-from typing import (
-    Dict,
-    List,
-    Union,
-)
+from bot.types import TranscriptionContext
 
 
 def get_no_quote_provided_message() -> str:
     return "🔎 Podaj cytat, który chcesz znaleźć. Przykład: /transkrypcja Nie szkoda panu tego pięknego gabinetu?"
 
 
-def get_transcription_response(
-    quote: str, result: Dict[
-        str, Union[
-            float,
-            Dict[str, Union[int, Dict[str, Union[int, str]], str]], List[Dict[str, Union[int, str]]],
-        ],
-    ],
-) -> str:
+def get_transcription_response(quote: str, result: TranscriptionContext) -> str:
     start_time = float(result["overall_start_time"])
     end_time = float(result["overall_end_time"])
 

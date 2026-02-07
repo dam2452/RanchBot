@@ -3,16 +3,16 @@ import logging
 from pathlib import Path
 import tempfile
 from typing import (
-    Dict,
     List,
     Optional,
-    Union,
 )
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.interfaces.message import AbstractMessage
 from bot.settings import settings
+from bot.types import ClipSegment
+from bot.utils.constants import SegmentKeys
 from bot.utils.log import log_system_message
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
@@ -48,14 +48,14 @@ class ClipsCompiler:
             concat_file_path.unlink(missing_ok=True)
 
     @staticmethod
-    async def __compile_clips(selected_clips: List[Dict[str, Union[Path, float]]], logger: logging.Logger) -> Optional[Path]:
+    async def __compile_clips(selected_clips: List[ClipSegment], logger: logging.Logger) -> Optional[Path]:
         temp_files = []
         try:
             for segment in selected_clips:
-                start_time = segment["start_time"] - settings.EXTEND_BEFORE_COMPILE
-                end_time = segment["end_time"] + settings.EXTEND_AFTER_COMPILE
+                start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE_COMPILE
+                end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER_COMPILE
 
-                extracted_clip_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, logger)
+                extracted_clip_path = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, logger)
                 temp_files.append(extracted_clip_path)
 
             compiled_output_path = Path(tempfile.mktemp(suffix=".mp4"))
@@ -90,7 +90,7 @@ class ClipsCompiler:
     @staticmethod
     async def compile(
         message: AbstractMessage,
-        selected_segments: List[Dict[str, Union[str, float]]],
+        selected_segments: List[ClipSegment],
         logger: logging.Logger,
     ) -> Path:
         compiled_output = await ClipsCompiler.__compile_clips(selected_segments, logger)

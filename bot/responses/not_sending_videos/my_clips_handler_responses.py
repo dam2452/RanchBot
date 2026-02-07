@@ -1,14 +1,14 @@
 from typing import (
-    Dict,
     List,
-    Union,
+    Optional,
 )
 
 from bot.database.models import VideoClip
+from bot.types import SeasonInfoDict
 from bot.utils.functions import convert_number_to_emoji
 
 
-def format_myclips_response(clips: List[VideoClip], username: Union[str, None], full_name: Union[str, None], season_info: Dict[str, int]) -> str:
+def format_myclips_response(clips: List[VideoClip], username: Optional[str], full_name: Optional[str], season_info: SeasonInfoDict) -> str:
     clip_lines = []
 
     user_display_name = f"@{username}" if username else full_name

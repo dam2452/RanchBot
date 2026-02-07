@@ -42,38 +42,29 @@ class ReindexResult:
 
 
 class ReindexService:
-    def __init__(self, logger: logging.Logger):
-        self.logger = logger
-        self.scanner = SeriesScanner(logger)
-        self.zip_extractor = ZipExtractor(logger)
-        self.video_transformer = VideoPathTransformer(logger)
-        self.es_manager: Optional[ElasticSearchManager] = None
+    def __init__(self, logger: logging.Logger) -> None:
+        self.__logger = logger
+        self.__scanner = SeriesScanner(logger)
+        self.__zip_extractor = ZipExtractor(logger)
+        self.__video_transformer = VideoPathTransformer(logger)
+        self.__es_manager: Optional[ElasticSearchManager] = None
 
-    async def _init_elasticsearch(self):
-        if self.es_manager is None:
-            self.es_manager = await ElasticSearchManager.connect_to_elasticsearch(
-                settings.ES_HOST,
-                settings.ES_USER,
-                settings.ES_PASS.get_secret_value(),
-                self.logger,
-            )
-
-    async def close(self):
-        if self.es_manager is not None:
+    async def close(self) -> None:
+        if self.__es_manager is not None:
             try:
-                await self.es_manager.close()
+                await self.__es_manager.close()
             except Exception as e:
-                self.logger.warning(f"Error closing ES connection: {e}")
+                self.__logger.warning(f"Error closing ES connection: {e}")
             finally:
-                self.es_manager = None
+                self.__es_manager = None
 
     async def reindex_all(
         self,
         progress_callback: Callable[[str, int, int], Awaitable[None]],
     ) -> List[ReindexResult]:
-        await self._init_elasticsearch()
+        await self.__init_elasticsearch()
 
-        all_series = self.scanner.scan_all_series()
+        all_series = self.__scanner.scan_all_series()
         results = []
 
         total_series = len(all_series)
@@ -93,13 +84,13 @@ class ReindexService:
         self,
         progress_callback: Callable[[str, int, int], Awaitable[None]],
     ) -> List[ReindexResult]:
-        await self._init_elasticsearch()
+        await self.__init_elasticsearch()
 
-        all_series = self.scanner.scan_all_series()
+        all_series = self.__scanner.scan_all_series()
         new_series = []
 
         for series_name in all_series:
-            index_exists = await self.es_manager.indices.exists(
+            index_exists = await self.__es_manager.indices.exists(
                 index=f"{series_name}_text_segments",
             )
             if not index_exists:
@@ -129,18 +120,18 @@ class ReindexService:
         series_name: str,
         progress_callback: Callable[[str, int, int], Awaitable[None]],
     ) -> ReindexResult:
-        await self._init_elasticsearch()
+        await self.__init_elasticsearch()
 
         await progress_callback(f"Skanowanie {series_name}...", 0, 100)
 
-        zip_files = self.scanner.scan_series_zips(series_name)
+        zip_files = self.__scanner.scan_series_zips(series_name)
         if not zip_files:
             raise ValueError(f"No zip files found for series: {series_name}")
 
-        mp4_map = self.scanner.scan_series_mp4s(series_name)
+        mp4_map = self.__scanner.scan_series_mp4s(series_name)
 
         await progress_callback(f"Usuwanie starych indeksów dla {series_name}...", 5, 100)
-        await self._delete_series_indices(series_name)
+        await self.__delete_series_indices(series_name)
 
         total_episodes = len(zip_files)
         indexed_count = 0
@@ -149,9 +140,9 @@ class ReindexService:
         for idx, zip_path in enumerate(zip_files):
             try:
                 if idx > 0 and idx % 10 == 0:
-                    await self._refresh_elasticsearch_connection(series_name, idx)
+                    await self.__refresh_elasticsearch_connection(series_name, idx)
 
-                _, indexed_in_episode = await self._process_single_episode(
+                _, indexed_in_episode = await self.__process_single_episode(
                     zip_path,
                     series_name,
                     mp4_map,
@@ -164,18 +155,18 @@ class ReindexService:
 
             except Exception as e:
                 error_msg = f"Failed to process {zip_path.name}: {str(e)}"
-                self.logger.error(error_msg, exc_info=True)
+                self.__logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
 
                 if "Cannot connect" in str(e) or "Connection" in str(e):
-                    self.logger.info("Connection error detected, recreating ES connection...")
+                    self.__logger.info("Connection error detected, recreating ES connection...")
                     try:
-                        if self.es_manager:
-                            await self.es_manager.close()
+                        if self.__es_manager:
+                            await self.__es_manager.close()
                     except Exception:
                         pass
-                    self.es_manager = None
-                    await self._init_elasticsearch()
+                    self.__es_manager = None
+                    await self.__init_elasticsearch()
 
         await progress_callback(f"Reindeksowanie {series_name} zakończone!", 100, 100)
 
@@ -186,7 +177,16 @@ class ReindexService:
             errors=errors,
         )
 
-    async def _delete_series_indices(self, series_name: str):
+    async def __init_elasticsearch(self) -> None:
+        if self.__es_manager is None:
+            self.__es_manager = await ElasticSearchManager.connect_to_elasticsearch(
+                settings.ES_HOST,
+                settings.ES_USER,
+                settings.ES_PASS.get_secret_value(),
+                self.__logger,
+            )
+
+    async def __delete_series_indices(self, series_name: str) -> None:
         index_types = [
             "text_segments",
             "text_embeddings",
@@ -200,22 +200,22 @@ class ReindexService:
         for index_type in index_types:
             index_name = f"{series_name}_{index_type}"
             try:
-                if await self.es_manager.indices.exists(index=index_name):
-                    await self.es_manager.indices.delete(index=index_name)
-                    self.logger.info(f"Deleted index: {index_name}")
+                if await self.__es_manager.indices.exists(index=index_name):
+                    await self.__es_manager.indices.delete(index=index_name)
+                    self.__logger.info(f"Deleted index: {index_name}")
             except Exception as e:
-                self.logger.warning(f"Failed to delete index {index_name}: {e}")
+                self.__logger.warning(f"Failed to delete index {index_name}: {e}")
 
-    async def _bulk_index_documents(
+    async def __bulk_index_documents(
         self,
         index_name: str,
         index_type: str,
         documents: List[Dict],
-    ):
-        mapping = self._get_mapping_for_type(index_type)
+    ) -> None:
+        mapping = self.__get_mapping_for_type(index_type)
 
-        if not await self.es_manager.indices.exists(index=index_name):
-            await self.es_manager.indices.create(
+        if not await self.__es_manager.indices.exists(index=index_name):
+            await self.__es_manager.indices.create(
                 index=index_name,
                 body=mapping,
             )
@@ -230,7 +230,7 @@ class ReindexService:
 
         try:
             await async_bulk(
-                self.es_manager,
+                self.__es_manager,
                 actions,
                 chunk_size=5,
                 max_chunk_bytes=512 * 1024,
@@ -239,15 +239,74 @@ class ReindexService:
                 initial_backoff=1,
                 max_backoff=300,
             )
-            self.logger.info(f"Indexed {len(documents)} documents to {index_name}")
+            self.__logger.info(f"Indexed {len(documents)} documents to {index_name}")
             await asyncio.sleep(2.0)
         except BulkIndexError as e:
-            self.logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
+            self.__logger.warning(f"Bulk index errors in {index_name}: {len(e.errors)} failed")
             for error in e.errors[:3]:
-                self.logger.warning(f"Sample error: {error}")
+                self.__logger.warning(f"Sample error: {error}")
             raise
 
-    def _get_mapping_for_type(self, index_type: str):
+    async def __refresh_elasticsearch_connection(self, series_name: str, idx: int) -> None:
+        self.__logger.info(f"Flushing and refreshing ES after {idx} episodes...")
+        try:
+            if self.__es_manager:
+                await self.__es_manager.indices.flush(
+                    index=f"{series_name}_*",
+                    wait_if_ongoing=False,
+                    ignore=[404],
+                )
+                await asyncio.sleep(3)
+                await self.__es_manager.close()
+        except Exception as e:
+            self.__logger.warning(f"Error during flush: {e}")
+        self.__es_manager = None
+        await asyncio.sleep(5)
+        await self.__init_elasticsearch()
+        await asyncio.sleep(2)
+
+    async def __process_single_episode(
+        self,
+        zip_path: Path,
+        series_name: str,
+        mp4_map: Dict[str, str],
+        idx: int,
+        total_episodes: int,
+        progress_callback: Callable[[str, int, int], Awaitable[None]],
+    ) -> tuple[str, int]:
+        episode_code = self.__extract_episode_code(zip_path)
+        progress_pct = 10 + int((idx / total_episodes) * 85)
+
+        await progress_callback(
+            f"Przetwarzanie {episode_code}... ({idx+1}/{total_episodes})",
+            progress_pct,
+            100,
+        )
+
+        mp4_path = mp4_map.get(episode_code)
+        jsonl_contents = self.__zip_extractor.extract_to_memory(zip_path)
+        indexed_count = 0
+
+        for jsonl_type, buffer in jsonl_contents.items():
+            documents = self.__zip_extractor.parse_jsonl_from_memory(buffer)
+
+            for doc in documents:
+                self.__video_transformer.transform_video_path(doc, mp4_path)
+
+            index_name = self.__get_index_name(series_name, jsonl_type)
+
+            await self.__bulk_index_documents(
+                index_name,
+                jsonl_type,
+                documents,
+            )
+
+            indexed_count += len(documents)
+
+        return episode_code, indexed_count
+
+    @staticmethod
+    def __get_mapping_for_type(index_type: str) -> Dict:
         mappings = {
             "text_segments": ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
             "text_embeddings": ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,
@@ -259,69 +318,13 @@ class ReindexService:
         }
         return mappings.get(index_type, ElasticSearchManager.SEGMENTS_INDEX_MAPPING)
 
-    def _get_index_name(self, series_name: str, jsonl_type: str) -> str:
+    @staticmethod
+    def __get_index_name(series_name: str, jsonl_type: str) -> str:
         return f"{series_name}_{jsonl_type}"
 
-    def _extract_episode_code(self, zip_path: Path) -> str:
+    @staticmethod
+    def __extract_episode_code(zip_path: Path) -> str:
         match = re.search(r'(S\d{2}E\d{2})', zip_path.name)
         if match:
             return match.group(1)
         return zip_path.stem
-
-    async def _refresh_elasticsearch_connection(self, series_name: str, idx: int):
-        self.logger.info(f"Flushing and refreshing ES after {idx} episodes...")
-        try:
-            if self.es_manager:
-                await self.es_manager.indices.flush(
-                    index=f"{series_name}_*",
-                    wait_if_ongoing=False,
-                    ignore=[404],
-                )
-                await asyncio.sleep(3)
-                await self.es_manager.close()
-        except Exception as e:
-            self.logger.warning(f"Error during flush: {e}")
-        self.es_manager = None
-        await asyncio.sleep(5)
-        await self._init_elasticsearch()
-        await asyncio.sleep(2)
-
-    async def _process_single_episode(
-        self,
-        zip_path: Path,
-        series_name: str,
-        mp4_map: Dict[str, str],
-        idx: int,
-        total_episodes: int,
-        progress_callback: Callable[[str, int, int], Awaitable[None]],
-    ) -> tuple[str, int]:
-        episode_code = self._extract_episode_code(zip_path)
-        progress_pct = 10 + int((idx / total_episodes) * 85)
-
-        await progress_callback(
-            f"Przetwarzanie {episode_code}... ({idx+1}/{total_episodes})",
-            progress_pct,
-            100,
-        )
-
-        mp4_path = mp4_map.get(episode_code)
-        jsonl_contents = self.zip_extractor.extract_to_memory(zip_path)
-        indexed_count = 0
-
-        for jsonl_type, buffer in jsonl_contents.items():
-            documents = self.zip_extractor.parse_jsonl_from_memory(buffer)
-
-            for doc in documents:
-                self.video_transformer.transform_video_path(doc, mp4_path)
-
-            index_name = self._get_index_name(series_name, jsonl_type)
-
-            await self._bulk_index_documents(
-                index_name,
-                jsonl_type,
-                documents,
-            )
-
-            indexed_count += len(documents)
-
-        return episode_code, indexed_count

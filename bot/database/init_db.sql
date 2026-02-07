@@ -252,17 +252,140 @@ CREATE TABLE IF NOT EXISTS user_credentials (
 
 CREATE INDEX IF NOT EXISTS idx_user_credentials_user_id ON user_credentials(user_id);
 
+CREATE TABLE IF NOT EXISTS series (
+    id SERIAL PRIMARY KEY,
+    series_name VARCHAR(50) UNIQUE NOT NULL,
+    CONSTRAINT valid_series_name CHECK (series_name ~ '^[a-z0-9_-]+$')
+);
+
+CREATE INDEX IF NOT EXISTS idx_series_series_name ON series(series_name);
+
+-- Migration: series_name VARCHAR -> series_id INT with foreign key
+-- This section migrates existing series_name data to the new series table structure
+DO $$
+BEGIN
+    -- Step 1: Insert unique series names into the series table (if old columns exist)
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'user_series_context' AND column_name = 'active_series') THEN
+        INSERT INTO series (series_name)
+        SELECT DISTINCT series_name
+        FROM (
+            SELECT active_series AS series_name FROM user_series_context WHERE active_series IS NOT NULL
+            UNION
+            SELECT series_name FROM user_logs WHERE series_name IS NOT NULL
+            UNION
+            SELECT series_name FROM video_clips WHERE series_name IS NOT NULL
+            UNION
+            SELECT series_name FROM search_history WHERE series_name IS NOT NULL
+            UNION
+            SELECT series_name FROM last_clips WHERE series_name IS NOT NULL
+        ) AS all_series
+        ON CONFLICT (series_name) DO NOTHING;
+    END IF;
+
+    -- Step 2: Update user_series_context to use series_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'user_series_context' AND column_name = 'active_series') THEN
+        ALTER TABLE user_series_context ADD COLUMN IF NOT EXISTS active_series_id_temp INT;
+        UPDATE user_series_context
+        SET active_series_id_temp = (
+            SELECT id FROM series WHERE series_name = user_series_context.active_series
+        )
+        WHERE active_series IS NOT NULL;
+
+        ALTER TABLE user_series_context DROP COLUMN IF EXISTS active_series;
+        ALTER TABLE user_series_context RENAME COLUMN active_series_id_temp TO active_series_id;
+        ALTER TABLE user_series_context DROP CONSTRAINT IF EXISTS fk_user_series_context_series;
+        ALTER TABLE user_series_context ADD CONSTRAINT fk_user_series_context_series
+            FOREIGN KEY (active_series_id) REFERENCES series(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Step 3: Update user_logs to use series_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'user_logs' AND column_name = 'series_name') THEN
+        ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS series_id_temp INT;
+        UPDATE user_logs
+        SET series_id_temp = (
+            SELECT id FROM series WHERE series_name = user_logs.series_name
+        )
+        WHERE series_name IS NOT NULL;
+
+        ALTER TABLE user_logs DROP COLUMN IF EXISTS series_name;
+        ALTER TABLE user_logs RENAME COLUMN series_id_temp TO series_id;
+        ALTER TABLE user_logs DROP CONSTRAINT IF EXISTS fk_user_logs_series;
+        ALTER TABLE user_logs ADD CONSTRAINT fk_user_logs_series
+            FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Step 4: Update video_clips to use series_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'video_clips' AND column_name = 'series_name') THEN
+        ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS series_id_temp INT;
+        UPDATE video_clips
+        SET series_id_temp = (
+            SELECT id FROM series WHERE series_name = video_clips.series_name
+        )
+        WHERE series_name IS NOT NULL;
+
+        ALTER TABLE video_clips DROP COLUMN IF EXISTS series_name;
+        ALTER TABLE video_clips RENAME COLUMN series_id_temp TO series_id;
+        ALTER TABLE video_clips DROP CONSTRAINT IF EXISTS fk_video_clips_series;
+        ALTER TABLE video_clips ADD CONSTRAINT fk_video_clips_series
+            FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Step 5: Update search_history to use series_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'search_history' AND column_name = 'series_name') THEN
+        ALTER TABLE search_history ADD COLUMN IF NOT EXISTS series_id_temp INT;
+        UPDATE search_history
+        SET series_id_temp = (
+            SELECT id FROM series WHERE series_name = search_history.series_name
+        )
+        WHERE series_name IS NOT NULL;
+
+        ALTER TABLE search_history DROP COLUMN IF EXISTS series_name;
+        ALTER TABLE search_history RENAME COLUMN series_id_temp TO series_id;
+        ALTER TABLE search_history DROP CONSTRAINT IF EXISTS fk_search_history_series;
+        ALTER TABLE search_history ADD CONSTRAINT fk_search_history_series
+            FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Step 6: Update last_clips to use series_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'last_clips' AND column_name = 'series_name') THEN
+        ALTER TABLE last_clips ADD COLUMN IF NOT EXISTS series_id_temp INT;
+        UPDATE last_clips
+        SET series_id_temp = (
+            SELECT id FROM series WHERE series_name = last_clips.series_name
+        )
+        WHERE series_name IS NOT NULL;
+
+        ALTER TABLE last_clips DROP COLUMN IF EXISTS series_name;
+        ALTER TABLE last_clips RENAME COLUMN series_id_temp TO series_id;
+        ALTER TABLE last_clips DROP CONSTRAINT IF EXISTS fk_last_clips_series;
+        ALTER TABLE last_clips ADD CONSTRAINT fk_last_clips_series
+            FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE SET NULL;
+    END IF;
+
+    -- Step 7: Drop old indexes (if they exist)
+    DROP INDEX IF EXISTS idx_user_logs_series_name;
+    DROP INDEX IF EXISTS idx_video_clips_series_name;
+    DROP INDEX IF EXISTS idx_search_history_series_name;
+    DROP INDEX IF EXISTS idx_last_clips_series_name;
+    DROP INDEX IF EXISTS idx_user_series_context_active_series;
+END $$;
+
 CREATE TABLE IF NOT EXISTS user_series_context (
     user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
-    active_series VARCHAR(50),
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT valid_series_name CHECK (active_series IS NULL OR active_series ~ '^[a-z0-9_-]+$')
+    active_series_id INT REFERENCES series(id) ON DELETE SET NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_series_context_user_id
     ON user_series_context(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series
-    ON user_series_context(active_series);
+CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series_id
+    ON user_series_context(active_series_id);
 
 CREATE OR REPLACE FUNCTION update_series_context_timestamp()
 RETURNS TRIGGER AS $$
@@ -311,12 +434,12 @@ SELECT user_id
 FROM user_profiles
 ON CONFLICT (user_id) DO NOTHING;
 
-ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS series_name VARCHAR(50);
-ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS series_name VARCHAR(50);
-ALTER TABLE search_history ADD COLUMN IF NOT EXISTS series_name VARCHAR(50);
-ALTER TABLE last_clips ADD COLUMN IF NOT EXISTS series_name VARCHAR(50);
+ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+ALTER TABLE search_history ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+ALTER TABLE last_clips ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
 
-CREATE INDEX IF NOT EXISTS idx_user_logs_series_name ON user_logs(series_name);
-CREATE INDEX IF NOT EXISTS idx_video_clips_series_name ON video_clips(series_name);
-CREATE INDEX IF NOT EXISTS idx_search_history_series_name ON search_history(series_name);
-CREATE INDEX IF NOT EXISTS idx_last_clips_series_name ON last_clips(series_name);
+CREATE INDEX IF NOT EXISTS idx_user_logs_series_id ON user_logs(series_id);
+CREATE INDEX IF NOT EXISTS idx_video_clips_series_id ON video_clips(series_id);
+CREATE INDEX IF NOT EXISTS idx_search_history_series_id ON search_history(series_id);
+CREATE INDEX IF NOT EXISTS idx_last_clips_series_id ON last_clips(series_id);

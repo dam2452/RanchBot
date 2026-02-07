@@ -18,9 +18,9 @@ from bot.responses.not_sending_videos.episode_list_handler_responses import (
     get_no_episodes_found_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
-from bot.services.serial_context.serial_context_manager import SerialContextManager
+from bot.types import SeasonInfoDict
 
-isSeasonCustomFn = Callable[[dict], bool]
+isSeasonCustomFn = Callable[[SeasonInfoDict], bool]
 onCustomSeasonFn = Callable[[], Awaitable[None]]
 
 
@@ -32,44 +32,44 @@ class EpisodeListHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        args = self._message.get_text().split()
-        args_count = len(args) - 1
-        if args_count > 1:
-            await self.reply_error(get_invalid_args_count_message())
-            return False
-        return True
+        return await self._validate_argument_count(self._message, 0, get_invalid_args_count_message(), 1)
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
+        season_arg = args[1] if len(args) > 1 else None
 
-        serial_manager = SerialContextManager(self._logger)
-        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
-
+        active_series = await self._get_user_active_series(self._message.get_user_id())
         index = f"{active_series}_text_segments"
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
+        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series)
 
-        if len(args) == 1:
-            if self._message.should_reply_json():
-                await self._responder.send_json({
-                    "season_info": season_info,
-                })
-            else:
-                response = format_season_list_response(season_info)
-                await self._answer_markdown(response)
+        if season_arg is None:
+            await self.__handle_season_list(season_info)
+        else:
+            await self.__handle_episode_list(season_arg, season_info, index)
 
-            return await self._log_system_message(
-                logging.INFO,
-                f"Sent season list to user '{self._message.get_username()}'.",
-            )
+    async def __handle_season_list(self, season_info: SeasonInfoDict) -> None:
+        if self._message.should_reply_json():
+            await self._responder.send_json({
+                "season_info": season_info,
+            })
+        else:
+            response = format_season_list_response(season_info)
+            await self._answer_markdown(response)
 
-        try:
-            season_arg = args[1].lower()
-            if season_arg in {"specjalne", "specials", "spec", "s"}:
-                season = 0
-            else:
-                season = int(args[1])
-        except ValueError:
-            return await self.reply_error(get_invalid_args_count_message())
+        await self._log_system_message(
+            logging.INFO,
+            f"Sent season list to user '{self._message.get_username()}'.",
+        )
+
+    async def __handle_episode_list(self, season_arg: str, season_info: SeasonInfoDict, index: str) -> None:
+        season_arg_lower = season_arg.lower()
+        if season_arg_lower in {"specjalne", "specials", "spec", "s"}:
+            season = 0
+        else:
+            try:
+                season = int(season_arg)
+            except ValueError:
+                return await self.reply_error(get_invalid_args_count_message())
 
         episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger, index=index)
 
@@ -78,16 +78,16 @@ class EpisodeListHandler(BotMessageHandler):
 
         if self._message.should_reply_json():
             await self._responder.send_json({
-                    "season": season,
-                    "episodes": episodes,
-                    "season_info": season_info,
+                "season": season,
+                "episodes": episodes,
+                "season_info": season_info,
             })
         else:
             response = format_episode_list_response(season, episodes, season_info)
             for part in self.__split_message(response):
                 await self._answer_markdown(part)
 
-        return await self._log_system_message(
+        await self._log_system_message(
             logging.INFO,
             get_log_episode_list_sent_message(season, self._message.get_username()),
         )

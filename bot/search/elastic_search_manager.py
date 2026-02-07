@@ -16,6 +16,10 @@ import urllib3
 
 from bot.database.database_manager import DatabaseManager
 from bot.settings import settings as s
+from bot.utils.constants import (
+    ElasticsearchKeys,
+    SegmentKeys,
+)
 from bot.utils.log import log_system_message
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -217,9 +221,9 @@ class ElasticSearchManager:
             index_name: str = s.ES_TRANSCRIPTION_INDEX,
     ) -> None:
         response = await es.search(index=index_name, size=1)
-        if response["hits"]["hits"]:
-            document = response["hits"]["hits"][0]["_source"]
-            document["video_path"] = document["video_path"].replace("\\", "/")
+        if response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]:
+            document = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS][0][ElasticsearchKeys.SOURCE]
+            document[SegmentKeys.VIDEO_PATH] = document[SegmentKeys.VIDEO_PATH].replace("\\", "/")
             readable_output = (
                 f"Document ID: {response['hits']['hits'][0]['_id']}\n"
                 f"Episode Info: {document['episode_info']}\n"

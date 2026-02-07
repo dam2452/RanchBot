@@ -19,7 +19,6 @@ from bot.responses.not_sending_videos.search_handler_responses import (
     get_log_search_results_sent_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
-from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
 
 
@@ -50,8 +49,9 @@ class SearchHandler(BotMessageHandler):
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
 
-        serial_manager = SerialContextManager(self._logger)
-        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
+        user_id = self._message.get_user_id()
+        active_series = await self._get_user_active_series(user_id)
+        series_id = await self._get_user_active_series_id(user_id)
 
         segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series, size=10000)
         if not segments:
@@ -62,7 +62,7 @@ class SearchHandler(BotMessageHandler):
             chat_id=self._message.get_chat_id(),
             quote=quote,
             segments=json.dumps(segments),
-            series_name=active_series,
+            series_id=series_id,
         )
 
         response = format_search_response(len(segments), segments, quote)

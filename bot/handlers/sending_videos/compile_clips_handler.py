@@ -1,11 +1,7 @@
 import json
 import logging
 import math
-from typing import (
-    Dict,
-    List,
-    Union,
-)
+from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
@@ -30,6 +26,8 @@ from bot.responses.sending_videos.compile_clips_handler_responses import (
     get_selected_clip_message,
 )
 from bot.settings import settings
+from bot.types import ClipSegment
+from bot.utils.constants import SegmentKeys
 
 
 class CompileClipsHandler(BotMessageHandler):
@@ -60,7 +58,8 @@ class CompileClipsHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         username = self._message.get_username()
 
-        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+        series_id = await self._get_user_active_series_id(user_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id, series_id)
         if not last_search or not last_search.segments:
             return await self.__reply_no_previous_search_results()
 
@@ -87,11 +86,11 @@ class CompileClipsHandler(BotMessageHandler):
 
         total_duration = 0
         for segment in selected_segments:
-            duration = (segment["end_time"] + settings.EXTEND_AFTER) - (segment["start_time"] - settings.EXTEND_BEFORE)
+            duration = (segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER) - (segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
             total_duration += duration
             await self._log_system_message(
                 logging.INFO,
-                get_selected_clip_message(segment["video_path"], segment["start_time"], segment["end_time"], duration),
+                get_selected_clip_message(segment[SegmentKeys.VIDEO_PATH], segment[SegmentKeys.START_TIME], segment[SegmentKeys.END_TIME], duration),
             )
 
         if await self._check_clip_duration_limit(user_id, total_duration):
@@ -104,16 +103,16 @@ class CompileClipsHandler(BotMessageHandler):
         return await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
 
     async def __parse_segments(
-        self, content: List[str], segments: List[Dict[str, Union[str, float]]],
-    ) -> List[Dict[str, Union[str, float]]]:
+        self, content: List[str], segments: List[ClipSegment],
+    ) -> List[ClipSegment]:
         selected_segments = []
         for arg in content:
             if arg.lower() in {"all", "wszystko"}:
                 selected_segments.extend(
                     {
-                        "video_path": s["video_path"],
-                        "start_time": s["start_time"],
-                        "end_time": s["end_time"],
+                        SegmentKeys.VIDEO_PATH: s[SegmentKeys.VIDEO_PATH],
+                        SegmentKeys.START_TIME: s[SegmentKeys.START_TIME],
+                        SegmentKeys.END_TIME: s[SegmentKeys.END_TIME],
                     }
                     for s in segments
                 )
@@ -124,7 +123,7 @@ class CompileClipsHandler(BotMessageHandler):
                 selected_segments.append(await self.__parse_single(arg, segments))
         return selected_segments
 
-    async def __parse_range(self, index: str, segments: List[Dict[str, Union[str, float]]]) -> List[Dict[str, Union[str, float]]]:
+    async def __parse_range(self, index: str, segments: List[ClipSegment]) -> List[ClipSegment]:
         user_id = self._message.get_user_id()
 
         try:
@@ -149,9 +148,9 @@ class CompileClipsHandler(BotMessageHandler):
             try:
                 segment = segments[i - 1]
                 collected.append({
-                    "video_path": segment["video_path"],
-                    "start_time": segment["start_time"],
-                    "end_time": segment["end_time"],
+                    SegmentKeys.VIDEO_PATH: segment[SegmentKeys.VIDEO_PATH],
+                    SegmentKeys.START_TIME: segment[SegmentKeys.START_TIME],
+                    SegmentKeys.END_TIME: segment[SegmentKeys.END_TIME],
                 })
             except IndexError:
                 pass
@@ -160,7 +159,7 @@ class CompileClipsHandler(BotMessageHandler):
             raise self.NoMatchingSegmentsException()
         return collected
 
-    async def __parse_single(self, index_str: str, segments: List[Dict[str, Union[str, float]]]) -> Dict[str, Union[str, float]]:
+    async def __parse_single(self, index_str: str, segments: List[ClipSegment]) -> ClipSegment:
         try:
             idx = int(index_str)
         except ValueError as exc:
@@ -171,9 +170,9 @@ class CompileClipsHandler(BotMessageHandler):
 
         segment = segments[idx - 1]
         return {
-            "video_path": segment["video_path"],
-            "start_time": segment["start_time"],
-            "end_time": segment["end_time"],
+            SegmentKeys.VIDEO_PATH: segment[SegmentKeys.VIDEO_PATH],
+            SegmentKeys.START_TIME: segment[SegmentKeys.START_TIME],
+            SegmentKeys.END_TIME: segment[SegmentKeys.END_TIME],
         }
 
     @staticmethod

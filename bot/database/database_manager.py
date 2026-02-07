@@ -21,6 +21,7 @@ from bot.database.models import (
     LastClip,
     RefreshToken,
     SearchHistory,
+    Series,
     SubscriptionKey,
     UserCredentials,
     UserProfile,
@@ -101,12 +102,50 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return DatabaseManager.pool.acquire()
 
     @staticmethod
-    async def log_user_activity(user_id: int, command: str, series_name: Optional[str] = None) -> None:
+    async def get_or_create_series(series_name: str) -> int:
+        async with DatabaseManager.get_db_connection() as conn:
+            series_id = await conn.fetchval(
+                "SELECT id FROM series WHERE series_name = $1",
+                series_name,
+            )
+            if series_id is None:
+                series_id = await conn.fetchval(
+                    "INSERT INTO series (series_name) VALUES ($1) RETURNING id",
+                    series_name,
+                )
+            return series_id
+
+    @staticmethod
+    async def get_series_by_id(series_id: int) -> Optional[str]:
+        async with DatabaseManager.get_db_connection() as conn:
+            series_name = await conn.fetchval(
+                "SELECT series_name FROM series WHERE id = $1",
+                series_id,
+            )
+            return series_name
+
+    @staticmethod
+    async def get_series_by_name(series_name: str) -> Optional[int]:
+        async with DatabaseManager.get_db_connection() as conn:
+            series_id = await conn.fetchval(
+                "SELECT id FROM series WHERE series_name = $1",
+                series_name,
+            )
+            return series_id
+
+    @staticmethod
+    async def get_all_series() -> List[Series]:
+        async with DatabaseManager.get_db_connection() as conn:
+            rows = await conn.fetch("SELECT id, series_name FROM series")
+            return [Series(id=row["id"], series_name=row["series_name"]) for row in rows]
+
+    @staticmethod
+    async def log_user_activity(user_id: int, command: str, series_id: Optional[int] = None) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
-                    "INSERT INTO user_logs (user_id, command, series_name) VALUES ($1, $2, $3)",
-                    user_id, command, series_name,
+                    "INSERT INTO user_logs (user_id, command, series_id) VALUES ($1, $2, $3)",
+                    user_id, command, series_id,
                 )
 
     @staticmethod
@@ -312,22 +351,22 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             season=row["season"],
             episode_number=row["episode_number"],
             is_compilation=row["is_compilation"],
-            series_name=row.get("series_name"),
+            series_id=row.get("series_id"),
         )
 
     @staticmethod
-    async def get_saved_clips(user_id: int, series_name: Optional[str] = None) -> List[VideoClip]:
+    async def get_saved_clips(user_id: int, series_id: Optional[int] = None) -> List[VideoClip]:
         async with DatabaseManager.get_db_connection() as conn:
-            if series_name:
+            if series_id:
                 rows = await conn.fetch(
-                    "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_name "
+                    "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                     "FROM video_clips "
-                    "WHERE user_id = $1 AND series_name = $2",
-                    user_id, series_name,
+                    "WHERE user_id = $1 AND series_id = $2",
+                    user_id, series_id,
                 )
             else:
                 rows = await conn.fetch(
-                    "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_name "
+                    "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                     "FROM video_clips "
                     "WHERE user_id = $1",
                     user_id,
@@ -339,23 +378,23 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def save_clip(  # pylint: disable=too-many-arguments
             chat_id: int, user_id: int, clip_name: str, video_data: bytes, start_time: float,
             end_time: float, duration: float, is_compilation: bool,
-            season: Optional[int] = None, episode_number: Optional[int] = None, series_name: Optional[str] = None,
+            season: Optional[int] = None, episode_number: Optional[int] = None, series_id: Optional[int] = None,
     ) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
                     "INSERT INTO video_clips (chat_id, user_id, clip_name, video_data, start_time, "
-                    "end_time, duration, season, episode_number, is_compilation, series_name) "
+                    "end_time, duration, season, episode_number, is_compilation, series_id) "
                     "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11)",
                     chat_id, user_id, clip_name, video_data, start_time, end_time, duration,
-                    season, episode_number, is_compilation, series_name,
+                    season, episode_number, is_compilation, series_id,
                 )
 
     @staticmethod
     async def get_clip_by_name(user_id: int, clip_name: str) -> Optional[VideoClip]:
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_name "
+                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                 "FROM video_clips "
                 "WHERE user_id = $1 AND clip_name = $2",
                 user_id, clip_name,
@@ -369,7 +408,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def get_clip_by_index(user_id: int, index: int) -> Optional[VideoClip]:
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_name "
+                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                 "FROM video_clips "
                 "WHERE user_id = $1 "
                 "ORDER BY id "
@@ -457,29 +496,29 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return result == 0
 
     @staticmethod
-    async def insert_last_search(chat_id: int, quote: str, segments: str, series_name: Optional[str] = None) -> None:
+    async def insert_last_search(chat_id: int, quote: str, segments: str, series_id: Optional[int] = None) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             await conn.execute(
-                "INSERT INTO search_history (chat_id, quote, segments, series_name) "
+                "INSERT INTO search_history (chat_id, quote, segments, series_id) "
                 "VALUES ($1, $2, $3::jsonb, $4)",
-                chat_id, quote, segments, series_name,
+                chat_id, quote, segments, series_id,
             )
 
     @staticmethod
-    async def get_last_search_by_chat_id(chat_id: int, series_name: Optional[str] = None) -> Optional[SearchHistory]:
+    async def get_last_search_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[SearchHistory]:
         async with DatabaseManager.get_db_connection() as conn:
-            if series_name:
+            if series_id:
                 result = await conn.fetchrow(
-                    "SELECT id, chat_id, quote, segments, series_name "
+                    "SELECT id, chat_id, quote, segments, series_id "
                     "FROM search_history "
-                    "WHERE chat_id = $1 AND series_name = $2 "
+                    "WHERE chat_id = $1 AND series_id = $2 "
                     "ORDER BY id DESC "
                     "LIMIT 1",
-                    chat_id, series_name,
+                    chat_id, series_id,
                 )
             else:
                 result = await conn.fetchrow(
-                    "SELECT id, chat_id, quote, segments, series_name "
+                    "SELECT id, chat_id, quote, segments, series_id "
                     "FROM search_history "
                     "WHERE chat_id = $1 "
                     "ORDER BY id DESC "
@@ -493,7 +532,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 chat_id=result["chat_id"],
                 quote=result["quote"],
                 segments=result["segments"],
-                series_name=result.get("series_name"),
+                series_id=result.get("series_id"),
             )
         return None
 
@@ -533,33 +572,33 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             adjusted_start_time: Optional[float],
             adjusted_end_time: Optional[float],
             is_adjusted: bool,
-            series_name: Optional[str] = None,
+            series_id: Optional[int] = None,
     ) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             segment_json = json.dumps(segment)
             await conn.execute(
-                "INSERT INTO last_clips (chat_id, segment, compiled_clip, type, adjusted_start_time, adjusted_end_time, is_adjusted, series_name) "
+                "INSERT INTO last_clips (chat_id, segment, compiled_clip, type, adjusted_start_time, adjusted_end_time, is_adjusted, series_id) "
                 "VALUES ($1, $2::jsonb, $3::bytea, $4, $5, $6, $7, $8)",
-                chat_id, segment_json, compiled_clip, clip_type.value, adjusted_start_time, adjusted_end_time, is_adjusted, series_name,
+                chat_id, segment_json, compiled_clip, clip_type.value, adjusted_start_time, adjusted_end_time, is_adjusted, series_id,
             )
 
     @staticmethod
-    async def get_last_clip_by_chat_id(chat_id: int, series_name: Optional[str] = None) -> Optional[LastClip]:
+    async def get_last_clip_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[LastClip]:
         async with DatabaseManager.get_db_connection() as conn:
-            if series_name:
+            if series_id:
                 row = await conn.fetchrow(
                     "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
-                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_name "
+                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_id "
                     "FROM last_clips "
-                    "WHERE chat_id = $1 AND series_name = $2 "
+                    "WHERE chat_id = $1 AND series_id = $2 "
                     "ORDER BY id DESC "
                     "LIMIT 1",
-                    chat_id, series_name,
+                    chat_id, series_id,
                 )
             else:
                 row = await conn.fetchrow(
                     "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
-                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_name "
+                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_id "
                     "FROM last_clips "
                     "WHERE chat_id = $1 "
                     "ORDER BY id DESC "
@@ -578,7 +617,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 adjusted_end_time=row["adjusted_end_time"],
                 is_adjusted=row["is_adjusted"],
                 timestamp=row["timestamp"],
-                series_name=row.get("series_name"),
+                series_id=row.get("series_id"),
             )
         return None
 
@@ -980,22 +1019,22 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             return None
 
     @staticmethod
-    async def get_user_active_series(user_id: int) -> Optional[str]:
+    async def get_user_active_series(user_id: int) -> Optional[int]:
         async with DatabaseManager.get_db_connection() as conn:
             result = await conn.fetchval(
-                "SELECT active_series FROM user_series_context WHERE user_id = $1",
+                "SELECT active_series_id FROM user_series_context WHERE user_id = $1",
                 user_id,
             )
             return result
 
     @staticmethod
-    async def set_user_active_series(user_id: int, series_name: str) -> None:
+    async def set_user_active_series(user_id: int, series_id: int) -> None:
         async with DatabaseManager.get_db_connection() as conn:
             await conn.execute(
                 """
-                INSERT INTO user_series_context (user_id, active_series)
+                INSERT INTO user_series_context (user_id, active_series_id)
                 VALUES ($1, $2)
-                ON CONFLICT (user_id) DO UPDATE SET active_series = $2
+                ON CONFLICT (user_id) DO UPDATE SET active_series_id = $2
                 """,
-                user_id, series_name,
+                user_id, series_id,
             )

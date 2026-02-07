@@ -13,7 +13,6 @@ from bot.responses.not_sending_videos.my_clips_handler_responses import (
     get_no_saved_clips_message,
 )
 from bot.search.transcription_finder import TranscriptionFinder
-from bot.services.serial_context.serial_context_manager import SerialContextManager
 
 
 class MyClipsHandler(BotMessageHandler):
@@ -24,17 +23,18 @@ class MyClipsHandler(BotMessageHandler):
         return []
 
     async def _do_handle(self) -> None:
-        clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
+        user_id = self._message.get_user_id()
+        series_id = await self._get_user_active_series_id(user_id)
+
+        clips = await DatabaseManager.get_saved_clips(user_id, series_id)
         if not clips:
             return await self.__reply_no_saved_clips()
 
-        serial_manager = SerialContextManager(self._logger)
-        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
-        index = f"{active_series}_text_segments"
+        active_series = await self._get_user_active_series(user_id)
 
         season_info = await TranscriptionFinder.get_season_details_from_elastic(
             logger=self._logger,
-            index=index,
+            series_name=active_series,
         )
 
         await self.reply(

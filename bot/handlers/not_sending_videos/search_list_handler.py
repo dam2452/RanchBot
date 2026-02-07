@@ -29,14 +29,18 @@ class SearchListHandler(BotMessageHandler):
         return [self.__check_last_search_exists]
 
     async def __check_last_search_exists(self) -> bool:
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
+        user_id = self._message.get_user_id()
+        series_id = await self._get_user_active_series_id(user_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id(), series_id)
         if not last_search:
             await self.__reply_no_previous_search_results()
             return False
         return True
 
     async def _do_handle(self) -> None:
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
+        user_id = self._message.get_user_id()
+        series_id = await self._get_user_active_series_id(user_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id(), series_id)
 
         try:
             segments = json.loads(last_search.segments)
@@ -48,9 +52,11 @@ class SearchListHandler(BotMessageHandler):
             return await self.__reply_no_previous_search_results()
 
         if self._message.should_reply_json():
-            series_name = last_search.series_name or "ranczo"
-            index = f"{series_name}_text_segments"
-            season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, index=index)
+            if last_search.series_id:
+                series_name = await DatabaseManager.get_series_by_id(last_search.series_id) or "ranczo"
+            else:
+                series_name = "ranczo"
+            season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=series_name)
             await self._responder.send_json({
                 "query": search_term,
                 "segments": segments,

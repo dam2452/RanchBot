@@ -8,8 +8,7 @@ from typing import (
     Tuple,
 )
 
-from aiogram.exceptions import TelegramEntityTooLarge
-
+from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import (
     ClipType,
@@ -31,7 +30,6 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_no_quotes_selected_log,
     get_no_quotes_selected_message,
     get_successful_adjustment_message,
-    get_telegram_clip_too_large_for_adjust_message,
     get_updated_segment_info_log,
 )
 from bot.settings import settings
@@ -59,8 +57,10 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         msg = self._message
         content = msg.get_text().split()
+        user_id = msg.get_user_id()
+        series_id = await self._get_user_active_series_id(user_id)
 
-        segment_info, last_clip = await self.__get_segment_and_clip(content, msg.get_chat_id())
+        segment_info, last_clip = await self.__get_segment_and_clip(content, msg.get_chat_id(), series_id)
         if segment_info is None:
             return
 
@@ -93,7 +93,19 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
         try:
             output_filename = await ClipsExtractor.extract_clip(segment_info.get("video_path"), start_time, end_time, self._logger)
-            await self._responder.send_video(output_filename)
+
+            if not await self._responder.send_video(output_filename):
+                await self.reply_error(
+                    TelegramResponder.get_file_too_large_message(
+                        duration=end_time - start_time,
+                        suggestions=["Zmniejszyć rozszerzenie czasowe", "Wybrać krótszy fragment"],
+                    ),
+                )
+                await self._log_system_message(
+                    logging.WARNING,
+                    f"Clip too large to send via Telegram: {end_time - start_time:.1f}s for user {msg.get_username()}",
+                )
+                return None
 
             await DatabaseManager.insert_last_clip(
                 chat_id=msg.get_chat_id(),
@@ -103,18 +115,12 @@ class AdjustVideoClipHandler(BotMessageHandler):
                 adjusted_start_time=start_time,
                 adjusted_end_time=end_time,
                 is_adjusted=True,
+                series_id=series_id,
             )
         except ValueError:
             return await self.__reply_invalid_interval()
         except FFMpegException as e:
             return await self.handle_ffmpeg_exception(e)
-        except TelegramEntityTooLarge:
-            await self.reply_error(get_telegram_clip_too_large_for_adjust_message(end_time - start_time))
-            await self._log_system_message(
-                logging.WARNING,
-                f"Clip too large to send via Telegram: {end_time - start_time:.1f}s for user {msg.get_username()}",
-            )
-            return None
 
         await self._log_system_message(logging.INFO, get_updated_segment_info_log(msg.get_chat_id()))
         return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
@@ -141,12 +147,12 @@ class AdjustVideoClipHandler(BotMessageHandler):
             abs(additional_start_offset) + abs(additional_end_offset) > settings.MAX_ADJUSTMENT_DURATION
         )
 
-    async def __get_segment_and_clip(self, content: List[str], chat_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[Any]]:
+    async def __get_segment_and_clip(self, content: List[str], chat_id: int, series_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[Any]]:
         segment_info = {}
         last_clip = None
 
         if len(content) == 4:
-            last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+            last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id, series_id)
             if not last_search:
                 await self.__reply_no_previous_searches()
                 return None, None
@@ -158,7 +164,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
                 await self.__reply_invalid_segment_index()
                 return None, None
         elif len(content) == 3:
-            last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
+            last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id, series_id)
             if not last_clip:
                 await self.__reply_no_quotes_selected()
                 return None, None

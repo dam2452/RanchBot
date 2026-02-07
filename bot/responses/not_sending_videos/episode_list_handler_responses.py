@@ -1,13 +1,13 @@
-from typing import (
-    Dict,
-    List,
-    Union,
-)
+from typing import List
 
+from bot.types import (
+    EpisodeInfo,
+    SeasonInfoDict,
+)
 from bot.utils.functions import convert_number_to_emoji
 
 
-def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str, int]]], season_info: Dict[str, int]) -> str:
+def format_episode_list_response(season: int, episodes: List[EpisodeInfo], season_info: SeasonInfoDict) -> str:
     if season == 0:
         response = "```🎬 Specjalne 🎬 \n".replace(" ", "\u00A0")
     else:
@@ -29,7 +29,7 @@ def format_episode_list_response(season: int, episodes: List[Dict[str, Union[str
             episode_with_number = f"{episode_display} ({absolute_episode_number})"
 
         viewership = episode.get("viewership")
-        if viewership is not None and viewership != "Unknown":
+        if viewership != "Unknown":
             try:
                 viewership_num = float(str(viewership).replace(",", "").replace(".", ""))
                 formatted_viewership = f"{viewership_num:,.0f}".replace(",", ".")
@@ -57,7 +57,7 @@ def get_log_episode_list_sent_message(season: int, username: str) -> str:
     return f"Sent episode list for season {season} to user '{username}'."
 
 
-def format_season_list_response(season_info: Dict[str, int]) -> str:
+def format_season_list_response(season_info: SeasonInfoDict) -> str:
     def format_episode_count(count: int) -> str:
         if count == 1:
             return "1 odcinek"

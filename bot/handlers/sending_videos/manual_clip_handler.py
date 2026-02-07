@@ -6,8 +6,6 @@ from typing import (
     Tuple,
 )
 
-from aiogram.exceptions import TelegramEntityTooLarge
-
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
@@ -68,6 +66,8 @@ class ManualClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
+        user_id = self._message.get_user_id()
+        series_id = await self._get_user_active_series_id(user_id)
 
         try:
             episode, start_seconds, end_seconds = self.__parse_content(content)
@@ -94,9 +94,7 @@ class ManualClipHandler(BotMessageHandler):
 
         output_filename = await ClipsExtractor.extract_clip(video_path, start_seconds, end_seconds, self._logger)
 
-        try:
-            await self._responder.send_video(output_filename)
-        except TelegramEntityTooLarge:
+        if not await self._responder.send_video(output_filename):
             await self.handle_telegram_entity_too_large_for_clip(clip_duration)
             return None
 
@@ -123,6 +121,7 @@ class ManualClipHandler(BotMessageHandler):
             adjusted_start_time=None,
             adjusted_end_time=None,
             is_adjusted=False,
+            series_id=series_id,
         )
 
     @staticmethod

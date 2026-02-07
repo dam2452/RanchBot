@@ -16,7 +16,6 @@ from bot.responses.not_sending_videos.transcription_handler_responses import (
     get_transcription_response,
 )
 from bot.search.transcription_finder import TranscriptionFinder
-from bot.services.serial_context.serial_context_manager import SerialContextManager
 
 
 class TranscriptionHandler(BotMessageHandler):
@@ -33,8 +32,7 @@ class TranscriptionHandler(BotMessageHandler):
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
 
-        serial_manager = SerialContextManager(self._logger)
-        active_series = await serial_manager.get_user_active_series(self._message.get_user_id())
+        active_series = await self._get_user_active_series(self._message.get_user_id())
 
         result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, active_series, context_size=15)
 

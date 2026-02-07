@@ -37,7 +37,8 @@ class DeleteClipHandler(BotMessageHandler):
 
         clip_identifier = content[1]
         user_id = self._message.get_user_id()
-        user_clips = await DatabaseManager.get_saved_clips(user_id)
+        series_id = await self._get_user_active_series_id(user_id)
+        user_clips = await DatabaseManager.get_saved_clips(user_id, series_id)
 
         if not user_clips:
             await self.__reply_no_saved_clips()
@@ -58,11 +59,12 @@ class DeleteClipHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         clip_identifier = self._message.get_text().split(maxsplit=1)[1]
         user_id = self._message.get_user_id()
+        series_id = await self._get_user_active_series_id(user_id)
         clip_name_to_delete: str
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
-            user_clips = await DatabaseManager.get_saved_clips(user_id)
+            user_clips = await DatabaseManager.get_saved_clips(user_id, series_id)
             clip_name_to_delete = user_clips[clip_number - 1].name
         else:
             clip_name_to_delete = clip_identifier

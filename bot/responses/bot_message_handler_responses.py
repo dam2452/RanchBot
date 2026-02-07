@@ -60,32 +60,12 @@ def get_clip_size_exceed_log_message(file_size: float, limit_size: float) -> str
     return f"Rozmiar klipu {file_size:.2f} MB przekracza limit {limit_size} MB."
 
 
-def get_clip_size_exceed_message() -> str:
-    return "❌ Wyodrębniony klip jest za duży, aby go wysłać przez Telegram. Maksymalny rozmiar pliku to 50 MB.❌"
-
-
 def get_video_sent_log_message(file_path: Path) -> str:
     return f"Wysłano plik wideo: {file_path}"
 
 
-def get_telegram_clip_too_large_message(clip_duration: float) -> str:
-    return (
-        f"❌ Klip jest za duży do wysłania ({clip_duration:.1f}s).\n\n"
-        f"Telegram ma limit 50MB dla wideo. Spróbuj wybrać krótszy fragment."
-    )
-
-
 def get_log_clip_too_large_message(clip_duration: float, username: str) -> str:
     return f"Clip too large to send via Telegram: {clip_duration:.1f}s for user {username}"
-
-
-def get_telegram_compilation_too_large_message(total_duration: float) -> str:
-    return (
-        f"❌ Kompilacja jest za duża do wysłania ({total_duration:.1f}s).\n\n"
-        f"Telegram ma limit 50MB dla wideo. Spróbuj:\n"
-        f"• Wybrać mniej klipów\n"
-        f"• Wybrać krótsze fragmenty"
-    )
 
 
 def get_log_compilation_too_large_message(total_duration: float, username: str) -> str:

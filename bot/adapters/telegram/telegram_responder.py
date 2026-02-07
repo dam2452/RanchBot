@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 from typing import Optional
 
+from aiogram.exceptions import TelegramEntityTooLarge
 from aiogram.types import (
     BufferedInputFile,
     FSInputFile,
@@ -46,22 +47,28 @@ class TelegramResponder(AbstractResponder):
         delete_after_send: bool = True,
         width: Optional[int] = None,
         height: Optional[int] = None,
-    ) -> None:
+    ) -> bool:
         if width is None or height is None:
             resolution = RESOLUTIONS[settings.DEFAULT_RESOLUTION_KEY]
             width = resolution.width
             height = resolution.height
 
-        await self._message.answer_video(
-            video=FSInputFile(file_path),
-            width=width,
-            height=height,
-            supports_streaming=True,
-            reply_to_message_id=self._message.message_id,
-            disable_notification=True,
-        )
-        if delete_after_send:
-            file_path.unlink()
+        try:
+            await self._message.answer_video(
+                video=FSInputFile(file_path),
+                width=width,
+                height=height,
+                supports_streaming=True,
+                reply_to_message_id=self._message.message_id,
+                disable_notification=True,
+            )
+            if delete_after_send:
+                file_path.unlink()
+            return True
+        except TelegramEntityTooLarge:
+            if delete_after_send:
+                file_path.unlink()
+            return False
 
     async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True, cleanup_dir: Optional[Path] = None) -> None:
         await self._message.answer_document(
@@ -76,3 +83,17 @@ class TelegramResponder(AbstractResponder):
             file_path.unlink()
     async def send_json(self, data: json) -> None:
         raise NotImplementedError("JSON mode not supported for TelegramResponder")
+
+    @staticmethod
+    def get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[list[str]] = None) -> str:
+        if duration is not None:
+            message = f"❌ Plik jest za duży do wysłania ({duration:.1f}s).\n\n"
+        else:
+            message = "❌ Plik jest za duży do wysłania.\n\n"
+
+        message += "Telegram ma limit 50MB dla wideo."
+
+        if suggestions:
+            message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)
+
+        return message

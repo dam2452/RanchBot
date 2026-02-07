@@ -5,22 +5,20 @@ from abc import (
 import logging
 from pathlib import Path
 from typing import (
-    Any,
     Awaitable,
     Callable,
     List,
     Optional,
 )
 
-from aiogram.exceptions import TelegramEntityTooLarge
-
 from bot.adapters.rest.models import ResponseStatus as RS
+from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.database.database_manager import DatabaseManager
+from bot.database.models import ClipType
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
     get_clip_size_exceed_log_message,
-    get_clip_size_exceed_message,
     get_clip_size_log_message,
     get_extraction_failure_message,
     get_general_error_message,
@@ -29,12 +27,12 @@ from bot.responses.bot_message_handler_responses import (
     get_log_clip_too_large_message,
     get_log_compilation_too_large_message,
     get_log_extraction_failure_message,
-    get_telegram_clip_too_large_message,
-    get_telegram_compilation_too_large_message,
     get_video_sent_log_message,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
+from bot.types import ClipSegment
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
@@ -52,6 +50,7 @@ class BotMessageHandler(ABC):
         self._message = message
         self._responder = responder
         self._logger = logger
+        self._serial_manager = SerialContextManager(logger)
 
     async def handle(self) -> None:
         await self._log_user_activity(self._message.get_user_id(), self._message.get_text())
@@ -77,6 +76,13 @@ class BotMessageHandler(ABC):
 
     async def _log_user_activity(self, user_id: int, message: str) -> None:
         await log_user_activity(user_id, message, self._logger)
+
+    async def _get_user_active_series(self, user_id: int) -> str:
+        return await self._serial_manager.get_user_active_series(user_id)
+
+    async def _get_user_active_series_id(self, user_id: int) -> int:
+        active_series = await self._get_user_active_series(user_id)
+        return await DatabaseManager.get_or_create_series(active_series)
 
     async def _reply_invalid_args_count(self, response: str) -> None:
         await self._responder.send_markdown(response)
@@ -111,7 +117,7 @@ class BotMessageHandler(ABC):
 
         if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
             await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
-            await self._answer(get_clip_size_exceed_message())
+            await self._answer(TelegramResponder.get_file_too_large_message())
         else:
             await self._responder.send_video(file_path)
             await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
@@ -134,9 +140,9 @@ class BotMessageHandler(ABC):
     async def _validate_argument_count(
             self,
             message: AbstractMessage,
-            min_args: float,
+            min_args: int,
             error_message: str,
-            max_args: Optional[float] = None,
+            max_args: Optional[int] = None,
     ) -> bool:
         if max_args is None:
             max_args = min_args
@@ -172,26 +178,35 @@ class BotMessageHandler(ABC):
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
     async def handle_telegram_entity_too_large_for_clip(self, clip_duration: float) -> None:
-        await self.reply_error(get_telegram_clip_too_large_message(clip_duration))
+        await self.reply_error(
+            TelegramResponder.get_file_too_large_message(
+                duration=clip_duration,
+                suggestions=["Wybrać krótszy fragment"],
+            ),
+        )
         await self._log_system_message(
             logging.WARNING,
             get_log_clip_too_large_message(clip_duration, self._message.get_username()),
         )
 
     async def handle_telegram_entity_too_large_for_compilation(self, total_duration: float) -> None:
-        await self.reply_error(get_telegram_compilation_too_large_message(total_duration))
+        await self.reply_error(
+            TelegramResponder.get_file_too_large_message(
+                duration=total_duration,
+                suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
+            ),
+        )
         await self._log_system_message(
             logging.WARNING,
             get_log_compilation_too_large_message(total_duration, self._message.get_username()),
         )
 
-    async def compile_and_send_video(self, selected_segments: List[Any], total_duration: float, clip_type: Any) -> Optional[bool]:
+    async def compile_and_send_video(self, selected_segments: List[ClipSegment], total_duration: float, clip_type: ClipType) -> Optional[bool]:
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, clip_type)
 
-        try:
-            await self._responder.send_video(compiled_output)
-            return True
-        except TelegramEntityTooLarge:
+        if not await self._responder.send_video(compiled_output):
             await self.handle_telegram_entity_too_large_for_compilation(total_duration)
             return None
+
+        return True

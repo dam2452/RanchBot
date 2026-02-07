@@ -1,8 +1,5 @@
-import json
 import logging
 from typing import (
-    Any,
-    Dict,
     List,
     Optional,
     Tuple,
@@ -13,40 +10,90 @@ from elastic_transport import ObjectApiResponse
 
 from bot.search.elastic_search_manager import ElasticSearchManager
 from bot.settings import settings
+from bot.types import (
+    BaseSegment,
+    ElasticsearchSegment,
+    EpisodeInfo,
+    SeasonInfoDict,
+    SegmentWithScore,
+    TranscriptionContext,
+)
+from bot.utils.constants import (
+    ElasticsearchKeys,
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 from bot.utils.log import log_system_message
 
 
 class TranscriptionFinder:
     @staticmethod
     def is_segment_overlap(
-            previous_segment: json,
-            segment: json,
+            previous_segment: ElasticsearchSegment,
+            segment: ElasticsearchSegment,
             start_time: float,
     ) -> bool:
+        if not previous_segment:
+            return False
+
+        prev_metadata = previous_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+        curr_metadata = segment[EpisodeMetadataKeys.EPISODE_METADATA]
+
+        prev_season = prev_metadata.get(EpisodeMetadataKeys.SEASON)
+        curr_season = curr_metadata[EpisodeMetadataKeys.SEASON]
+
+        prev_episode = prev_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+        curr_episode = curr_metadata[EpisodeMetadataKeys.EPISODE_NUMBER]
+
+        prev_end_time = previous_segment.get(
+            SegmentKeys.END_TIME,
+            previous_segment.get(SegmentKeys.END, 0),
+        )
 
         return (
-                previous_segment and
-                previous_segment.get("episode_metadata", {}).get("season") == segment["episode_metadata"]["season"] and
-                previous_segment.get("episode_metadata", {}).get("episode_number") == segment["episode_metadata"][
-                    "episode_number"
-                ] and
-                start_time <= previous_segment.get("end_time", previous_segment.get("end", 0))
+            prev_season == curr_season and
+            prev_episode == curr_episode and
+            start_time <= prev_end_time
         )
 
     @staticmethod
-    def _merge_overlapping_segment(segment: Dict[str, Any], unique_segments: List[Dict[str, Any]], start_time: float, end_time: float) -> bool:
+    def __merge_overlapping_segment(
+        segment: SegmentWithScore,
+        unique_segments: List[SegmentWithScore],
+        start_time: float,
+        end_time: float,
+    ) -> bool:
         for i, existing_segment in enumerate(unique_segments):
-            existing_start = existing_segment["start_time"] - settings.EXTEND_BEFORE
-            existing_end = existing_segment["end_time"] + settings.EXTEND_AFTER
+            existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
+            existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+
+            seg_metadata = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+
+            seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
+            existing_season = existing_metadata.get(EpisodeMetadataKeys.SEASON)
+
+            seg_episode = seg_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+            existing_episode = existing_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
 
             if (
-                segment.get("episode_metadata", {}).get("season") == existing_segment.get("episode_metadata", {}).get("season") and
-                segment.get("episode_metadata", {}).get("episode_number") == existing_segment.get("episode_metadata", {}).get("episode_number") and
-                start_time <= existing_end and end_time >= existing_start
+                seg_season == existing_season and
+                seg_episode == existing_episode and
+                start_time <= existing_end and
+                end_time >= existing_start
             ):
-                unique_segments[i]["start_time"] = min(existing_segment["start_time"], segment["start_time"])
-                unique_segments[i]["end_time"] = max(existing_segment["end_time"], segment["end_time"])
-                unique_segments[i]["_score"] = max(existing_segment["_score"], segment["_score"])
+                unique_segments[i][SegmentKeys.START_TIME] = min(
+                    existing_segment[SegmentKeys.START_TIME],
+                    segment[SegmentKeys.START_TIME],
+                )
+                unique_segments[i][SegmentKeys.END_TIME] = max(
+                    existing_segment[SegmentKeys.END_TIME],
+                    segment[SegmentKeys.END_TIME],
+                )
+                unique_segments[i][ElasticsearchKeys.SCORE] = max(
+                    existing_segment[ElasticsearchKeys.SCORE],
+                    segment[ElasticsearchKeys.SCORE],
+                )
                 return True
         return False
 
@@ -90,12 +137,12 @@ class TranscriptionFinder:
         }
 
         if season_filter:
-            query["query"]["bool"]["filter"].append({"term": {"episode_metadata.season": season_filter}})
+            query["query"]["bool"]["filter"].append({"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season_filter}})
 
         if episode_filter:
-            query["query"]["bool"]["filter"].append({"term": {"episode_metadata.episode_number": episode_filter}})
+            query["query"]["bool"]["filter"].append({"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_filter}})
 
-        hits = (await es.search(index=index, body=query, size=size))["hits"]["hits"]
+        hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
@@ -105,22 +152,22 @@ class TranscriptionFinder:
         seen_segments = set()
 
         for hit in hits:
-            segment = hit["_source"]
-            segment["_score"] = hit["_score"]
+            segment = hit[ElasticsearchKeys.SOURCE]
+            segment[ElasticsearchKeys.SCORE] = hit[ElasticsearchKeys.SCORE]
             segment_key = (
-                segment.get("episode_metadata", {}).get("season"),
-                segment.get("episode_metadata", {}).get("episode_number"),
-                segment.get("start_time"),
-                segment.get("end_time"),
+                segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
+                segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
+                segment.get(SegmentKeys.START_TIME),
+                segment.get(SegmentKeys.END_TIME),
             )
 
             if segment_key not in seen_segments:
                 seen_segments.add(segment_key)
 
-                start_time = segment["start_time"] - settings.EXTEND_BEFORE
-                end_time = segment["end_time"] + settings.EXTEND_AFTER
+                start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
+                end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
-                is_overlapping = TranscriptionFinder._merge_overlapping_segment(segment, unique_segments, start_time, end_time)
+                is_overlapping = TranscriptionFinder._TranscriptionFinder__merge_overlapping_segment(segment, unique_segments, start_time, end_time)
 
                 if not is_overlapping:
                     unique_segments.append(segment)
@@ -140,8 +187,8 @@ class TranscriptionFinder:
     async def find_segment_with_context(
             quote: str, logger: logging.Logger, series_name: str, context_size: int = 30,
             season_filter: Optional[int] = None, episode_filter: Optional[int] = None,
-            index: str = None,
-    ) -> Optional[json]:
+            index: Optional[str] = None,
+    ) -> Optional[TranscriptionContext]:
         await log_system_message(
             logging.INFO,
             f"Searching for quote: '{quote}' in series '{series_name}' with context size: {context_size}. Season: {season_filter}, Episode: {episode_filter}",
@@ -185,21 +232,34 @@ class TranscriptionFinder:
 
     @staticmethod
     async def _fetch_context_segments(
-            es: ObjectApiResponse, index: str, episode_data: Dict[str, Any], segment_id: int, context_size: int,
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+            es: ObjectApiResponse,
+            index: str,
+            episode_data: ElasticsearchSegment,
+            segment_id: int,
+            context_size: int,
+    ) -> Tuple[List[BaseSegment], List[BaseSegment]]:
+        season_field = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
+        episode_field = (
+            f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
+        )
+
         context_query_before = {
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"episode_metadata.season": episode_data["season"]}},
-                        {"term": {"episode_metadata.episode_number": episode_data["episode_number"]}},
+                        {"term": {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
+                        {
+                            "term": {
+                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER]
+                            }
+                        },
                     ],
                     "filter": [
-                        {"range": {"segment_id": {"lt": segment_id}}},
+                        {"range": {SegmentKeys.SEGMENT_ID: {"lt": segment_id}}},
                     ],
                 },
             },
-            "sort": [{"segment_id": "desc"}],
+            "sort": [{SegmentKeys.SEGMENT_ID: "desc"}],
             "size": context_size,
         }
 
@@ -207,15 +267,19 @@ class TranscriptionFinder:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"episode_metadata.season": episode_data["season"]}},
-                        {"term": {"episode_metadata.episode_number": episode_data["episode_number"]}},
+                        {"term": {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
+                        {
+                            "term": {
+                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER]
+                            }
+                        },
                     ],
                     "filter": [
-                        {"range": {"segment_id": {"gt": segment_id}}},
+                        {"range": {SegmentKeys.SEGMENT_ID: {"gt": segment_id}}},
                     ],
                 },
             },
-            "sort": [{"segment_id": "asc"}],
+            "sort": [{SegmentKeys.SEGMENT_ID: "asc"}],
             "size": context_size,
         }
 
@@ -223,36 +287,43 @@ class TranscriptionFinder:
         context_response_after = await es.search(index=index, body=context_query_after)
 
         context_segments_before = [{
-            "id": hit["_source"].get("segment_id", hit["_source"].get("id")),
-            "text": hit["_source"]["text"],
-            "start": hit["_source"].get("start_time", hit["_source"].get("start")),
-            "end": hit["_source"].get("end_time", hit["_source"].get("end")),
-        } for hit in context_response_before["hits"]["hits"]]
+            SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
+            SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
+            SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
+            SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
+        } for hit in context_response_before[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
 
         context_segments_after = [{
-            "id": hit["_source"].get("segment_id", hit["_source"].get("id")),
-            "text": hit["_source"]["text"],
-            "start": hit["_source"].get("start_time", hit["_source"].get("start")),
-            "end": hit["_source"].get("end_time", hit["_source"].get("end")),
-        } for hit in context_response_after["hits"]["hits"]]
+            SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
+            SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
+            SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
+            SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
+        } for hit in context_response_after[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
 
         context_segments_before.reverse()
         return context_segments_before, context_segments_after
 
     @staticmethod
     def _build_unique_segments(
-            context_segments: Tuple[List[Dict[str, Any]], List[Dict[str, Any]]],
+            context_segments: Tuple[List[BaseSegment], List[BaseSegment]],
             segment_id: int,
-            segment: Dict[str, Any],
+            segment: ElasticsearchSegment,
             segment_start: float,
             segment_end: float,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[BaseSegment]:
         context_segments_before, context_segments_after = context_segments
         unique_context_segments = []
-        for seg in (
-            context_segments_before + [{"id": segment_id, "text": segment["text"], "start": segment_start, "end": segment_end}] +
-            context_segments_after
-        ):
+
+        target_segment = {
+            SegmentKeys.ID: segment_id,
+            SegmentKeys.TEXT: segment[SegmentKeys.TEXT],
+            SegmentKeys.START: segment_start,
+            SegmentKeys.END: segment_end,
+        }
+
+        all_segments = context_segments_before + [target_segment] + context_segments_after
+
+        for seg in all_segments:
             if seg not in unique_context_segments:
                 unique_context_segments.append(seg)
         return unique_context_segments
@@ -273,22 +344,22 @@ class TranscriptionFinder:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"episode_metadata.season": season}},
-                        {"term": {"episode_metadata.episode_number": episode_number}},
+                        {"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
+                        {"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
                     ],
                 },
             },
         }
 
         response = await es.search(index=index, body=query, size=1)
-        hits = response["hits"]["hits"]
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None
 
-        segment = hits[0]["_source"]
-        video_path = segment.get("video_path", None)
+        segment = hits[0][ElasticsearchKeys.SOURCE]
+        video_path = segment.get(SegmentKeys.VIDEO_PATH, None)
 
         if video_path:
             await log_system_message(logging.INFO, f"Found video path: {video_path}", logger)
@@ -298,7 +369,7 @@ class TranscriptionFinder:
         return None
 
     @staticmethod
-    async def find_episodes_by_season(season: int, logger: logging.Logger, index: str = settings.ES_TRANSCRIPTION_INDEX) -> Optional[List[json]]:
+    async def find_episodes_by_season(season: int, logger: logging.Logger, index: str = settings.ES_TRANSCRIPTION_INDEX) -> Optional[List[EpisodeInfo]]:
         await log_system_message(logging.INFO, f"Searching for episodes in season {season}", logger)
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
@@ -336,7 +407,7 @@ class TranscriptionFinder:
         }
 
         response = await es.search(index=index, body=query)
-        buckets = response["aggregations"]["unique_episodes"]["buckets"]
+        buckets = response[ElasticsearchKeys.AGGREGATIONS]["unique_episodes"][ElasticsearchKeys.BUCKETS]
 
         if not buckets:
             await log_system_message(logging.INFO, f"No episodes found for season {season}.", logger)
@@ -344,9 +415,14 @@ class TranscriptionFinder:
 
         episodes = []
         for bucket in buckets:
-            episode_metadata = bucket["episode_metadata"]["hits"]["hits"][0]["_source"]["episode_metadata"]
+            hits_data = bucket[EpisodeMetadataKeys.EPISODE_METADATA][ElasticsearchKeys.HITS]
+            source_data = hits_data[ElasticsearchKeys.HITS][0][ElasticsearchKeys.SOURCE]
+            episode_metadata = source_data[EpisodeMetadataKeys.EPISODE_METADATA]
+
             episode = {
-                "episode_number": episode_metadata.get("episode_number"),
+                EpisodeMetadataKeys.EPISODE_NUMBER: episode_metadata.get(
+                    EpisodeMetadataKeys.EPISODE_NUMBER
+                ),
                 "title": episode_metadata.get("title", "Unknown"),
                 "premiere_date": episode_metadata.get("premiere_date", "Unknown"),
                 "viewership": episode_metadata.get("viewership", "Unknown"),
@@ -359,9 +435,10 @@ class TranscriptionFinder:
     @staticmethod
     async def get_season_details_from_elastic(
             logger: logging.Logger,
-            index: str = settings.ES_TRANSCRIPTION_INDEX,
-    ) -> Dict[str, int]:
+            series_name: str,
+    ) -> SeasonInfoDict:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+        index = f"{series_name}_text_segments"
 
         agg_query = {
             "size": 0,
@@ -385,11 +462,11 @@ class TranscriptionFinder:
 
         await log_system_message(logging.INFO, "Fetching season details via Elasticsearch aggregation.", logger)
         response = await es.search(index=index, body=agg_query)
-        buckets = response["aggregations"]["seasons"]["buckets"]
+        buckets = response[ElasticsearchKeys.AGGREGATIONS]["seasons"][ElasticsearchKeys.BUCKETS]
 
-        season_dict: Dict[str, int] = {}
+        season_dict: SeasonInfoDict = {}
         for bucket in buckets:
-            season_key = str(bucket["key"])
+            season_key = str(bucket[ElasticsearchKeys.KEY])
             episodes_count = bucket["unique_episodes"]["value"]
             season_dict[season_key] = episodes_count
 

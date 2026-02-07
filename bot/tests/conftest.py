@@ -11,7 +11,6 @@ from bot.tests.settings import settings as s
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()
 
-# pylint: disable=duplicate-code
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def db_pool():
     await DatabaseManager.init_pool(
@@ -26,7 +25,6 @@ async def db_pool():
     yield
     if DatabaseManager.pool is not None:
         await DatabaseManager.pool.close()
-# pylint: enable=duplicate-code
 
 
 class APIClient(requests.Session):

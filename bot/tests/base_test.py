@@ -228,5 +228,6 @@ class BaseTest:
 
     @staticmethod
     async def get_season_info() -> Dict[str, int]:
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=logger)
+        series_name = str(s.ES_TRANSCRIPTION_INDEX).replace("_text_segments", "")
+        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=logger, series_name=series_name)
         return season_info
