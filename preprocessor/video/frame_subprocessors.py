@@ -7,6 +7,8 @@ from typing import (
     Dict,
     List,
     Optional,
+    Set,
+    Tuple,
 )
 
 from insightface.app import FaceAnalysis
@@ -603,7 +605,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
 
     @staticmethod
-    def __draw_detections_on_frame(img, detections: List[Dict], colors: Dict[int, tuple], conf_threshold: float) -> None:
+    def __draw_detections_on_frame(img, detections: List[Dict[str, Any]], colors: Dict[int, Tuple[int, int, int]], conf_threshold: float) -> None:
         import cv2  # pylint: disable=import-outside-toplevel
 
         for detection in detections:
@@ -626,7 +628,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
     @staticmethod
-    def __generate_colors(num_colors: int = 80) -> Dict[int, tuple]:
+    def __generate_colors(num_colors: int = 80) -> Dict[int, Tuple[int, int, int]]:
         np.random.seed(42)
         colors = {}
         for i in range(num_colors):
@@ -731,7 +733,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
         console.print(f"[green]✓ Visualized {len(frames_with_detections)} frames saved to: {output_dir}[/green]")
 
     @staticmethod
-    def __draw_characters_on_frame(img, characters: List[Dict], colors: Dict[str, tuple]) -> None:
+    def __draw_characters_on_frame(img, characters: List[Dict[str, Any]], colors: Dict[str, Tuple[int, int, int]]) -> None:
         import cv2  # pylint: disable=import-outside-toplevel
 
         for character in characters:
@@ -758,7 +760,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
             cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
     @staticmethod
-    def __generate_character_colors(character_names: set) -> Dict[str, tuple]:
+    def __generate_character_colors(character_names: Set[str]) -> Dict[str, Tuple[int, int, int]]:
         np.random.seed(42)
         colors = {}
         sorted_names = sorted(character_names)

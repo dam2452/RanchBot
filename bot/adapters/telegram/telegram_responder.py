@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 import shutil
-from typing import Optional
+from typing import (
+    List,
+    Optional,
+)
 
 from aiogram.exceptions import TelegramEntityTooLarge
 from aiogram.types import (
@@ -85,7 +88,7 @@ class TelegramResponder(AbstractResponder):
         raise NotImplementedError("JSON mode not supported for TelegramResponder")
 
     @staticmethod
-    def get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[list[str]] = None) -> str:
+    def get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[List[str]] = None) -> str:
         message = "❌ Plik jest za duży do wysłania"
         
         if duration is not None:

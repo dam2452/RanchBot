@@ -6,12 +6,15 @@ def get_serial_changed_message(series_name: str) -> str:
     return f"✅ Zmieniono aktywny serial na: {series_name.capitalize()} ✅"
 
 
-def get_serial_invalid_message(series_name: str, available: list) -> str:
+from typing import List
+
+
+def get_serial_invalid_message(series_name: str, available: List[str]) -> str:
     series_list = ", ".join([s.capitalize() for s in available]) if available else "brak"
     return f"❌ Nieznany serial: {series_name.capitalize()}\n\nDostępne: {series_list} ❌"
 
 
-def get_serial_current_message(series_name: str, available_series: list = None) -> str:
+def get_serial_current_message(series_name: str, available_series: List[str] = None) -> str:
     if available_series is None:
         return f"📺 Twój aktywny serial: {series_name.capitalize()}"
 

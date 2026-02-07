@@ -10,6 +10,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -853,7 +854,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    async def get_user_by_username(username: str) -> Optional[tuple[UserProfile, UserCredentials]]:
+    async def get_user_by_username(username: str) -> Optional[Tuple[UserProfile, UserCredentials]]:
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(
                 """
@@ -969,7 +970,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             return int(result.split()[-1]) if result else 0
 
     @staticmethod
-    async def get_credentials_with_profile_by_username(username: str) -> Optional[tuple[UserProfile, str]]:
+    async def get_credentials_with_profile_by_username(username: str) -> Optional[Tuple[UserProfile, str]]:
         async with DatabaseManager.get_db_connection() as conn:
             row = await conn.fetchrow(
                 """

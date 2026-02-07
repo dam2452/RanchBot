@@ -5,6 +5,8 @@ from pathlib import Path
 import shutil
 import tempfile
 from typing import (
+    Any,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -103,7 +105,7 @@ class InlineClipHandler(BotMessageHandler):
         await DatabaseManager.log_command_usage(user_id)
         return results
 
-    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[dict], Optional[dict], bool]:
+    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[Dict[str, Any]], Optional[Dict[str, Any]], bool]:
         active_series = await self._get_user_active_series(user_id)
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
@@ -121,7 +123,7 @@ class InlineClipHandler(BotMessageHandler):
         return saved_clip, segments[: 4 if saved_clip else 5] if segments else [], season_info, is_admin
 
     async def __extract_clips_to_files(
-        self, saved_clip: Optional[VideoClip], segments: List[dict], season_info: Optional[dict], temp_dir: Path, is_admin: bool,
+        self, saved_clip: Optional[VideoClip], segments: List[Dict[str, Any]], season_info: Optional[Dict[str, Any]], temp_dir: Path, is_admin: bool,
     ) -> List[Path]:
         video_files = []
 
@@ -150,7 +152,7 @@ class InlineClipHandler(BotMessageHandler):
         return video_files
 
     async def __create_inline_results(
-        self, saved_clip: Optional[VideoClip], segments: List[dict], season_info: Optional[dict], bot: Bot, is_admin: bool,
+        self, saved_clip: Optional[VideoClip], segments: List[Dict[str, Any]], season_info: Optional[Dict[str, Any]], bot: Bot, is_admin: bool,
     ) -> List[InlineQueryResult]:
         results = []
 
@@ -173,7 +175,7 @@ class InlineClipHandler(BotMessageHandler):
 
         return results
 
-    async def __upload_segment(self, segment: dict, index: int, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
+    async def __upload_segment(self, segment: Dict[str, Any], index: int, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
         start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
         end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 

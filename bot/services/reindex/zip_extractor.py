@@ -2,6 +2,11 @@ import io
 import json
 import logging
 from pathlib import Path
+from typing import (
+    Any,
+    Dict,
+    List,
+)
 import zipfile
 
 
@@ -9,7 +14,7 @@ class ZipExtractor:
     def __init__(self, logger: logging.Logger):
         self.__logger = logger
 
-    def extract_to_memory(self, zip_path: Path) -> dict[str, io.BytesIO]:
+    def extract_to_memory(self, zip_path: Path) -> Dict[str, io.BytesIO]:
         extracted_files = {}
 
         try:
@@ -31,7 +36,7 @@ class ZipExtractor:
 
         return extracted_files
 
-    def parse_jsonl_from_memory(self, buffer: io.BytesIO) -> list[dict]:
+    def parse_jsonl_from_memory(self, buffer: io.BytesIO) -> List[Dict[str, Any]]:
         documents = []
         buffer.seek(0)
 

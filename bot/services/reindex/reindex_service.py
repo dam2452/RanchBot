@@ -273,7 +273,7 @@ class ReindexService:
         idx: int,
         total_episodes: int,
         progress_callback: Callable[[str, int, int], Awaitable[None]],
-    ) -> tuple[str, int]:
+    ) -> Tuple[str, int]:
         episode_code = self.__extract_episode_code(zip_path)
         progress_pct = 10 + int((idx / total_episodes) * 85)
 

@@ -7,6 +7,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from preprocessor.core.base_processor import BaseProcessor
@@ -209,7 +210,7 @@ class TranscriptionImporter(BaseProcessor):
         }
 
     @staticmethod
-    def __extract_season_episode_fallback(file_path: Path) -> tuple[int, int]:
+    def __extract_season_episode_fallback(file_path: Path) -> Tuple[int, int]:
         match = re.search(r'S(\d+)E(\d+)', file_path.name, re.IGNORECASE)
         if match:
             return int(match.group(1)), int(match.group(2))

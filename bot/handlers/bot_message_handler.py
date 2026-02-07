@@ -5,8 +5,10 @@ from abc import (
 import logging
 from pathlib import Path
 from typing import (
+    Any,
     Awaitable,
     Callable,
+    Dict,
     List,
     Optional,
 )
@@ -156,7 +158,7 @@ class BotMessageHandler(ABC):
     async def reply(
             self,
             message: str,
-            data: Optional[dict] = None,
+            data: Optional[Dict[str, Any]] = None,
             status: RS = RS.SUCCESS,
     ) -> None:
         if self._message.should_reply_json():
@@ -170,7 +172,7 @@ class BotMessageHandler(ABC):
         else:
             await self._responder.send_markdown(message)
 
-    async def reply_error(self, message: str, data: Optional[dict] = None):
+    async def reply_error(self, message: str, data: Optional[Dict[str, Any]] = None):
         await self.reply(message, data, RS.ERROR)
 
     async def handle_ffmpeg_exception(self, exception: FFMpegException) -> None:

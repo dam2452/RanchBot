@@ -9,6 +9,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from pydantic import SecretStr
@@ -217,7 +218,7 @@ class EmbeddingSettings:
 @dataclass
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
-    detection_size: tuple = (1280, 1280)
+    detection_size: Tuple[int, int] = (1280, 1280)
 
 
 @dataclass
@@ -245,7 +246,7 @@ class CharacterSettings:
     characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
     detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
     processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
-    normalized_face_size: tuple = (112, 112)
+    normalized_face_size: Tuple[int, int] = (112, 112)
     face_detection_threshold: float = 0.2
     reference_matching_threshold: float = 0.50
     frame_detection_threshold: float = 0.55

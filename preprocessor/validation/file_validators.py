@@ -2,7 +2,11 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import subprocess
-from typing import Optional
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 import zipfile
 
 from PIL import Image
@@ -12,7 +16,7 @@ from PIL import Image
 class ValidationResult:
     is_valid: bool
     error_message: Optional[str] = None
-    metadata: Optional[dict] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 def validate_json_file(path: Path) -> ValidationResult:

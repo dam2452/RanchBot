@@ -7,6 +7,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from preprocessor.config.config import settings
@@ -43,12 +44,12 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
     exported_frames_count: Optional[int] = None
     exported_frames_total_size_mb: Optional[float] = None
-    exported_frames_avg_resolution: Optional[tuple] = None
+    exported_frames_avg_resolution: Optional[Tuple[int, int]] = None
 
     video_size_mb: Optional[float] = None
     video_duration: Optional[float] = None
     video_codec: Optional[str] = None
-    video_resolution: Optional[tuple] = None
+    video_resolution: Optional[Tuple[int, int]] = None
 
     scenes_count: Optional[int] = None
     scenes_avg_duration: Optional[float] = None

@@ -6,6 +6,7 @@ from dataclasses import (
 from pathlib import Path
 import re
 from typing import (
+    Any,
     Dict,
     List,
     Set,
@@ -71,9 +72,9 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
     type_token_ratio: float = 0.0
 
     letter_frequency: Dict[str, int] = field(default_factory=dict)
-    word_frequency: List[Dict[str, any]] = field(default_factory=list)
-    bigrams: List[Dict[str, any]] = field(default_factory=list)
-    trigrams: List[Dict[str, any]] = field(default_factory=list)
+    word_frequency: List[Dict[str, Any]] = field(default_factory=list)
+    bigrams: List[Dict[str, Any]] = field(default_factory=list)
+    trigrams: List[Dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def from_file(cls, file_path: Path, language: str = "pl") -> "TextStatistics":
