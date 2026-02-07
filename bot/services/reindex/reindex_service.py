@@ -163,11 +163,12 @@ class ReindexService:
                 indexed_count += indexed_in_episode
 
             except Exception as e:
-                error_msg = f"Failed to process {zip_path.name}: {str(e)}"
+                error_str = str(e)
+                error_msg = f"Failed to process {zip_path.name}: {error_str)}"
                 self.logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
 
-                if "Cannot connect" in str(e) or "Connection" in str(e):
+                if "Cannot connect" in error_str or "Connection" in error_str:
                     self.logger.info("Connection error detected, recreating ES connection...")
                     try:
                         if self.es_manager:
