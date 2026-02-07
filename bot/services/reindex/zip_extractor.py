@@ -51,18 +51,8 @@ class ZipExtractor:
         return documents
 
     def _detect_type_from_filename(self, filename: str) -> str:
-        if 'text_segments' in filename:
-            return 'text_segments'
-        if 'text_embeddings' in filename:
-            return 'text_embeddings'
-        if 'video_frames' in filename:
-            return 'video_frames'
-        if 'episode_name' in filename:
-            return 'episode_names'
-        if 'full_episode_embedding' in filename:
-            return 'full_episode_embeddings'
-        if 'sound_event_embeddings' in filename:
-            return 'sound_event_embeddings'
-        if 'sound_events' in filename:
-            return 'sound_events'
+        for type in ["text_segments", "text_embeddings", "video_frames", "episode_name", "full_episode_embedding", "sound_event_embeddings", "sound_events"]:
+            if type in filename:
+                return type
+        return None
         return None
