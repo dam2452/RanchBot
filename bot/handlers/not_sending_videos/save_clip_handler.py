@@ -16,6 +16,7 @@ from bot.database.models import (
     ClipType,
     LastClip,
 )
+from bot.types import ElasticsearchSegment
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -163,28 +164,28 @@ class SaveClipHandler(BotMessageHandler):
         )
 
 
-    async def __handle_adjusted_clip(self, last_clip: LastClip, segment_json: Dict[str, Any], season, episode_number) -> ClipInfo:
+    async def __handle_adjusted_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
 
-    async def __handle_manual_clip(self, segment_json: Dict[str, Any], season, episode_number) -> ClipInfo:
+    async def __handle_manual_clip(self, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         start = segment_json["start"]
         end = segment_json["end"]
         output_filename = await ClipsExtractor.extract_clip(segment_json[SegmentKeys.VIDEO_PATH], start, end, self._logger)
         return ClipInfo(output_filename, start, end, False, season, episode_number)
 
 
-    async def __handle_selected_clip(self, last_clip: LastClip, segment_json: Dict[str, Any], season, episode_number) -> ClipInfo:
+    async def __handle_selected_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
 
-    async def __handle_single_clip(self, last_clip: LastClip, segment_json: Dict[str, Any], season, episode_number) -> ClipInfo:
+    async def __handle_single_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )

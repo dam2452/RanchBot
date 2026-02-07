@@ -12,8 +12,10 @@ from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import (
     ClipType,
+    LastClip,
     SearchHistory,
 )
+from bot.types import ElasticsearchSegment
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -147,7 +149,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             abs(additional_start_offset) + abs(additional_end_offset) > settings.MAX_ADJUSTMENT_DURATION
         )
 
-    async def __get_segment_and_clip(self, content: List[str], chat_id: int, series_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[Any]]:
+    async def __get_segment_and_clip(self, content: List[str], chat_id: int, series_id: int) -> Tuple[Optional[ElasticsearchSegment], Optional[LastClip]]:
         segment_info = {}
         last_clip = None
 
