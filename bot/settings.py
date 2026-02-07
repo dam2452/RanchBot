@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     BOT_USERNAME: str = Field(...)
     DEFAULT_ADMIN: str = Field(...)
     INLINE_CACHE_CHANNEL_ID: Optional[int] = Field(...)
-    DEFAULT_RESOLUTION_KEY: str = Field("1080p")
+    DEFAULT_RESOLUTION_KEY: str = Field("720p")
 
     POSTGRES_USER: str = Field(...)
     POSTGRES_PASSWORD: SecretStr = Field(...)
