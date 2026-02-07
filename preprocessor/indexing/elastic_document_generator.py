@@ -8,6 +8,13 @@ from typing import (
     Optional,
 )
 
+from bot.types import (
+    CharacterDetectionInFrame,
+    EpisodeMetadata,
+    ObjectDetectionInFrame,
+    SceneTimestampsData,
+)
+
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -342,7 +349,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Completed: {trans_file.name}[/green]")
 
-    def __build_episode_metadata(self, episode_info) -> Dict[str, Any]:
+    def __build_episode_metadata(self, episode_info) -> EpisodeMetadata:
         metadata = self.episode_manager.get_metadata(episode_info)
         return {
             "season": episode_info.season,
@@ -353,10 +360,10 @@ class ElasticDocumentGenerator(BaseProcessor):
             "viewership": metadata.get("viewership"),
         }
 
-    def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
+    def __load_scene_timestamps(self, episode_info) -> Optional[SceneTimestampsData]:
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-    def __load_character_detections(self, episode_info) -> Dict[int, List[Dict[str, Any]]]:
+    def __load_character_detections(self, episode_info) -> Dict[int, List[CharacterDetectionInFrame]]:
         if not self.character_detections_dir:
             return {}
 
@@ -385,7 +392,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             self.logger.error(f"Error loading character detections: {e}")
             return {}
 
-    def __load_object_detections(self, episode_info) -> Dict[str, List[Dict[str, Any]]]:
+    def __load_object_detections(self, episode_info) -> Dict[str, List[ObjectDetectionInFrame]]:
         if not self.object_detections_dir:
             return {}
 
@@ -413,8 +420,8 @@ class ElasticDocumentGenerator(BaseProcessor):
     @staticmethod
     def __get_characters_for_frame(
         frame_identifier,
-        character_detections: Dict,
-    ) -> List[Dict[str, Any]]:
+        character_detections: Dict[int, List[CharacterDetectionInFrame]],
+    ) -> List[CharacterDetectionInFrame]:
         characters = character_detections.get(frame_identifier, [])
 
         character_list = []
@@ -435,7 +442,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         return character_list
 
     @staticmethod
-    def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[ObjectDetectionInFrame]]) -> List[Dict[str, Any]]:
         detections = object_detections.get(frame_name, [])
         objects_summary = {}
         for det in detections:
@@ -448,7 +455,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         return [{"class": cls, "count": cnt} for cls, cnt in objects_summary.items()]
 
     @staticmethod
-    def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[SceneTimestampsData]) -> Optional[Dict[str, Any]]:
         if not scene_timestamps or "scenes" not in scene_timestamps:
             return None
 
@@ -475,9 +482,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         transcription_data: Dict[str, Any],
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
-        scene_timestamps: Optional[Dict[str, Any]],
+        scene_timestamps: Optional[SceneTimestampsData],
         season_dir: str,
         base_name: str,
     ) -> None:
@@ -541,9 +548,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         sound_events_data: Dict[str, Any],
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
-        scene_timestamps: Optional[Dict[str, Any]],
+        scene_timestamps: Optional[SceneTimestampsData],
         episode_info,
         base_name: str,
     ) -> None:
@@ -595,7 +602,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         text_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -641,9 +648,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         video_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
-        scene_timestamps: Optional[Dict[str, Any]],
+        scene_timestamps: Optional[SceneTimestampsData],
         character_detections: Dict[str, List[Dict[str, Any]]],
         object_detections: Dict[str, List[Dict[str, Any]]],
         episode_info,
@@ -719,7 +726,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         episode_name_emb: Dict[str, Any],
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -752,7 +759,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         text_stats_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -795,7 +802,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         full_episode_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -832,7 +839,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         sound_event_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,

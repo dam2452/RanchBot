@@ -173,7 +173,7 @@ class SoundEventSeparator(BaseProcessor):
             f"{len(dialogue_segments)} dialogue, {len(sound_event_segments)} sound events",
         )
 
-    def __classify_segment(self, segment: Dict) -> str:
+    def __classify_segment(self, segment: Dict[str, Any]) -> str:
         words = segment.get("words", [])
         if not words:
             return "dialogue"
@@ -194,7 +194,7 @@ class SoundEventSeparator(BaseProcessor):
         return "dialogue"
 
     @staticmethod
-    def __is_sound_event(word: Dict) -> bool:
+    def __is_sound_event(word: Dict[str, Any]) -> bool:
         if word.get("type") == "audio_event":
             return True
 
@@ -204,7 +204,7 @@ class SoundEventSeparator(BaseProcessor):
 
         return False
 
-    def __split_mixed_segment(self, segment: Dict) -> Tuple[List[Dict], List[Dict]]:
+    def __split_mixed_segment(self, segment: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         words = segment.get("words", [])
         dialogue_sequences = []
         sound_sequences = []
@@ -244,7 +244,7 @@ class SoundEventSeparator(BaseProcessor):
         words: List[Dict],
         dialogue_sequences: List[Dict],
         sound_sequences: List[Dict],
-        original_segment: Dict,
+        original_segment: Dict[str, Any],
     ) -> None:
         if not words:
             return
@@ -275,7 +275,7 @@ class SoundEventSeparator(BaseProcessor):
             sound_sequences.append(new_segment)
 
     @staticmethod
-    def __clean_segment_text(segment: Dict) -> Dict:
+    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
         cleaned = segment.copy()
         if "text" in cleaned:
             text = cleaned["text"]
@@ -295,7 +295,7 @@ class SoundEventSeparator(BaseProcessor):
         return cleaned
 
     @staticmethod
-    def __enrich_sound_event(segment: Dict) -> Dict:
+    def __enrich_sound_event(segment: Dict[str, Any]) -> Dict[str, Any]:
         enriched = segment.copy()
         enriched["sound_type"] = "sound"
         return enriched

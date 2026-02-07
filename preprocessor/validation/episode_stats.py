@@ -4,6 +4,7 @@ from dataclasses import (
 )
 import json
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -99,7 +100,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.__validate_clean_txt(transcription_files["clean_txt"])
         self.__validate_sound_events(transcription_files["sound_events"])
 
-    def __validate_raw_transcription(self, transcription_files: Dict):
+    def __validate_raw_transcription(self, transcription_files: Dict[str, Any]):
         raw_transcription = None
         for key in ("main", "segmented", "simple"):
             if transcription_files[key].exists():

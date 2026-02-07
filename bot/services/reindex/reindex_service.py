@@ -210,7 +210,7 @@ class ReindexService:
         self,
         index_name: str,
         index_type: str,
-        documents: List[Dict],
+        documents: List[Dict[str, Any]],
     ) -> None:
         mapping = self.__get_mapping_for_type(index_type)
 

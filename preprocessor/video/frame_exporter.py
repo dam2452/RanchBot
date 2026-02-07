@@ -10,6 +10,8 @@ from typing import (
     Optional,
 )
 
+from bot.types import FrameRequest
+
 from PIL import Image
 import decord
 
@@ -129,7 +131,7 @@ class FrameExporter(BaseVideoProcessor):
             data["scene_timestamps"] = scene_timestamps
         return data
 
-    def __extract_frames(self, video_file: Path, frame_requests: List[Dict[str, Any]], episode_dir: Path, episode_info) -> None:
+    def __extract_frames(self, video_file: Path, frame_requests: List[FrameRequest], episode_dir: Path, episode_info) -> None:
         metadata = self.__get_video_metadata(video_file)
         self.current_video_dar = self.__calculate_display_aspect_ratio(metadata)
 
@@ -212,12 +214,12 @@ class FrameExporter(BaseVideoProcessor):
         return result
 
     @staticmethod
-    def __calculate_total_scenes(frame_requests: List[Dict[str, Any]]) -> int:
+    def __calculate_total_scenes(frame_requests: List[FrameRequest]) -> int:
         scene_numbers = set(f.get("scene_number", -1) for f in frame_requests)
         has_invalid = -1 in scene_numbers
         return len(scene_numbers) - (1 if has_invalid else 0)
 
-    def __write_metadata(self, episode_dir: Path, frame_requests: List[Dict[str, Any]], episode_info, source_video: Path) -> None:
+    def __write_metadata(self, episode_dir: Path, frame_requests: List[FrameRequest], episode_info, source_video: Path) -> None:
         frame_types_count = {}
         frames_with_paths = []
 

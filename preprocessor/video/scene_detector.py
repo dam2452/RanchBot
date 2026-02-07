@@ -8,6 +8,11 @@ from typing import (
     Optional,
 )
 
+from bot.types import (
+    SceneDict,
+    VideoMetadata,
+)
+
 import decord
 import numpy as np
 import torch
@@ -132,7 +137,7 @@ class SceneDetector(BaseProcessor):
 
     def __detect_scenes_transnetv2(
         self, video_file: Path, video_info: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+    ) -> List[SceneDict]:
         try:  # pylint: disable=too-many-try-statements
             _, single_frame_predictions, _ = self.model.predict_video(str(video_file))
 
@@ -177,7 +182,7 @@ class SceneDetector(BaseProcessor):
             self.logger.error(f"Error reading video info: {e}")
             return None
 
-    def __create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> Dict[str, Any]:
+    def __create_scene_dict(self, scene_number: int, start_frame: int, end_frame: int, fps: float) -> SceneDict:
         return {
             "scene_number": scene_number,
             "start": {
