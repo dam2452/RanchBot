@@ -57,52 +57,51 @@ class TranscriptionFinder:
         )
 
     @staticmethod
-    def __merge_overlapping_segment(
-        segment: SegmentWithScore,
-        unique_segments: List[SegmentWithScore],
-        start_time: float,
-        end_time: float,
-    ) -> bool:
-        for i, existing_segment in enumerate(unique_segments):
-            existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
-            existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
-
-            seg_metadata = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-            existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-
-            seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
-            existing_season = existing_metadata.get(EpisodeMetadataKeys.SEASON)
-
-            seg_episode = seg_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
-            existing_episode = existing_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
-
-            if (
-                seg_season == existing_season and
-                seg_episode == existing_episode and
-                start_time <= existing_end and
-                end_time >= existing_start
-            ):
-                unique_segments[i][SegmentKeys.START_TIME] = min(
-                    existing_segment[SegmentKeys.START_TIME],
-                    segment[SegmentKeys.START_TIME],
-                )
-                unique_segments[i][SegmentKeys.END_TIME] = max(
-                    existing_segment[SegmentKeys.END_TIME],
-                    segment[SegmentKeys.END_TIME],
-                )
-                unique_segments[i][ElasticsearchKeys.SCORE] = max(
-                    existing_segment[ElasticsearchKeys.SCORE],
-                    segment[ElasticsearchKeys.SCORE],
-                )
-                return True
-        return False
-
-    @staticmethod
     async def find_segment_by_quote(
             quote: str, logger: logging.Logger, series_name: str, season_filter: Optional[int] = None,
             episode_filter: Optional[int] = None,
             size: int = 1,
     ) -> Optional[Union[List[ObjectApiResponse], ObjectApiResponse]]:
+        def __merge_overlapping_segment(
+            segment: SegmentWithScore,
+            unique_segments: List[SegmentWithScore],
+            start_time: float,
+            end_time: float,
+        ) -> bool:
+            for i, existing_segment in enumerate(unique_segments):
+                existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
+                existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+
+                seg_metadata = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+                existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+
+                seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
+                existing_season = existing_metadata.get(EpisodeMetadataKeys.SEASON)
+
+                seg_episode = seg_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+                existing_episode = existing_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+
+                if (
+                    seg_season == existing_season and
+                    seg_episode == existing_episode and
+                    start_time <= existing_end and
+                    end_time >= existing_start
+                ):
+                    unique_segments[i][SegmentKeys.START_TIME] = min(
+                        existing_segment[SegmentKeys.START_TIME],
+                        segment[SegmentKeys.START_TIME],
+                    )
+                    unique_segments[i][SegmentKeys.END_TIME] = max(
+                        existing_segment[SegmentKeys.END_TIME],
+                        segment[SegmentKeys.END_TIME],
+                    )
+                    unique_segments[i][ElasticsearchKeys.SCORE] = max(
+                        existing_segment[ElasticsearchKeys.SCORE],
+                        segment[ElasticsearchKeys.SCORE],
+                    )
+                    return True
+            return False
+
         await log_system_message(
             logging.INFO,
             f"Searching for quote: '{quote}' in series '{series_name}' with filters - Season: {season_filter}, Episode: {episode_filter}",
@@ -167,7 +166,7 @@ class TranscriptionFinder:
                 start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
                 end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
-                is_overlapping = TranscriptionFinder._TranscriptionFinder__merge_overlapping_segment(segment, unique_segments, start_time, end_time)
+                is_overlapping = __merge_overlapping_segment(segment, unique_segments, start_time, end_time)
 
                 if not is_overlapping:
                     unique_segments.append(segment)
@@ -250,8 +249,8 @@ class TranscriptionFinder:
                         {"term": {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
                         {
                             "term": {
-                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER]
-                            }
+                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
+                            },
                         },
                     ],
                     "filter": [
@@ -270,8 +269,8 @@ class TranscriptionFinder:
                         {"term": {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
                         {
                             "term": {
-                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER]
-                            }
+                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
+                            },
                         },
                     ],
                     "filter": [
@@ -421,7 +420,7 @@ class TranscriptionFinder:
 
             episode = {
                 EpisodeMetadataKeys.EPISODE_NUMBER: episode_metadata.get(
-                    EpisodeMetadataKeys.EPISODE_NUMBER
+                    EpisodeMetadataKeys.EPISODE_NUMBER,
                 ),
                 "title": episode_metadata.get("title", "Unknown"),
                 "premiere_date": episode_metadata.get("premiere_date", "Unknown"),
