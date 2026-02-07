@@ -19,7 +19,6 @@ on:
 jobs:
   build_and_test_staging:
     runs-on: self-hosted
-    environment: BOT_TEST_ENV
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
