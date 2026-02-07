@@ -86,12 +86,12 @@ class TelegramResponder(AbstractResponder):
 
     @staticmethod
     def get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[list[str]] = None) -> str:
+        message = "❌ Plik jest za duży do wysłania"
+        
         if duration is not None:
-            message = f"❌ Plik jest za duży do wysłania ({duration:.1f}s).\n\n"
-        else:
-            message = "❌ Plik jest za duży do wysłania.\n\n"
+            message = f"({duration:.1f}s)"            
 
-        message += "Telegram ma limit 50MB dla wideo."
+        message += ".\n\n Telegram ma limit 50MB dla wideo."
 
         if suggestions:
             message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)
