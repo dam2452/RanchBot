@@ -87,7 +87,7 @@ class ProcessingMetadata:
         if additional_stats:
             self.params["additional_statistics"] = additional_stats
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def __get_statistics(self) -> Dict[str, Any]:
         completed_steps = [s for s in self.steps if s.status == "success"]
         failed_steps = [s for s in self.steps if s.status == "failed"]
         skipped_steps = [s for s in self.steps if s.status == "skipped"]
@@ -111,7 +111,7 @@ class ProcessingMetadata:
             "final_status": self.final_status,
             "parameters": self.params,
             "steps": [step.to_dict() for step in self.steps],
-            "statistics": self.get_statistics(),
+            "statistics": self.__get_statistics(),
         }
 
     def save_to_file(self, output_path: Path):

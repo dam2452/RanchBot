@@ -24,7 +24,7 @@ from jose import (
 from bot.settings import settings as s
 
 
-def generate_token(user_id: int, username: str, full_name: str, expire_minutes: int) -> str:
+def _generate_token(user_id: int, username: str, full_name: str, expire_minutes: int) -> str:
     now_utc = datetime.now(UTC)
     expire = now_utc + timedelta(minutes=expire_minutes)
     payload = {
@@ -39,7 +39,7 @@ def generate_token(user_id: int, username: str, full_name: str, expire_minutes: 
     return jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 
 
-def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
+def _verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> Dict[str, Any]:
     token = credentials.credentials
     try:
         payload = jwt.decode(

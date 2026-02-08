@@ -4,4 +4,5 @@ from bot.handlers.not_sending_videos.my_clips_handler import MyClipsHandler
 from bot.handlers.not_sending_videos.save_clip_handler import SaveClipHandler
 from bot.handlers.not_sending_videos.search_handler import SearchHandler
 from bot.handlers.not_sending_videos.search_list_handler import SearchListHandler
+from bot.handlers.not_sending_videos.serial_context_handler import SerialContextHandler
 from bot.handlers.not_sending_videos.transcription_handler import TranscriptionHandler

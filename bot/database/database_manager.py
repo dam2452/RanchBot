@@ -10,6 +10,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -21,6 +22,7 @@ from bot.database.models import (
     LastClip,
     RefreshToken,
     SearchHistory,
+    Series,
     SubscriptionKey,
     UserCredentials,
     UserProfile,
@@ -28,6 +30,7 @@ from bot.database.models import (
 )
 from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
+from bot.utils.constants import DatabaseKeys
 
 db_manager_logger = logging.getLogger(__name__)
 
@@ -66,7 +69,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             db_manager_logger.error(f"SQL file not found: {absolute_path}")
             raise FileNotFoundError(f"SQL file not found: {absolute_path}")
 
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction(): # type: ignore
                 with absolute_path.open("r", encoding="utf-8") as file:
                     sql_commands = file.read()
@@ -94,24 +97,76 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         db_manager_logger.info("📦 Database pool and schema initialization process ensured by DatabaseManager.")
 
     @staticmethod
-    def get_db_connection():
+    def __get_db_connection():
         if DatabaseManager.pool is None or DatabaseManager.pool.is_closing():
             db_manager_logger.critical("Attempted to acquire connection from a non-existent or closed pool.")
             raise ConnectionError("Database connection pool is not initialized or is closed.")
         return DatabaseManager.pool.acquire()
 
     @staticmethod
-    async def log_user_activity(user_id: int, command: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+    async def __resolve_series_id(identifier_id: Optional[int], series_id: Optional[int]) -> Optional[int]:
+        if series_id is not None:
+            return series_id
+
+        if identifier_id is not None:
+            active_series_id = await DatabaseManager.get_user_active_series(identifier_id)
+            if active_series_id:
+                return active_series_id
+
+            return await DatabaseManager.get_or_create_series(settings.DEFAULT_SERIES)
+
+        return None
+
+    @staticmethod
+    async def get_or_create_series(series_name: str) -> int:
+        async with DatabaseManager.__get_db_connection() as conn:
+            series_id = await conn.fetchval(
+                "SELECT id FROM series WHERE series_name = $1",
+                series_name,
+            )
+            if series_id is None:
+                series_id = await conn.fetchval(
+                    "INSERT INTO series (series_name) VALUES ($1) RETURNING id",
+                    series_name,
+                )
+            return series_id
+
+    @staticmethod
+    async def get_series_by_id(series_id: int) -> Optional[str]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            series_name = await conn.fetchval(
+                "SELECT series_name FROM series WHERE id = $1",
+                series_id,
+            )
+            return series_name
+
+    @staticmethod
+    async def get_series_by_name(series_name: str) -> Optional[int]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            series_id = await conn.fetchval(
+                "SELECT id FROM series WHERE series_name = $1",
+                series_name,
+            )
+            return series_id
+
+    @staticmethod
+    async def get_all_series() -> List[Series]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            rows = await conn.fetch("SELECT id, series_name FROM series")
+            return [Series(id=row[DatabaseKeys.ID], series_name=row[DatabaseKeys.SERIES_NAME]) for row in rows]
+
+    @staticmethod
+    async def log_user_activity(user_id: int, command: str, series_id: Optional[int] = None) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
-                    "INSERT INTO user_logs (user_id, command) VALUES ($1, $2)",
-                    user_id, command,
+                    "INSERT INTO user_logs (user_id, command, series_id) VALUES ($1, $2, $3)",
+                    user_id, command, series_id,
                 )
 
     @staticmethod
     async def log_system_message(log_level: str, log_message: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
                     "INSERT INTO system_logs (log_level, log_message) VALUES ($1, $2)",
@@ -124,7 +179,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             note: Optional[str] = None, subscription_days: Optional[int] = None,
     ) -> None:
 
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             subscription_end = date.today() + timedelta(days=subscription_days) if subscription_days else None
             async with conn.transaction():
                 await conn.execute(
@@ -141,7 +196,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             user_id: int, username: Optional[str] = None, full_name: Optional[str] = None, note: Optional[str] = None,
             subscription_end: Optional[int] = None,
     ) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             updates = []
             params = []
 
@@ -166,37 +221,37 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def remove_user(user_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute("DELETE FROM user_roles WHERE user_id = $1", user_id)
                 await conn.execute("DELETE FROM user_profiles WHERE user_id = $1", user_id)
 
     @staticmethod
     async def get_all_users() -> Optional[List[UserProfile]]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             rows = await conn.fetch(
                 "SELECT user_id, username, full_name, subscription_end, note FROM user_profiles",
             )
 
         return [
             UserProfile(
-                user_id=row["user_id"],
-                username=row["username"],
-                full_name=row["full_name"],
-                subscription_end=row["subscription_end"],
-                note=row["note"],
+                user_id=row[DatabaseKeys.USER_ID],
+                username=row[DatabaseKeys.USERNAME],
+                full_name=row[DatabaseKeys.FULL_NAME],
+                subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                note=row[DatabaseKeys.NOTE],
             ) for row in rows
         ] if rows else None
 
     @staticmethod
     async def is_user_in_db(user_id: int) -> bool:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval("SELECT EXISTS (SELECT 1 FROM user_profiles WHERE user_id = $1)", user_id)
         return result
 
     @staticmethod
     async def get_admin_users() -> Optional[List[UserProfile]]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             rows = await conn.fetch(
                 "SELECT user_id, username, full_name, subscription_end, note FROM user_profiles "
                 "WHERE user_id IN (SELECT user_id FROM user_roles WHERE is_admin = TRUE)",
@@ -204,17 +259,17 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         return [
             UserProfile(
-                user_id=row["user_id"],
-                username=row["username"],
-                full_name=row.get("full_name", "N/A"),
-                subscription_end=row.get("subscription_end", None),
-                note=row.get("note", "Brak"),
+                user_id=row[DatabaseKeys.USER_ID],
+                username=row[DatabaseKeys.USERNAME],
+                full_name=row.get(DatabaseKeys.FULL_NAME, "N/A"),
+                subscription_end=row.get(DatabaseKeys.SUBSCRIPTION_END, None),
+                note=row.get(DatabaseKeys.NOTE, "Brak"),
             ) for row in rows
         ] if rows else None
 
     @staticmethod
     async def get_moderator_users() -> Optional[List[UserProfile]]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             rows = await conn.fetch(
                 "SELECT user_id, username, full_name, subscription_end, note FROM user_profiles "
                 "WHERE user_id IN (SELECT user_id FROM user_roles WHERE is_moderator = TRUE)",
@@ -222,17 +277,17 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         return [
             UserProfile(
-                user_id=row["user_id"],
-                username=row["username"],
-                full_name=row.get("full_name", "N/A"),
-                subscription_end=row.get("subscription_end", None),
-                note=row.get("note", "Brak"),
+                user_id=row[DatabaseKeys.USER_ID],
+                username=row[DatabaseKeys.USERNAME],
+                full_name=row.get(DatabaseKeys.FULL_NAME, "N/A"),
+                subscription_end=row.get(DatabaseKeys.SUBSCRIPTION_END, None),
+                note=row.get(DatabaseKeys.NOTE, "Brak"),
             ) for row in rows
         ] if rows else None
 
     @staticmethod
     async def is_user_subscribed(user_id: int) -> bool:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchrow(
                 "SELECT ur.is_admin, ur.is_moderator, up.subscription_end "
                 "FROM user_profiles up "
@@ -242,16 +297,16 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
         if result:
-            is_admin = result["is_admin"]
-            is_moderator = result["is_moderator"]
-            subscription_end = result["subscription_end"]
+            is_admin = result[DatabaseKeys.IS_ADMIN]
+            is_moderator = result[DatabaseKeys.IS_MODERATOR]
+            subscription_end = result[DatabaseKeys.SUBSCRIPTION_END]
             if is_admin or is_moderator or (subscription_end and subscription_end >= date.today()):
                 return True
         return False
 
     @staticmethod
     async def is_user_admin(user_id: int) -> Optional[bool]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT is_admin FROM user_roles WHERE user_id = $1",
                 user_id,
@@ -260,7 +315,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def is_user_moderator(user_id: int) -> Optional[bool]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT is_moderator FROM user_roles WHERE user_id = $1",
                 user_id,
@@ -269,7 +324,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def set_default_admin(user_id: int, username: str, full_name: str, password: Optional[str] = None) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
                     "INSERT INTO user_profiles (user_id, username, full_name) "
@@ -299,68 +354,81 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     )
 
     @staticmethod
-    def _row_to_video_clip(row: asyncpg.Record) -> VideoClip:
+    def __row_to_video_clip(row: asyncpg.Record) -> VideoClip:
         return VideoClip(
-            id=row["id"],
+            id=row[DatabaseKeys.ID],
             chat_id=row["chat_id"],
-            user_id=row["user_id"],
-            name=row["clip_name"],
-            video_data=row["video_data"],
-            start_time=row["start_time"],
-            end_time=row["end_time"],
-            duration=row["duration"],
-            season=row["season"],
-            episode_number=row["episode_number"],
-            is_compilation=row["is_compilation"],
+            user_id=row[DatabaseKeys.USER_ID],
+            name=row[DatabaseKeys.CLIP_NAME],
+            video_data=row[DatabaseKeys.VIDEO_DATA],
+            start_time=row[DatabaseKeys.START_TIME],
+            end_time=row[DatabaseKeys.END_TIME],
+            duration=row[DatabaseKeys.DURATION],
+            season=row[DatabaseKeys.SEASON],
+            episode_number=row[DatabaseKeys.EPISODE_NUMBER],
+            is_compilation=row[DatabaseKeys.IS_COMPILATION],
+            series_id=row.get(DatabaseKeys.SERIES_ID),
         )
 
     @staticmethod
-    async def get_saved_clips(user_id: int) -> List[VideoClip]:
-        async with DatabaseManager.get_db_connection() as conn:
-            rows = await conn.fetch(
-                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation "
-                "FROM video_clips "
-                "WHERE user_id = $1",
-                user_id,
-            )
+    async def get_saved_clips(user_id: int, series_id: Optional[int] = None) -> List[VideoClip]:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
 
-        return [DatabaseManager._row_to_video_clip(row) for row in rows] if rows else []
+        async with DatabaseManager.__get_db_connection() as conn:
+            if resolved_series_id:
+                rows = await conn.fetch(
+                    "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
+                    "FROM video_clips "
+                    "WHERE user_id = $1 AND series_id = $2",
+                    user_id, resolved_series_id,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
+                    "FROM video_clips "
+                    "WHERE user_id = $1",
+                    user_id,
+                )
+
+        return [DatabaseManager.__row_to_video_clip(row) for row in rows] if rows else []
 
     @staticmethod
-    async def save_clip(
+    async def save_clip(  # pylint: disable=too-many-arguments
             chat_id: int, user_id: int, clip_name: str, video_data: bytes, start_time: float,
             end_time: float, duration: float, is_compilation: bool,
-            season: Optional[int] = None, episode_number: Optional[int] = None,
+            season: Optional[int] = None, episode_number: Optional[int] = None, series_id: Optional[int] = None,
     ) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
+
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
                     "INSERT INTO video_clips (chat_id, user_id, clip_name, video_data, start_time, "
-                    "end_time, duration, season, episode_number, is_compilation) "
-                    "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10)",
+                    "end_time, duration, season, episode_number, is_compilation, series_id) "
+                    "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11)",
                     chat_id, user_id, clip_name, video_data, start_time, end_time, duration,
-                    season, episode_number, is_compilation,
+                    season, episode_number, is_compilation, resolved_series_id,
                 )
 
     @staticmethod
     async def get_clip_by_name(user_id: int, clip_name: str) -> Optional[VideoClip]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation "
+                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                 "FROM video_clips "
                 "WHERE user_id = $1 AND clip_name = $2",
                 user_id, clip_name,
             )
 
         if row:
-            return DatabaseManager._row_to_video_clip(row)
+            return DatabaseManager.__row_to_video_clip(row)
         return None
 
     @staticmethod
     async def get_clip_by_index(user_id: int, index: int) -> Optional[VideoClip]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation "
+                "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                 "FROM video_clips "
                 "WHERE user_id = $1 "
                 "ORDER BY id "
@@ -369,12 +437,12 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
         if row:
-            return DatabaseManager._row_to_video_clip(row)
+            return DatabaseManager.__row_to_video_clip(row)
         return None
 
     @staticmethod
     async def get_video_data_by_name(user_id: int, clip_name: str) -> Optional[bytes]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT video_data FROM video_clips WHERE user_id = $1 AND clip_name = $2",
                 user_id, clip_name,
@@ -383,7 +451,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def add_subscription(user_id: int, days: int) -> Optional[date]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             new_end_date = await conn.fetchval(
                 "UPDATE user_profiles "
                 "SET subscription_end = CURRENT_DATE + $2 * interval '1 day' "
@@ -395,7 +463,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def remove_subscription(user_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "UPDATE user_profiles "
                 "SET subscription_end = NULL "
@@ -405,13 +473,13 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def get_user_subscription(user_id: int) -> Optional[date]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             subscription_end = await conn.fetchval("SELECT subscription_end FROM user_profiles WHERE user_id = $1", user_id)
         return subscription_end
 
     @staticmethod
     async def add_report(user_id: int, report: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "INSERT INTO reports (user_id, report) "
                 "VALUES ($1, $2)",
@@ -420,16 +488,16 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def get_reports(user_id: int) -> List[Dict[str, Union[int, str]]]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             rows = await conn.fetch(
                 "SELECT id, report FROM reports WHERE user_id = $1 ORDER BY id DESC",
                 user_id,
             )
-            return [{"id": row["id"], "report": row["report"]} for row in rows]
+            return [{DatabaseKeys.ID: row[DatabaseKeys.ID], DatabaseKeys.REPORT: row[DatabaseKeys.REPORT]} for row in rows]
 
     @staticmethod
     async def delete_clip(user_id: int, clip_name: str) -> str:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 result = await conn.execute(
                     "DELETE FROM video_clips "
@@ -440,7 +508,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def is_clip_name_unique(chat_id: int, clip_name: str) -> bool:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT COUNT(*) FROM video_clips WHERE chat_id=$1 AND clip_name=$2",
                 chat_id, clip_name,
@@ -448,38 +516,53 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return result == 0
 
     @staticmethod
-    async def insert_last_search(chat_id: int, quote: str, segments: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+    async def insert_last_search(chat_id: int, quote: str, segments: str, series_id: Optional[int] = None) -> None:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
-                "INSERT INTO search_history (chat_id, quote, segments) "
-                "VALUES ($1, $2, $3::jsonb)",
-                chat_id, quote, segments,
+                "INSERT INTO search_history (chat_id, quote, segments, series_id) "
+                "VALUES ($1, $2, $3::jsonb, $4)",
+                chat_id, quote, segments, resolved_series_id,
             )
 
     @staticmethod
-    async def get_last_search_by_chat_id(chat_id: int) -> Optional[SearchHistory]:
-        async with DatabaseManager.get_db_connection() as conn:
-            result = await conn.fetchrow(
-                "SELECT id, chat_id, quote, segments "
-                "FROM search_history "
-                "WHERE chat_id = $1 "
-                "ORDER BY id DESC "
-                "LIMIT 1",
-                chat_id,
-            )
+    async def get_last_search_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[SearchHistory]:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
+        async with DatabaseManager.__get_db_connection() as conn:
+            if resolved_series_id:
+                result = await conn.fetchrow(
+                    "SELECT id, chat_id, quote, segments, series_id "
+                    "FROM search_history "
+                    "WHERE chat_id = $1 AND series_id = $2 "
+                    "ORDER BY id DESC "
+                    "LIMIT 1",
+                    chat_id, resolved_series_id,
+                )
+            else:
+                result = await conn.fetchrow(
+                    "SELECT id, chat_id, quote, segments, series_id "
+                    "FROM search_history "
+                    "WHERE chat_id = $1 "
+                    "ORDER BY id DESC "
+                    "LIMIT 1",
+                    chat_id,
+                )
 
         if result:
             return SearchHistory(
-                id=result["id"],
+                id=result[DatabaseKeys.ID],
                 chat_id=result["chat_id"],
-                quote=result["quote"],
-                segments=result["segments"],
+                quote=result[DatabaseKeys.QUOTE],
+                segments=result[DatabaseKeys.SEGMENTS],
+                series_id=result.get(DatabaseKeys.SERIES_ID),
             )
         return None
 
     @staticmethod
     async def update_last_search(search_id: int, new_quote: Optional[str] = None, new_segments: Optional[str] = None) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             if new_quote:
                 await conn.execute(
                     "UPDATE search_history "
@@ -497,7 +580,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def delete_search_by_id(search_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "DELETE FROM search_history "
                 "WHERE id = $1",
@@ -513,38 +596,56 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             adjusted_start_time: Optional[float],
             adjusted_end_time: Optional[float],
             is_adjusted: bool,
+            series_id: Optional[int] = None,
     ) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
+        async with DatabaseManager.__get_db_connection() as conn:
             segment_json = json.dumps(segment)
             await conn.execute(
-                "INSERT INTO last_clips (chat_id, segment, compiled_clip, type, adjusted_start_time, adjusted_end_time, is_adjusted) "
-                "VALUES ($1, $2::jsonb, $3::bytea, $4, $5, $6, $7)",
-                chat_id, segment_json, compiled_clip, clip_type.value, adjusted_start_time, adjusted_end_time, is_adjusted,
+                "INSERT INTO last_clips (chat_id, segment, compiled_clip, type, adjusted_start_time, adjusted_end_time, is_adjusted, series_id) "
+                "VALUES ($1, $2::jsonb, $3::bytea, $4, $5, $6, $7, $8)",
+                chat_id, segment_json, compiled_clip, clip_type.value, adjusted_start_time, adjusted_end_time, is_adjusted, resolved_series_id,
             )
 
     @staticmethod
-    async def get_last_clip_by_chat_id(chat_id: int) -> Optional[LastClip]:
-        async with DatabaseManager.get_db_connection() as conn:
-            row = await conn.fetchrow(
-                "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, adjusted_start_time, adjusted_end_time, is_adjusted, timestamp "
-                "FROM last_clips "
-                "WHERE chat_id = $1 "
-                "ORDER BY id DESC "
-                "LIMIT 1",
-                chat_id,
-            )
+    async def get_last_clip_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[LastClip]:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
+        async with DatabaseManager.__get_db_connection() as conn:
+            if resolved_series_id:
+                row = await conn.fetchrow(
+                    "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
+                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_id "
+                    "FROM last_clips "
+                    "WHERE chat_id = $1 AND series_id = $2 "
+                    "ORDER BY id DESC "
+                    "LIMIT 1",
+                    chat_id, resolved_series_id,
+                )
+            else:
+                row = await conn.fetchrow(
+                    "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
+                    "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_id "
+                    "FROM last_clips "
+                    "WHERE chat_id = $1 "
+                    "ORDER BY id DESC "
+                    "LIMIT 1",
+                    chat_id,
+                )
 
         if row:
             return LastClip(
-                id=row["id"],
+                id=row[DatabaseKeys.ID],
                 chat_id=row["chat_id"],
-                segment=row["segment"],
-                compiled_clip=row["compiled_clip"],
-                clip_type=ClipType(row["clip_type"]),
-                adjusted_start_time=row["adjusted_start_time"],
-                adjusted_end_time=row["adjusted_end_time"],
-                is_adjusted=row["is_adjusted"],
-                timestamp=row["timestamp"],
+                segment=row[DatabaseKeys.SEGMENT],
+                compiled_clip=row[DatabaseKeys.COMPILED_CLIP],
+                clip_type=ClipType(row[DatabaseKeys.CLIP_TYPE]),
+                adjusted_start_time=row[DatabaseKeys.ADJUSTED_START_TIME],
+                adjusted_end_time=row[DatabaseKeys.ADJUSTED_END_TIME],
+                is_adjusted=row[DatabaseKeys.IS_ADJUSTED],
+                timestamp=row[DatabaseKeys.TIMESTAMP],
+                series_id=row.get(DatabaseKeys.SERIES_ID),
             )
         return None
 
@@ -553,7 +654,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             clip_id: int, new_segment: Optional[str] = None, new_compiled_clip: Optional[bytes] = None,
             new_type: Optional[str] = None,
     ) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             if new_segment:
                 await conn.execute(
                     "UPDATE last_clips "
@@ -578,7 +679,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def delete_clip_by_id(clip_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "DELETE FROM last_clips WHERE id = $1",
                 clip_id,
@@ -586,7 +687,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def update_user_note(user_id: int, note: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "UPDATE user_profiles SET note = $1 WHERE user_id = $2",
                 note, user_id,
@@ -594,7 +695,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def log_command_usage(user_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "INSERT INTO user_command_limits (user_id, timestamp) VALUES ($1, NOW())",
                 user_id,
@@ -607,7 +708,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def get_command_usage_count(user_id: int, duration_seconds: int) -> int:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             time_threshold = datetime.now() - timedelta(seconds=duration_seconds)
             count = await conn.fetchval(
                 "SELECT COUNT(*) FROM user_command_limits WHERE user_id = $1 AND timestamp >= $2",
@@ -617,7 +718,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def is_admin_or_moderator(user_id: int) -> bool:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchrow(
                 "SELECT is_admin, is_moderator "
                 "FROM user_roles "
@@ -626,21 +727,21 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
         if result:
-            return result["is_admin"] or result["is_moderator"]
+            return result[DatabaseKeys.IS_ADMIN] or result[DatabaseKeys.IS_MODERATOR]
         return False
 
     @staticmethod
     async def get_subscription_days_by_key(key: str) -> Optional[int]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchrow(
                 "SELECT days FROM subscription_keys WHERE key = $1 AND is_active = TRUE",
                 key,
             )
-        return result['days'] if result else None
+        return result[DatabaseKeys.DAYS] if result else None
 
     @staticmethod
     async def deactivate_subscription_key(key: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "UPDATE subscription_keys SET is_active = FALSE WHERE key = $1",
                 key,
@@ -648,7 +749,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def create_subscription_key(days: int, key: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "INSERT INTO subscription_keys (key, days, is_active) VALUES ($1, $2, TRUE)",
                 key, days,
@@ -656,7 +757,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def remove_subscription_key(key: str) -> bool:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.execute(
                 "DELETE FROM subscription_keys WHERE key = $1",
                 key,
@@ -665,13 +766,13 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def get_all_subscription_keys() -> List[SubscriptionKey]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             rows = await conn.fetch("SELECT * FROM subscription_keys")
         return [SubscriptionKey(**row) for row in rows]
 
     @staticmethod
     async def get_user_clip_count(chat_id: int) -> int:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT COUNT(*) FROM video_clips WHERE chat_id = $1",
                 chat_id,
@@ -683,7 +784,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         if not tables:
             raise ValueError("No tables specified for truncation.")
 
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 valid_schema = await conn.fetchval(
                     "SELECT COUNT(*) > 0 FROM information_schema.schemata WHERE schema_name = $1",
@@ -708,7 +809,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def set_user_as_moderator(user_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 """
                 INSERT INTO user_roles (user_id, is_moderator)
@@ -720,7 +821,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def add_admin(user_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 user_exists = await conn.fetchval(
                     "SELECT COUNT(*) FROM user_profiles WHERE user_id = $1",
@@ -740,7 +841,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def remove_admin(user_id: int) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 user_in_roles = await conn.fetchval(
                     "SELECT COUNT(*) FROM user_roles WHERE user_id = $1",
@@ -762,14 +863,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def __get_message_from_message_table(
         table: str, key: str, handler_name: str,
     ) -> Optional[str]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             query = f"""
                 SELECT message
                 FROM {table}
                 WHERE handler_name = $1 AND key = $2
             """
             row = await conn.fetchrow(query, handler_name, key)
-            return row["message"] if row else None
+            return row[DatabaseKeys.MESSAGE] if row else None
 
     @staticmethod
     async def get_message_from_specialized_table(
@@ -780,8 +881,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    async def get_user_by_username(username: str) -> Optional[tuple[UserProfile, UserCredentials]]:
-        async with DatabaseManager.get_db_connection() as conn:
+    async def get_user_by_username(username: str) -> Optional[Tuple[UserProfile, UserCredentials]]:
+        async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT
@@ -801,17 +902,17 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 profile = UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    full_name=row["full_name"],
-                    subscription_end=row["subscription_end"],
-                    note=row["note"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
                 )
                 credentials = UserCredentials(
-                    user_id=row["user_id"],
-                    hashed_password=row["hashed_password"],
-                    created_at=row["created_at"],
-                    last_updated=row["last_updated"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    hashed_password=row[DatabaseKeys.HASHED_PASSWORD],
+                    created_at=row[DatabaseKeys.CREATED_AT],
+                    last_updated=row[DatabaseKeys.LAST_UPDATED],
                 )
                 return profile, credentials
             return None
@@ -825,7 +926,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             ip_address: Optional[str],
             user_agent: Optional[str],
     ) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             active_token_count = await conn.fetchval(
                 """
                 SELECT COUNT(*) FROM refresh_tokens
@@ -847,7 +948,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def get_refresh_token(token: str) -> Optional[RefreshToken]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT id, user_id, token, created_at, expires_at, revoked_at, ip_address, user_agent
@@ -858,21 +959,21 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 return RefreshToken(
-                    id=row["id"],
-                    user_id=row["user_id"],
-                    token=row["token"],
-                    created_at=row["created_at"],
-                    expires_at=row["expires_at"],
-                    revoked=row["revoked_at"] is not None,
-                    revoked_at=row["revoked_at"],
-                    ip_address=row["ip_address"],
-                    user_agent=row["user_agent"],
+                    id=row[DatabaseKeys.ID],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    token=row[DatabaseKeys.TOKEN],
+                    created_at=row[DatabaseKeys.CREATED_AT],
+                    expires_at=row[DatabaseKeys.EXPIRES_AT],
+                    revoked=row[DatabaseKeys.REVOKED_AT] is not None,
+                    revoked_at=row[DatabaseKeys.REVOKED_AT],
+                    ip_address=row[DatabaseKeys.IP_ADDRESS],
+                    user_agent=row[DatabaseKeys.USER_AGENT],
                 )
             return None
 
     @staticmethod
     async def revoke_refresh_token(token: str) -> None:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 """
                 UPDATE refresh_tokens
@@ -884,7 +985,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def revoke_all_user_tokens(user_id: int) -> int:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.execute(
                 """
                 UPDATE refresh_tokens
@@ -896,8 +997,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             return int(result.split()[-1]) if result else 0
 
     @staticmethod
-    async def get_credentials_with_profile_by_username(username: str) -> Optional[tuple[UserProfile, str]]:
-        async with DatabaseManager.get_db_connection() as conn:
+    async def get_credentials_with_profile_by_username(username: str) -> Optional[Tuple[UserProfile, str]]:
+        async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT
@@ -915,18 +1016,18 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 profile = UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    full_name=row["full_name"],
-                    subscription_end=row["subscription_end"],
-                    note=row["note"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
                 )
-                return profile, row["hashed_password"]
+                return profile, row[DatabaseKeys.HASHED_PASSWORD]
             return None
 
     @staticmethod
     async def get_user_by_id(user_id: int) -> Optional[UserProfile]:
-        async with DatabaseManager.get_db_connection() as conn:
+        async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT user_id, username, full_name, subscription_end, note
@@ -937,10 +1038,31 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 return UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    full_name=row["full_name"],
-                    subscription_end=row["subscription_end"],
-                    note=row["note"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
                 )
             return None
+
+    @staticmethod
+    async def get_user_active_series(user_id: int) -> Optional[int]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            result = await conn.fetchval(
+                "SELECT active_series_id FROM user_series_context WHERE user_id = $1",
+                user_id,
+            )
+            return result
+
+    @staticmethod
+    async def set_user_active_series(user_id: int, series_id: int) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO user_series_context (user_id, active_series_id)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id) DO UPDATE SET active_series_id = $2
+                """,
+                user_id, series_id,
+            )

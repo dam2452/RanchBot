@@ -52,7 +52,7 @@ def load_character_references(
 
         embeddings = []
         for img_path in images:
-            emb = get_face_embedding(str(img_path), face_app)
+            emb = _get_face_embedding(str(img_path), face_app)
             if emb is not None:
                 embeddings.append(emb)
 
@@ -66,7 +66,7 @@ def load_character_references(
     return character_vectors
 
 
-def get_face_embedding(img_path: str, face_app: FaceAnalysis) -> Optional[np.ndarray]:
+def _get_face_embedding(img_path: str, face_app: FaceAnalysis) -> Optional[np.ndarray]:
     img = cv2.imread(img_path)
     if img is None:
         return None

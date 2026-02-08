@@ -51,7 +51,7 @@ class ProcessingState:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ProcessingState":
+    def _from_dict(cls, data: Dict[str, Any]) -> "ProcessingState":
         completed_steps = [
             StepCheckpoint(**step) for step in data.get("completed_steps", [])
         ]
@@ -82,7 +82,7 @@ class StateManager:
             console.print(f"[yellow]Found existing state file: {self.__state_file}[/yellow]")
             with open(self.__state_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                self.__state = ProcessingState.from_dict(data)
+                self.__state = ProcessingState._from_dict(data)
                 console.print(f"[green]Loaded state for series: {self.__state.series_name}[/green]")
                 console.print(f"[green]Completed steps: {len(self.__state.completed_steps)}[/green]")
                 return self.__state
@@ -94,10 +94,10 @@ class StateManager:
                 started_at=now,
                 last_checkpoint=now,
             )
-            self.save_state()
+            self.__save_state()
             return self.__state
 
-    def save_state(self) -> None:
+    def __save_state(self) -> None:
         if self.__state is None:
             return
 
@@ -115,7 +115,7 @@ class StateManager:
             started_at=datetime.now().isoformat(),
             temp_files=temp_files or [],
         )
-        self.save_state()
+        self.__save_state()
         console.print(f"[cyan]Started: {step} for {episode}[/cyan]")
 
     def mark_step_completed(self, step: str, episode: str) -> None:
@@ -129,7 +129,7 @@ class StateManager:
         )
         self.__state.completed_steps.append(checkpoint)
         self.__state.in_progress = None
-        self.save_state()
+        self.__save_state()
         console.print(f"[green]✓ Completed: {step} for {episode}[/green]")
 
     def is_step_completed(self, step: str, episode: str) -> bool:
@@ -141,7 +141,7 @@ class StateManager:
             for s in self.__state.completed_steps
         )
 
-    def rollback_in_progress(self) -> None:
+    def __rollback_in_progress(self) -> None:
         if self.__state is None or self.__state.in_progress is None:
             return
 
@@ -157,7 +157,7 @@ class StateManager:
                     console.print(f"[red]Failed to remove {temp_file}: {e}[/red]")
 
         self.__state.in_progress = None
-        self.save_state()
+        self.__save_state()
 
     def cleanup(self) -> None:
         if self.__state_file.exists():
@@ -168,7 +168,7 @@ class StateManager:
         if self.__cleanup_registered:
             return
 
-        def signal_handler(_sig: int, _frame: Any) -> None:
+        def _signal_handler(_sig: int, _frame: Any) -> None:
             if self.__interrupted:
                 console.print("\n[red]Force quit! Not cleaning up.[/red]")
                 sys.exit(1)
@@ -176,13 +176,13 @@ class StateManager:
             self.__interrupted = True
             console.print("\n[yellow]Interrupt received (Ctrl+C)...[/yellow]")
             console.print("[yellow]Rolling back incomplete work...[/yellow]")
-            self.rollback_in_progress()
+            self.__rollback_in_progress()
             console.print("[green]Cleanup complete. You can resume later.[/green]")
             console.print("[blue]To resume: run the same command again[/blue]")
             sys.exit(0)
 
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
+        signal.signal(signal.SIGTERM, _signal_handler)
         self.__cleanup_registered = True
         console.print("[blue]Interrupt handler registered (Ctrl+C to safely stop)[/blue]")
 

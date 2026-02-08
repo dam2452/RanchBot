@@ -32,12 +32,14 @@ class TranscriptionHandler(BotMessageHandler):
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
 
-        result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, context_size=15)
+        active_series = await self._get_user_active_series(self._message.get_user_id())
+
+        result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, active_series, context_size=15)
 
         if not result:
             return await self.__reply_no_segments_found(quote)
 
-        await self.reply(
+        await self._reply(
             get_transcription_response(quote, result),
             data={
                 "quote": quote,
@@ -51,5 +53,5 @@ class TranscriptionHandler(BotMessageHandler):
         )
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self.reply_error(get_no_segments_found_message(quote))
+        await self._reply_error(get_no_segments_found_message(quote))
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))

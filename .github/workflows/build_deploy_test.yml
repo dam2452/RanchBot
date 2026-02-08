@@ -18,7 +18,42 @@ on:
 
 jobs:
   build_and_test_staging:
+    if: >-
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
+    env:
+      ENABLE_TELEGRAM: ${{ secrets.ENABLE_TELEGRAM }}
+      ENABLE_REST: ${{ secrets.ENABLE_REST }}
+      ES_HOST: ${{ secrets.ES_HOST }}
+      ES_USER: ${{ secrets.ES_USER }}
+      ES_PASS: ${{ secrets.ES_PASS }}
+      ES_TRANSCRIPTION_INDEX: ${{ secrets.ES_TRANSCRIPTION_INDEX }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      DEFAULT_ADMIN: ${{ secrets.DEFAULT_ADMIN }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      POSTGRES_SCHEMA: ${{ secrets.POSTGRES_SCHEMA }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SPECIALIZED_TABLE: ${{ secrets.SPECIALIZED_TABLE }}
+      DEFAULT_RESOLUTION_KEY: ${{ secrets.DEFAULT_RESOLUTION_KEY }}
+      TEST_POSTGRES_DB: ${{ secrets.TEST_POSTGRES_DB }}
+      TEST_POSTGRES_USER: ${{ secrets.TEST_POSTGRES_USER }}
+      TEST_POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+      TEST_POSTGRES_HOST: ${{ secrets.TEST_POSTGRES_HOST }}
+      TEST_POSTGRES_PORT: ${{ secrets.TEST_POSTGRES_PORT }}
+      DISABLE_RATE_LIMITING: ${{ secrets.DISABLE_RATE_LIMITING }}
+      REST_API_PORT: ${{ secrets.REST_API_PORT }}
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      TEST_ADMINS: ${{ secrets.TEST_ADMINS }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      INLINE_CACHE_CHANNEL_ID: ${{ secrets.INLINE_CACHE_CHANNEL_ID }}
+      REST_API_HOST: ${{ secrets.REST_API_HOST }}
+      VIDEO_DATA_DIR: ${{ secrets.VIDEO_DATA_DIR }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -39,13 +74,11 @@ jobs:
 
       - name: Deploy test bot
         env:
-          SECRETS: ${{ secrets.BOT_TEST_ENV }}
           IMAGE_TAG: test
           RESTART_POLICY: no
         run: |
-          echo "$SECRETS" > .env
-          docker compose --env-file .env pull --policy always
-          if ! docker compose --env-file .env --project-name bot-test up -d --wait; then
+          docker compose pull --policy always
+          if ! docker compose --project-name bot-test up -d --wait; then
             echo "Bot failed to start or become healthy"
             docker logs bot-test-bot-1
             exit 1
@@ -60,12 +93,10 @@ jobs:
       - name: Run E2E Tests
         if: ${{ inputs.disable_tests != true }}
         env:
-          SECRETS: ${{ secrets.BOT_TEST_ENV }}
           PIP_ROOT_USER_ACTION: ignore
         run: |
-          echo "$SECRETS" > .env
-          python3 -m pip install -r requirements.txt
-          python3 -m dotenv run pytest
+         python3 -m pip install -r requirements.txt
+         python3 -m pytest
 
   build_production:
     needs: build_and_test_staging

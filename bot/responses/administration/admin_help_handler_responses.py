@@ -24,6 +24,7 @@ def get_admin_help_message() -> str:
 🔍 Zarządzanie transkrypcjami: 🔍
 ══════════════════════════════════
 🔍 /transkrypcja <cytat> - Wyszukuje cytat w transkrypcjach i zwraca kontekst. Przykład: /transkrypcja Nie szkoda panu tego pięknego gabinetu?
+🔄 /reindex - Reindeksuje dane z archiwów zip dla wszystkich seriali.
 
 ═════════════════════════
 🔎 Dodatkowe komendy: 🔎
@@ -57,4 +58,5 @@ def get_admin_shortcuts_message() -> str:
 ➕ /addsub, /addsubscription <id> <days> - Dodaje subskrypcję użytkownikowi.\n
 🚫 /rmsub, /removesubscription <id> - Usuwa subskrypcję użytkownika.\n
 🔍 /t, /transkrypcja <cytat> - Wyszukuje cytat w transkrypcjach.\n
+🔄 /rei, /reindex - Reindeksuje dane z archiwów zip.\n
 ```"""

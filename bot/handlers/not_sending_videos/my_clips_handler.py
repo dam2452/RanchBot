@@ -23,15 +23,20 @@ class MyClipsHandler(BotMessageHandler):
         return []
 
     async def _do_handle(self) -> None:
-        clips = await DatabaseManager.get_saved_clips(self._message.get_user_id())
+        user_id = self._message.get_user_id()
+
+        clips = await DatabaseManager.get_saved_clips(user_id)
         if not clips:
             return await self.__reply_no_saved_clips()
 
+        active_series = await self._get_user_active_series(user_id)
+
         season_info = await TranscriptionFinder.get_season_details_from_elastic(
             logger=self._logger,
+            series_name=active_series,
         )
 
-        await self.reply(
+        await self._reply(
             format_myclips_response(
                 clips=clips,
                 username=self._message.get_username(),
@@ -50,6 +55,6 @@ class MyClipsHandler(BotMessageHandler):
         )
 
     async def __reply_no_saved_clips(self) -> None:
-        await self.reply(get_no_saved_clips_message(), data={"clips": []})
+        await self._reply(get_no_saved_clips_message(), data={"clips": []})
 
         await self._log_system_message(logging.INFO, get_log_no_saved_clips_message(self._message.get_username()))

@@ -142,14 +142,14 @@ class BaseProcessor(ABC):
             "or override _execute() directly (legacy mode)",
         )
 
-    def _get_step_name(self) -> str:
+    def __get_step_name(self) -> str:
         class_name = self.__class__.__name__
         name = class_name.replace("Processor", "").replace("Generator", "").replace("Detector", "")
         name = name.replace("Transcoder", "").replace("Importer", "").replace("Indexer", "")
-        return self._to_snake_case(name)
+        return self.__to_snake_case(name)
 
     @staticmethod
-    def _to_snake_case(name: str) -> str:
+    def __to_snake_case(name: str) -> str:
         name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
         return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
@@ -164,7 +164,7 @@ class BaseProcessor(ABC):
             if not output.path.exists() or output.path.stat().st_size == 0
         ]
 
-        step_name = self._get_step_name()
+        step_name = self.__get_step_name()
         state_completed = (
             self.state_manager and
             self.state_manager.is_step_completed(step_name, item.episode_id)
@@ -222,9 +222,9 @@ class BaseProcessor(ABC):
             f"(of {len(all_items)} total, {skipped_count} skipped)[/blue]",
         )
 
-        self._execute_processing(items_to_process)
+        self.__execute_processing(items_to_process)
 
-    def _execute_processing(self, items: List[ProcessingItem]) -> None:
+    def __execute_processing(self, items: List[ProcessingItem]) -> None:
         if not items:
             console.print("[yellow]No items to process, skipping resource loading[/yellow]")
             return
@@ -235,7 +235,7 @@ class BaseProcessor(ABC):
         if not self._load_resources():
             return
 
-        step_name = self._get_step_name()
+        step_name = self.__get_step_name()
 
         try:
             with create_progress() as progress:

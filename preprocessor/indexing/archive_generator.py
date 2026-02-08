@@ -87,7 +87,7 @@ class ArchiveGenerator(BaseProcessor):
         episode_info = item.metadata["episode_info"]
         base_name = item.metadata["base_name"]
 
-        archive_name = f"{base_name}_elastic_documents.zip"
+        archive_name = f"{base_name}.zip"
         archive_path = (
             self.output_dir
             / f"S{episode_info.season:02d}"

@@ -32,7 +32,7 @@ class RemoveWhitelistHandler(BotMessageHandler):
     async def __check_user_id_digit(self) -> bool:
         content = self._message.get_text().split()
         if not content[1].isdigit():
-            await self.reply_error(get_no_user_id_provided_message())
+            await self._reply_error(get_no_user_id_provided_message())
             return False
         return True
 
@@ -51,14 +51,14 @@ class RemoveWhitelistHandler(BotMessageHandler):
         await self.__reply_user_removed(user_id)
 
     async def __reply_user_removed(self, user_id: int) -> None:
-        await self.reply(get_user_removed_message(str(user_id)))
+        await self._reply(get_user_removed_message(str(user_id)))
         await self._log_system_message(
             logging.INFO,
             get_log_user_removed_message(str(user_id), self._message.get_username()),
         )
 
     async def __reply_user_not_found(self, user_id: int) -> None:
-        await self.reply_error(get_user_not_in_whitelist_message(user_id))
+        await self._reply_error(get_user_not_in_whitelist_message(user_id))
         await self._log_system_message(
             logging.WARNING,
             get_log_user_not_in_whitelist_message(user_id),

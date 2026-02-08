@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import (
+    List,
     Type,
     TypeVar,
 )
@@ -37,5 +38,5 @@ class Resolution(Enum):
         return cls[init]
 
     @classmethod
-    def get_all_choices(cls) -> list:
+    def get_all_choices(cls) -> List[str]:
         return [str(r) for r in cls]

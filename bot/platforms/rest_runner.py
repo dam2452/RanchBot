@@ -48,6 +48,11 @@ from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
 from bot.factory import create_all_factories
 from bot.settings import settings as s
+from bot.utils.constants import (
+    AuthKeys,
+    HttpHeaderKeys,
+    JwtPayloadKeys,
+)
 from bot.utils.log import get_log_level
 
 logging.basicConfig(level=get_log_level())
@@ -80,23 +85,23 @@ async def login(data: LoginRequest, request: Request, response: Response):
     refresh_token_value = await create_refresh_token(
         user,
         ip_address=request.client.host,
-        user_agent=request.headers.get('User-Agent'),
+        user_agent=request.headers.get(HttpHeaderKeys.USER_AGENT),
     )
 
     response.set_cookie(
-        "refresh_token",
+        AuthKeys.REFRESH_TOKEN_COOKIE,
         refresh_token_value,
         httponly=True,
         secure=s.ENVIRONMENT == "production",
         samesite="strict",
         path="/api/v1/auth",
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {AuthKeys.ACCESS_TOKEN: access_token, AuthKeys.TOKEN_TYPE: AuthKeys.BEARER}
 
 @api_router.post("/auth/refresh", tags=["Authentication"])
 @limiter.limit("5/minute")
 async def refresh(request: Request, response: Response):
-    refresh_token_value = request.cookies.get("refresh_token")
+    refresh_token_value = request.cookies.get(AuthKeys.REFRESH_TOKEN_COOKIE)
     if not refresh_token_value:
         raise HTTPException(status_code=401, detail="No refresh token provided in cookies.")
 
@@ -114,24 +119,24 @@ async def refresh(request: Request, response: Response):
     new_refresh_token_value = await create_refresh_token(
         user,
         ip_address=request.client.host,
-        user_agent=request.headers.get('User-Agent'),
+        user_agent=request.headers.get(HttpHeaderKeys.USER_AGENT),
     )
 
     await revoke_refresh_token(refresh_token_value)
 
     response.set_cookie(
-        "refresh_token",
+        AuthKeys.REFRESH_TOKEN_COOKIE,
         new_refresh_token_value,
         httponly=True,
         secure=s.ENVIRONMENT == "production",
         samesite="strict",
         path="/api/v1/auth",
     )
-    return {"access_token": new_access_token, "token_type": "bearer"}
+    return {AuthKeys.ACCESS_TOKEN: new_access_token, AuthKeys.TOKEN_TYPE: AuthKeys.BEARER}
 @api_router.post("/auth/logout", tags=["Authentication"])
 @limiter.limit("10/minute")
 async def logout(request: Request, response: Response):
-    refresh_token_value = request.cookies.get("refresh_token")
+    refresh_token_value = request.cookies.get(AuthKeys.REFRESH_TOKEN_COOKIE)
 
     if not refresh_token_value:
         logger.info("Logout attempt without refresh token cookie.")
@@ -149,7 +154,7 @@ async def logout(request: Request, response: Response):
         logger.error(f"Error revoking refresh token during logout: {e}", exc_info=True)
 
     response.delete_cookie(
-        "refresh_token",
+        AuthKeys.REFRESH_TOKEN_COOKIE,
         path="/api/v1/auth",
         httponly=True,
         secure=s.ENVIRONMENT == "production",
@@ -201,7 +206,7 @@ async def universal_handler(
             audience=s.JWT_AUDIENCE,
         )
 
-        required_fields = {"user_id": int, "username": str, "full_name": str}
+        required_fields = {JwtPayloadKeys.USER_ID: int, JwtPayloadKeys.USERNAME: str, JwtPayloadKeys.FULL_NAME: str}
         for field, expected_type in required_fields.items():
             if field not in payload or not isinstance(payload[field], expected_type):
                 raise HTTPException(status_code=401, detail=f"Invalid payload field: {field}")

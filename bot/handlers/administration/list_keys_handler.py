@@ -31,9 +31,9 @@ class ListKeysHandler(BotMessageHandler):
         return await self.__reply_subscription_keys(response, keys)
 
     async def __reply_subscription_keys_empty(self) -> None:
-        await self.reply(get_subscription_keys_empty_message(), data={"keys": []})
+        await self._reply(get_subscription_keys_empty_message(), data={"keys": []})
         await self._log_system_message(logging.INFO, get_log_subscription_keys_empty_message())
 
     async def __reply_subscription_keys(self, response: str, keys: List[SubscriptionKey]) -> None:
-        await self.reply(response, data={"keys": [k.to_dict() for k in keys]})
+        await self._reply(response, data={"keys": [k.to_dict() for k in keys]})
         await self._log_system_message(logging.INFO, get_log_subscription_keys_sent_message())

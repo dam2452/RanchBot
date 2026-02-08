@@ -4,9 +4,11 @@ from dataclasses import (
 )
 import json
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from preprocessor.config.config import settings
@@ -43,12 +45,12 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
     exported_frames_count: Optional[int] = None
     exported_frames_total_size_mb: Optional[float] = None
-    exported_frames_avg_resolution: Optional[tuple] = None
+    exported_frames_avg_resolution: Optional[Tuple[int, int]] = None
 
     video_size_mb: Optional[float] = None
     video_duration: Optional[float] = None
     video_codec: Optional[str] = None
-    video_resolution: Optional[tuple] = None
+    video_resolution: Optional[Tuple[int, int]] = None
 
     scenes_count: Optional[int] = None
     scenes_avg_duration: Optional[float] = None
@@ -98,7 +100,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.__validate_clean_txt(transcription_files["clean_txt"])
         self.__validate_sound_events(transcription_files["sound_events"])
 
-    def __validate_raw_transcription(self, transcription_files: Dict):
+    def __validate_raw_transcription(self, transcription_files: Dict[str, Any]):
         raw_transcription = None
         for key in ("main", "segmented", "simple"):
             if transcription_files[key].exists():
@@ -477,7 +479,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             else:
                 self.warnings.append(f"Missing text statistics file: {text_stats_file.name}")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "status": self.status,
             "errors": self.errors,

@@ -5,7 +5,7 @@
 🎥 Zobacz RanchBot w akcji:
 [![🎬 Zobacz wideo](https://img.youtube.com/vi/3Tp3qJHLFPI/maxresdefault.jpg)](https://www.youtube.com/watch?v=3Tp3qJHLFPI)
 
-**RanchBot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z popularnego serialu "Ranczo". 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści.
+**RanchBot** to wysoce konfigurowalny bot Telegram, stworzony do zarządzania i przetwarzania klipów wideo z różnych seriali. 🎬 Bot umożliwia użytkownikom wyszukiwanie konkretnych cytatów, zarządzanie własnymi klipami wideo oraz wykonywanie różnych zadań administracyjnych związanych z zarządzaniem użytkownikami i moderacją treści. Bot obsługuje wiele seriali - użytkownicy mogą przełączać się między nimi za pomocą komendy `/serial`.
 
 ## 🇬🇧 English Version
 For the English version of this README, please refer to [README.md](./READMEen.md).

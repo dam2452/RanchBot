@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from typing import Tuple
 
 import click
 
@@ -150,8 +151,8 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     dry_run: bool,
     no_state: bool,
     ramdisk_path: Path,
-    scrape_urls: tuple,
-    character_urls: tuple,
+    scrape_urls: Tuple[str, ...],
+    character_urls: Tuple[str, ...],
     search_mode: str,
     transcription_mode: str,
     parser_mode: str,

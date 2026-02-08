@@ -9,7 +9,7 @@ from typing import (
 )
 
 
-def convert_word_to_standard_format(word: Dict[str, Any]) -> Dict[str, Any]:
+def _convert_word_to_standard_format(word: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "text": word.get("word", word.get("text", "")).strip(),
         "start": word.get("start", 0.0),
@@ -21,10 +21,10 @@ def convert_word_to_standard_format(word: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def convert_words_list(seg_words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return [convert_word_to_standard_format(word) for word in seg_words]
+    return [_convert_word_to_standard_format(word) for word in seg_words]
 
 
-def fix_unicode_escapes(text: str) -> str:
+def _fix_unicode_escapes(text: str) -> str:
     def replace_unicode(match):
         unicode_str = match.group(0)
         try:
@@ -44,7 +44,7 @@ def fix_transcription_file_unicode(file_path: Path) -> bool:
         if '\\u' not in content:
             return False
 
-        fixed_content = fix_unicode_escapes(content)
+        fixed_content = _fix_unicode_escapes(content)
 
         if fixed_content != content:
             data = json.loads(fixed_content)

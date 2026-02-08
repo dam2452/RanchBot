@@ -8,11 +8,7 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.bot_message_handler_responses import (
-    get_extraction_failure_message,
-    get_log_extraction_failure_message,
-    get_log_no_segments_found_message,
-)
+from bot.responses.bot_message_handler_responses import get_log_no_segments_found_message
 from bot.responses.sending_videos.clip_handler_responses import (
     get_log_clip_success_message,
     get_log_segment_saved_message,
@@ -22,8 +18,8 @@ from bot.responses.sending_videos.clip_handler_responses import (
 )
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
+from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
-from bot.video.utils import FFMpegException
 
 
 class ClipHandler(BotMessageHandler):
@@ -43,7 +39,7 @@ class ClipHandler(BotMessageHandler):
         msg = self._message
         if not await DatabaseManager.is_admin_or_moderator(msg.get_user_id()) \
                 and len(msg.get_text()) > settings.MAX_SEARCH_QUERY_LENGTH:
-            await self.reply_error(get_message_too_long_message())
+            await self._reply_error(get_message_too_long_message())
             return False
         return True
 
@@ -52,23 +48,27 @@ class ClipHandler(BotMessageHandler):
         content = msg.get_text().split()
         quote = " ".join(content[1:])
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger)
+        active_series = await self._get_user_active_series(msg.get_user_id())
+
+        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 
         segment = segments[0] if isinstance(segments, list) else segments
-        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-        end_time = segment["end"] + settings.EXTEND_AFTER
+        start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
+        end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
         clip_duration = end_time - start_time
         if await self._handle_clip_duration_limit_exceeded(clip_duration):
             return None
 
-        try:
-            output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-            await self._responder.send_video(output_filename)
-        except FFMpegException as e:
-            return await self.__reply_extraction_failed(e)
+        output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
+
+        await self._responder.send_video(
+            output_filename,
+            duration=clip_duration,
+            suggestions=["Wybrać krótszy fragment"],
+        )
 
         await DatabaseManager.insert_last_clip(
             chat_id=msg.get_chat_id(),
@@ -83,12 +83,8 @@ class ClipHandler(BotMessageHandler):
         return await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self.reply_error(get_no_segments_found_message())
+        await self._reply_error(get_no_segments_found_message())
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))
-
-    async def __reply_extraction_failed(self, exception: FFMpegException) -> None:
-        await self.reply_error(get_extraction_failure_message())
-        await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
     async def __log_segment_and_clip_success(self, chat_id: int, username: str) -> None:
         await self._log_system_message(logging.INFO, get_log_segment_saved_message(chat_id))

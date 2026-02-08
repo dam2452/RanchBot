@@ -10,10 +10,6 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.bot_message_handler_responses import (
-    get_extraction_failure_message,
-    get_log_extraction_failure_message,
-)
 from bot.responses.sending_videos.select_clip_handler_responses import (
     get_invalid_args_count_message,
     get_invalid_segment_number_message,
@@ -23,8 +19,8 @@ from bot.responses.sending_videos.select_clip_handler_responses import (
     get_no_previous_search_message,
 )
 from bot.settings import settings
+from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
-from bot.video.utils import FFMpegException
 
 
 class SelectClipHandler(BotMessageHandler):
@@ -46,31 +42,33 @@ class SelectClipHandler(BotMessageHandler):
         if not last_search:
             return await self.__reply_no_previous_search()
 
-        try:
-            index = int(content[1])
-        except ValueError:
+        if not content[1].lstrip('-').isdigit():
             return await self.__reply_invalid_segment_number(-1)
+        index = int(content[1])
 
         segments = json.loads(last_search.segments)
         if index not in range(1, len(segments) + 1):
             return await self.__reply_invalid_segment_number(index)
 
         segment = segments[index - 1]
-        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-        end_time = segment["end"] + settings.EXTEND_AFTER
+        start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
+        end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None
 
-        try:
-            output_filename = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
-        except FFMpegException as e:
-            return await self.__reply_extraction_failure(e)
+        segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
 
-        temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment['id']}.mp4"
+        output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
+        temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment_id}.mp4"
         output_filename.replace(temp_file_path)
 
-        await self._responder.send_video(temp_file_path)
+        clip_duration = end_time - start_time
+        await self._responder.send_video(
+            temp_file_path,
+            duration=clip_duration,
+            suggestions=["Wybrać krótszy fragment"],
+        )
 
         await DatabaseManager.insert_last_clip(
             chat_id=self._message.get_chat_id(),
@@ -84,17 +82,13 @@ class SelectClipHandler(BotMessageHandler):
 
         return await self._log_system_message(
             logging.INFO,
-            get_log_segment_selected_message(segment["id"], self._message.get_username()),
+            get_log_segment_selected_message(segment_id, self._message.get_username()),
         )
 
     async def __reply_no_previous_search(self) -> None:
-        await self.reply_error(get_no_previous_search_message())
+        await self._reply_error(get_no_previous_search_message())
         await self._log_system_message(logging.INFO, get_log_no_previous_search_message())
 
-    async def __reply_extraction_failure(self, exception: FFMpegException) -> None:
-        await self.reply_error(get_extraction_failure_message())
-        await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
-
     async def __reply_invalid_segment_number(self, segment_number: int) -> None:
-        await self.reply_error(get_invalid_segment_number_message())
+        await self._reply_error(get_invalid_segment_number_message())
         await self._log_system_message(logging.WARNING, get_log_invalid_segment_number_message(segment_number))

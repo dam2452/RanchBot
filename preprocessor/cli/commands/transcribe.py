@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from typing import Tuple
 
 import click
 
@@ -54,7 +55,7 @@ def transcribe(
     transcription_jsons: Path,
     model: str,
     language: str,
-    extra_json_keys: tuple,
+    extra_json_keys: Tuple[str, ...],
     name: str,
 ):
     """Generate transcriptions using Whisper."""

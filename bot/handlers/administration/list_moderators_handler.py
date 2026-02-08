@@ -31,9 +31,9 @@ class ListModeratorsHandler(BotMessageHandler):
         return await self.__reply_moderators_list(response, users)
 
     async def __reply_no_moderators_found(self) -> None:
-        await self.reply(get_no_moderators_found_message(), data={"moderators": []})
+        await self._reply(get_no_moderators_found_message(), data={"moderators": []})
         await self._log_system_message(logging.INFO, get_log_no_moderators_found_message())
 
     async def __reply_moderators_list(self, response: str, users: List[UserProfile]) -> None:
-        await self.reply(response, data={"moderators": [u.to_dict() for u in users]})
+        await self._reply(response, data={"moderators": [u.to_dict() for u in users]})
         await self._log_system_message(logging.INFO, get_log_moderators_list_sent_message())

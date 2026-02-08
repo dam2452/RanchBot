@@ -57,7 +57,7 @@ class BaseScraper(BaseProcessor):
 
         console.print(f"[blue]Scraping {len(self.urls)} URLs...[/blue]")
 
-        scraped_pages = self._scrape_all_urls()
+        scraped_pages = self.__scrape_all_urls()
 
         if not scraped_pages:
             console.print("[yellow]No pages scraped[/yellow]")
@@ -70,7 +70,7 @@ class BaseScraper(BaseProcessor):
         except Exception as e:
             self.logger.error(f"LLM processing failed: {e}")
 
-    def _scrape_all_urls(self) -> List[Dict[str, Any]]:
+    def __scrape_all_urls(self) -> List[Dict[str, Any]]:
         scraped_pages = []
         try:
             with create_progress() as progress:
@@ -78,7 +78,7 @@ class BaseScraper(BaseProcessor):
 
                 for url in self.urls:
                     try:
-                        page_text = self._scrape_url(url, progress)
+                        page_text = self.__scrape_url(url, progress)
                         if page_text:
                             scraped_pages.append({
                                 "url": url,
@@ -97,7 +97,7 @@ class BaseScraper(BaseProcessor):
 
         return scraped_pages
 
-    def _scrape_url(self, url: str, progress: "Progress") -> Optional[str]:
+    def __scrape_url(self, url: str, progress: "Progress") -> Optional[str]:
         progress.console.print(f"[cyan]Scraping method: {self.scraper_method.value}[/cyan]")
 
         if self.scraper_method == ScraperMethod.CLIPBOARD:

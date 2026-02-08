@@ -1,5 +1,9 @@
 import time
-from typing import List
+from typing import (
+    Any,
+    Dict,
+    List,
+)
 
 from PIL import Image
 import torch
@@ -31,7 +35,7 @@ class GPUBatchProcessor:
             self.max_vram_used = max(self.max_vram_used, vram_reserved)
             self.vram_samples.append(vram_reserved)
 
-    def get_vram_stats(self) -> dict:
+    def get_vram_stats(self) -> Dict[str, Any]:
         if not self.vram_samples:
             return {}
         return {

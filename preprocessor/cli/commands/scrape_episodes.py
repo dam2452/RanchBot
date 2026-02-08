@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from typing import Tuple
 
 import click
 
@@ -41,7 +42,7 @@ from preprocessor.scraping.episode_scraper import EpisodeScraper
     help="Parser mode: normal (Qwen local model) or premium (Gemini 2.5 Flash)",
 )
 def scrape_episodes(
-    urls: tuple,
+    urls: Tuple[str, ...],
     output_file: Path,
     headless: bool,
     merge_sources: bool,

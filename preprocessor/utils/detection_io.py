@@ -16,7 +16,7 @@ from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_minimal_episode_info
 
 
-def parse_frame_number(frame_filename: str) -> Optional[int]:
+def _parse_frame_number(frame_filename: str) -> Optional[int]:
     match = re.search(r'frame_(\d+)', frame_filename)
     if match:
         return int(match.group(1))
@@ -72,7 +72,7 @@ def process_frames_for_detection(
             threshold,
         )
 
-        frame_number = parse_frame_number(frame_path.name)
+        frame_number = _parse_frame_number(frame_path.name)
         timestamp = frame_number / fps if frame_number is not None else None
 
         frame_result = {

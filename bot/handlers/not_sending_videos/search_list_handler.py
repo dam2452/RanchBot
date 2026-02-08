@@ -20,7 +20,7 @@ from bot.settings import settings as s
 
 
 class SearchListHandler(BotMessageHandler):
-    FILE_NAME_TEMPLATE = s.BOT_USERNAME[1:] + "_Lista_{sanitized_search_term}.txt"
+    FILE_NAME_TEMPLATE = s.BOT_USERNAME + "_Lista_{sanitized_search_term}.txt"
 
     def get_commands(self) -> List[str]:
         return ["lista", "list", "l"]
@@ -36,27 +36,25 @@ class SearchListHandler(BotMessageHandler):
         return True
 
     async def _do_handle(self) -> None:
+        user_id = self._message.get_user_id()
         last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
 
-        try:
-            segments = json.loads(last_search.segments)
-        except (json.JSONDecodeError, TypeError):
-            return await self.__reply_no_previous_search_results()
+        segments = json.loads(last_search.segments)
 
         search_term = last_search.quote
         if not segments or not search_term:
             return await self.__reply_no_previous_search_results()
 
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-
         if self._message.should_reply_json():
+            series_name = await self._get_user_active_series(user_id)
+            season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=series_name)
             await self._responder.send_json({
                 "query": search_term,
                 "segments": segments,
                 "season_info": season_info,
             })
         else:
-            response = format_search_list_response(search_term, segments, season_info)
+            response = format_search_list_response(search_term, segments)
             sanitized_search_term = self.__sanitize_search_term(search_term)
             file_path = Path(tempfile.gettempdir()) / self.FILE_NAME_TEMPLATE.format(
                 sanitized_search_term=sanitized_search_term,
@@ -73,7 +71,7 @@ class SearchListHandler(BotMessageHandler):
         )
 
     async def __reply_no_previous_search_results(self) -> None:
-        await self.reply_error(get_no_previous_search_results_message())
+        await self._reply_error(get_no_previous_search_results_message())
         await self._log_system_message(
             logging.INFO,
             get_log_no_previous_search_results_message(self._message.get_chat_id()),

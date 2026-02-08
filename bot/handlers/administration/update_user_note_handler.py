@@ -43,7 +43,7 @@ class UpdateUserNoteHandler(BotMessageHandler):
         await self.__update_user_note(user_id, note)
 
     async def __reply_invalid_user_id(self, user_id_str: str) -> None:
-        await self.reply_error(get_invalid_user_id_message(user_id_str))
+        await self._reply_error(get_invalid_user_id_message(user_id_str))
         await self._log_system_message(
             logging.INFO,
             get_log_invalid_user_id_message(self._message.get_username(), user_id_str),
@@ -51,5 +51,5 @@ class UpdateUserNoteHandler(BotMessageHandler):
 
     async def __update_user_note(self, user_id: int, note: str) -> None:
         await DatabaseManager.update_user_note(user_id, note)
-        await self.reply(get_note_updated_message())
+        await self._reply(get_note_updated_message())
         await self._log_system_message(logging.INFO, get_log_note_updated_message(self._message.get_username(), user_id, note))

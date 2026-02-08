@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     Callable,
     Optional,
+    Tuple,
 )
 
 from aiogram import Bot
@@ -96,7 +97,7 @@ async def initialize_common_and_set_admin():
         logger.info("Telegram platform is disabled. Default admin setup via Telegram API is skipped.")
 
 
-PLATFORM_REGISTRY: tuple[PlatformConfig, ...] = (
+PLATFORM_REGISTRY: Tuple[PlatformConfig, ...] = (
     PlatformConfig(
         name="Telegram bot",
         enabled=lambda: s.ENABLE_TELEGRAM,

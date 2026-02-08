@@ -83,29 +83,33 @@ class SendClipHandler(BotMessageHandler):
         if temp_file_path.stat().st_size == 0:
             return await self.__reply_empty_file_error(clip.name)
 
-        await self._responder.send_video(temp_file_path)
+        await self._responder.send_video(
+            temp_file_path,
+            duration=clip.duration,
+            suggestions=["Wybrać krótszy fragment"],
+        )
 
-        return await self._log_system_message(
+        await self._log_system_message(
             logging.INFO,
             get_log_clip_sent_message(clip.name, self._message.get_username()),
         )
 
     async def __reply_clip_not_found(self, clip_number: Optional[int]) -> None:
-        await self.reply_error(get_clip_not_found_message(clip_number))
+        await self._reply_error(get_clip_not_found_message(clip_number))
         await self._log_system_message(
             logging.INFO,
             get_log_clip_not_found_message(clip_number, self._message.get_username()),
         )
 
     async def __reply_empty_clip_file(self, clip_name: str) -> None:
-        await self.reply_error(get_empty_clip_file_message())
+        await self._reply_error(get_empty_clip_file_message())
         await self._log_system_message(
             logging.WARNING,
             get_log_empty_clip_file_message(clip_name, self._message.get_username()),
         )
 
     async def __reply_empty_file_error(self, clip_name: str) -> None:
-        await self.reply_error(get_empty_file_error_message())
+        await self._reply_error(get_empty_file_error_message())
         await self._log_system_message(
             logging.ERROR,
             get_log_empty_file_error_message(clip_name, self._message.get_username()),

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import (
     Any,
     Dict,
+    List,
 )
 
 
@@ -17,7 +18,7 @@ def create_processing_metadata(
     processing_params: Dict[str, Any],
     statistics: Dict[str, Any],
     results_key: str,
-    results_data: list,
+    results_data: List[Any],
 ) -> Dict[str, Any]:
     return {
         "generated_at": datetime.now().isoformat(),

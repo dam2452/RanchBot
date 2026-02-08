@@ -275,7 +275,7 @@ class LLMProvider:
         return response.choices[0].message.content.strip()
 
     @staticmethod
-    def __extract_json(content: str) -> Dict:
+    def __extract_json(content: str) -> Dict[str, Any]:
         try:
             if "```json" in content:
                 start = content.find("```json") + 7

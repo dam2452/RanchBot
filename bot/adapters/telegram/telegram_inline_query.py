@@ -20,7 +20,7 @@ class TelegramInlineQuery(AbstractMessage):
         raise RuntimeError("TelegramInlineQuery.get_chat_id should not be called")
 
     def get_sender_id(self) -> int:
-        raise RuntimeError("TelegramInlineQuery.get_sender_id should not be called")
+        return self._message.from_user.id
 
     def get_full_name(self) -> str:
         return self._message.from_user.first_name + " " + self._message.from_user.last_name

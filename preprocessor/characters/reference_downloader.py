@@ -8,6 +8,7 @@ import time
 from typing import (
     Any,
     Dict,
+    List,
     Optional,
 )
 
@@ -70,7 +71,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         if "series_name" not in args:
             raise ValueError("series_name is required")
 
-    def __all_references_exist(self, characters: list) -> bool:
+    def __all_references_exist(self, characters: List[Dict[str, Any]]) -> bool:
         for char in characters:
             char_name = char["name"]
             output_folder = self.output_dir / char_name.replace(" ", "_").lower()

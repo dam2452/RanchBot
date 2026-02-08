@@ -251,3 +251,79 @@ CREATE TABLE IF NOT EXISTS user_credentials (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_credentials_user_id ON user_credentials(user_id);
+
+CREATE TABLE IF NOT EXISTS series (
+    id SERIAL PRIMARY KEY,
+    series_name VARCHAR(50) UNIQUE NOT NULL,
+    CONSTRAINT valid_series_name CHECK (series_name ~ '^[a-z0-9_-]+$')
+);
+
+CREATE INDEX IF NOT EXISTS idx_series_series_name ON series(series_name);
+
+CREATE TABLE IF NOT EXISTS user_series_context (
+    user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    active_series_id INT REFERENCES series(id) ON DELETE SET NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_series_context_user_id
+    ON user_series_context(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series_id
+    ON user_series_context(active_series_id);
+
+CREATE OR REPLACE FUNCTION update_series_context_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_updated = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_series_context_timestamp'
+    ) THEN
+        CREATE TRIGGER trigger_update_series_context_timestamp
+        BEFORE UPDATE ON user_series_context
+        FOR EACH ROW
+        EXECUTE FUNCTION update_series_context_timestamp();
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION ensure_user_series_context()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_series_context (user_id)
+    VALUES (NEW.user_id)
+    ON CONFLICT (user_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_ensure_user_series_context'
+    ) THEN
+        CREATE TRIGGER trigger_ensure_user_series_context
+        AFTER INSERT ON user_profiles
+        FOR EACH ROW
+        EXECUTE FUNCTION ensure_user_series_context();
+    END IF;
+END $$;
+
+INSERT INTO user_series_context (user_id)
+SELECT user_id
+FROM user_profiles
+ON CONFLICT (user_id) DO NOTHING;
+
+ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+ALTER TABLE search_history ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+ALTER TABLE last_clips ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_user_logs_series_id ON user_logs(series_id);
+CREATE INDEX IF NOT EXISTS idx_video_clips_series_id ON video_clips(series_id);
+CREATE INDEX IF NOT EXISTS idx_search_history_series_id ON search_history(series_id);
+CREATE INDEX IF NOT EXISTS idx_last_clips_series_id ON last_clips(series_id);

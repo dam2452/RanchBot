@@ -9,6 +9,10 @@ import unicodedata
 
 from bot.database.database_manager import UserProfile
 from bot.database.models import FormattedSegmentInfo
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,37 +72,35 @@ def parse_whitelist_message(
     )
 
 
-def format_segment(segment: json, season_info: Dict[str, int]) -> FormattedSegmentInfo:
-    episode_info = segment.get("episode_info", {})
-    total_episode_number = episode_info.get("episode_number", "Unknown")
+def format_segment(segment: json) -> FormattedSegmentInfo:
+    episode_info = segment.get(
+        EpisodeMetadataKeys.EPISODE_METADATA,
+        segment.get(EpisodeMetadataKeys.EPISODE_INFO, {}),
+    )
+    season_number = episode_info.get(EpisodeMetadataKeys.SEASON)
+    episode_number_in_season = episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER)
 
-    if not isinstance(total_episode_number, int):
+    if not isinstance(season_number, int) or not isinstance(episode_number_in_season, int):
         return FormattedSegmentInfo(
             episode_formatted="Unknown",
             time_formatted="00:00",
-            episode_title=episode_info.get("title", "Unknown"),
+            episode_title=episode_info.get(EpisodeMetadataKeys.TITLE, "Unknown"),
         )
 
-    season_number = 1
-    episodes_in_previous_seasons = 0
-    for season, episode_count in season_info.items():
-        if total_episode_number <= (episodes_in_previous_seasons + episode_count):
-            break
-        episodes_in_previous_seasons += episode_count
-        season_number += 1
+    if season_number == 0:
+        episode_formatted = f"Spec-{episode_number_in_season}"
+    else:
+        season = str(season_number).zfill(2)
+        episode_number = str(episode_number_in_season).zfill(2)
+        episode_formatted = f"S{season}E{episode_number}"
 
-    episode_number_in_season = total_episode_number - episodes_in_previous_seasons
-
-    season = str(season_number).zfill(2)
-    episode_number = str(episode_number_in_season).zfill(2)
-
-    start_time = int(segment["start"])
+    start_time = int(segment.get(SegmentKeys.START_TIME, segment.get(SegmentKeys.START, 0)))
     minutes, seconds = divmod(start_time, 60)
 
     return FormattedSegmentInfo(
-        episode_formatted=f"S{season}E{episode_number}",
+        episode_formatted=episode_formatted,
         time_formatted=f"{minutes:02}:{seconds:02}",
-        episode_title=episode_info.get("title", "Unknown"),
+        episode_title=episode_info.get(EpisodeMetadataKeys.TITLE, "Unknown"),
     )
 
 
