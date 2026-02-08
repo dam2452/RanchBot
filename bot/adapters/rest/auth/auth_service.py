@@ -27,7 +27,7 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def verify_password(plain: str, hashed: str) -> bool:
+def _verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
@@ -36,11 +36,11 @@ async def authenticate_user(username: str, password: str) -> Optional[UserProfil
     dummy_hash = "$2b$12$XEMBQhCuW2tw8rAIIoKV1ejU7nee6VDFZ5tRETJbkAQI2WCUDPqIm"
 
     if result is None:
-        verify_password(password, dummy_hash)
+        _verify_password(password, dummy_hash)
         return None
 
     user_profile, hashed_password = result
-    if not verify_password(password, hashed_password):
+    if not _verify_password(password, hashed_password):
         return None
 
     return user_profile

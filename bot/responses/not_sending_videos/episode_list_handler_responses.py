@@ -58,7 +58,7 @@ def get_log_episode_list_sent_message(season: int, username: str) -> str:
 
 
 def format_season_list_response(season_info: SeasonInfoDict) -> str:
-    def format_episode_count(count: int) -> str:
+    def _format_episode_count(count: int) -> str:
         if count == 1:
             return "1 odcinek"
         if 2 <= count <= 4 or (count > 20 and count % 10 in {2, 3, 4}):
@@ -70,11 +70,11 @@ def format_season_list_response(season_info: SeasonInfoDict) -> str:
 
     for season_str, episode_count in sorted_seasons:
         if season_str == "0":
-            line = f"🎬 Specjalne 🎬 - {format_episode_count(episode_count)}"
+            line = f"🎬 Specjalne 🎬 - {_format_episode_count(episode_count)}"
         else:
             season_num = int(season_str)
             emoji = convert_number_to_emoji(season_num)
-            line = f"Sezon {emoji} - {format_episode_count(episode_count)}"
+            line = f"Sezon {emoji} - {_format_episode_count(episode_count)}"
         season_lines.append(line)
 
     response = "```📺 LISTA SEZONÓW \n".replace(" ", "\u00A0") + "\n\n".join(season_lines) + "\n```\n\n💡 Użyj /odcinki <sezon> aby zobaczyć szczegóły"

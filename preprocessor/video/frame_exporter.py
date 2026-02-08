@@ -10,11 +10,10 @@ from typing import (
     Optional,
 )
 
-from bot.types import FrameRequest
-
 from PIL import Image
 import decord
 
+from bot.types import FrameRequest
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,

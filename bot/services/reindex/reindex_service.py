@@ -4,11 +4,13 @@ import logging
 from pathlib import Path
 import re
 from typing import (
+    Any,
     Awaitable,
     Callable,
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from elasticsearch.helpers import (

@@ -213,7 +213,7 @@ class TranscriptionFinder:
 
         segment_start = segment.get("start_time", segment.get("start"))
         segment_end = segment.get("end_time", segment.get("end"))
-        unique_context_segments = TranscriptionFinder._build_unique_segments(
+        unique_context_segments = TranscriptionFinder.__build_unique_segments(
             context_segments, segment_id, segment, segment_start, segment_end,
         )
 
@@ -303,7 +303,7 @@ class TranscriptionFinder:
         return context_segments_before, context_segments_after
 
     @staticmethod
-    def _build_unique_segments(
+    def __build_unique_segments(
             context_segments: Tuple[List[BaseSegment], List[BaseSegment]],
             segment_id: int,
             segment: ElasticsearchSegment,

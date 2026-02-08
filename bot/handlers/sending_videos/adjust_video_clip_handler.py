@@ -1,8 +1,6 @@
 import json
 import logging
 from typing import (
-    Any,
-    Dict,
     List,
     Optional,
     Tuple,
@@ -15,7 +13,6 @@ from bot.database.models import (
     LastClip,
     SearchHistory,
 )
-from bot.types import ElasticsearchSegment
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -35,6 +32,7 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_updated_segment_info_log,
 )
 from bot.settings import settings
+from bot.types import ElasticsearchSegment
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import (
     FFMpegException,

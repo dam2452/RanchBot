@@ -8,16 +8,15 @@ from typing import (
     Optional,
 )
 
-from bot.types import (
-    SceneDict,
-    VideoMetadata,
-)
-
 import decord
 import numpy as np
 import torch
 from transnetv2_pytorch import TransNetV2
 
+from bot.types import (
+    SceneDict,
+    VideoMetadata,
+)
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,

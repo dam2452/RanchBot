@@ -30,7 +30,7 @@ class EpisodeNameEmbedder:
         self.output_dir = output_dir or settings.embedding.default_output_dir
         self.logger = logger or logging.getLogger(__name__)
 
-    def generate_episode_name_embeddings(
+    def __generate_episode_name_embeddings(
         self,
         transcription_data: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
@@ -92,7 +92,7 @@ class EpisodeNameEmbedder:
             return None
 
     @staticmethod
-    def save_episode_name_embedding(
+    def __save_episode_name_embedding(
             season: int,
         episode: int,
         embedding_data: Dict[str, Any],
@@ -116,14 +116,14 @@ class EpisodeNameEmbedder:
         self,
         transcription_data: Dict[str, Any],
     ) -> Optional[Path]:
-        embedding_data = self.generate_episode_name_embeddings(transcription_data)
+        embedding_data = self.__generate_episode_name_embeddings(transcription_data)
         if not embedding_data:
             return None
 
         season = embedding_data["episode_metadata"]["season"]
         episode = embedding_data["episode_metadata"]["episode_number"]
 
-        output_file = self.save_episode_name_embedding(season, episode, embedding_data)
+        output_file = self.__save_episode_name_embedding(season, episode, embedding_data)
         console.print(
             f"[green]Generated episode name embedding for {embedding_data['episode_id']}: {embedding_data['title']}[/green]",
         )

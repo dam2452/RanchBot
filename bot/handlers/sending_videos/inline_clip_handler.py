@@ -28,10 +28,10 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.types import ElasticsearchSegment
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
+from bot.types import ElasticsearchSegment
 from bot.utils.constants import SegmentKeys
 from bot.utils.functions import (
     convert_number_to_emoji,

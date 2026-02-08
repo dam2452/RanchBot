@@ -69,7 +69,7 @@ def get_text_embedding(text):
     return embedding.float().cpu().numpy().tolist()
 
 
-def get_image_embedding(image_path):
+def _get_image_embedding(image_path):
     model, processor, device = load_model()
 
     messages = [{
@@ -100,7 +100,7 @@ def get_image_embedding(image_path):
     return embedding.float().cpu().numpy().tolist()
 
 
-def load_hasher():
+def _load_hasher():
     global _hasher  # pylint: disable=global-statement
     if _hasher is not None:
         return _hasher
@@ -114,8 +114,8 @@ def load_hasher():
     return _hasher
 
 
-def get_perceptual_hash(image_path):
-    hasher = load_hasher()
+def _get_perceptual_hash(image_path):
+    hasher = _load_hasher()
     image = Image.open(image_path).convert("RGB")
     hashes = hasher.compute_phash_batch([image])
     return hashes[0] if hashes else None
@@ -175,7 +175,7 @@ async def search_text_semantic(es_client, text, season=None, episode=None, limit
 
 
 async def search_video_semantic(es_client, image_path, season=None, episode=None, character=None, limit=10):
-    embedding = get_image_embedding(image_path)
+    embedding = _get_image_embedding(image_path)
 
     filter_clauses = []
     if season is not None:
@@ -520,7 +520,7 @@ def format_timestamp(seconds):
     return f"{minutes}m {secs:.1f}s"
 
 
-def format_scene_context(scene_info):
+def _format_scene_context(scene_info):
     if not scene_info:
         return ""
     start = format_timestamp(scene_info.get('scene_start_time', 0))
@@ -528,7 +528,7 @@ def format_scene_context(scene_info):
     return f" [Scene {scene_info.get('scene_number', '?')}: {start} - {end}]"
 
 
-def print_results(result, result_type="text"):  # pylint: disable=too-many-locals
+def _print_results(result, result_type="text"):  # pylint: disable=too-many-locals
     total = result["hits"]["total"]["value"]
     hits = result["hits"]["hits"]
 
@@ -539,7 +539,7 @@ def print_results(result, result_type="text"):  # pylint: disable=too-many-local
         source = hit["_source"]
         score = hit["_score"]
         meta = source["episode_metadata"]
-        scene_ctx = format_scene_context(source.get("scene_info"))
+        scene_ctx = _format_scene_context(source.get("scene_info"))
 
         click.echo(f"\n[{i}] Score: {score:.2f}")
         season_code = "S00" if meta['season'] == 0 else f"S{meta['season']:02d}"
@@ -622,7 +622,7 @@ def search(  # pylint: disable=too-many-locals
         phash_path = Path(phash)
         if phash_path.exists() and phash_path.is_file():
             click.echo(f"Computing perceptual hash from image: {phash}", err=True)
-            hash_value = get_perceptual_hash(str(phash_path))
+            hash_value = _get_perceptual_hash(str(phash_path))
             if hash_value:
                 click.echo(f"Computed hash: {hash_value}", err=True)
             else:
@@ -677,70 +677,70 @@ def search(  # pylint: disable=too-many-locals
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "text")
+                    _print_results(result, "text")
 
             elif text_semantic:
                 result = await search_text_semantic(es_client, text_semantic, season, episode, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "text_semantic")
+                    _print_results(result, "text_semantic")
 
             elif text_to_video:
                 result = await search_text_to_video(es_client, text_to_video, season, episode, character, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "video")
+                    _print_results(result, "video")
 
             elif image:
                 result = await search_video_semantic(es_client, str(image), season, episode, character, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "video")
+                    _print_results(result, "video")
 
             elif emotion:
                 result = await search_by_emotion(es_client, emotion, season, episode, character, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "video")
+                    _print_results(result, "video")
 
             elif character:
                 result = await search_by_character(es_client, character, season, episode, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "video")
+                    _print_results(result, "video")
 
             elif object_query:
                 result = await search_by_object(es_client, object_query, season, episode, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "video")
+                    _print_results(result, "video")
 
             elif hash_value:
                 result = await search_perceptual_hash(es_client, hash_value, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "video")
+                    _print_results(result, "video")
 
             elif episode_name:
                 result = await search_episode_name(es_client, episode_name, season, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "episode_name")
+                    _print_results(result, "episode_name")
 
             elif episode_name_semantic:
                 result = await search_episode_name_semantic(es_client, episode_name_semantic, season, limit)
                 if json_output:
                     click.echo(json.dumps(result["hits"], indent=2))
                 else:
-                    print_results(result, "episode_name")
+                    _print_results(result, "episode_name")
 
         finally:
             await es_client.close()

@@ -41,7 +41,7 @@ from bot.utils.log import log_system_message
 
 
 class SubscribedPermissionLevelFactory(PermissionLevelFactory):
-    def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
+    def _create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         return [
             AdjustVideoClipHandler,
             ClipHandler,
@@ -61,7 +61,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             SerialContextHandler,
         ]
 
-    def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
+    def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         return [
             SubscriberMiddleware(self._logger, commands),
         ]

@@ -14,7 +14,6 @@ from bot.types import (
     ObjectDetectionInFrame,
     SceneTimestampsData,
 )
-
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,

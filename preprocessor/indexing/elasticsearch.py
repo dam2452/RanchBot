@@ -52,17 +52,17 @@ class ElasticSearchIndexer(BaseProcessor):
     def __sanitize_error_for_logging(error: Dict[str, Any]) -> Dict[str, Any]:
         vector_keys = {"text_embedding", "video_embedding", "title_embedding", "embedding"}
 
-        def truncate_vectors(obj):
+        def _truncate_vectors(obj):
             if isinstance(obj, dict):
                 return {
-                    k: f"[vector dim={len(v)}]" if k in vector_keys and isinstance(v, list) else truncate_vectors(v)
+                    k: f"[vector dim={len(v)}]" if k in vector_keys and isinstance(v, list) else _truncate_vectors(v)
                     for k, v in obj.items()
                 }
             if isinstance(obj, list) and len(obj) > 10:
                 return obj[:3] + ["..."]
             return obj
 
-        return truncate_vectors(error)
+        return _truncate_vectors(error)
 
     def __call__(self) -> None:
         asyncio.run(self.__exec_async())

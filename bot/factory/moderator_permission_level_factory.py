@@ -17,7 +17,7 @@ from bot.middlewares.bot_middleware import BotMiddleware
 
 
 class ModeratorPermissionLevelFactory(PermissionLevelFactory):
-    def create_handler_classes(self) -> List[Type]:
+    def _create_handler_classes(self) -> List[Type]:
         return [
             AdminHelpHandler,
             ListAdminsHandler,
@@ -27,5 +27,5 @@ class ModeratorPermissionLevelFactory(PermissionLevelFactory):
             UpdateUserNoteHandler,
         ]
 
-    def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
+    def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         return [ModeratorMiddleware(self._logger, commands)]

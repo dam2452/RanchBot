@@ -63,7 +63,7 @@ class BaseTest:
 
 
     def assert_response_contains(self, response, expected_fragments: List[str]) -> bool:
-        response_text = self._extract_text_from_response(response)
+        response_text = self.__extract_text_from_response(response)
         sanitized_response = self.__sanitize_text(response_text)
 
         for fragment in expected_fragments:
@@ -74,7 +74,7 @@ class BaseTest:
 
 
     @staticmethod
-    def _extract_text_from_response(response) -> str:
+    def __extract_text_from_response(response) -> str:
         class RequestFailedException(Exception):
             pass
 
@@ -142,7 +142,7 @@ class BaseTest:
         return hash_func.hexdigest()
 
     @staticmethod
-    def generate_random_username(length: int = 8) -> str:
+    def __generate_random_username(length: int = 8) -> str:
         return f"user_{secrets.token_hex(length // 2)}"
 
     async def add_test_user(
@@ -154,7 +154,7 @@ class BaseTest:
         subscription_days: Optional[int] = None,
     ) -> Dict[str, Union[int, str]]:
         user_id = user_id or secrets.randbits(32)
-        username = username or self.generate_random_username()
+        username = username or self.__generate_random_username()
 
         await DatabaseManager.add_user(
             user_id=user_id,
@@ -186,7 +186,7 @@ class BaseTest:
             expected_key: str,
             expected_hashes_file: str = 'expected_file_hashes.json',
     ) -> None:
-        response_text = self._extract_text_from_response(response)
+        response_text = self.__extract_text_from_response(response)
         sanitized_message = self.__sanitize_text(response_text)
 
         computed_hash = hashlib.sha256(sanitized_message.encode()).hexdigest()

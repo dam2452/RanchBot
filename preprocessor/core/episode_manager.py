@@ -111,9 +111,6 @@ class EpisodeManager:
     def build_video_path_for_elastic(self, episode_info: EpisodeInfo) -> str:
         return OutputPathBuilder.build_elastic_video_path(episode_info, self.series_name)
 
-    def find_video_file(self, episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
-        return self.file_finder.find_video_file(episode_info, search_dir)
-
     def find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool = True) -> Optional[Path]:
         return self.file_finder.find_transcription_file(episode_info, search_dir, prefer_segmented)
 

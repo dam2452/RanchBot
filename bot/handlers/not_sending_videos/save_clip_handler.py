@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 import tempfile
 from typing import (
-    Any,
     Awaitable,
     Callable,
     Dict,
@@ -16,7 +15,6 @@ from bot.database.models import (
     ClipType,
     LastClip,
 )
-from bot.types import ElasticsearchSegment
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -35,6 +33,7 @@ from bot.responses.not_sending_videos.save_clip_handler_responses import (
     get_no_segment_selected_message,
 )
 from bot.settings import settings
+from bot.types import ElasticsearchSegment
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import get_video_duration

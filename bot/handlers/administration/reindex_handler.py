@@ -59,7 +59,7 @@ class ReindexHandler(BotMessageHandler):
 
         await self.reply(get_reindex_started_message(target))
 
-        progress_callback = self._create_progress_callback()
+        progress_callback = self.__create_progress_callback()
 
         try:
             if target == "all":
@@ -99,7 +99,7 @@ class ReindexHandler(BotMessageHandler):
         finally:
             await self.reindex_service.close()
 
-    def _create_progress_callback(self):
+    def __create_progress_callback(self):
         async def callback(message: str, current: int, total: int):
             now = time.time()
 

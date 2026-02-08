@@ -19,7 +19,7 @@ from bot.middlewares.bot_middleware import BotMiddleware
 
 
 class AdminPermissionLevelFactory(PermissionLevelFactory):
-    def create_handler_classes(self) -> List[Type]:
+    def _create_handler_classes(self) -> List[Type]:
         return [
             AddSubscriptionHandler,
             AddWhitelistHandler,
@@ -31,5 +31,5 @@ class AdminPermissionLevelFactory(PermissionLevelFactory):
             ReindexHandler,
         ]
 
-    def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
+    def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         return [AdminMiddleware(self._logger, commands)]

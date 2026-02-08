@@ -1,12 +1,12 @@
+from typing import List
+
+
 def get_serial_usage_message() -> str:
     return "❌ Podaj nazwę serialu. Przykład: /serial kiepscy ❌"
 
 
 def get_serial_changed_message(series_name: str) -> str:
     return f"✅ Zmieniono aktywny serial na: {series_name.capitalize()} ✅"
-
-
-from typing import List
 
 
 def get_serial_invalid_message(series_name: str, available: List[str]) -> str:

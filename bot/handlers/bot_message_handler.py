@@ -68,7 +68,7 @@ class BotMessageHandler(ABC):
             await self._responder.send_text(get_general_error_message())
             await self._log_system_message(
                 logging.ERROR,
-                f"{type(e)} Error in {self.get_action_name()} for user '{self._message.get_user_id()}': {e}",
+                f"{type(e)} Error in {self.__get_action_name()} for user '{self._message.get_user_id()}': {e}",
             )
 
         await DatabaseManager.log_command_usage(self._message.get_user_id())
@@ -88,9 +88,9 @@ class BotMessageHandler(ABC):
 
     async def _reply_invalid_args_count(self, response: str) -> None:
         await self._responder.send_markdown(response)
-        await self._log_system_message(logging.INFO, get_invalid_args_count_message(self.get_action_name(), self._message.get_user_id()))
+        await self._log_system_message(logging.INFO, get_invalid_args_count_message(self.__get_action_name(), self._message.get_user_id()))
 
-    def get_action_name(self) -> str:
+    def __get_action_name(self) -> str:
         return self.__class__.__name__
 
     def get_parent_class_name(self) -> str:
