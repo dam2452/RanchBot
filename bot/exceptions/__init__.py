@@ -1,4 +1,4 @@
-from bot.exceptions.video_exceptions import (
+from .video_exceptions import (
     CompilationTooLargeException,
     VideoException,
     VideoTooLargeException,
