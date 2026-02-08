@@ -8,7 +8,7 @@ from typing import Dict
 
 class TranscriptionEngine(ABC):
     @abstractmethod
-    def transcribe(self, audio_path: Path) -> Dict:
+    def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         pass
 
     @abstractmethod

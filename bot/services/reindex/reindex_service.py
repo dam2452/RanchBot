@@ -308,7 +308,7 @@ class ReindexService:
         return episode_code, indexed_count
 
     @staticmethod
-    def __get_mapping_for_type(index_type: str) -> Dict:
+    def __get_mapping_for_type(index_type: str) -> Dict[str, Any]:
         mappings = {
             "text_segments": ElasticSearchManager.SEGMENTS_INDEX_MAPPING,
             "text_embeddings": ElasticSearchManager.TEXT_EMBEDDINGS_INDEX_MAPPING,

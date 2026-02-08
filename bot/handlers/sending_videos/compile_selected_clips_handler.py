@@ -37,8 +37,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
 
     async def __check_user_has_clips(self) -> bool:
         user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
-        user_clips = await DatabaseManager.get_saved_clips(user_id, series_id)
+        user_clips = await DatabaseManager.get_saved_clips(user_id)
         if not user_clips:
             await self.__reply_no_matching_clips_found()
             return False
@@ -47,14 +46,13 @@ class CompileSelectedClipsHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
         user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
 
         try:
             clip_numbers = [int(clip) for clip in content[1:]]
         except ValueError:
             return await self._reply_invalid_args_count(get_invalid_args_count_message())
 
-        user_clips = await DatabaseManager.get_saved_clips(user_id, series_id)
+        user_clips = await DatabaseManager.get_saved_clips(user_id)
 
         selected_clips = []
         for clip_number in clip_numbers:

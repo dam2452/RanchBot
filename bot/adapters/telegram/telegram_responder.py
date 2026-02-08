@@ -50,6 +50,8 @@ class TelegramResponder(AbstractResponder):
         delete_after_send: bool = True,
         width: Optional[int] = None,
         height: Optional[int] = None,
+        duration: Optional[float] = None,
+        suggestions: Optional[List[str]] = None,
     ) -> bool:
         if width is None or height is None:
             resolution = RESOLUTIONS[settings.DEFAULT_RESOLUTION_KEY]
@@ -71,6 +73,7 @@ class TelegramResponder(AbstractResponder):
         except TelegramEntityTooLarge:
             if delete_after_send:
                 file_path.unlink()
+            await self.send_text(self._get_file_too_large_message(duration, suggestions))
             return False
 
     async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True, cleanup_dir: Optional[Path] = None) -> None:
@@ -88,13 +91,13 @@ class TelegramResponder(AbstractResponder):
         raise NotImplementedError("JSON mode not supported for TelegramResponder")
 
     @staticmethod
-    def get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[List[str]] = None) -> str:
+    def _get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[List[str]] = None) -> str:
         message = "❌ Plik jest za duży do wysłania"
 
         if duration is not None:
-            message = f"({duration:.1f}s)"
+            message += f" ({duration:.1f}s)"
 
-        message += ".\n\n Telegram ma limit 50MB dla wideo."
+        message += ".\n\nTelegram ma limit 50MB dla wideo."
 
         if suggestions:
             message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)

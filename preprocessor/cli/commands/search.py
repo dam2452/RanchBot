@@ -16,6 +16,11 @@ from transformers import (
 
 from preprocessor.config.config import settings
 from preprocessor.hashing.image_hasher import PerceptualHasher
+from preprocessor.utils.constants import (
+    ElasticsearchAggregationKeys,
+    ElasticsearchKeys,
+    EpisodeMetadataKeys,
+)
 
 _model = None
 _processor = None
@@ -529,16 +534,16 @@ def _format_scene_context(scene_info):
 
 
 def _print_results(result, result_type="text"):  # pylint: disable=too-many-locals
-    total = result["hits"]["total"]["value"]
-    hits = result["hits"]["hits"]
+    total = result[ElasticsearchKeys.HITS][ElasticsearchKeys.TOTAL][ElasticsearchAggregationKeys.VALUE]
+    hits = result[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
     click.echo(f"\nZnaleziono: {total} wynikow")
     click.echo("=" * 80)
 
     for i, hit in enumerate(hits, 1):
-        source = hit["_source"]
-        score = hit["_score"]
-        meta = source["episode_metadata"]
+        source = hit[ElasticsearchKeys.SOURCE]
+        score = hit[ElasticsearchKeys.SCORE]
+        meta = source[EpisodeMetadataKeys.EPISODE_METADATA]
         scene_ctx = _format_scene_context(source.get("scene_info"))
 
         click.echo(f"\n[{i}] Score: {score:.2f}")

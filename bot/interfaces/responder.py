@@ -4,7 +4,10 @@ from abc import (
 )
 import json
 from pathlib import Path
-from typing import Optional
+from typing import (
+    List,
+    Optional,
+)
 
 
 class AbstractResponder(ABC):
@@ -21,6 +24,8 @@ class AbstractResponder(ABC):
         delete_after_send: bool = True,
         width: Optional[int] = None,
         height: Optional[int] = None,
+        duration: Optional[float] = None,
+        suggestions: Optional[List[str]] = None,
     ) -> bool: ...
     @abstractmethod
     async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True, cleanup_dir: Optional[Path] = None) -> None: ...

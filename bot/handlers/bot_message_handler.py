@@ -2,6 +2,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+import json
 import logging
 from pathlib import Path
 from typing import (
@@ -14,7 +15,6 @@ from typing import (
 )
 
 from bot.adapters.rest.models import ResponseStatus as RS
-from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.interfaces.message import AbstractMessage
@@ -64,6 +64,14 @@ class BotMessageHandler(ABC):
                     return
 
             await self._do_handle()
+        except FFMpegException as e:
+            await self.handle_ffmpeg_exception(e)
+        except json.JSONDecodeError as e:
+            await self.reply_error("Wystąpił problem z odczytem danych.")
+            await self._log_system_message(
+                logging.ERROR,
+                f"Data corruption in {self.__get_action_name()}: {e}",
+            )
         except Exception as e:
             await self._responder.send_text(get_general_error_message())
             await self._log_system_message(
@@ -119,9 +127,8 @@ class BotMessageHandler(ABC):
 
         if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
             await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
-            await self._answer(TelegramResponder.get_file_too_large_message())
-        else:
-            await self._responder.send_video(file_path)
+
+        if await self._responder.send_video(file_path):
             await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
 
     async def _answer_document(self, file_path: Path, caption: str, cleanup_dir: Optional[Path] = None) -> None:
@@ -179,25 +186,13 @@ class BotMessageHandler(ABC):
         await self.reply_error(get_extraction_failure_message())
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
-    async def handle_telegram_entity_too_large_for_clip(self, clip_duration: float) -> None:
-        await self.reply_error(
-            TelegramResponder.get_file_too_large_message(
-                duration=clip_duration,
-                suggestions=["Wybrać krótszy fragment"],
-            ),
-        )
+    async def _log_clip_too_large_failure(self, clip_duration: float) -> None:
         await self._log_system_message(
             logging.WARNING,
             get_log_clip_too_large_message(clip_duration, self._message.get_username()),
         )
 
-    async def handle_telegram_entity_too_large_for_compilation(self, total_duration: float) -> None:
-        await self.reply_error(
-            TelegramResponder.get_file_too_large_message(
-                duration=total_duration,
-                suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
-            ),
-        )
+    async def _log_compilation_too_large_failure(self, total_duration: float) -> None:
         await self._log_system_message(
             logging.WARNING,
             get_log_compilation_too_large_message(total_duration, self._message.get_username()),
@@ -207,8 +202,12 @@ class BotMessageHandler(ABC):
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, clip_type)
 
-        if not await self._responder.send_video(compiled_output):
-            await self.handle_telegram_entity_too_large_for_compilation(total_duration)
+        if not await self._responder.send_video(
+            compiled_output,
+            duration=total_duration,
+            suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
+        ):
+            await self._log_compilation_too_large_failure(total_duration)
             return None
 
         return True

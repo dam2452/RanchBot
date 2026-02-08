@@ -18,6 +18,7 @@ from bot.database.database_manager import DatabaseManager
 from bot.settings import settings as s
 from bot.utils.constants import (
     ElasticsearchKeys,
+    EpisodeMetadataKeys,
     SegmentKeys,
 )
 from bot.utils.log import log_system_message
@@ -181,7 +182,7 @@ class ElasticSearchManager:
         actions = []
         with episode_file.open("r", encoding="utf-8") as f:
             data = json.load(f)
-            episode_info = data.get("episode_info", {})
+            episode_info = data.get(EpisodeMetadataKeys.EPISODE_INFO, {})
 
             video_file_name = episode_file.stem + ".mp4"
             video_path = video_base_path / season_dir / video_file_name
@@ -196,7 +197,7 @@ class ElasticSearchManager:
                     {
                         "_index": index_name,
                         "_source": {
-                            "episode_info": episode_info,
+                            EpisodeMetadataKeys.EPISODE_INFO: episode_info,
                             "text": segment.get("text"),
                             "start": segment.get("start"),
                             "end": segment.get("end"),
@@ -226,7 +227,7 @@ class ElasticSearchManager:
             document[SegmentKeys.VIDEO_PATH] = document[SegmentKeys.VIDEO_PATH].replace("\\", "/")
             readable_output = (
                 f"Document ID: {response['hits']['hits'][0]['_id']}\n"
-                f"Episode Info: {document['episode_info']}\n"
+                f"Episode Info: {document[EpisodeMetadataKeys.EPISODE_INFO]}\n"
                 f"Video Path: {document['video_path']}\n"
                 f"Segment Text: {document.get('text', 'No text available')}\n"
                 f"Timestamp: {document.get('timestamp', 'No timestamp available')}"

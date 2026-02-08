@@ -101,7 +101,7 @@ class SeasonComparison:
                     ),
                 )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "metrics": {
                 metric_name: {

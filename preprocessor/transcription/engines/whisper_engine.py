@@ -35,7 +35,7 @@ class WhisperEngine(TranscriptionEngine):
         self.model = WhisperModel(model, device=device, compute_type=compute_type)
         console.print("[green]✓ Whisper model loaded[/green]")
 
-    def transcribe(self, audio_path: Path) -> Dict:
+    def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         console.print(f"[cyan]Transcribing with Whisper: {audio_path.name}[/cyan]")
 
         if not audio_path.exists():

@@ -19,6 +19,10 @@ from preprocessor.core.constants import (
     FILE_SUFFIXES,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.utils.constants import (
+    WordKeys,
+    WordTypeValues,
+)
 
 
 class SoundEventSeparator(BaseProcessor):
@@ -184,7 +188,7 @@ class SoundEventSeparator(BaseProcessor):
         for word in words:
             if self.__is_sound_event(word):
                 has_sound = True
-            elif word.get("type") not in ["spacing", ""]:
+            elif word.get(WordKeys.TYPE) not in [WordTypeValues.SPACING, ""]:
                 has_dialogue = True
 
         if has_sound and has_dialogue:
@@ -195,7 +199,7 @@ class SoundEventSeparator(BaseProcessor):
 
     @staticmethod
     def __is_sound_event(word: Dict[str, Any]) -> bool:
-        if word.get("type") == "audio_event":
+        if word.get(WordKeys.TYPE) == WordTypeValues.AUDIO_EVENT:
             return True
 
         text = word.get("text", "").strip()
@@ -213,7 +217,7 @@ class SoundEventSeparator(BaseProcessor):
         current_words = []
 
         for word in words:
-            if word.get("type") == "spacing":
+            if word.get(WordKeys.TYPE) == WordTypeValues.SPACING:
                 if current_words:
                     current_words.append(word)
                 continue
@@ -249,7 +253,7 @@ class SoundEventSeparator(BaseProcessor):
         if not words:
             return
 
-        non_spacing_words = [w for w in words if w.get("type") != "spacing"]
+        non_spacing_words = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
         if not non_spacing_words:
             return
 
@@ -364,7 +368,7 @@ class SoundEventSeparator(BaseProcessor):
                     if not text or not words:
                         continue
 
-                    non_spacing_words = [w for w in words if w.get("type") != "spacing"]
+                    non_spacing_words = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
                     if not non_spacing_words:
                         continue
 

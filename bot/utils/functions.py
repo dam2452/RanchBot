@@ -9,6 +9,10 @@ import unicodedata
 
 from bot.database.database_manager import UserProfile
 from bot.database.models import FormattedSegmentInfo
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,15 +73,18 @@ def parse_whitelist_message(
 
 
 def format_segment(segment: json) -> FormattedSegmentInfo:
-    episode_info = segment.get("episode_metadata", segment.get("episode_info", {}))
-    season_number = episode_info.get("season")
-    episode_number_in_season = episode_info.get("episode_number")
+    episode_info = segment.get(
+        EpisodeMetadataKeys.EPISODE_METADATA,
+        segment.get(EpisodeMetadataKeys.EPISODE_INFO, {}),
+    )
+    season_number = episode_info.get(EpisodeMetadataKeys.SEASON)
+    episode_number_in_season = episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER)
 
     if not isinstance(season_number, int) or not isinstance(episode_number_in_season, int):
         return FormattedSegmentInfo(
             episode_formatted="Unknown",
             time_formatted="00:00",
-            episode_title=episode_info.get("title", "Unknown"),
+            episode_title=episode_info.get(EpisodeMetadataKeys.TITLE, "Unknown"),
         )
 
     if season_number == 0:
@@ -87,13 +94,13 @@ def format_segment(segment: json) -> FormattedSegmentInfo:
         episode_number = str(episode_number_in_season).zfill(2)
         episode_formatted = f"S{season}E{episode_number}"
 
-    start_time = int(segment.get("start_time", segment.get("start", 0)))
+    start_time = int(segment.get(SegmentKeys.START_TIME, segment.get(SegmentKeys.START, 0)))
     minutes, seconds = divmod(start_time, 60)
 
     return FormattedSegmentInfo(
         episode_formatted=episode_formatted,
         time_formatted=f"{minutes:02}:{seconds:02}",
-        episode_title=episode_info.get("title", "Unknown"),
+        episode_title=episode_info.get(EpisodeMetadataKeys.TITLE, "Unknown"),
     )
 
 

@@ -4,6 +4,7 @@ from bot.types import (
     EpisodeInfo,
     SeasonInfoDict,
 )
+from bot.utils.constants import EpisodeMetadataKeys
 from bot.utils.functions import convert_number_to_emoji
 
 
@@ -28,7 +29,7 @@ def format_episode_list_response(season: int, episodes: List[EpisodeInfo], seaso
             episode_display = f"S{season:02d}E{season_episode_number:02d}"
             episode_with_number = f"{episode_display} ({absolute_episode_number})"
 
-        viewership = episode.get("viewership")
+        viewership = episode.get(EpisodeMetadataKeys.VIEWERSHIP)
         if viewership != "Unknown":
             try:
                 viewership_num = float(str(viewership).replace(",", "").replace(".", ""))
@@ -38,8 +39,8 @@ def format_episode_list_response(season: int, episodes: List[EpisodeInfo], seaso
         else:
             formatted_viewership = "N/A"
 
-        response += f"🎬 {episode['title']}: {episode_with_number} \n"
-        response += f"📅 Data premiery: {episode['premiere_date']}\n"
+        response += f"🎬 {episode[EpisodeMetadataKeys.TITLE]}: {episode_with_number} \n"
+        response += f"📅 Data premiery: {episode[EpisodeMetadataKeys.PREMIERE_DATE]}\n"
         response += f"👀 Oglądalność: {formatted_viewership}\n\n"
 
     response += "```"

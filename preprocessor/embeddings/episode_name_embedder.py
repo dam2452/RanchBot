@@ -12,6 +12,7 @@ import numpy as np
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.utils.console import console
+from preprocessor.utils.constants import EmbeddingKeys
 from preprocessor.utils.file_utils import atomic_write_json
 
 
@@ -66,10 +67,10 @@ class EpisodeNameEmbedder:
         episode_id = episode_info.episode_code()
 
         result = {
-            "episode_id": episode_id,
-            "title": title,
-            "title_embedding": embedding.tolist(),
-            "episode_metadata": {
+            EmbeddingKeys.EPISODE_ID: episode_id,
+            EmbeddingKeys.TITLE: title,
+            EmbeddingKeys.TITLE_EMBEDDING: embedding.tolist(),
+            EmbeddingKeys.EPISODE_METADATA: {
                 "season": season,
                 "episode_number": episode_number,
                 "title": title,
@@ -120,12 +121,12 @@ class EpisodeNameEmbedder:
         if not embedding_data:
             return None
 
-        season = embedding_data["episode_metadata"]["season"]
-        episode = embedding_data["episode_metadata"]["episode_number"]
+        season = embedding_data[EmbeddingKeys.EPISODE_METADATA]["season"]
+        episode = embedding_data[EmbeddingKeys.EPISODE_METADATA]["episode_number"]
 
         output_file = self.__save_episode_name_embedding(season, episode, embedding_data)
         console.print(
-            f"[green]Generated episode name embedding for {embedding_data['episode_id']}: {embedding_data['title']}[/green]",
+            f"[green]Generated episode name embedding for {embedding_data[EmbeddingKeys.EPISODE_ID]}: {embedding_data[EmbeddingKeys.TITLE]}[/green]",
         )
 
         return output_file

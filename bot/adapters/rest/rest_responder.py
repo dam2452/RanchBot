@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import shutil
 from typing import (
+    List,
     Optional,
     Union,
 )
@@ -49,6 +50,8 @@ class RestResponder(AbstractResponder):
         delete_after_send: bool = True,
         width: Optional[int] = None,
         height: Optional[int] = None,
+        duration: Optional[float] = None,
+        suggestions: Optional[List[str]] = None,
     ) -> bool:
         background = BackgroundTask(file_path.unlink) if delete_after_send else None
         self.__set_response(

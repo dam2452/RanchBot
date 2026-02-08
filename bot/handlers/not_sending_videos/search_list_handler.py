@@ -29,9 +29,7 @@ class SearchListHandler(BotMessageHandler):
         return [self.__check_last_search_exists]
 
     async def __check_last_search_exists(self) -> bool:
-        user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id(), series_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
         if not last_search:
             await self.__reply_no_previous_search_results()
             return False
@@ -39,13 +37,9 @@ class SearchListHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id(), series_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
 
-        try:
-            segments = json.loads(last_search.segments)
-        except (json.JSONDecodeError, TypeError):
-            return await self.__reply_no_previous_search_results()
+        segments = json.loads(last_search.segments)
 
         search_term = last_search.quote
         if not segments or not search_term:

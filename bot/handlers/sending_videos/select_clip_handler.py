@@ -21,7 +21,6 @@ from bot.responses.sending_videos.select_clip_handler_responses import (
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
-from bot.video.utils import FFMpegException
 
 
 class SelectClipHandler(BotMessageHandler):
@@ -38,17 +37,14 @@ class SelectClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
-        user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
 
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id(), series_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
         if not last_search:
             return await self.__reply_no_previous_search()
 
-        try:
-            index = int(content[1])
-        except ValueError:
+        if not content[1].lstrip('-').isdigit():
             return await self.__reply_invalid_segment_number(-1)
+        index = int(content[1])
 
         segments = json.loads(last_search.segments)
         if index not in range(1, len(segments) + 1):
@@ -63,27 +59,28 @@ class SelectClipHandler(BotMessageHandler):
 
         segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
 
-        try:
-            output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
-            temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment_id}.mp4"
-            output_filename.replace(temp_file_path)
+        output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
+        temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment_id}.mp4"
+        output_filename.replace(temp_file_path)
 
-            if not await self._responder.send_video(temp_file_path):
-                await self.handle_telegram_entity_too_large_for_clip(end_time - start_time)
-                return None
+        clip_duration = end_time - start_time
+        if not await self._responder.send_video(
+            temp_file_path,
+            duration=clip_duration,
+            suggestions=["Wybrać krótszy fragment"],
+        ):
+            await self._log_clip_too_large_failure(clip_duration)
+            return None
 
-            await DatabaseManager.insert_last_clip(
-                chat_id=self._message.get_chat_id(),
-                segment=segment,
-                compiled_clip=None,
-                clip_type=ClipType.SELECTED,
-                adjusted_start_time=None,
-                adjusted_end_time=None,
-                is_adjusted=False,
-                series_id=series_id,
-            )
-        except FFMpegException as e:
-            return await self.handle_ffmpeg_exception(e)
+        await DatabaseManager.insert_last_clip(
+            chat_id=self._message.get_chat_id(),
+            segment=segment,
+            compiled_clip=None,
+            clip_type=ClipType.SELECTED,
+            adjusted_start_time=None,
+            adjusted_end_time=None,
+            is_adjusted=False,
+        )
 
         return await self._log_system_message(
             logging.INFO,

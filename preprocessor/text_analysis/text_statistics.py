@@ -175,7 +175,7 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
                 for (w1, w2, w3), count in trigram_counter.most_common(25)
             ]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "basic_statistics": {
                 "sentences": self.sentences,

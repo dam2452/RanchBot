@@ -41,9 +41,8 @@ class SendClipHandler(BotMessageHandler):
         content = self._message.get_text().split()
         clip_identifier = " ".join(content[1:])
         user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
 
-        clips = await DatabaseManager.get_saved_clips(user_id, series_id) or []
+        clips = await DatabaseManager.get_saved_clips(user_id) or []
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
@@ -62,11 +61,10 @@ class SendClipHandler(BotMessageHandler):
         content = self._message.get_text().split()
         clip_identifier = " ".join(content[1:])
         user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
-            clips = await DatabaseManager.get_saved_clips(user_id, series_id)
+            clips = await DatabaseManager.get_saved_clips(user_id)
             clip = clips[clip_number - 1]
         else:
             clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
@@ -85,8 +83,12 @@ class SendClipHandler(BotMessageHandler):
         if temp_file_path.stat().st_size == 0:
             return await self.__reply_empty_file_error(clip.name)
 
-        if not await self._responder.send_video(temp_file_path):
-            await self.handle_telegram_entity_too_large_for_clip(clip.duration)
+        if not await self._responder.send_video(
+            temp_file_path,
+            duration=clip.duration,
+            suggestions=["Wybrać krótszy fragment"],
+        ):
+            await self._log_clip_too_large_failure(clip.duration)
             return None
 
         return await self._log_system_message(

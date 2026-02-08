@@ -19,6 +19,7 @@ from bot.database.models import (
 )
 from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings as s
+from bot.utils.constants import JwtPayloadKeys
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -49,13 +50,13 @@ def create_access_token(user: UserProfile, expires_minutes: int = s.JWT_EXPIRE_M
     now = datetime.now(UTC)
     expire = now + timedelta(minutes=expires_minutes)
     payload = {
-        "user_id": user.user_id,
-        "username": user.username,
-        "full_name": user.full_name,
-        "exp": expire.timestamp(),
-        "iat": now.timestamp(),
-        "iss": s.JWT_ISSUER,
-        "aud": s.JWT_AUDIENCE,
+        JwtPayloadKeys.USER_ID: user.user_id,
+        JwtPayloadKeys.USERNAME: user.username,
+        JwtPayloadKeys.FULL_NAME: user.full_name,
+        JwtPayloadKeys.EXP: expire.timestamp(),
+        JwtPayloadKeys.IAT: now.timestamp(),
+        JwtPayloadKeys.ISS: s.JWT_ISSUER,
+        JwtPayloadKeys.AUD: s.JWT_AUDIENCE,
     }
     return jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 
@@ -69,11 +70,11 @@ async def create_refresh_token(
     now = datetime.now(UTC)
     expires_at = now + timedelta(days=expires_days)
     payload = {
-        "user_id": user.user_id,
-        "exp": expires_at.timestamp(),
-        "iat": now.timestamp(),
-        "iss": s.JWT_ISSUER,
-        "aud": s.JWT_AUDIENCE,
+        JwtPayloadKeys.USER_ID: user.user_id,
+        JwtPayloadKeys.EXP: expires_at.timestamp(),
+        JwtPayloadKeys.IAT: now.timestamp(),
+        JwtPayloadKeys.ISS: s.JWT_ISSUER,
+        JwtPayloadKeys.AUD: s.JWT_AUDIENCE,
     }
     token = jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 

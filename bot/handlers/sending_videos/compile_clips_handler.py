@@ -58,8 +58,7 @@ class CompileClipsHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         username = self._message.get_username()
 
-        series_id = await self._get_user_active_series_id(user_id)
-        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id, series_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id)
         if not last_search or not last_search.segments:
             return await self.__reply_no_previous_search_results()
 

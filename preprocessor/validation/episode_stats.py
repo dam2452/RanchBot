@@ -479,7 +479,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             else:
                 self.warnings.append(f"Missing text statistics file: {text_stats_file.name}")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "status": self.status,
             "errors": self.errors,

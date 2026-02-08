@@ -14,6 +14,10 @@ from preprocessor.core.episode_file_finder import EpisodeFileFinder
 from preprocessor.core.episode_parser import EpisodeInfoParser
 from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.utils.constants import (
+    EpisodeMetadataKeys,
+    EpisodesDataKeys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +67,12 @@ class EpisodeManager:
                 series_name=self.series_name,
             )
 
-        for season_data in self.episodes_data.get("seasons", []):
-            if season_data.get("season_number") == season:
-                episodes = sorted(season_data.get("episodes", []), key=lambda ep: ep.get("episode_number", 0))
+        for season_data in self.episodes_data.get(EpisodesDataKeys.SEASONS, []):
+            if season_data.get(EpisodesDataKeys.SEASON_NUMBER) == season:
+                episodes = sorted(
+                    season_data.get(EpisodesDataKeys.EPISODES, []),
+                    key=lambda ep: ep.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0),
+                )
 
                 if 0 < relative_episode <= len(episodes):
                     ep_data = episodes[relative_episode - 1]
@@ -73,10 +80,10 @@ class EpisodeManager:
                         absolute_episode=0,
                         season=season,
                         relative_episode=relative_episode,
-                        title=ep_data.get("title", f"S{season:02d}E{relative_episode:02d}"),
+                        title=ep_data.get(EpisodeMetadataKeys.TITLE, f"S{season:02d}E{relative_episode:02d}"),
                         series_name=self.series_name,
-                        premiere_date=ep_data.get("premiere_date"),
-                        viewership=ep_data.get("viewership"),
+                        premiere_date=ep_data.get(EpisodeMetadataKeys.PREMIERE_DATE),
+                        viewership=ep_data.get(EpisodeMetadataKeys.VIEWERSHIP),
                     )
 
         logger.warning(
@@ -143,11 +150,11 @@ class EpisodeManager:
         if not self.episodes_data:
             return episodes
 
-        for season_data in self.episodes_data.get("seasons", []):
-            season_num = season_data.get("season_number", 1)
+        for season_data in self.episodes_data.get(EpisodesDataKeys.SEASONS, []):
+            season_num = season_data.get(EpisodesDataKeys.SEASON_NUMBER, 1)
             season_episodes = sorted(
-                season_data.get("episodes", []),
-                key=lambda ep: ep.get("episode_number", 0),
+                season_data.get(EpisodesDataKeys.EPISODES, []),
+                key=lambda ep: ep.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0),
             )
 
             for idx, ep_data in enumerate(season_episodes):
@@ -156,10 +163,10 @@ class EpisodeManager:
                         absolute_episode=0,
                         season=season_num,
                         relative_episode=idx + 1,
-                        title=ep_data.get("title", f"S{season_num:02d}E{idx + 1:02d}"),
+                        title=ep_data.get(EpisodeMetadataKeys.TITLE, f"S{season_num:02d}E{idx + 1:02d}"),
                         series_name=self.series_name,
-                        premiere_date=ep_data.get("premiere_date"),
-                        viewership=ep_data.get("viewership"),
+                        premiere_date=ep_data.get(EpisodeMetadataKeys.PREMIERE_DATE),
+                        viewership=ep_data.get(EpisodeMetadataKeys.VIEWERSHIP),
                     ),
                 )
 

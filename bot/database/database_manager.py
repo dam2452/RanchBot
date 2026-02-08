@@ -30,6 +30,7 @@ from bot.database.models import (
 )
 from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
+from bot.utils.constants import DatabaseKeys
 
 db_manager_logger = logging.getLogger(__name__)
 
@@ -103,6 +104,20 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         return DatabaseManager.pool.acquire()
 
     @staticmethod
+    async def __resolve_series_id(identifier_id: Optional[int], series_id: Optional[int]) -> Optional[int]:
+        if series_id is not None:
+            return series_id
+
+        if identifier_id is not None:
+            active_series_id = await DatabaseManager.get_user_active_series(identifier_id)
+            if active_series_id:
+                return active_series_id
+
+            return await DatabaseManager.get_or_create_series(settings.DEFAULT_SERIES)
+
+        return None
+
+    @staticmethod
     async def get_or_create_series(series_name: str) -> int:
         async with DatabaseManager.__get_db_connection() as conn:
             series_id = await conn.fetchval(
@@ -138,7 +153,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def get_all_series() -> List[Series]:
         async with DatabaseManager.__get_db_connection() as conn:
             rows = await conn.fetch("SELECT id, series_name FROM series")
-            return [Series(id=row["id"], series_name=row["series_name"]) for row in rows]
+            return [Series(id=row[DatabaseKeys.ID], series_name=row[DatabaseKeys.SERIES_NAME]) for row in rows]
 
     @staticmethod
     async def log_user_activity(user_id: int, command: str, series_id: Optional[int] = None) -> None:
@@ -220,11 +235,11 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         return [
             UserProfile(
-                user_id=row["user_id"],
-                username=row["username"],
-                full_name=row["full_name"],
-                subscription_end=row["subscription_end"],
-                note=row["note"],
+                user_id=row[DatabaseKeys.USER_ID],
+                username=row[DatabaseKeys.USERNAME],
+                full_name=row[DatabaseKeys.FULL_NAME],
+                subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                note=row[DatabaseKeys.NOTE],
             ) for row in rows
         ] if rows else None
 
@@ -244,11 +259,11 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         return [
             UserProfile(
-                user_id=row["user_id"],
-                username=row["username"],
-                full_name=row.get("full_name", "N/A"),
-                subscription_end=row.get("subscription_end", None),
-                note=row.get("note", "Brak"),
+                user_id=row[DatabaseKeys.USER_ID],
+                username=row[DatabaseKeys.USERNAME],
+                full_name=row.get(DatabaseKeys.FULL_NAME, "N/A"),
+                subscription_end=row.get(DatabaseKeys.SUBSCRIPTION_END, None),
+                note=row.get(DatabaseKeys.NOTE, "Brak"),
             ) for row in rows
         ] if rows else None
 
@@ -262,11 +277,11 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         return [
             UserProfile(
-                user_id=row["user_id"],
-                username=row["username"],
-                full_name=row.get("full_name", "N/A"),
-                subscription_end=row.get("subscription_end", None),
-                note=row.get("note", "Brak"),
+                user_id=row[DatabaseKeys.USER_ID],
+                username=row[DatabaseKeys.USERNAME],
+                full_name=row.get(DatabaseKeys.FULL_NAME, "N/A"),
+                subscription_end=row.get(DatabaseKeys.SUBSCRIPTION_END, None),
+                note=row.get(DatabaseKeys.NOTE, "Brak"),
             ) for row in rows
         ] if rows else None
 
@@ -282,9 +297,9 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
         if result:
-            is_admin = result["is_admin"]
-            is_moderator = result["is_moderator"]
-            subscription_end = result["subscription_end"]
+            is_admin = result[DatabaseKeys.IS_ADMIN]
+            is_moderator = result[DatabaseKeys.IS_MODERATOR]
+            subscription_end = result[DatabaseKeys.SUBSCRIPTION_END]
             if is_admin or is_moderator or (subscription_end and subscription_end >= date.today()):
                 return True
         return False
@@ -341,29 +356,31 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     @staticmethod
     def __row_to_video_clip(row: asyncpg.Record) -> VideoClip:
         return VideoClip(
-            id=row["id"],
+            id=row[DatabaseKeys.ID],
             chat_id=row["chat_id"],
-            user_id=row["user_id"],
-            name=row["clip_name"],
-            video_data=row["video_data"],
-            start_time=row["start_time"],
-            end_time=row["end_time"],
-            duration=row["duration"],
-            season=row["season"],
-            episode_number=row["episode_number"],
-            is_compilation=row["is_compilation"],
-            series_id=row.get("series_id"),
+            user_id=row[DatabaseKeys.USER_ID],
+            name=row[DatabaseKeys.CLIP_NAME],
+            video_data=row[DatabaseKeys.VIDEO_DATA],
+            start_time=row[DatabaseKeys.START_TIME],
+            end_time=row[DatabaseKeys.END_TIME],
+            duration=row[DatabaseKeys.DURATION],
+            season=row[DatabaseKeys.SEASON],
+            episode_number=row[DatabaseKeys.EPISODE_NUMBER],
+            is_compilation=row[DatabaseKeys.IS_COMPILATION],
+            series_id=row.get(DatabaseKeys.SERIES_ID),
         )
 
     @staticmethod
     async def get_saved_clips(user_id: int, series_id: Optional[int] = None) -> List[VideoClip]:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
+
         async with DatabaseManager.__get_db_connection() as conn:
-            if series_id:
+            if resolved_series_id:
                 rows = await conn.fetch(
                     "SELECT id, chat_id, user_id, clip_name, video_data, start_time, end_time, duration, season, episode_number, is_compilation, series_id "
                     "FROM video_clips "
                     "WHERE user_id = $1 AND series_id = $2",
-                    user_id, series_id,
+                    user_id, resolved_series_id,
                 )
             else:
                 rows = await conn.fetch(
@@ -381,6 +398,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             end_time: float, duration: float, is_compilation: bool,
             season: Optional[int] = None, episode_number: Optional[int] = None, series_id: Optional[int] = None,
     ) -> None:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
+
         async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
@@ -388,7 +407,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     "end_time, duration, season, episode_number, is_compilation, series_id) "
                     "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11)",
                     chat_id, user_id, clip_name, video_data, start_time, end_time, duration,
-                    season, episode_number, is_compilation, series_id,
+                    season, episode_number, is_compilation, resolved_series_id,
                 )
 
     @staticmethod
@@ -474,7 +493,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 "SELECT id, report FROM reports WHERE user_id = $1 ORDER BY id DESC",
                 user_id,
             )
-            return [{"id": row["id"], "report": row["report"]} for row in rows]
+            return [{DatabaseKeys.ID: row[DatabaseKeys.ID], DatabaseKeys.REPORT: row[DatabaseKeys.REPORT]} for row in rows]
 
     @staticmethod
     async def delete_clip(user_id: int, clip_name: str) -> str:
@@ -498,24 +517,28 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
     @staticmethod
     async def insert_last_search(chat_id: int, quote: str, segments: str, series_id: Optional[int] = None) -> None:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
         async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 "INSERT INTO search_history (chat_id, quote, segments, series_id) "
                 "VALUES ($1, $2, $3::jsonb, $4)",
-                chat_id, quote, segments, series_id,
+                chat_id, quote, segments, resolved_series_id,
             )
 
     @staticmethod
     async def get_last_search_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[SearchHistory]:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
         async with DatabaseManager.__get_db_connection() as conn:
-            if series_id:
+            if resolved_series_id:
                 result = await conn.fetchrow(
                     "SELECT id, chat_id, quote, segments, series_id "
                     "FROM search_history "
                     "WHERE chat_id = $1 AND series_id = $2 "
                     "ORDER BY id DESC "
                     "LIMIT 1",
-                    chat_id, series_id,
+                    chat_id, resolved_series_id,
                 )
             else:
                 result = await conn.fetchrow(
@@ -529,11 +552,11 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         if result:
             return SearchHistory(
-                id=result["id"],
+                id=result[DatabaseKeys.ID],
                 chat_id=result["chat_id"],
-                quote=result["quote"],
-                segments=result["segments"],
-                series_id=result.get("series_id"),
+                quote=result[DatabaseKeys.QUOTE],
+                segments=result[DatabaseKeys.SEGMENTS],
+                series_id=result.get(DatabaseKeys.SERIES_ID),
             )
         return None
 
@@ -575,18 +598,22 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             is_adjusted: bool,
             series_id: Optional[int] = None,
     ) -> None:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
         async with DatabaseManager.__get_db_connection() as conn:
             segment_json = json.dumps(segment)
             await conn.execute(
                 "INSERT INTO last_clips (chat_id, segment, compiled_clip, type, adjusted_start_time, adjusted_end_time, is_adjusted, series_id) "
                 "VALUES ($1, $2::jsonb, $3::bytea, $4, $5, $6, $7, $8)",
-                chat_id, segment_json, compiled_clip, clip_type.value, adjusted_start_time, adjusted_end_time, is_adjusted, series_id,
+                chat_id, segment_json, compiled_clip, clip_type.value, adjusted_start_time, adjusted_end_time, is_adjusted, resolved_series_id,
             )
 
     @staticmethod
     async def get_last_clip_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[LastClip]:
+        resolved_series_id = await DatabaseManager.__resolve_series_id(chat_id, series_id)
+
         async with DatabaseManager.__get_db_connection() as conn:
-            if series_id:
+            if resolved_series_id:
                 row = await conn.fetchrow(
                     "SELECT id, chat_id, segment, compiled_clip, type AS clip_type, "
                     "adjusted_start_time, adjusted_end_time, is_adjusted, timestamp, series_id "
@@ -594,7 +621,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     "WHERE chat_id = $1 AND series_id = $2 "
                     "ORDER BY id DESC "
                     "LIMIT 1",
-                    chat_id, series_id,
+                    chat_id, resolved_series_id,
                 )
             else:
                 row = await conn.fetchrow(
@@ -609,16 +636,16 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
 
         if row:
             return LastClip(
-                id=row["id"],
+                id=row[DatabaseKeys.ID],
                 chat_id=row["chat_id"],
-                segment=row["segment"],
-                compiled_clip=row["compiled_clip"],
-                clip_type=ClipType(row["clip_type"]),
-                adjusted_start_time=row["adjusted_start_time"],
-                adjusted_end_time=row["adjusted_end_time"],
-                is_adjusted=row["is_adjusted"],
-                timestamp=row["timestamp"],
-                series_id=row.get("series_id"),
+                segment=row[DatabaseKeys.SEGMENT],
+                compiled_clip=row[DatabaseKeys.COMPILED_CLIP],
+                clip_type=ClipType(row[DatabaseKeys.CLIP_TYPE]),
+                adjusted_start_time=row[DatabaseKeys.ADJUSTED_START_TIME],
+                adjusted_end_time=row[DatabaseKeys.ADJUSTED_END_TIME],
+                is_adjusted=row[DatabaseKeys.IS_ADJUSTED],
+                timestamp=row[DatabaseKeys.TIMESTAMP],
+                series_id=row.get(DatabaseKeys.SERIES_ID),
             )
         return None
 
@@ -700,7 +727,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
         if result:
-            return result["is_admin"] or result["is_moderator"]
+            return result[DatabaseKeys.IS_ADMIN] or result[DatabaseKeys.IS_MODERATOR]
         return False
 
     @staticmethod
@@ -710,7 +737,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 "SELECT days FROM subscription_keys WHERE key = $1 AND is_active = TRUE",
                 key,
             )
-        return result['days'] if result else None
+        return result[DatabaseKeys.DAYS] if result else None
 
     @staticmethod
     async def deactivate_subscription_key(key: str) -> None:
@@ -843,7 +870,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 WHERE handler_name = $1 AND key = $2
             """
             row = await conn.fetchrow(query, handler_name, key)
-            return row["message"] if row else None
+            return row[DatabaseKeys.MESSAGE] if row else None
 
     @staticmethod
     async def get_message_from_specialized_table(
@@ -875,17 +902,17 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 profile = UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    full_name=row["full_name"],
-                    subscription_end=row["subscription_end"],
-                    note=row["note"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
                 )
                 credentials = UserCredentials(
-                    user_id=row["user_id"],
-                    hashed_password=row["hashed_password"],
-                    created_at=row["created_at"],
-                    last_updated=row["last_updated"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    hashed_password=row[DatabaseKeys.HASHED_PASSWORD],
+                    created_at=row[DatabaseKeys.CREATED_AT],
+                    last_updated=row[DatabaseKeys.LAST_UPDATED],
                 )
                 return profile, credentials
             return None
@@ -932,15 +959,15 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 return RefreshToken(
-                    id=row["id"],
-                    user_id=row["user_id"],
-                    token=row["token"],
-                    created_at=row["created_at"],
-                    expires_at=row["expires_at"],
-                    revoked=row["revoked_at"] is not None,
-                    revoked_at=row["revoked_at"],
-                    ip_address=row["ip_address"],
-                    user_agent=row["user_agent"],
+                    id=row[DatabaseKeys.ID],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    token=row[DatabaseKeys.TOKEN],
+                    created_at=row[DatabaseKeys.CREATED_AT],
+                    expires_at=row[DatabaseKeys.EXPIRES_AT],
+                    revoked=row[DatabaseKeys.REVOKED_AT] is not None,
+                    revoked_at=row[DatabaseKeys.REVOKED_AT],
+                    ip_address=row[DatabaseKeys.IP_ADDRESS],
+                    user_agent=row[DatabaseKeys.USER_AGENT],
                 )
             return None
 
@@ -989,13 +1016,13 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 profile = UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    full_name=row["full_name"],
-                    subscription_end=row["subscription_end"],
-                    note=row["note"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
                 )
-                return profile, row["hashed_password"]
+                return profile, row[DatabaseKeys.HASHED_PASSWORD]
             return None
 
     @staticmethod
@@ -1011,11 +1038,11 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row:
                 return UserProfile(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    full_name=row["full_name"],
-                    subscription_end=row["subscription_end"],
-                    note=row["note"],
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
                 )
             return None
 

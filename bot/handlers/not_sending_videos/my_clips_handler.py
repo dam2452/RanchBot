@@ -24,9 +24,8 @@ class MyClipsHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()
-        series_id = await self._get_user_active_series_id(user_id)
 
-        clips = await DatabaseManager.get_saved_clips(user_id, series_id)
+        clips = await DatabaseManager.get_saved_clips(user_id)
         if not clips:
             return await self.__reply_no_saved_clips()
 

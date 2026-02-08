@@ -19,9 +19,12 @@ from bot.types import (
     TranscriptionContext,
 )
 from bot.utils.constants import (
+    ElasticsearchAggregationKeys,
     ElasticsearchKeys,
+    ElasticsearchQueryKeys,
     EpisodeMetadataKeys,
     SegmentKeys,
+    TranscriptionContextKeys,
 )
 from bot.utils.log import log_system_message
 
@@ -112,34 +115,38 @@ class TranscriptionFinder:
         index = f"{series_name}_text_segments"
 
         query = {
-            "query": {
-                "bool": {
-                    "must": {
-                        "match": {
-                            "text": {
-                                "query": quote,
-                                "fuzziness": "AUTO",
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.MUST: {
+                        ElasticsearchQueryKeys.MATCH: {
+                            SegmentKeys.TEXT: {
+                                ElasticsearchQueryKeys.QUERY: quote,
+                                ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
                             },
                         },
                     },
-                    "filter": [
-                        {"term": {"episode_metadata.series_name": series_name}},
+                    ElasticsearchQueryKeys.FILTER: [
+                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SERIES_NAME}": series_name}},
                     ],
                 },
             },
-            "sort": [
-                {"_score": {"order": "desc"}},
-                {"episode_metadata.season": {"order": "asc"}},
-                {"episode_metadata.episode_number": {"order": "asc"}},
-                {"start_time": {"order": "asc"}},
+            ElasticsearchQueryKeys.SORT: [
+                {ElasticsearchKeys.SCORE: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC}},
+                {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
+                {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
+                {SegmentKeys.START_TIME: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
             ],
         }
 
         if season_filter:
-            query["query"]["bool"]["filter"].append({"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season_filter}})
+            query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][ElasticsearchQueryKeys.FILTER].append(
+                {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season_filter}},
+            )
 
         if episode_filter:
-            query["query"]["bool"]["filter"].append({"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_filter}})
+            query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][ElasticsearchQueryKeys.FILTER].append(
+                {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_filter}},
+            )
 
         hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
@@ -204,29 +211,32 @@ class TranscriptionFinder:
             return None
 
         segment = segment[0] if isinstance(segment, list) else segment
-        episode_data = segment.get("episode_metadata", segment.get("episode_info", {}))
-        segment_id = segment.get("segment_id", segment.get("id"))
+        episode_data = segment.get(
+            EpisodeMetadataKeys.EPISODE_METADATA,
+            segment.get(EpisodeMetadataKeys.EPISODE_INFO, {}),
+        )
+        segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
 
         context_segments = await TranscriptionFinder._fetch_context_segments(
             es, index, episode_data, segment_id, context_size,
         )
 
-        segment_start = segment.get("start_time", segment.get("start"))
-        segment_end = segment.get("end_time", segment.get("end"))
+        segment_start = segment.get(SegmentKeys.START_TIME, segment.get(SegmentKeys.START))
+        segment_end = segment.get(SegmentKeys.END_TIME, segment.get(SegmentKeys.END))
         unique_context_segments = TranscriptionFinder.__build_unique_segments(
             context_segments, segment_id, segment, segment_start, segment_end,
         )
 
         await log_system_message(logging.INFO, f"Found {len(unique_context_segments)} unique segments for context.", logger)
 
-        overall_start_time = min(seg['start'] for seg in unique_context_segments)
-        overall_end_time = max(seg['end'] for seg in unique_context_segments)
+        overall_start_time = min(seg[SegmentKeys.START] for seg in unique_context_segments)
+        overall_end_time = max(seg[SegmentKeys.END] for seg in unique_context_segments)
 
         return {
-            "target": segment,
-            "context": unique_context_segments,
-            "overall_start_time": overall_start_time,
-            "overall_end_time": overall_end_time,
+            TranscriptionContextKeys.TARGET: segment,
+            TranscriptionContextKeys.CONTEXT: unique_context_segments,
+            TranscriptionContextKeys.OVERALL_START_TIME: overall_start_time,
+            TranscriptionContextKeys.OVERALL_END_TIME: overall_end_time,
         }
 
     @staticmethod
@@ -243,43 +253,43 @@ class TranscriptionFinder:
         )
 
         context_query_before = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.MUST: [
+                        {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
                         {
-                            "term": {
+                            ElasticsearchQueryKeys.TERM: {
                                 episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
                             },
                         },
                     ],
-                    "filter": [
-                        {"range": {SegmentKeys.SEGMENT_ID: {"lt": segment_id}}},
+                    ElasticsearchQueryKeys.FILTER: [
+                        {ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.LT: segment_id}}},
                     ],
                 },
             },
-            "sort": [{SegmentKeys.SEGMENT_ID: "desc"}],
-            "size": context_size,
+            ElasticsearchQueryKeys.SORT: [{SegmentKeys.SEGMENT_ID: ElasticsearchQueryKeys.DESC}],
+            ElasticsearchQueryKeys.SIZE: context_size,
         }
 
         context_query_after = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.MUST: [
+                        {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
                         {
-                            "term": {
+                            ElasticsearchQueryKeys.TERM: {
                                 episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
                             },
                         },
                     ],
-                    "filter": [
-                        {"range": {SegmentKeys.SEGMENT_ID: {"gt": segment_id}}},
+                    ElasticsearchQueryKeys.FILTER: [
+                        {ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.GT: segment_id}}},
                     ],
                 },
             },
-            "sort": [{SegmentKeys.SEGMENT_ID: "asc"}],
-            "size": context_size,
+            ElasticsearchQueryKeys.SORT: [{SegmentKeys.SEGMENT_ID: ElasticsearchQueryKeys.ASC}],
+            ElasticsearchQueryKeys.SIZE: context_size,
         }
 
         context_response_before = await es.search(index=index, body=context_query_before)
@@ -340,11 +350,11 @@ class TranscriptionFinder:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
         query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
-                        {"term": {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.MUST: [
+                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
+                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
                     ],
                 },
             },
@@ -373,29 +383,29 @@ class TranscriptionFinder:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
         query = {
-            "size": 0,
-            "query": {
-                "term": {"episode_metadata.season": season},
+            ElasticsearchQueryKeys.SIZE: 0,
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season},
             },
-            "aggs": {
-                "unique_episodes": {
-                    "terms": {
-                        "field": "episode_metadata.episode_number",
-                        "size": 1000,
-                        "order": {
-                            "_key": "asc",
+            ElasticsearchQueryKeys.AGGS: {
+                ElasticsearchAggregationKeys.UNIQUE_EPISODES: {
+                    ElasticsearchQueryKeys.TERMS: {
+                        ElasticsearchQueryKeys.FIELD: f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}",
+                        ElasticsearchQueryKeys.SIZE: 1000,
+                        ElasticsearchQueryKeys.ORDER: {
+                            ElasticsearchQueryKeys.KEY: ElasticsearchQueryKeys.ASC,
                         },
                     },
-                    "aggs": {
-                        "episode_metadata": {
-                            "top_hits": {
-                                "size": 1,
-                                "_source": {
-                                    "includes": [
-                                        "episode_metadata.title",
-                                        "episode_metadata.premiere_date",
-                                        "episode_metadata.viewership",
-                                        "episode_metadata.episode_number",
+                    ElasticsearchQueryKeys.AGGS: {
+                        EpisodeMetadataKeys.EPISODE_METADATA: {
+                            ElasticsearchQueryKeys.TOP_HITS: {
+                                ElasticsearchQueryKeys.SIZE: 1,
+                                ElasticsearchQueryKeys.SOURCE: {
+                                    ElasticsearchQueryKeys.INCLUDES: [
+                                        f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.TITLE}",
+                                        f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.PREMIERE_DATE}",
+                                        f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.VIEWERSHIP}",
+                                        f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}",
                                     ],
                                 },
                             },
@@ -406,7 +416,7 @@ class TranscriptionFinder:
         }
 
         response = await es.search(index=index, body=query)
-        buckets = response[ElasticsearchKeys.AGGREGATIONS]["unique_episodes"][ElasticsearchKeys.BUCKETS]
+        buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchKeys.BUCKETS]
 
         if not buckets:
             await log_system_message(logging.INFO, f"No episodes found for season {season}.", logger)
@@ -422,9 +432,9 @@ class TranscriptionFinder:
                 EpisodeMetadataKeys.EPISODE_NUMBER: episode_metadata.get(
                     EpisodeMetadataKeys.EPISODE_NUMBER,
                 ),
-                "title": episode_metadata.get("title", "Unknown"),
-                "premiere_date": episode_metadata.get("premiere_date", "Unknown"),
-                "viewership": episode_metadata.get("viewership", "Unknown"),
+                EpisodeMetadataKeys.TITLE: episode_metadata.get(EpisodeMetadataKeys.TITLE, "Unknown"),
+                EpisodeMetadataKeys.PREMIERE_DATE: episode_metadata.get(EpisodeMetadataKeys.PREMIERE_DATE, "Unknown"),
+                EpisodeMetadataKeys.VIEWERSHIP: episode_metadata.get(EpisodeMetadataKeys.VIEWERSHIP, "Unknown"),
             }
             episodes.append(episode)
 
@@ -440,18 +450,18 @@ class TranscriptionFinder:
         index = f"{series_name}_text_segments"
 
         agg_query = {
-            "size": 0,
-            "aggs": {
-                "seasons": {
-                    "terms": {
-                        "field": "episode_metadata.season",
-                        "size": 1000,
-                        "order": {"_key": "asc"},
+            ElasticsearchQueryKeys.SIZE: 0,
+            ElasticsearchQueryKeys.AGGS: {
+                ElasticsearchAggregationKeys.SEASONS: {
+                    ElasticsearchQueryKeys.TERMS: {
+                        ElasticsearchQueryKeys.FIELD: f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}",
+                        ElasticsearchQueryKeys.SIZE: 1000,
+                        ElasticsearchQueryKeys.ORDER: {ElasticsearchQueryKeys.KEY: ElasticsearchQueryKeys.ASC},
                     },
-                    "aggs": {
-                        "unique_episodes": {
-                            "cardinality": {
-                                "field": "episode_metadata.episode_number",
+                    ElasticsearchQueryKeys.AGGS: {
+                        ElasticsearchAggregationKeys.UNIQUE_EPISODES: {
+                            ElasticsearchQueryKeys.CARDINALITY: {
+                                ElasticsearchQueryKeys.FIELD: f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}",
                             },
                         },
                     },
@@ -461,12 +471,12 @@ class TranscriptionFinder:
 
         await log_system_message(logging.INFO, "Fetching season details via Elasticsearch aggregation.", logger)
         response = await es.search(index=index, body=agg_query)
-        buckets = response[ElasticsearchKeys.AGGREGATIONS]["seasons"][ElasticsearchKeys.BUCKETS]
+        buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.SEASONS][ElasticsearchKeys.BUCKETS]
 
         season_dict: SeasonInfoDict = {}
         for bucket in buckets:
             season_key = str(bucket[ElasticsearchKeys.KEY])
-            episodes_count = bucket["unique_episodes"]["value"]
+            episodes_count = bucket[ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE]
             season_dict[season_key] = episodes_count
 
         await log_system_message(logging.INFO, f"Season details: {season_dict}", logger)
