@@ -2,8 +2,8 @@ aiogram~=3.19.0
 asyncpg~=0.30.0
 bcrypt~=4.3.0
 click~=8.1.8
-elastic-transport~=9.0.0
-elasticsearch~=9.0.0
+elastic-transport~=9.2.0
+elasticsearch~=9.2.0
 fastapi~=0.115.12
 ffmpeg==1.4
 passlib[bcrypt]~=1.7.4
