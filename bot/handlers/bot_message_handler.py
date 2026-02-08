@@ -17,7 +17,7 @@ from typing import (
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
-from bot.exceptions.video_exceptions import (
+from bot.exceptions import (
     CompilationTooLargeException,
     VideoTooLargeException,
 )
@@ -230,4 +230,4 @@ class BotMessageHandler(ABC):
                 suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
             )
         except VideoTooLargeException as e:
-            raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions)
+            raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions) from e

@@ -13,7 +13,7 @@ from aiogram.types import (
     Message,
 )
 
-from bot.exceptions.video_exceptions import VideoTooLargeException
+from bot.exceptions import VideoTooLargeException
 from bot.interfaces.responder import AbstractResponder
 from bot.settings import settings
 from bot.utils.functions import RESOLUTIONS
@@ -73,8 +73,8 @@ class TelegramResponder(AbstractResponder):
                 reply_to_message_id=self._message.message_id,
                 disable_notification=True,
             )
-        except TelegramEntityTooLarge:
-            raise VideoTooLargeException(duration=duration, suggestions=suggestions)
+        except TelegramEntityTooLarge as exc:
+            raise VideoTooLargeException(duration=duration, suggestions=suggestions) from exc
         finally:
             if delete_after_send:
                 file_path.unlink()
