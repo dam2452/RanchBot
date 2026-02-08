@@ -3,6 +3,7 @@ from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.services.reindex.series_scanner import SeriesScanner
+from bot.settings import settings
 
 
 class SerialContextManager:
@@ -14,8 +15,9 @@ class SerialContextManager:
         series_id = await DatabaseManager.get_user_active_series(user_id)
         if series_id:
             series_name = await DatabaseManager.get_series_by_id(series_id)
-            return series_name or "ranczo"
-        return "ranczo"
+            if series_name:
+                return series_name
+        return settings.DEFAULT_SERIES
 
     async def set_user_active_series(self, user_id: int, series_name: str) -> None:
         series_id = await DatabaseManager.get_or_create_series(series_name)

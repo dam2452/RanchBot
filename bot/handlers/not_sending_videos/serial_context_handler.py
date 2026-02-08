@@ -17,7 +17,7 @@ from bot.services.serial_context.serial_context_manager import SerialContextMana
 class SerialContextHandler(BotMessageHandler):
     def __init__(self, message, responder, logger):
         super().__init__(message, responder, logger)
-        self.serial_manager = SerialContextManager(logger)
+        self._serial_manager = SerialContextManager(logger)
 
     def get_commands(self) -> List[str]:
         return ["serial", "series" ,"ser"]
@@ -35,10 +35,10 @@ class SerialContextHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
         user_id = self._message.get_user_id()
-        available_series = await self.serial_manager.list_available_series()
+        available_series = await self._serial_manager.list_available_series()
 
         if len(args) == 1:
-            current_series = await self.serial_manager.get_user_active_series(user_id)
+            current_series = await self._serial_manager.get_user_active_series(user_id)
             await self.reply(get_serial_current_message(current_series, available_series))
             return
 
@@ -51,7 +51,7 @@ class SerialContextHandler(BotMessageHandler):
             )
             return
 
-        await self.serial_manager.set_user_active_series(user_id, series_name)
+        await self._serial_manager.set_user_active_series(user_id, series_name)
 
         await self.reply(get_serial_changed_message(series_name))
         await self._log_system_message(

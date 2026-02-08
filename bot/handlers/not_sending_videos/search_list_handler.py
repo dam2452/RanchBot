@@ -52,10 +52,7 @@ class SearchListHandler(BotMessageHandler):
             return await self.__reply_no_previous_search_results()
 
         if self._message.should_reply_json():
-            if last_search.series_id:
-                series_name = await DatabaseManager.get_series_by_id(last_search.series_id) or "ranczo"
-            else:
-                series_name = "ranczo"
+            series_name = await self._get_user_active_series(user_id)
             season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=series_name)
             await self._responder.send_json({
                 "query": search_term,

@@ -22,9 +22,9 @@ from bot.services.reindex.reindex_service import ReindexService
 class ReindexHandler(BotMessageHandler):
     def __init__(self, message, responder, logger):
         super().__init__(message, responder, logger)
-        self.reindex_service = ReindexService(logger)
-        self.last_progress_time = 0
-        self.progress_message = None
+        self._reindex_service = ReindexService(logger)
+        self._last_progress_time = 0
+        self._progress_message = None
 
     def get_commands(self) -> List[str]:
         return ["reindeksuj", "reindex", "ridx"]
@@ -63,14 +63,14 @@ class ReindexHandler(BotMessageHandler):
 
         try:
             if target == "all":
-                results = await self.reindex_service.reindex_all(progress_callback)
+                results = await self._reindex_service.reindex_all(progress_callback)
                 total_docs = sum(r.documents_indexed for r in results)
                 total_eps = sum(r.episodes_processed for r in results)
                 await self.reply(
                     get_reindex_all_complete_message(len(results), total_eps, total_docs),
                 )
             elif target == "all-new":
-                results = await self.reindex_service.reindex_all_new(progress_callback)
+                results = await self._reindex_service.reindex_all_new(progress_callback)
                 if not results:
                     await self.reply(get_no_new_series_message())
                     return
@@ -80,7 +80,7 @@ class ReindexHandler(BotMessageHandler):
                     get_reindex_all_new_complete_message(len(results), total_eps, total_docs),
                 )
             else:
-                result = await self.reindex_service.reindex_series(
+                result = await self._reindex_service.reindex_series(
                     target, progress_callback,
                 )
                 await self.reply(get_reindex_complete_message(result))
@@ -97,22 +97,22 @@ class ReindexHandler(BotMessageHandler):
                 f"Reindex failed: {e}",
             )
         finally:
-            await self.reindex_service.close()
+            await self._reindex_service.close()
 
     def __create_progress_callback(self):
         async def callback(message: str, current: int, total: int):
             now = time.time()
 
-            if now - self.last_progress_time < 1:
+            if now - self._last_progress_time < 1:
                 return
 
-            self.last_progress_time = now
+            self._last_progress_time = now
 
             progress_text = get_reindex_progress_message(message, current, total)
 
-            if hasattr(self._responder, 'edit_text') and self.progress_message:
-                await self._responder.edit_text(self.progress_message, progress_text)
+            if hasattr(self._responder, 'edit_text') and self._progress_message:
+                await self._responder.edit_text(self._progress_message, progress_text)
             else:
-                self.progress_message = await self._responder.send_markdown(progress_text)
+                self._progress_message = await self._responder.send_markdown(progress_text)
 
         return callback
