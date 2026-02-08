@@ -65,7 +65,7 @@ class InlineClipHandler(BotMessageHandler):
         saved_clip, segments, season_info, _ = await self.__fetch_data(user_id, query)
 
         if not saved_clip and not segments:
-            await self._answer(f'Nie znaleziono klipów dla zapytania: "{query}"')
+            await self._responder.send_text(f'Nie znaleziono klipów dla zapytania: "{query}"')
             return
 
         temp_dir = Path(tempfile.mkdtemp())
@@ -73,11 +73,11 @@ class InlineClipHandler(BotMessageHandler):
             video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True)
 
             if not video_files:
-                await self._answer(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
+                await self._responder.send_text(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
                 return
 
             zip_path = await self.__create_zip(video_files, temp_dir, query)
-            await self._answer_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir)
+            await self._responder.send_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir)
         except Exception:
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise

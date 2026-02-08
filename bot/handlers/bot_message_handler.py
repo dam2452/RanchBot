@@ -4,7 +4,6 @@ from abc import (
 )
 import json
 import logging
-from pathlib import Path
 from typing import (
     Any,
     Awaitable,
@@ -24,8 +23,6 @@ from bot.exceptions import (
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
-    get_clip_size_exceed_log_message,
-    get_clip_size_log_message,
     get_extraction_failure_message,
     get_general_error_message,
     get_invalid_args_count_message,
@@ -33,7 +30,6 @@ from bot.responses.bot_message_handler_responses import (
     get_log_clip_too_large_message,
     get_log_compilation_too_large_message,
     get_log_extraction_failure_message,
-    get_video_sent_log_message,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
 from bot.services.serial_context.serial_context_manager import SerialContextManager
@@ -117,28 +113,6 @@ class BotMessageHandler(ABC):
     async def _do_handle(self) -> None:
         pass
 
-    async def _answer_markdown(self, text: str) -> None:
-        await self._responder.send_markdown(text)
-
-    async def _answer(self, text: str) -> None:
-        await self._responder.send_text(text)
-
-    async def _answer_photo(self, image_bytes: bytes, image_path: Path, caption: str) -> None:
-        await self._responder.send_photo(image_bytes, image_path, caption)
-
-    async def _answer_video(self, file_path: Path) -> None:
-        file_size_mb = file_path.stat().st_size / (1024 * 1024)
-        await self._log_system_message(logging.INFO, get_clip_size_log_message(file_path, file_size_mb))
-
-        if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
-            await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
-
-        await self._responder.send_video(file_path)
-        await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
-
-    async def _answer_document(self, file_path: Path, caption: str, cleanup_dir: Optional[Path] = None) -> None:
-        await self._responder.send_document(file_path, caption, cleanup_dir=cleanup_dir)
-        await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
 
     @abstractmethod
     async def _get_validator_functions(self) -> ValidatorFunctions:
@@ -146,7 +120,7 @@ class BotMessageHandler(ABC):
 
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: float) -> bool:
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
-            await self._answer_markdown(get_limit_exceeded_clip_duration_message())
+            await self._responder.send_markdown(get_limit_exceeded_clip_duration_message())
             await self._log_system_message(logging.INFO, get_log_clip_duration_exceeded_message(self._message.get_user_id()))
             return True
         return False

@@ -54,7 +54,7 @@ class EpisodeListHandler(BotMessageHandler):
             })
         else:
             response = format_season_list_response(season_info)
-            await self._answer_markdown(response)
+            await self._responder.send_markdown(response)
 
         await self._log_system_message(
             logging.INFO,
@@ -85,7 +85,7 @@ class EpisodeListHandler(BotMessageHandler):
         else:
             response = format_episode_list_response(season, episodes, season_info)
             for part in self.__split_message(response):
-                await self._answer_markdown(part)
+                await self._responder.send_markdown(part)
 
         await self._log_system_message(
             logging.INFO,
