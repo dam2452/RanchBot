@@ -69,7 +69,7 @@ class EpisodeListHandler(BotMessageHandler):
             try:
                 season = int(season_arg)
             except ValueError:
-                return await self.reply_error(get_invalid_args_count_message())
+                return await self._reply_error(get_invalid_args_count_message())
 
         episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger, index=index)
 
@@ -93,7 +93,7 @@ class EpisodeListHandler(BotMessageHandler):
         )
 
     async def __reply_no_episodes_found(self, season: int) -> None:
-        await self.reply_error(get_no_episodes_found_message(season))
+        await self._reply_error(get_no_episodes_found_message(season))
         await self._log_system_message(logging.INFO, get_log_no_episodes_found_message(season))
 
     @staticmethod

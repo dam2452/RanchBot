@@ -39,7 +39,7 @@ class ClipHandler(BotMessageHandler):
         msg = self._message
         if not await DatabaseManager.is_admin_or_moderator(msg.get_user_id()) \
                 and len(msg.get_text()) > settings.MAX_SEARCH_QUERY_LENGTH:
-            await self.reply_error(get_message_too_long_message())
+            await self._reply_error(get_message_too_long_message())
             return False
         return True
 
@@ -64,13 +64,11 @@ class ClipHandler(BotMessageHandler):
 
         output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
 
-        if not await self._responder.send_video(
+        await self._responder.send_video(
             output_filename,
             duration=clip_duration,
             suggestions=["Wybrać krótszy fragment"],
-        ):
-            await self._log_clip_too_large_failure(clip_duration)
-            return None
+        )
 
         await DatabaseManager.insert_last_clip(
             chat_id=msg.get_chat_id(),
@@ -85,7 +83,7 @@ class ClipHandler(BotMessageHandler):
         return await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self.reply_error(get_no_segments_found_message())
+        await self._reply_error(get_no_segments_found_message())
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))
 
     async def __log_segment_and_clip_success(self, chat_id: int, username: str) -> None:

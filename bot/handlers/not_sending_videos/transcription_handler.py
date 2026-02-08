@@ -39,7 +39,7 @@ class TranscriptionHandler(BotMessageHandler):
         if not result:
             return await self.__reply_no_segments_found(quote)
 
-        await self.reply(
+        await self._reply(
             get_transcription_response(quote, result),
             data={
                 "quote": quote,
@@ -53,5 +53,5 @@ class TranscriptionHandler(BotMessageHandler):
         )
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self.reply_error(get_no_segments_found_message(quote))
+        await self._reply_error(get_no_segments_found_message(quote))
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))

@@ -87,7 +87,7 @@ class StartHandler(BotMessageHandler):
             await self.__send_message(response)
 
     async def __send_message(self, text: str) -> None:
-        await self.reply(text)
+        await self._reply(text)
         await self._log_system_message(
             logging.INFO,
             get_log_start_message_sent(self._message.get_username()),

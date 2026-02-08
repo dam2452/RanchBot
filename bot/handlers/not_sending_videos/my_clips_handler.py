@@ -36,7 +36,7 @@ class MyClipsHandler(BotMessageHandler):
             series_name=active_series,
         )
 
-        await self.reply(
+        await self._reply(
             format_myclips_response(
                 clips=clips,
                 username=self._message.get_username(),
@@ -55,6 +55,6 @@ class MyClipsHandler(BotMessageHandler):
         )
 
     async def __reply_no_saved_clips(self) -> None:
-        await self.reply(get_no_saved_clips_message(), data={"clips": []})
+        await self._reply(get_no_saved_clips_message(), data={"clips": []})
 
         await self._log_system_message(logging.INFO, get_log_no_saved_clips_message(self._message.get_username()))

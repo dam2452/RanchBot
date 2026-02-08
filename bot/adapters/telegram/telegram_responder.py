@@ -13,6 +13,7 @@ from aiogram.types import (
     Message,
 )
 
+from bot.exceptions.video_exceptions import VideoTooLargeException
 from bot.interfaces.responder import AbstractResponder
 from bot.settings import settings
 from bot.utils.functions import RESOLUTIONS
@@ -52,13 +53,18 @@ class TelegramResponder(AbstractResponder):
         height: Optional[int] = None,
         duration: Optional[float] = None,
         suggestions: Optional[List[str]] = None,
-    ) -> bool:
-        if width is None or height is None:
-            resolution = RESOLUTIONS[settings.DEFAULT_RESOLUTION_KEY]
-            width = resolution.width
-            height = resolution.height
-
+    ) -> None:
         try:
+            file_size_mb = file_path.stat().st_size / (1024 * 1024)
+
+            if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
+                raise VideoTooLargeException(duration=duration, suggestions=suggestions)
+
+            if width is None or height is None:
+                resolution = RESOLUTIONS[settings.DEFAULT_RESOLUTION_KEY]
+                width = resolution.width
+                height = resolution.height
+
             await self._message.answer_video(
                 video=FSInputFile(file_path),
                 width=width,
@@ -67,14 +73,11 @@ class TelegramResponder(AbstractResponder):
                 reply_to_message_id=self._message.message_id,
                 disable_notification=True,
             )
-            if delete_after_send:
-                file_path.unlink()
-            return True
         except TelegramEntityTooLarge:
+            raise VideoTooLargeException(duration=duration, suggestions=suggestions)
+        finally:
             if delete_after_send:
                 file_path.unlink()
-            await self.send_text(self._get_file_too_large_message(duration, suggestions))
-            return False
 
     async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True, cleanup_dir: Optional[Path] = None) -> None:
         await self._message.answer_document(
@@ -89,17 +92,3 @@ class TelegramResponder(AbstractResponder):
             file_path.unlink()
     async def send_json(self, data: json) -> None:
         raise NotImplementedError("JSON mode not supported for TelegramResponder")
-
-    @staticmethod
-    def _get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[List[str]] = None) -> str:
-        message = "❌ Plik jest za duży do wysłania"
-
-        if duration is not None:
-            message += f" ({duration:.1f}s)"
-
-        message += ".\n\nTelegram ma limit 50MB dla wideo."
-
-        if suggestions:
-            message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)
-
-        return message

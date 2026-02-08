@@ -71,7 +71,7 @@ class SearchListHandler(BotMessageHandler):
         )
 
     async def __reply_no_previous_search_results(self) -> None:
-        await self.reply_error(get_no_previous_search_results_message())
+        await self._reply_error(get_no_previous_search_results_message())
         await self._log_system_message(
             logging.INFO,
             get_log_no_previous_search_results_message(self._message.get_chat_id()),

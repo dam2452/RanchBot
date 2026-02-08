@@ -29,7 +29,7 @@ class RemoveSubscriptionHandler(BotMessageHandler):
     async def __check_user_id_is_digit(self) -> bool:
         user_input = self._message.get_text().split()[1]
         if not user_input.isdigit():
-            await self.reply_error(get_no_user_id_provided_message())
+            await self._reply_error(get_no_user_id_provided_message())
             return False
         return True
 
@@ -38,5 +38,5 @@ class RemoveSubscriptionHandler(BotMessageHandler):
 
         await DatabaseManager.remove_subscription(user_id)
 
-        await self.reply(get_subscription_removed_message(str(user_id)))
+        await self._reply(get_subscription_removed_message(str(user_id)))
         await self._log_system_message(logging.INFO, get_log_subscription_removed_message(str(user_id), self._message.get_username()))

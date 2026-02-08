@@ -41,7 +41,7 @@ class SearchHandler(BotMessageHandler):
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and len(
                 quote,
         ) > settings.MAX_SEARCH_QUERY_LENGTH:
-            await self.reply_error(get_message_too_long_message())
+            await self._reply_error(get_message_too_long_message())
             return False
         return True
 
@@ -65,7 +65,7 @@ class SearchHandler(BotMessageHandler):
 
         response = format_search_response(len(segments), segments, quote)
 
-        await self.reply(
+        await self._reply(
             response,
             data={
                 "quote": quote,
@@ -75,5 +75,5 @@ class SearchHandler(BotMessageHandler):
         await self._log_system_message(logging.INFO, get_log_search_results_sent_message(quote, self._message.get_username()))
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self.reply_error(get_no_segments_found_message(quote))
+        await self._reply_error(get_no_segments_found_message(quote))
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))

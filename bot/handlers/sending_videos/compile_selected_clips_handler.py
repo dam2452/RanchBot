@@ -80,14 +80,13 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         if await self._handle_clip_duration_limit_exceeded(total_duration):
             return None
 
-        if await self.compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED) is None:
-            return None
+        await self._compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED)
 
-        return await self._log_system_message(
+        await self._log_system_message(
             logging.INFO,
             get_compiled_clip_sent_message(self._message.get_username()),
         )
 
     async def __reply_no_matching_clips_found(self) -> None:
-        await self.reply_error(get_no_matching_clips_found_message())
+        await self._reply_error(get_no_matching_clips_found_message())
         await self._log_system_message(logging.INFO, get_log_no_matching_clips_found_message())

@@ -52,7 +52,7 @@ class RestResponder(AbstractResponder):
         height: Optional[int] = None,
         duration: Optional[float] = None,
         suggestions: Optional[List[str]] = None,
-    ) -> bool:
+    ) -> None:
         background = BackgroundTask(file_path.unlink) if delete_after_send else None
         self.__set_response(
             FileResponse(
@@ -62,7 +62,6 @@ class RestResponder(AbstractResponder):
                 background=background,
             ),
         )
-        return True
 
     async def send_document(
         self,

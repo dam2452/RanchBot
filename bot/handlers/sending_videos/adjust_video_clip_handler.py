@@ -72,7 +72,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             await self._log_system_message(logging.INFO, f"Relative adjustment. Last clip: {last_clip}")
 
         if await self.__is_adjustment_exceeding_limits(additional_start_offset, additional_end_offset):
-            return await self.reply_error(get_max_extension_limit_message())
+            return await self._reply_error(get_max_extension_limit_message())
 
         # prevent adding extra padding in sequential adjustments while keeping the minimum clip length for the first use
         extend_before = 0 if is_consecutive_adjustment else settings.EXTEND_BEFORE
@@ -82,7 +82,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         end_time = min(original_end_time + additional_end_offset + extend_after, await get_video_duration(segment_info.get("video_path")))
 
         if start_time >= end_time:
-            await self.reply_error(get_invalid_interval_message())
+            await self._reply_error(get_invalid_interval_message())
             await self._log_system_message(logging.INFO, get_invalid_interval_log())
             return None
 
@@ -92,16 +92,11 @@ class AdjustVideoClipHandler(BotMessageHandler):
         output_filename = await ClipsExtractor.extract_clip(segment_info.get("video_path"), start_time, end_time, self._logger)
 
         clip_duration = end_time - start_time
-        if not await self._responder.send_video(
+        await self._responder.send_video(
             output_filename,
             duration=clip_duration,
             suggestions=["Zmniejszyć rozszerzenie czasowe", "Wybrać krótszy fragment"],
-        ):
-            await self._log_system_message(
-                logging.WARNING,
-                f"Clip too large to send via Telegram: {clip_duration:.1f}s for user {msg.get_username()}",
-            )
-            return None
+        )
 
         await DatabaseManager.insert_last_clip(
             chat_id=msg.get_chat_id(),
@@ -117,15 +112,15 @@ class AdjustVideoClipHandler(BotMessageHandler):
         return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
 
     async def __reply_no_previous_searches(self) -> None:
-        await self.reply_error(get_no_previous_searches_message())
+        await self._reply_error(get_no_previous_searches_message())
         await self._log_system_message(logging.INFO, get_no_previous_searches_log())
 
     async def __reply_no_quotes_selected(self) -> None:
-        await self.reply_error(get_no_quotes_selected_message())
+        await self._reply_error(get_no_quotes_selected_message())
         await self._log_system_message(logging.INFO, get_no_quotes_selected_log())
 
     async def __reply_invalid_segment_index(self) -> None:
-        await self.reply_error(get_invalid_segment_index_message())
+        await self._reply_error(get_invalid_segment_index_message())
         await self._log_system_message(logging.INFO, get_invalid_segment_log())
 
     async def __is_adjustment_exceeding_limits(self, additional_start_offset: float, additional_end_offset: float) -> bool:

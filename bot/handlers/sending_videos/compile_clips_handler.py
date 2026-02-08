@@ -95,11 +95,9 @@ class CompileClipsHandler(BotMessageHandler):
         if await self._check_clip_duration_limit(user_id, total_duration):
             return await self.__reply_clip_duration_exceeded()
 
-        result = await self.compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED)
-        if result is None:
-            return None
+        await self._compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED)
 
-        return await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
+        await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
 
     async def __parse_segments(
         self, content: List[str], segments: List[ClipSegment],
@@ -181,28 +179,28 @@ class CompileClipsHandler(BotMessageHandler):
         return total_duration > settings.LIMIT_DURATION
 
     async def __reply_no_previous_search_results(self) -> None:
-        await self.reply_error(get_no_previous_search_results_message())
+        await self._reply_error(get_no_previous_search_results_message())
         await self._log_system_message(logging.INFO, get_log_no_previous_search_results_message())
 
     async def __reply_no_matching_segments_found(self) -> None:
-        await self.reply_error(get_no_matching_segments_found_message())
+        await self._reply_error(get_no_matching_segments_found_message())
         await self._log_system_message(logging.INFO, get_log_no_matching_segments_found_message())
 
     async def __reply_clip_duration_exceeded(self) -> None:
-        await self.reply_error(get_clip_time_message())
+        await self._reply_error(get_clip_time_message())
         await self._log_system_message(
             logging.INFO,
             get_log_compiled_clip_is_too_long_message(self._message.get_username()),
         )
 
     async def __reply_invalid_range(self, err_msg: str) -> None:
-        await self.reply_error(err_msg)
+        await self._reply_error(err_msg)
         await self._log_system_message(logging.INFO, get_log_invalid_range_message())
 
     async def __reply_invalid_index(self, err_msg: str) -> None:
-        await self.reply_error(err_msg)
+        await self._reply_error(err_msg)
         await self._log_system_message(logging.INFO, get_log_invalid_index_message())
 
     async def __reply_max_clips_exceeded(self) -> None:
-        await self.reply_error(get_max_clips_exceeded_message())
+        await self._reply_error(get_max_clips_exceeded_message())
         await self._log_system_message(logging.INFO, get_max_clips_exceeded_message())

@@ -64,13 +64,11 @@ class SelectClipHandler(BotMessageHandler):
         output_filename.replace(temp_file_path)
 
         clip_duration = end_time - start_time
-        if not await self._responder.send_video(
+        await self._responder.send_video(
             temp_file_path,
             duration=clip_duration,
             suggestions=["Wybrać krótszy fragment"],
-        ):
-            await self._log_clip_too_large_failure(clip_duration)
-            return None
+        )
 
         await DatabaseManager.insert_last_clip(
             chat_id=self._message.get_chat_id(),
@@ -88,9 +86,9 @@ class SelectClipHandler(BotMessageHandler):
         )
 
     async def __reply_no_previous_search(self) -> None:
-        await self.reply_error(get_no_previous_search_message())
+        await self._reply_error(get_no_previous_search_message())
         await self._log_system_message(logging.INFO, get_log_no_previous_search_message())
 
     async def __reply_invalid_segment_number(self, segment_number: int) -> None:
-        await self.reply_error(get_invalid_segment_number_message())
+        await self._reply_error(get_invalid_segment_number_message())
         await self._log_system_message(logging.WARNING, get_log_invalid_segment_number_message(segment_number))

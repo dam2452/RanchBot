@@ -17,6 +17,10 @@ from typing import (
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
+from bot.exceptions.video_exceptions import (
+    CompilationTooLargeException,
+    VideoTooLargeException,
+)
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
@@ -64,10 +68,14 @@ class BotMessageHandler(ABC):
                     return
 
             await self._do_handle()
+        except VideoTooLargeException as e:
+            await self._handle_video_too_large_exception(e)
+        except CompilationTooLargeException as e:
+            await self._handle_compilation_too_large_exception(e)
         except FFMpegException as e:
-            await self.handle_ffmpeg_exception(e)
+            await self._handle_ffmpeg_exception(e)
         except json.JSONDecodeError as e:
-            await self.reply_error("Wystąpił problem z odczytem danych.")
+            await self._reply_error("Wystąpił problem z odczytem danych.")
             await self._log_system_message(
                 logging.ERROR,
                 f"Data corruption in {self.__get_action_name()}: {e}",
@@ -101,9 +109,6 @@ class BotMessageHandler(ABC):
     def __get_action_name(self) -> str:
         return self.__class__.__name__
 
-    def get_parent_class_name(self) -> str:
-        return self.__class__.__bases__[0].__name__
-
     @abstractmethod
     def get_commands(self) -> List[str]:
         pass
@@ -128,8 +133,8 @@ class BotMessageHandler(ABC):
         if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
             await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
 
-        if await self._responder.send_video(file_path):
-            await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
+        await self._responder.send_video(file_path)
+        await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
 
     async def _answer_document(self, file_path: Path, caption: str, cleanup_dir: Optional[Path] = None) -> None:
         await self._responder.send_document(file_path, caption, cleanup_dir=cleanup_dir)
@@ -162,7 +167,7 @@ class BotMessageHandler(ABC):
         await self._reply_invalid_args_count(error_message)
         return False
 
-    async def reply(
+    async def _reply(
             self,
             message: str,
             data: Optional[Dict[str, Any]] = None,
@@ -179,35 +184,50 @@ class BotMessageHandler(ABC):
         else:
             await self._responder.send_markdown(message)
 
-    async def reply_error(self, message: str, data: Optional[Dict[str, Any]] = None):
-        await self.reply(message, data, RS.ERROR)
+    async def _reply_error(self, message: str, data: Optional[Dict[str, Any]] = None):
+        await self._reply(message, data, RS.ERROR)
 
-    async def handle_ffmpeg_exception(self, exception: FFMpegException) -> None:
-        await self.reply_error(get_extraction_failure_message())
+    async def _handle_ffmpeg_exception(self, exception: FFMpegException) -> None:
+        await self._reply_error(get_extraction_failure_message())
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
 
-    async def _log_clip_too_large_failure(self, clip_duration: float) -> None:
+    async def _handle_video_too_large_exception(self, exception: VideoTooLargeException) -> None:
+        await self._responder.send_text(self.__get_file_too_large_message(exception.duration, exception.suggestions))
         await self._log_system_message(
             logging.WARNING,
-            get_log_clip_too_large_message(clip_duration, self._message.get_username()),
+            get_log_clip_too_large_message(exception.duration, self._message.get_username()),
         )
 
-    async def _log_compilation_too_large_failure(self, total_duration: float) -> None:
+    async def _handle_compilation_too_large_exception(self, exception: CompilationTooLargeException) -> None:
+        await self._responder.send_text(self.__get_file_too_large_message(exception.total_duration, exception.suggestions))
         await self._log_system_message(
             logging.WARNING,
-            get_log_compilation_too_large_message(total_duration, self._message.get_username()),
+            get_log_compilation_too_large_message(exception.total_duration, self._message.get_username()),
         )
 
-    async def compile_and_send_video(self, selected_segments: List[ClipSegment], total_duration: float, clip_type: ClipType) -> Optional[bool]:
+    @staticmethod
+    def __get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[List[str]] = None) -> str:
+        message = "Plik jest za duży do wysłania"
+
+        if duration is not None:
+            message += f" ({duration:.1f}s)"
+
+        message += ".\n\nTelegram ma limit 50MB dla wideo."
+
+        if suggestions:
+            message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)
+
+        return message
+
+    async def _compile_and_send_video(self, selected_segments: List[ClipSegment], total_duration: float, clip_type: ClipType) -> None:
         compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
         await process_compiled_clip(self._message, compiled_output, clip_type)
 
-        if not await self._responder.send_video(
-            compiled_output,
-            duration=total_duration,
-            suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
-        ):
-            await self._log_compilation_too_large_failure(total_duration)
-            return None
-
-        return True
+        try:
+            await self._responder.send_video(
+                compiled_output,
+                duration=total_duration,
+                suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
+            )
+        except VideoTooLargeException as e:
+            raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions)

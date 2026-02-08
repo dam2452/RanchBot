@@ -71,26 +71,26 @@ class DeleteClipHandler(BotMessageHandler):
         await self.__reply_clip_deleted(clip_name_to_delete)
 
     async def __reply_clip_index_not_exist(self, clip_number: int) -> None:
-        await self.reply_error(get_clip_id_not_exist_message(clip_number))
+        await self._reply_error(get_clip_id_not_exist_message(clip_number))
         await self._log_system_message(
             logging.INFO,
             get_log_clip_not_exist_message(clip_number, self._message.get_username()),
         )
 
     async def __reply_clip_name_not_found(self, clip_name: str) -> None:
-        await self.reply_error(get_clip_not_exist_message(clip_name))
+        await self._reply_error(get_clip_not_exist_message(clip_name))
         await self._log_system_message(
             logging.INFO,
             get_clip_not_exist_message(clip_name),
         )
 
     async def __reply_clip_deleted(self, clip_name: str) -> None:
-        await self.reply(get_clip_deleted_message(clip_name))
+        await self._reply(get_clip_deleted_message(clip_name))
         await self._log_system_message(
             logging.INFO,
             get_log_clip_deleted_message(clip_name, self._message.get_username()),
         )
 
     async def __reply_no_saved_clips(self) -> None:
-        await self.reply_error(get_no_saved_clips_message())
+        await self._reply_error(get_no_saved_clips_message())
         await self._log_system_message(logging.INFO, get_log_no_saved_clips_message(self._message.get_username()))
