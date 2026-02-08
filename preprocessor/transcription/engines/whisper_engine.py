@@ -1,7 +1,10 @@
 import gc
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import (
+    Any,
+    Dict,
+)
 
 from faster_whisper import WhisperModel
 import torch

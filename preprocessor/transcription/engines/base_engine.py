@@ -3,7 +3,10 @@ from abc import (
     abstractmethod,
 )
 from pathlib import Path
-from typing import Dict
+from typing import (
+    Any,
+    Dict,
+)
 
 
 class TranscriptionEngine(ABC):

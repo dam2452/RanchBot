@@ -13,10 +13,7 @@ import numpy as np
 import torch
 from transnetv2_pytorch import TransNetV2
 
-from bot.types import (
-    SceneDict,
-    VideoMetadata,
-)
+from bot.types import SceneDict
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,

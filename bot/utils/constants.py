@@ -1,3 +1,5 @@
+# pylint: disable=duplicate-code
+
 class SegmentKeys:
     START_TIME = "start_time"
     END_TIME = "end_time"

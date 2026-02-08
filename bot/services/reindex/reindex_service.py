@@ -51,7 +51,13 @@ class ReindexService:
         self.__video_transformer = VideoPathTransformer(logger)
         self.__es_manager: Optional[ElasticSearchManager] = None
 
-    async def close(self) -> None:
+    async def __aenter__(self) -> "ReindexService":
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        await self.__close()
+
+    async def __close(self) -> None:
         if self.__es_manager is not None:
             try:
                 await self.__es_manager.close()

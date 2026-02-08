@@ -66,7 +66,6 @@ class ManualClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
-        user_id = self._message.get_user_id()
 
         try:
             episode, start_seconds, end_seconds = self.__parse_content(content)
@@ -93,6 +92,7 @@ class ManualClipHandler(BotMessageHandler):
 
         output_filename = await ClipsExtractor.extract_clip(video_path, start_seconds, end_seconds, self._logger)
 
+        # pylint: disable=duplicate-code
         if not await self._responder.send_video(
             output_filename,
             duration=clip_duration,
@@ -100,6 +100,7 @@ class ManualClipHandler(BotMessageHandler):
         ):
             await self._log_clip_too_large_failure(clip_duration)
             return None
+        # pylint: enable=duplicate-code
 
         await self._log_system_message(
             logging.INFO,

@@ -6,6 +6,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 import zipfile
 
@@ -51,19 +52,19 @@ class ZipExtractor:
 
         return documents
 
-    def __detect_type_from_filename(self, filename: str) -> str:
-        if 'text_segments' in filename:
-            return 'text_segments'
-        if 'text_embeddings' in filename:
-            return 'text_embeddings'
-        if 'video_frames' in filename:
-            return 'video_frames'
-        if 'episode_name' in filename:
-            return 'episode_names'
-        if 'full_episode_embedding' in filename:
-            return 'full_episode_embeddings'
-        if 'sound_event_embeddings' in filename:
-            return 'sound_event_embeddings'
-        if 'sound_events' in filename:
-            return 'sound_events'
+    def __detect_type_from_filename(self, filename: str) -> Optional[str]:
+        _type_mapping = {
+            'text_segments': 'text_segments',
+            'text_embeddings': 'text_embeddings',
+            'video_frames': 'video_frames',
+            'episode_name': 'episode_names',
+            'full_episode_embedding': 'full_episode_embeddings',
+            'sound_event_embeddings': 'sound_event_embeddings',
+            'sound_events': 'sound_events',
+        }
+
+        for key, value in _type_mapping.items():
+            if key in filename:
+                return value
+
         return None

@@ -27,6 +27,7 @@ from preprocessor.core.constants import (
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
+from preprocessor.utils.console import console
 from preprocessor.utils.constants import (
     CharacterDetectionKeys,
     DetectionKeys,
@@ -38,7 +39,6 @@ from preprocessor.utils.constants import (
     SceneKeys,
     SceneTimeKeys,
 )
-from preprocessor.utils.console import console
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 

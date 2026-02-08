@@ -16,7 +16,6 @@ from preprocessor.core.base_processor import (
 from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
 from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.constants import (
-    FfprobeFormatKeys,
     FfprobeKeys,
     FfprobeStreamKeys,
 )
