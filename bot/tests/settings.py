@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     POSTGRES_SCHEMA: str = Field("ranczo")
 
     SPECIALIZED_TABLE: str = Field(...)
+    ES_TRANSCRIPTION_INDEX: str = Field(...)
 
     TEST_POSTGRES_DB: str = Field(...)
     TEST_POSTGRES_USER: str = Field(...)

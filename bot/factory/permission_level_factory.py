@@ -37,7 +37,7 @@ class PermissionLevelFactory(ABC):
         self._bot = bot
 
     def create_and_register(self, dp: Dispatcher) -> None:
-        handler_funcs, middlewares = self.get_telegram_routes_and_middlewares()
+        handler_funcs, middlewares = self.__get_telegram_routes_and_middlewares()
 
         for command, handler_fn in handler_funcs:
             dp.message.register(handler_fn, Command(commands=[command]))
@@ -49,18 +49,18 @@ class PermissionLevelFactory(ABC):
 
         self._logger.info(f"{self.__class__.__name__} middlewares registered")
 
-    def get_telegram_routes_and_middlewares(self) -> Tuple[
+    def __get_telegram_routes_and_middlewares(self) -> Tuple[
         List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]],
         List[BotMiddleware],
     ]:
-        handler_funcs = self.get_telegram_handlers()
+        handler_funcs = self.__get_telegram_handlers()
         commands = [cmd for cmd, _ in handler_funcs]
-        middlewares = self.create_middlewares(commands)
+        middlewares = self._create_middlewares(commands)
         return handler_funcs, middlewares
 
-    def get_telegram_handlers(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
+    def __get_telegram_handlers(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
         result = []
-        for handler_cls in self.create_handler_classes():
+        for handler_cls in self._create_handler_classes():
             dummy = handler_cls(message=None, responder=None, logger=self._logger)
             for command in dummy.get_commands():
                 result.append((command, self.__wrap_telegram_handler(handler_cls, self._logger)))
@@ -68,7 +68,7 @@ class PermissionLevelFactory(ABC):
 
     def get_rest_handlers(self) -> List[Tuple[str, Type[BotMessageHandler]]]:
         result = []
-        for handler_cls in self.create_handler_classes():
+        for handler_cls in self._create_handler_classes():
             dummy = handler_cls(message=None, responder=None, logger=self._logger)
             for command in dummy.get_commands():
                 result.append((command, handler_cls))
@@ -87,11 +87,11 @@ class PermissionLevelFactory(ABC):
         return wrapper
 
     @abstractmethod
-    def create_handler_classes(self) -> List[Type[BotMessageHandler]]:
+    def _create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         pass
 
     @abstractmethod
-    def create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
+    def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         pass
 
     def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:

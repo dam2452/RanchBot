@@ -27,6 +27,7 @@ from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
 from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batches
 from preprocessor.utils.console import console
+from preprocessor.utils.constants import EpisodeMetadataKeys
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
@@ -131,13 +132,11 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
                     data = json.load(f)
                 segments = data.get("segments", [])
                 if not segments:
-                    episode_info = self.episode_manager.parse_filename(trans_file)
                     episode_id = item.episode_id
-                    if episode_info:
-                        self.logger.warning(
-                            f"Empty clean transcription (no segments) for {episode_id}, skipping",
-                        )
-                    return True, [], f"[yellow]Skipping (empty transcription): {episode_id}[/yellow]"
+                    self.logger.warning(
+                        f"Empty clean transcription (no text segments) for {episode_id}, "
+                        f"will skip text embeddings but generate other types (sound events, episode names, etc.)",
+                    )
             except Exception as e:
                 self.logger.error(f"Failed to read {clean_transcription_file}: {e}")
 
@@ -704,15 +703,15 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         full_episode_output,
         sound_events_output,
     ):
-        episode_info = data.get("episode_info", {})
+        episode_info = data.get(EpisodeMetadataKeys.EPISODE_INFO, {})
         text_output.parent.mkdir(parents=True, exist_ok=True)
 
         if text_embeddings:
             text_data = create_processing_metadata(
                 episode_info=type(
                     'obj', (object,), {
-                        'season': episode_info.get("season"),
-                        'relative_episode': episode_info.get("episode_number"),
+                        'season': episode_info.get(EpisodeMetadataKeys.SEASON),
+                        'relative_episode': episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER),
                     },
                 )(),
                 processing_params={
@@ -737,8 +736,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             video_data = create_processing_metadata(
                 episode_info=type(
                     'obj', (object,), {
-                        'season': episode_info.get("season"),
-                        'relative_episode': episode_info.get("episode_number"),
+                        'season': episode_info.get(EpisodeMetadataKeys.SEASON),
+                        'relative_episode': episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER),
                     },
                 )(),
                 processing_params={
@@ -761,8 +760,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             full_episode_data = create_processing_metadata(
                 episode_info=type(
                     'obj', (object,), {
-                        'season': episode_info.get("season"),
-                        'relative_episode': episode_info.get("episode_number"),
+                        'season': episode_info.get(EpisodeMetadataKeys.SEASON),
+                        'relative_episode': episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER),
                     },
                 )(),
                 processing_params={
@@ -784,8 +783,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             sound_events_data = create_processing_metadata(
                 episode_info=type(
                     'obj', (object,), {
-                        'season': episode_info.get("season"),
-                        'relative_episode': episode_info.get("episode_number"),
+                        'season': episode_info.get(EpisodeMetadataKeys.SEASON),
+                        'relative_episode': episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER),
                     },
                 )(),
                 processing_params={

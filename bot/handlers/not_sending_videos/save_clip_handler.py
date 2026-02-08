@@ -33,6 +33,11 @@ from bot.responses.not_sending_videos.save_clip_handler_responses import (
     get_no_segment_selected_message,
 )
 from bot.settings import settings
+from bot.types import ElasticsearchSegment
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import get_video_duration
 
@@ -60,7 +65,7 @@ class SaveClipHandler(BotMessageHandler):
         clip_name = parts[1]
 
         if clip_name.isdigit():
-            await self.reply_error(get_clip_name_numeric_provided_message())
+            await self._reply_error(get_clip_name_numeric_provided_message())
             log_message = get_log_clip_name_numeric_message(clip_name, self._message.get_username())
             await self._log_system_message(logging.INFO, log_message)
             return False
@@ -69,7 +74,7 @@ class SaveClipHandler(BotMessageHandler):
     async def __check_clip_name_length(self) -> bool:
         clip_name = self._message.get_text().split(maxsplit=1)[1]
         if len(clip_name) > settings.MAX_CLIP_NAME_LENGTH:
-            await self.reply_error(get_clip_name_length_exceeded_message())
+            await self._reply_error(get_clip_name_length_exceeded_message())
             return False
         return True
 
@@ -87,7 +92,7 @@ class SaveClipHandler(BotMessageHandler):
         if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
             return True
 
-        await self.reply_error(get_clip_limit_exceeded_message())
+        await self._reply_error(get_clip_limit_exceeded_message())
         return False
 
     async def __check_last_clip_exists(self) -> bool:
@@ -99,6 +104,7 @@ class SaveClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         clip_name = self._message.get_text().split(maxsplit=1)[1]
+
         last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id())
 
         clip_info = await self.__prepare_clip(last_clip)
@@ -125,9 +131,12 @@ class SaveClipHandler(BotMessageHandler):
 
     async def __prepare_clip(self, last_clip: LastClip) -> ClipInfo:
         segment_json = json.loads(last_clip.segment)
-        episode_info = segment_json.get("episode_info", {})
-        season = episode_info.get("season")
-        episode_number = episode_info.get("episode_number")
+        episode_info = segment_json.get(
+            EpisodeMetadataKeys.EPISODE_METADATA,
+            segment_json.get(EpisodeMetadataKeys.EPISODE_INFO, {}),
+        )
+        season = episode_info.get(EpisodeMetadataKeys.SEASON)
+        episode_number = episode_info.get(EpisodeMetadataKeys.EPISODE_NUMBER)
 
         clip_handlers: Dict[ClipType, Callable[[], Awaitable[ClipInfo]]] = {
             ClipType.COMPILED: lambda: self.__handle_compiled_clip(last_clip),
@@ -155,30 +164,30 @@ class SaveClipHandler(BotMessageHandler):
         )
 
 
-    async def __handle_adjusted_clip(self, last_clip: LastClip, segment_json: dict, season, episode_number) -> ClipInfo:
+    async def __handle_adjusted_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
-            segment_json["video_path"], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
+            segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
 
-    async def __handle_manual_clip(self, segment_json: dict, season, episode_number) -> ClipInfo:
+    async def __handle_manual_clip(self, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         start = segment_json["start"]
         end = segment_json["end"]
-        output_filename = await ClipsExtractor.extract_clip(segment_json["video_path"], start, end, self._logger)
+        output_filename = await ClipsExtractor.extract_clip(segment_json[SegmentKeys.VIDEO_PATH], start, end, self._logger)
         return ClipInfo(output_filename, start, end, False, season, episode_number)
 
 
-    async def __handle_selected_clip(self, last_clip: LastClip, segment_json: dict, season, episode_number) -> ClipInfo:
+    async def __handle_selected_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
-            segment_json["video_path"], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
+            segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
 
-    async def __handle_single_clip(self, last_clip: LastClip, segment_json: dict, season, episode_number) -> ClipInfo:
+    async def __handle_single_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
-            segment_json["video_path"], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
+            segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
@@ -192,13 +201,13 @@ class SaveClipHandler(BotMessageHandler):
 
 
     async def __reply_clip_name_exists(self, clip_name: str) -> None:
-        await self.reply_error(get_clip_name_exists_message(clip_name))
+        await self._reply_error(get_clip_name_exists_message(clip_name))
         await self._log_system_message(logging.INFO, get_log_clip_name_exists_message(clip_name, self._message.get_username()))
 
     async def __reply_no_segment_selected(self) -> None:
-        await self.reply_error(get_no_segment_selected_message())
+        await self._reply_error(get_no_segment_selected_message())
         await self._log_system_message(logging.INFO, get_log_no_segment_selected_message())
 
     async def __reply_clip_saved_successfully(self, clip_name: str) -> None:
-        await self.reply(get_clip_saved_successfully_message(clip_name))
+        await self._reply(get_clip_saved_successfully_message(clip_name))
         await self._log_system_message(logging.INFO, get_log_clip_saved_successfully_message(clip_name, self._message.get_username()))

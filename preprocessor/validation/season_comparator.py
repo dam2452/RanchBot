@@ -3,6 +3,7 @@ from dataclasses import (
     field,
 )
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -101,7 +102,7 @@ class SeasonComparison:
                     ),
                 )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "metrics": {
                 metric_name: {

@@ -5,7 +5,7 @@
 🎥 Watch the RanczoClips Bot in action:
 [![🎬 Watch the video](https://img.youtube.com/vi/3Tp3qJHLFPI/maxresdefault.jpg)](https://www.youtube.com/watch?v=3Tp3qJHLFPI)
 
-**RanchBot** is a highly customizable Telegram bot designed to manage and process video clips from the popular TV series "Ranczo." 🎬 The bot allows users to search for specific quotes, manage their own video clips, and perform various administrative tasks related to user management and content moderation.
+**RanchBot** is a highly customizable Telegram bot designed to manage and process video clips from various TV series. 🎬 The bot allows users to search for specific quotes, manage their own video clips, and perform various administrative tasks related to user management and content moderation. The bot supports multiple series - users can switch between them using the `/serial` command.
 
 
 ## 🌟 Features

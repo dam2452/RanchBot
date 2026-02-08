@@ -8,6 +8,12 @@ from typing import (
     Optional,
 )
 
+from bot.types import (
+    CharacterDetectionInFrame,
+    EpisodeMetadata,
+    ObjectDetectionInFrame,
+    SceneTimestampsData,
+)
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -22,6 +28,17 @@ from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.utils.console import console
+from preprocessor.utils.constants import (
+    CharacterDetectionKeys,
+    DetectionKeys,
+    ElasticDocKeys,
+    EmbeddingKeys,
+    EmotionKeys,
+    EpisodeMetadataKeys,
+    ObjectDetectionKeys,
+    SceneKeys,
+    SceneTimeKeys,
+)
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
@@ -206,9 +223,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         with open(trans_file_for_segments, "r", encoding="utf-8") as f:
             transcription_data = json.load(f)
 
-        episode_info_dict = transcription_data.get("episode_info", {})
-        season = episode_info_dict.get("season")
-        episode_number = episode_info_dict.get("episode_number")
+        episode_info_dict = transcription_data.get(EpisodeMetadataKeys.EPISODE_INFO, {})
+        season = episode_info_dict.get(EpisodeMetadataKeys.SEASON)
+        episode_number = episode_info_dict.get(EpisodeMetadataKeys.EPISODE_NUMBER)
 
         if season is None or episode_number is None:
             console.print(f"[red]Missing episode info in {trans_file.name}[/red]")
@@ -342,7 +359,7 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         console.print(f"[green]Completed: {trans_file.name}[/green]")
 
-    def __build_episode_metadata(self, episode_info) -> Dict[str, Any]:
+    def __build_episode_metadata(self, episode_info) -> EpisodeMetadata:
         metadata = self.episode_manager.get_metadata(episode_info)
         return {
             "season": episode_info.season,
@@ -353,10 +370,10 @@ class ElasticDocumentGenerator(BaseProcessor):
             "viewership": metadata.get("viewership"),
         }
 
-    def __load_scene_timestamps(self, episode_info) -> Optional[Dict[str, Any]]:
+    def __load_scene_timestamps(self, episode_info) -> Optional[SceneTimestampsData]:
         return EpisodeManager.load_scene_timestamps(episode_info, self.scene_timestamps_dir, self.logger)
 
-    def __load_character_detections(self, episode_info) -> Dict[int, List[Dict[str, Any]]]:
+    def __load_character_detections(self, episode_info) -> Dict[int, List[CharacterDetectionInFrame]]:
         if not self.character_detections_dir:
             return {}
 
@@ -372,20 +389,20 @@ class ElasticDocumentGenerator(BaseProcessor):
                 data = json.load(f)
 
             detections_dict = {}
-            for detection in data.get("detections", []):
-                frame_number = detection.get("frame_number")
+            for detection in data.get(DetectionKeys.DETECTIONS, []):
+                frame_number = detection.get(DetectionKeys.FRAME_NUMBER)
                 if frame_number is not None:
-                    detections_dict[frame_number] = detection.get("characters", [])
-                elif "frame" in detection:
-                    frame_file = detection["frame"]
-                    detections_dict[frame_file] = detection.get("characters", [])
+                    detections_dict[frame_number] = detection.get(DetectionKeys.CHARACTERS, [])
+                elif DetectionKeys.FRAME in detection:
+                    frame_file = detection[DetectionKeys.FRAME]
+                    detections_dict[frame_file] = detection.get(DetectionKeys.CHARACTERS, [])
 
             return detections_dict
         except Exception as e:
             self.logger.error(f"Error loading character detections: {e}")
             return {}
 
-    def __load_object_detections(self, episode_info) -> Dict[str, List[Dict[str, Any]]]:
+    def __load_object_detections(self, episode_info) -> Dict[str, List[ObjectDetectionInFrame]]:
         if not self.object_detections_dir:
             return {}
 
@@ -401,9 +418,9 @@ class ElasticDocumentGenerator(BaseProcessor):
                 data = json.load(f)
 
             detections_dict = {}
-            for frame_data in data.get("detections", []):
-                frame_name = frame_data["frame_name"]
-                detections_dict[frame_name] = frame_data.get("detections", [])
+            for frame_data in data.get(DetectionKeys.DETECTIONS, []):
+                frame_name = frame_data[DetectionKeys.FRAME_NAME]
+                detections_dict[frame_name] = frame_data.get(DetectionKeys.DETECTIONS, [])
 
             return detections_dict
         except Exception as e:
@@ -413,21 +430,21 @@ class ElasticDocumentGenerator(BaseProcessor):
     @staticmethod
     def __get_characters_for_frame(
         frame_identifier,
-        character_detections: Dict,
-    ) -> List[Dict[str, Any]]:
+        character_detections: Dict[int, List[CharacterDetectionInFrame]],
+    ) -> List[CharacterDetectionInFrame]:
         characters = character_detections.get(frame_identifier, [])
 
         character_list = []
         for char in characters:
             char_data = {
-                "name": char["name"],
-                "confidence": char.get("confidence"),
+                CharacterDetectionKeys.NAME: char[CharacterDetectionKeys.NAME],
+                CharacterDetectionKeys.CONFIDENCE: char.get(CharacterDetectionKeys.CONFIDENCE),
             }
 
-            if "emotion" in char:
-                char_data["emotion"] = {
-                    "label": char["emotion"]["label"],
-                    "confidence": char["emotion"]["confidence"],
+            if CharacterDetectionKeys.EMOTION in char:
+                char_data[CharacterDetectionKeys.EMOTION] = {
+                    EmotionKeys.LABEL: char[CharacterDetectionKeys.EMOTION][EmotionKeys.LABEL],
+                    EmotionKeys.CONFIDENCE: char[CharacterDetectionKeys.EMOTION][EmotionKeys.CONFIDENCE],
                 }
 
             character_list.append(char_data)
@@ -435,11 +452,11 @@ class ElasticDocumentGenerator(BaseProcessor):
         return character_list
 
     @staticmethod
-    def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    def __get_objects_for_frame(frame_name: str, object_detections: Dict[str, List[ObjectDetectionInFrame]]) -> List[Dict[str, Any]]:
         detections = object_detections.get(frame_name, [])
         objects_summary = {}
         for det in detections:
-            class_name = det["class_name"]
+            class_name = det[ObjectDetectionKeys.CLASS_NAME]
             if class_name in objects_summary:
                 objects_summary[class_name] += 1
             else:
@@ -448,25 +465,25 @@ class ElasticDocumentGenerator(BaseProcessor):
         return [{"class": cls, "count": cnt} for cls, cnt in objects_summary.items()]
 
     @staticmethod
-    def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        if not scene_timestamps or "scenes" not in scene_timestamps:
+    def __find_scene_for_timestamp(timestamp: float, scene_timestamps: Optional[SceneTimestampsData]) -> Optional[Dict[str, Any]]:
+        if not scene_timestamps or SceneKeys.SCENES not in scene_timestamps:
             return None
 
-        scenes = scene_timestamps["scenes"]
+        scenes = scene_timestamps[SceneKeys.SCENES]
         for scene in scenes:
-            start_time = scene["start"]["seconds"]
-            end_time = scene["end"]["seconds"]
+            start_time = scene[SceneKeys.START][SceneTimeKeys.SECONDS]
+            end_time = scene[SceneKeys.END][SceneTimeKeys.SECONDS]
 
             if start_time is None or end_time is None:
                 continue
 
             if start_time <= timestamp < end_time:
                 return {
-                    "scene_number": scene["scene_number"],
-                    "scene_start_time": start_time,
-                    "scene_end_time": end_time,
-                    "scene_start_frame": scene["start"]["frame"],
-                    "scene_end_frame": scene["end"]["frame"],
+                    SceneKeys.SCENE_NUMBER: scene[SceneKeys.SCENE_NUMBER],
+                    SceneKeys.SCENE_START_TIME: start_time,
+                    SceneKeys.SCENE_END_TIME: end_time,
+                    SceneKeys.SCENE_START_FRAME: scene[SceneKeys.START][SceneTimeKeys.FRAME],
+                    SceneKeys.SCENE_END_FRAME: scene[SceneKeys.END][SceneTimeKeys.FRAME],
                 }
 
         return None
@@ -475,9 +492,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         transcription_data: Dict[str, Any],
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
-        scene_timestamps: Optional[Dict[str, Any]],
+        scene_timestamps: Optional[SceneTimestampsData],
         season_dir: str,
         base_name: str,
     ) -> None:
@@ -531,7 +548,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 }
 
                 if scene_info:
-                    doc["scene_info"] = scene_info
+                    doc[ElasticDocKeys.SCENE_INFO] = scene_info
 
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
@@ -541,9 +558,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         sound_events_data: Dict[str, Any],
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
-        scene_timestamps: Optional[Dict[str, Any]],
+        scene_timestamps: Optional[SceneTimestampsData],
         episode_info,
         base_name: str,
     ) -> None:
@@ -585,7 +602,7 @@ class ElasticDocumentGenerator(BaseProcessor):
                 }
 
                 if scene_info:
-                    doc["scene_info"] = scene_info
+                    doc[ElasticDocKeys.SCENE_INFO] = scene_info
 
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
@@ -595,7 +612,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         text_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -641,9 +658,9 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         video_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
-        scene_timestamps: Optional[Dict[str, Any]],
+        scene_timestamps: Optional[SceneTimestampsData],
         character_detections: Dict[str, List[Dict[str, Any]]],
         object_detections: Dict[str, List[Dict[str, Any]]],
         episode_info,
@@ -665,17 +682,17 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         with open(output_file, "w", encoding="utf-8") as f:
             for emb in video_embeddings:
-                frame_number = emb.get("frame_number")
-                timestamp = emb.get("timestamp")
-                embedding = emb.get("embedding")
+                frame_number = emb.get(EmbeddingKeys.FRAME_NUMBER)
+                timestamp = emb.get(EmbeddingKeys.TIMESTAMP)
+                embedding = emb.get(EmbeddingKeys.EMBEDDING)
 
                 if embedding is None or timestamp is None:
                     continue
 
                 scene_info = self.__find_scene_for_timestamp(timestamp, scene_timestamps)
 
-                perceptual_hash = emb.get("perceptual_hash")
-                frame_path = emb.get("frame_path", f"frame_{frame_number:06d}.jpg" if frame_number is not None else "")
+                perceptual_hash = emb.get(EmbeddingKeys.PERCEPTUAL_HASH)
+                frame_path = emb.get(EmbeddingKeys.FRAME_PATH, f"frame_{frame_number:06d}.jpg" if frame_number is not None else "")
 
                 doc = {
                     "episode_id": episode_id,
@@ -690,26 +707,26 @@ class ElasticDocumentGenerator(BaseProcessor):
                 if frame_number is not None:
                     characters = self.__get_characters_for_frame(frame_number, character_detections)
                     if characters:
-                        doc["character_appearances"] = characters
+                        doc[ElasticDocKeys.CHARACTER_APPEARANCES] = characters
 
                 if frame_path:
                     frame_name = Path(frame_path).name if isinstance(frame_path, str) else frame_path
                     objects = self.__get_objects_for_frame(frame_name, object_detections)
                     if objects:
-                        doc["detected_objects"] = objects
+                        doc[ElasticDocKeys.DETECTED_OBJECTS] = objects
 
                 if perceptual_hash:
-                    doc["perceptual_hash"] = perceptual_hash
+                    doc[ElasticDocKeys.PERCEPTUAL_HASH] = perceptual_hash
                     try:
-                        doc["perceptual_hash_int"] = int(perceptual_hash, 16)
+                        doc[ElasticDocKeys.PERCEPTUAL_HASH_INT] = int(perceptual_hash, 16)
                     except (ValueError, TypeError):
                         pass
 
-                if "scene_number" in emb:
-                    doc["scene_number"] = emb["scene_number"]
+                if EmbeddingKeys.SCENE_NUMBER in emb:
+                    doc[EmbeddingKeys.SCENE_NUMBER] = emb[EmbeddingKeys.SCENE_NUMBER]
 
                 if scene_info:
-                    doc["scene_info"] = scene_info
+                    doc[ElasticDocKeys.SCENE_INFO] = scene_info
 
                 f.write(json.dumps(doc, ensure_ascii=False) + "\n")
 
@@ -719,7 +736,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         episode_name_emb: Dict[str, Any],
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -731,15 +748,15 @@ class ElasticDocumentGenerator(BaseProcessor):
         )
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        title_embedding = episode_name_emb.get("title_embedding", [])
+        title_embedding = episode_name_emb.get(EmbeddingKeys.TITLE_EMBEDDING, [])
         if not title_embedding:
             return
 
         doc = {
             "episode_id": episode_id,
             "episode_metadata": episode_metadata,
-            "title": episode_name_emb.get("title", ""),
-            "title_embedding": title_embedding,
+            EmbeddingKeys.TITLE: episode_name_emb.get(EmbeddingKeys.TITLE, ""),
+            EmbeddingKeys.TITLE_EMBEDDING: title_embedding,
             "video_path": video_path,
         }
 
@@ -752,7 +769,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         text_stats_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -795,7 +812,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         full_episode_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,
@@ -832,7 +849,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self,
         sound_event_emb_file: Path,
         episode_id: str,
-        episode_metadata: Dict[str, Any],
+        episode_metadata: EpisodeMetadata,
         video_path: str,
         episode_info,
         base_name: str,

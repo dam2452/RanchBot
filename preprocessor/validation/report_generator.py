@@ -1,7 +1,10 @@
 from datetime import datetime
 import json
 from pathlib import Path
-from typing import Dict
+from typing import (
+    Any,
+    Dict,
+)
 
 from preprocessor.validation.episode_stats import EpisodeStats
 from preprocessor.validation.season_comparator import SeasonComparison
@@ -31,7 +34,7 @@ class ReportGenerator:
         return report
 
     @staticmethod
-    def __save_report(report: Dict, output_path: Path):
+    def __save_report(report: Dict[str, Any], output_path: Path):
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w", encoding="utf-8") as f:

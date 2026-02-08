@@ -80,7 +80,7 @@ class ManualClipHandler(BotMessageHandler):
 
         video_path_str = await TranscriptionFinder.find_video_path_by_episode(
             episode.season,
-            episode.get_absolute_episode_number(),
+            episode.number,
             self._logger,
         )
         if not video_path_str:
@@ -91,7 +91,12 @@ class ManualClipHandler(BotMessageHandler):
             return await self.__reply_video_file_not_exist(video_path)
 
         output_filename = await ClipsExtractor.extract_clip(video_path, start_seconds, end_seconds, self._logger)
-        await self._responder.send_video(output_filename)
+
+        await self._responder.send_video(
+            output_filename,
+            duration=clip_duration,
+            suggestions=["Wybrać krótszy fragment"],
+        )
 
         await self._log_system_message(
             logging.INFO,
@@ -102,7 +107,7 @@ class ManualClipHandler(BotMessageHandler):
             "video_path": str(video_path),
             "start": start_seconds,
             "end": end_seconds,
-            "episode_info": {
+            "episode_metadata": {
                 "season": episode.season,
                 "episode_number": episode.number,
             },
@@ -127,18 +132,18 @@ class ManualClipHandler(BotMessageHandler):
         return Episode(episode), minutes_str_to_seconds(start_time), minutes_str_to_seconds(end_time)
 
     async def __reply_incorrect_season_episode_format(self) -> None:
-        await self.reply_error(get_incorrect_season_episode_format_message())
+        await self._reply_error(get_incorrect_season_episode_format_message())
         await self._log_system_message(logging.INFO, get_log_incorrect_season_episode_format_message())
 
     async def __reply_video_file_not_exist(self, video_path: Optional[Path]) -> None:
-        await self.reply_error(get_video_file_not_exist_message())
+        await self._reply_error(get_video_file_not_exist_message())
         path_str = str(video_path) if video_path else "Unknown"
         await self._log_system_message(logging.INFO, get_log_video_file_not_exist_message(path_str))
 
     async def __reply_incorrect_time_format(self) -> None:
-        await self.reply_error(get_incorrect_time_format_message())
+        await self._reply_error(get_incorrect_time_format_message())
         await self._log_system_message(logging.INFO, get_log_incorrect_time_format_message())
 
     async def __reply_end_time_earlier_than_start(self) -> None:
-        await self.reply_error(get_end_time_earlier_than_start_message())
+        await self._reply_error(get_end_time_earlier_than_start_message())
         await self._log_system_message(logging.INFO, get_log_end_time_earlier_than_start_message())

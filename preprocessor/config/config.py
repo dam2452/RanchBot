@@ -9,6 +9,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from pydantic import SecretStr
@@ -153,7 +154,7 @@ class WhisperSettings:
     model: str = "large-v3-turbo"
 
     @classmethod
-    def from_env(cls) -> "WhisperSettings":
+    def _from_env(cls) -> "WhisperSettings":
         return cls(
             model=os.getenv("WHISPER_MODEL", "large-v3-turbo"),
         )
@@ -175,7 +176,7 @@ class ElevenLabsSettings(BaseAPISettings):
     max_attempts: int = 60
 
     @classmethod
-    def from_env(cls) -> "ElevenLabsSettings":
+    def _from_env(cls) -> "ElevenLabsSettings":
         api_key = None
         if os.getenv("ELEVEN_API_KEY"):
             api_key = SecretStr(os.getenv("ELEVEN_API_KEY", ""))
@@ -217,7 +218,7 @@ class EmbeddingSettings:
 @dataclass
 class FaceRecognitionSettings:
     model_name: str = "buffalo_l"
-    detection_size: tuple = (1280, 1280)
+    detection_size: Tuple[int, int] = (1280, 1280)
 
 
 @dataclass
@@ -233,7 +234,7 @@ class EmotionDetectionSettings:
     model_name: str = "enet_b2_8"
 
     @classmethod
-    def from_env(cls) -> "EmotionDetectionSettings":
+    def _from_env(cls) -> "EmotionDetectionSettings":
         model_name = os.getenv("EMOTION_MODEL_NAME", "enet_b2_8")
         return cls(model_name=model_name)
 
@@ -245,7 +246,7 @@ class CharacterSettings:
     characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
     detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
     processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
-    normalized_face_size: tuple = (112, 112)
+    normalized_face_size: Tuple[int, int] = (112, 112)
     face_detection_threshold: float = 0.2
     reference_matching_threshold: float = 0.50
     frame_detection_threshold: float = 0.55
@@ -283,7 +284,7 @@ class ImageScraperSettings(BaseAPISettings):
     page_navigation_timeout: int = 30000
 
     @classmethod
-    def from_env(cls) -> "ImageScraperSettings":
+    def _from_env(cls) -> "ImageScraperSettings":
         api_key = None
         if os.getenv("SERPAPI_API_KEY"):
             api_key = SecretStr(os.getenv("SERPAPI_API_KEY", ""))
@@ -310,7 +311,7 @@ class ElasticsearchSettings:
     password: str = ""
 
     @classmethod
-    def from_env(cls) -> "ElasticsearchSettings":
+    def _from_env(cls) -> "ElasticsearchSettings":
         return cls(
             host=os.getenv("ES_HOST", ""),
             user=os.getenv("ES_USER", ""),
@@ -321,7 +322,7 @@ class ElasticsearchSettings:
 @dataclass
 class GeminiSettings(BaseAPISettings):
     @classmethod
-    def from_env(cls) -> "GeminiSettings":
+    def _from_env(cls) -> "GeminiSettings":
         api_key = None
         if os.getenv("GEMINI_API_KEY"):
             api_key = SecretStr(os.getenv("GEMINI_API_KEY", ""))
@@ -357,10 +358,10 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     transcription: TranscriptionSettings
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def _from_env(cls) -> "Settings":
         return cls(
             output_subdirs=OutputSubdirs(),
-            whisper=WhisperSettings.from_env(),
+            whisper=WhisperSettings._from_env(),
             text_chunking=TextChunkingSettings(),
             embedding_model=EmbeddingModelSettings(),
             embedding=EmbeddingSettings(),
@@ -373,11 +374,11 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings(),
             face_clustering=FaceClusteringSettings(),
-            emotion_detection=EmotionDetectionSettings.from_env(),
-            image_scraper=ImageScraperSettings.from_env(),
-            elevenlabs=ElevenLabsSettings.from_env(),
-            elasticsearch=ElasticsearchSettings.from_env(),
-            gemini=GeminiSettings.from_env(),
+            emotion_detection=EmotionDetectionSettings._from_env(),
+            image_scraper=ImageScraperSettings._from_env(),
+            elevenlabs=ElevenLabsSettings._from_env(),
+            elasticsearch=ElasticsearchSettings._from_env(),
+            gemini=GeminiSettings._from_env(),
             transcode=TranscodeSettings(),
             transcription=TranscriptionSettings(),
         )
@@ -461,4 +462,4 @@ class IndexConfig:
 # GLOBAL INSTANCE
 # ============================================================================
 
-settings = Settings.from_env()
+settings = Settings._from_env()

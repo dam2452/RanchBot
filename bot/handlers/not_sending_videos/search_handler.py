@@ -41,7 +41,7 @@ class SearchHandler(BotMessageHandler):
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and len(
                 quote,
         ) > settings.MAX_SEARCH_QUERY_LENGTH:
-            await self.reply_error(get_message_too_long_message())
+            await self._reply_error(get_message_too_long_message())
             return False
         return True
 
@@ -49,7 +49,10 @@ class SearchHandler(BotMessageHandler):
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, size=10000)
+        user_id = self._message.get_user_id()
+        active_series = await self._get_user_active_series(user_id)
+
+        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series, size=10000)
         if not segments:
             await self.__reply_no_segments_found(quote)
             return
@@ -60,10 +63,9 @@ class SearchHandler(BotMessageHandler):
             segments=json.dumps(segments),
         )
 
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger)
-        response = format_search_response(len(segments), segments, quote, season_info)
+        response = format_search_response(len(segments), segments, quote)
 
-        await self.reply(
+        await self._reply(
             response,
             data={
                 "quote": quote,
@@ -73,5 +75,5 @@ class SearchHandler(BotMessageHandler):
         await self._log_system_message(logging.INFO, get_log_search_results_sent_message(quote, self._message.get_username()))
 
     async def __reply_no_segments_found(self, quote: str) -> None:
-        await self.reply_error(get_no_segments_found_message(quote))
+        await self._reply_error(get_no_segments_found_message(quote))
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))

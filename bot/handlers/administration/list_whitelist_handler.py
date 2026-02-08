@@ -31,9 +31,9 @@ class ListWhitelistHandler(BotMessageHandler):
         return await self.__reply_whitelist(response, users)
 
     async def __reply_whitelist_empty(self) -> None:
-        await self.reply(get_whitelist_empty_message(), data={"whitelist": []})
+        await self._reply(get_whitelist_empty_message(), data={"whitelist": []})
         await self._log_system_message(logging.INFO, get_log_whitelist_empty_message())
 
     async def __reply_whitelist(self, response: str, users: List[UserProfile]) -> None:
-        await self.reply(response, data={"whitelist": [u.to_dict() for u in users]})
+        await self._reply(response, data={"whitelist": [u.to_dict() for u in users]})
         await self._log_system_message(logging.INFO, get_log_whitelist_sent_message())

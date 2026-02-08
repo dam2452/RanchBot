@@ -6,6 +6,7 @@ from bot.handlers.administration.list_admins_handler import ListAdminsHandler
 from bot.handlers.administration.list_keys_handler import ListKeysHandler
 from bot.handlers.administration.list_moderators_handler import ListModeratorsHandler
 from bot.handlers.administration.list_whitelist_handler import ListWhitelistHandler
+from bot.handlers.administration.reindex_handler import ReindexHandler
 from bot.handlers.administration.remove_key_handler import RemoveKeyHandler
 from bot.handlers.administration.remove_subscription_handler import RemoveSubscriptionHandler
 from bot.handlers.administration.remove_whitelist_handler import RemoveWhitelistHandler

@@ -15,6 +15,10 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
 from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.utils.constants import (
+    FfprobeKeys,
+    FfprobeStreamKeys,
+)
 from preprocessor.utils.resolution import Resolution
 from preprocessor.video.base_video_processor import BaseVideoProcessor
 
@@ -204,10 +208,10 @@ class VideoTranscoder(BaseVideoProcessor):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         probe_data: Dict[str, Any] = json.loads(result.stdout)
-        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
+        streams: List[Dict[str, Any]] = probe_data.get(FfprobeKeys.STREAMS, [])
         if not streams:
             raise ValueError(f"No video streams found in {video}")
-        r_frame_rate: Optional[str] = streams[0].get("r_frame_rate")
+        r_frame_rate: Optional[str] = streams[0].get(FfprobeStreamKeys.R_FRAME_RATE)
         if not r_frame_rate:
             raise ValueError(f"Frame rate not found in {video}")
         num, denom = [int(x) for x in r_frame_rate.split("/")]
@@ -225,10 +229,10 @@ class VideoTranscoder(BaseVideoProcessor):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         probe_data: Dict[str, Any] = json.loads(result.stdout)
-        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
+        streams: List[Dict[str, Any]] = probe_data.get(FfprobeKeys.STREAMS, [])
         if not streams:
             return None
-        bit_rate = streams[0].get("bit_rate")
+        bit_rate = streams[0].get(FfprobeStreamKeys.BIT_RATE)
         if not bit_rate:
             return None
         return round(int(bit_rate) / 1_000_000, 2)
@@ -244,10 +248,10 @@ class VideoTranscoder(BaseVideoProcessor):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         probe_data: Dict[str, Any] = json.loads(result.stdout)
-        streams: List[Dict[str, Any]] = probe_data.get("streams", [])
+        streams: List[Dict[str, Any]] = probe_data.get(FfprobeKeys.STREAMS, [])
         if not streams:
             return None
-        bit_rate = streams[0].get("bit_rate")
+        bit_rate = streams[0].get(FfprobeStreamKeys.BIT_RATE)
         if not bit_rate:
             return None
         return int(int(bit_rate) / 1000)

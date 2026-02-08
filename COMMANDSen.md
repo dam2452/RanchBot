@@ -32,6 +32,8 @@
 - **`/addkey <days> <note>`**/ **`/addk <days> <note>`**: 🔑 Creating a new subscription key.
 - **`/removekey <key>`**/ **`/rmk <key>`**: 🚫 Removing a subscription key.
 - **`/report <issue_description>`**/ **`/r <issue_description>`**: ⚠️ Reporting an issue.
+- **`/serial <series_name>`**/ **`/ser <series_name>`**: 📺 Change active series.
+- **`/reindex`**/ **`/rei`**: 🔄 Reindex series data.
 
 ## 👥 Basic User Commands
 
@@ -65,5 +67,7 @@
 - **`/addkey <days> <note>`**/ **`/addk <days> <note>`**: 🔑 Creates a new subscription key for a specified number of days. Example: `/addkey 30 "secret_key"`.
 - **`/removekey <key>`**/ **`/rmk <key>`**: 🚫 Removes an existing subscription key. Example: `/removekey some_secret_key`.
 - **`/report <issue_description>`**/ **`/r <issue_description>`**: ⚠️ Reports an issue to the administrators.
+- **`/serial <series_name>`**/ **`/ser <series_name>`**: 📺 Changes the active series for the user. Example: `/serial ranczo`.
+- **`/reindex`**/ **`/rei`**: 🔄 Reindexes data for the currently selected series (requires administrator privileges).
 
 ---

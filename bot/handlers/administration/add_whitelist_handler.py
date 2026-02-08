@@ -51,9 +51,9 @@ class AddWhitelistHandler(BotMessageHandler):
         await self.__reply_user_added(user_input)
 
     async def __reply_user_added(self, user_input: str) -> None:
-        await self.reply(get_user_added_message(user_input), data={"user_id": int(user_input)})
+        await self._reply(get_user_added_message(user_input), data={"user_id": int(user_input)})
         await self._log_system_message(logging.INFO, get_log_user_added_message(user_input, self._message.get_username()))
 
     async def __reply_user_not_found(self) -> None:
-        await self.reply(get_no_user_id_provided_message())
+        await self._reply(get_no_user_id_provided_message())
         await self._log_system_message(logging.INFO, get_no_user_id_provided_message())

@@ -2,17 +2,28 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import subprocess
-from typing import Optional
+from typing import (
+    Any,
+    Dict,
+    Optional,
+)
 import zipfile
 
 from PIL import Image
+
+from preprocessor.utils.constants import (
+    FfprobeFormatKeys,
+    FfprobeKeys,
+    FfprobeStreamKeys,
+    ValidationMetadataKeys,
+)
 
 
 @dataclass
 class ValidationResult:
     is_valid: bool
     error_message: Optional[str] = None
-    metadata: Optional[dict] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 def validate_json_file(path: Path) -> ValidationResult:
@@ -22,7 +33,7 @@ def validate_json_file(path: Path) -> ValidationResult:
     try:
         with open(path, "r", encoding="utf-8") as f:
             json.load(f)
-        return ValidationResult(is_valid=True, metadata={"size_bytes": path.stat().st_size})
+        return ValidationResult(is_valid=True, metadata={ValidationMetadataKeys.SIZE_BYTES: path.stat().st_size})
     except json.JSONDecodeError as e:
         return ValidationResult(is_valid=False, error_message=f"Invalid JSON: {e}")
     except Exception as e:
@@ -50,7 +61,7 @@ def validate_jsonl_file(path: Path) -> ValidationResult:
                     )
         return ValidationResult(
             is_valid=True,
-            metadata={"size_bytes": path.stat().st_size, "line_count": line_count},
+            metadata={ValidationMetadataKeys.SIZE_BYTES: path.stat().st_size, ValidationMetadataKeys.LINE_COUNT: line_count},
         )
     except Exception as e:
         return ValidationResult(is_valid=False, error_message=f"Error reading file: {e}")
@@ -71,10 +82,10 @@ def validate_image_file(path: Path) -> ValidationResult:
         return ValidationResult(
             is_valid=True,
             metadata={
-                "width": width,
-                "height": height,
-                "format": format_type,
-                "size_mb": round(size_mb, 2),
+                ValidationMetadataKeys.WIDTH: width,
+                ValidationMetadataKeys.HEIGHT: height,
+                ValidationMetadataKeys.FORMAT: format_type,
+                ValidationMetadataKeys.SIZE_MB: round(size_mb, 2),
             },
         )
     except Exception as e:
@@ -107,21 +118,21 @@ def validate_video_file(path: Path) -> ValidationResult:
         )
 
         probe_data = json.loads(result.stdout)
-        stream = probe_data.get("streams", [{}])[0]
-        format_info = probe_data.get("format", {})
+        stream = probe_data.get(FfprobeKeys.STREAMS, [{}])[0]
+        format_info = probe_data.get(FfprobeKeys.FORMAT, {})
 
-        duration = float(stream.get("duration", format_info.get("duration", 0)))
-        size_bytes = int(format_info.get("size", 0))
+        duration = float(stream.get(FfprobeStreamKeys.DURATION, format_info.get(FfprobeFormatKeys.DURATION, 0)))
+        size_bytes = int(format_info.get(FfprobeFormatKeys.SIZE, 0))
         size_mb = size_bytes / (1024 * 1024)
 
         return ValidationResult(
             is_valid=True,
             metadata={
-                "codec": stream.get("codec_name"),
-                "width": stream.get("width"),
-                "height": stream.get("height"),
-                "duration": round(duration, 2),
-                "size_mb": round(size_mb, 2),
+                ValidationMetadataKeys.CODEC: stream.get(FfprobeStreamKeys.CODEC_NAME),
+                ValidationMetadataKeys.WIDTH: stream.get(FfprobeStreamKeys.WIDTH),
+                ValidationMetadataKeys.HEIGHT: stream.get(FfprobeStreamKeys.HEIGHT),
+                ValidationMetadataKeys.DURATION: round(duration, 2),
+                ValidationMetadataKeys.SIZE_MB: round(size_mb, 2),
             },
         )
     except subprocess.CalledProcessError as e:
@@ -154,7 +165,7 @@ def validate_archive_file(path: Path) -> ValidationResult:
             return ValidationResult(
                 is_valid=True,
                 metadata={
-                    "size_mb": round(path.stat().st_size / (1024 * 1024), 2),
+                    ValidationMetadataKeys.SIZE_MB: round(path.stat().st_size / (1024 * 1024), 2),
                     "file_count": file_count,
                     "compressed_size_mb": round(compressed_size / (1024 * 1024), 2),
                     "uncompressed_size_mb": round(uncompressed_size / (1024 * 1024), 2),

@@ -31,6 +31,8 @@
 - **`/addkey <days> <note>`**/ **`/addk <days> <note>`**: 🔑 Tworzenie nowego klucza subskrypcyjnego.
 - **`/removekey <key>`** / **`/rmk <key>`**: 🚫 Usuwanie klucza subskrypcyjnego.
 - **`/report <issue_description>`** / **`/r <issue_description>`**: ⚠️ Zgłaszanie problemu.
+- **`/serial <nazwa_serialu>`** / **`/ser <nazwa_serialu>`**: 📺 Zmiana aktywnego serialu.
+- **`/reindex`** / **`/rei`**: 🔄 Reindeksowanie danych serialu.
 
 ## 👥 Podstawowe Komendy Użytkownika
 
@@ -66,5 +68,7 @@ _secret_key`.
 - **`/addkey <days> <note>`**/ **`/addk <days> <note>`**: 🔑 Tworzy nowy klucz subskrypcji na określoną liczbę dni. Przykład: `/addkey 30 "tajny_klucz"`.
 - **`/removekey <key>`**/ **`/rmk <key>`**: 🚫 Usuwa istniejący klucz subskrypcji. Przykład: `/removekey some_secret_key`.
 - **`/report <issue_description>`**/ **`/r <issue_description>`**: ⚠️ Zgłasza problem do administratorów.
+- **`/serial <nazwa_serialu>`**/ **`/ser <nazwa_serialu>`**: 📺 Zmienia aktywny serial dla użytkownika. Przykład: `/serial ranczo`.
+- **`/reindex`**/ **`/rei`**: 🔄 Reindeksuje dane aktualnie wybranego serialu (wymaga uprawnień administratora).
 
 ---

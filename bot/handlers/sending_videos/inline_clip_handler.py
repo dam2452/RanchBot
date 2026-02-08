@@ -5,6 +5,8 @@ from pathlib import Path
 import shutil
 import tempfile
 from typing import (
+    Any,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -29,6 +31,8 @@ from bot.handlers.bot_message_handler import (
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.settings import settings
+from bot.types import ElasticsearchSegment
+from bot.utils.constants import SegmentKeys
 from bot.utils.functions import (
     convert_number_to_emoji,
     format_segment,
@@ -61,7 +65,7 @@ class InlineClipHandler(BotMessageHandler):
         saved_clip, segments, season_info, _ = await self.__fetch_data(user_id, query)
 
         if not saved_clip and not segments:
-            await self._answer(f'Nie znaleziono klipów dla zapytania: "{query}"')
+            await self._responder.send_text(f'Nie znaleziono klipów dla zapytania: "{query}"')
             return
 
         temp_dir = Path(tempfile.mkdtemp())
@@ -69,11 +73,11 @@ class InlineClipHandler(BotMessageHandler):
             video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True)
 
             if not video_files:
-                await self._answer(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
+                await self._responder.send_text(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
                 return
 
             zip_path = await self.__create_zip(video_files, temp_dir, query)
-            await self._answer_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir)
+            await self._responder.send_document(zip_path, f'Wyniki inline dla: "{query}" ({len(video_files)} klipów)', cleanup_dir=temp_dir)
         except Exception:
             shutil.rmtree(temp_dir, ignore_errors=True)
             raise
@@ -102,11 +106,12 @@ class InlineClipHandler(BotMessageHandler):
         await DatabaseManager.log_command_usage(user_id)
         return results
 
-    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[dict], Optional[dict], bool]:
+    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[ElasticsearchSegment], Optional[Dict[str, Any]], bool]:
+        active_series = await self._get_user_active_series(user_id)
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
-            TranscriptionFinder.find_segment_by_quote(query, self._logger, size=5),
-            TranscriptionFinder.get_season_details_from_elastic(logger=self._logger),
+            TranscriptionFinder.find_segment_by_quote(query, self._logger, active_series, size=5),
+            TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series),
             DatabaseManager.is_admin_or_moderator(user_id),
             return_exceptions=True,
         )
@@ -119,7 +124,7 @@ class InlineClipHandler(BotMessageHandler):
         return saved_clip, segments[: 4 if saved_clip else 5] if segments else [], season_info, is_admin
 
     async def __extract_clips_to_files(
-        self, saved_clip: Optional[VideoClip], segments: List[dict], season_info: Optional[dict], temp_dir: Path, is_admin: bool,
+        self, saved_clip: Optional[VideoClip], segments: List[ElasticsearchSegment], season_info: Optional[Dict[str, Any]], temp_dir: Path, is_admin: bool,
     ) -> List[Path]:
         video_files = []
 
@@ -129,16 +134,16 @@ class InlineClipHandler(BotMessageHandler):
             video_files.append(saved_file)
 
         for idx, segment in enumerate(segments, start=2 if saved_clip else 1):
-            start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-            end_time = segment["end"] + settings.EXTEND_AFTER
+            start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
+            end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
             if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
                 continue
 
             try:
-                segment_info = format_segment(segment, season_info) if season_info else None
+                segment_info = format_segment(segment) if season_info else None
                 episode_code = segment_info.episode_formatted if segment_info else str(idx)
-                output_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
+                output_path = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
                 final_path = temp_dir / f"{idx}_search_{episode_code}.mp4"
                 output_path.rename(final_path)
                 video_files.append(final_path)
@@ -148,7 +153,7 @@ class InlineClipHandler(BotMessageHandler):
         return video_files
 
     async def __create_inline_results(
-        self, saved_clip: Optional[VideoClip], segments: List[dict], season_info: Optional[dict], bot: Bot, is_admin: bool,
+        self, saved_clip: Optional[VideoClip], segments: List[ElasticsearchSegment], season_info: Optional[Dict[str, Any]], bot: Bot, is_admin: bool,
     ) -> List[InlineQueryResult]:
         results = []
 
@@ -165,22 +170,22 @@ class InlineClipHandler(BotMessageHandler):
 
         if segments and season_info:
             segment_results = await asyncio.gather(
-                *[self.__upload_segment(seg, i, season_info, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
+                *[self.__upload_segment(seg, i, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
             )
             results.extend([r for r in segment_results if not isinstance(r, Exception) and r])
 
         return results
 
-    async def __upload_segment(self, segment: dict, index: int, season_info: dict, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
-        start_time = max(0, segment["start"] - settings.EXTEND_BEFORE)
-        end_time = segment["end"] + settings.EXTEND_AFTER
+    async def __upload_segment(self, segment: ElasticsearchSegment, index: int, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
+        start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
+        end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
         if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
             return None
 
-        video_path = await ClipsExtractor.extract_clip(segment["video_path"], start_time, end_time, self._logger)
+        video_path = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
         try:
-            segment_info = format_segment(segment, season_info)
+            segment_info = format_segment(segment)
             return await self.__cache_video(
                 f"{convert_number_to_emoji(index)} {segment_info.episode_formatted} | {segment_info.time_formatted}",
                 f"👉🏻 {segment_info.episode_title}",

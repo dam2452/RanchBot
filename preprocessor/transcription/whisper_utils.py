@@ -1,4 +1,7 @@
-from typing import Dict
+from typing import (
+    Any,
+    Dict,
+)
 
 LANGUAGE_MAP = {
     "polish": "pl",
@@ -13,7 +16,7 @@ def get_language_code(language: str) -> str:
     return LANGUAGE_MAP.get(language.lower(), language.lower())
 
 
-def process_whisper_segment(segment) -> Dict:
+def _process_whisper_segment(segment) -> Dict[str, Any]:
     words = []
     if hasattr(segment, 'words') and segment.words:
         for word in segment.words:
@@ -38,7 +41,7 @@ def process_whisper_segment(segment) -> Dict:
     }
 
 
-def build_transcription_result(segments, language: str = None) -> Dict:
+def build_transcription_result(segments, language: str = None) -> Dict[str, Any]:
     result = {
         "text": "",
         "segments": [],
@@ -48,7 +51,7 @@ def build_transcription_result(segments, language: str = None) -> Dict:
         result["language"] = language
 
     for segment in segments:
-        segment_dict = process_whisper_segment(segment)
+        segment_dict = _process_whisper_segment(segment)
         result["segments"].append(segment_dict)
         result["text"] += segment.text
 

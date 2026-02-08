@@ -3,12 +3,15 @@ from abc import (
     abstractmethod,
 )
 from pathlib import Path
-from typing import Dict
+from typing import (
+    Any,
+    Dict,
+)
 
 
 class TranscriptionEngine(ABC):
     @abstractmethod
-    def transcribe(self, audio_path: Path) -> Dict:
+    def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         pass
 
     @abstractmethod

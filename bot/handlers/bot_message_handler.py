@@ -2,34 +2,48 @@ from abc import (
     ABC,
     abstractmethod,
 )
+import json
 import logging
-from pathlib import Path
 from typing import (
+    Any,
     Awaitable,
     Callable,
+    Dict,
     List,
     Optional,
 )
 
 from bot.adapters.rest.models import ResponseStatus as RS
 from bot.database.database_manager import DatabaseManager
+from bot.database.models import ClipType
+from bot.exceptions import (
+    CompilationTooLargeException,
+    VideoTooLargeException,
+)
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
-    get_clip_size_exceed_log_message,
-    get_clip_size_exceed_message,
-    get_clip_size_log_message,
+    get_extraction_failure_message,
     get_general_error_message,
     get_invalid_args_count_message,
     get_log_clip_duration_exceeded_message,
-    get_video_sent_log_message,
+    get_log_clip_too_large_message,
+    get_log_compilation_too_large_message,
+    get_log_extraction_failure_message,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
+from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
+from bot.types import ClipSegment
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
 )
+from bot.video.clips_compiler import (
+    ClipsCompiler,
+    process_compiled_clip,
+)
+from bot.video.utils import FFMpegException
 
 ValidatorFunctions = List[Callable[[], Awaitable[bool]]]
 
@@ -38,6 +52,7 @@ class BotMessageHandler(ABC):
         self._message = message
         self._responder = responder
         self._logger = logger
+        self._serial_manager = SerialContextManager(logger)
 
     async def handle(self) -> None:
         await self._log_user_activity(self._message.get_user_id(), self._message.get_text())
@@ -49,11 +64,23 @@ class BotMessageHandler(ABC):
                     return
 
             await self._do_handle()
+        except VideoTooLargeException as e:
+            await self._handle_video_too_large_exception(e)
+        except CompilationTooLargeException as e:
+            await self._handle_compilation_too_large_exception(e)
+        except FFMpegException as e:
+            await self._handle_ffmpeg_exception(e)
+        except json.JSONDecodeError as e:
+            await self._reply_error("Wystąpił problem z odczytem danych.")
+            await self._log_system_message(
+                logging.ERROR,
+                f"Data corruption in {self.__get_action_name()}: {e}",
+            )
         except Exception as e:
             await self._responder.send_text(get_general_error_message())
             await self._log_system_message(
                 logging.ERROR,
-                f"{type(e)} Error in {self.get_action_name()} for user '{self._message.get_user_id()}': {e}",
+                f"{type(e)} Error in {self.__get_action_name()} for user '{self._message.get_user_id()}': {e}",
             )
 
         await DatabaseManager.log_command_usage(self._message.get_user_id())
@@ -64,15 +91,19 @@ class BotMessageHandler(ABC):
     async def _log_user_activity(self, user_id: int, message: str) -> None:
         await log_user_activity(user_id, message, self._logger)
 
+    async def _get_user_active_series(self, user_id: int) -> str:
+        return await self._serial_manager.get_user_active_series(user_id)
+
+    async def _get_user_active_series_id(self, user_id: int) -> int:
+        active_series = await self._get_user_active_series(user_id)
+        return await DatabaseManager.get_or_create_series(active_series)
+
     async def _reply_invalid_args_count(self, response: str) -> None:
-        await self._responder.send_text(response)
-        await self._log_system_message(logging.INFO, get_invalid_args_count_message(self.get_action_name(), self._message.get_user_id()))
+        await self._responder.send_markdown(response)
+        await self._log_system_message(logging.INFO, get_invalid_args_count_message(self.__get_action_name(), self._message.get_user_id()))
 
-    def get_action_name(self) -> str:
+    def __get_action_name(self) -> str:
         return self.__class__.__name__
-
-    def get_parent_class_name(self) -> str:
-        return self.__class__.__bases__[0].__name__
 
     @abstractmethod
     def get_commands(self) -> List[str]:
@@ -82,29 +113,6 @@ class BotMessageHandler(ABC):
     async def _do_handle(self) -> None:
         pass
 
-    async def _answer_markdown(self, text: str) -> None:
-        await self._responder.send_markdown(text)
-
-    async def _answer(self, text: str) -> None:
-        await self._responder.send_text(text)
-
-    async def _answer_photo(self, image_bytes: bytes, image_path: Path, caption: str) -> None:
-        await self._responder.send_photo(image_bytes, image_path, caption)
-
-    async def _answer_video(self, file_path: Path) -> None:
-        file_size_mb = file_path.stat().st_size / (1024 * 1024)
-        await self._log_system_message(logging.INFO, get_clip_size_log_message(file_path, file_size_mb))
-
-        if file_size_mb > settings.FILE_SIZE_LIMIT_MB:
-            await self._log_system_message(logging.WARNING, get_clip_size_exceed_log_message(file_size_mb, settings.FILE_SIZE_LIMIT_MB))
-            await self._answer(get_clip_size_exceed_message())
-        else:
-            await self._responder.send_video(file_path)
-            await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
-
-    async def _answer_document(self, file_path: Path, caption: str, cleanup_dir: Optional[Path] = None) -> None:
-        await self._responder.send_document(file_path, caption, cleanup_dir=cleanup_dir)
-        await self._log_system_message(logging.INFO, get_video_sent_log_message(file_path))
 
     @abstractmethod
     async def _get_validator_functions(self) -> ValidatorFunctions:
@@ -112,7 +120,7 @@ class BotMessageHandler(ABC):
 
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: float) -> bool:
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
-            await self._answer_markdown(get_limit_exceeded_clip_duration_message())
+            await self._responder.send_markdown(get_limit_exceeded_clip_duration_message())
             await self._log_system_message(logging.INFO, get_log_clip_duration_exceeded_message(self._message.get_user_id()))
             return True
         return False
@@ -120,9 +128,9 @@ class BotMessageHandler(ABC):
     async def _validate_argument_count(
             self,
             message: AbstractMessage,
-            min_args: float,
+            min_args: int,
             error_message: str,
-            max_args: Optional[float] = None,
+            max_args: Optional[int] = None,
     ) -> bool:
         if max_args is None:
             max_args = min_args
@@ -133,10 +141,10 @@ class BotMessageHandler(ABC):
         await self._reply_invalid_args_count(error_message)
         return False
 
-    async def reply(
+    async def _reply(
             self,
             message: str,
-            data: Optional[dict] = None,
+            data: Optional[Dict[str, Any]] = None,
             status: RS = RS.SUCCESS,
     ) -> None:
         if self._message.should_reply_json():
@@ -150,5 +158,50 @@ class BotMessageHandler(ABC):
         else:
             await self._responder.send_markdown(message)
 
-    async def reply_error(self, message: str, data: Optional[dict] = None):
-        await self.reply(message, data, RS.ERROR)
+    async def _reply_error(self, message: str, data: Optional[Dict[str, Any]] = None):
+        await self._reply(message, data, RS.ERROR)
+
+    async def _handle_ffmpeg_exception(self, exception: FFMpegException) -> None:
+        await self._reply_error(get_extraction_failure_message())
+        await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
+
+    async def _handle_video_too_large_exception(self, exception: VideoTooLargeException) -> None:
+        await self._responder.send_text(self.__get_file_too_large_message(exception.duration, exception.suggestions))
+        await self._log_system_message(
+            logging.WARNING,
+            get_log_clip_too_large_message(exception.duration, self._message.get_username()),
+        )
+
+    async def _handle_compilation_too_large_exception(self, exception: CompilationTooLargeException) -> None:
+        await self._responder.send_text(self.__get_file_too_large_message(exception.total_duration, exception.suggestions))
+        await self._log_system_message(
+            logging.WARNING,
+            get_log_compilation_too_large_message(exception.total_duration, self._message.get_username()),
+        )
+
+    @staticmethod
+    def __get_file_too_large_message(duration: Optional[float] = None, suggestions: Optional[List[str]] = None) -> str:
+        message = "Plik jest za duży do wysłania"
+
+        if duration is not None:
+            message += f" ({duration:.1f}s)"
+
+        message += ".\n\nTelegram ma limit 50MB dla wideo."
+
+        if suggestions:
+            message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)
+
+        return message
+
+    async def _compile_and_send_video(self, selected_segments: List[ClipSegment], total_duration: float, clip_type: ClipType) -> None:
+        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
+        await process_compiled_clip(self._message, compiled_output, clip_type)
+
+        try:
+            await self._responder.send_video(
+                compiled_output,
+                duration=total_duration,
+                suggestions=["Wybrać mniej klipów", "Wybrać krótsze fragmenty"],
+            )
+        except VideoTooLargeException as e:
+            raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions) from e

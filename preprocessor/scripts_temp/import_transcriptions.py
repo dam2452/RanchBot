@@ -1,23 +1,25 @@
-from __future__ import annotations
-
 import json
 from pathlib import Path
 import re
 import shutil
+from typing import (
+    Optional,
+    Tuple,
+)
 
 SOURCE_DIR = Path("/mnt/c/GIT_REPO/RANCZO_KLIPY/sceny-trans")
 OUTPUT_DIR = Path("/mnt/c/GIT_REPO/RANCZO_KLIPY/preprocessor/output_data/transcriptions")
 SERIES_NAME = "ranczo"
 
 
-def parse_filename(filename: str) -> tuple[int, int] | None:
+def parse_filename(filename: str) -> Optional[Tuple[int, int]]:
     match = re.search(r"S(\d{2})E(\d{2})", filename, re.IGNORECASE)
     if match:
         return int(match.group(1)), int(match.group(2))
     return None
 
 
-def copy_and_fix_file(source_dir: Path, filename_base: str, season: int, episode: int) -> bool:
+def _copy_and_fix_file(source_dir: Path, filename_base: str, season: int, episode: int) -> bool:
     raw_dir = OUTPUT_DIR / f"S{season:02d}" / f"E{episode:02d}" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -85,7 +87,7 @@ def main() -> None:
 
         season, episode = parsed
         print(f"{filename_base} -> S{season:02d}E{episode:02d}")
-        copy_and_fix_file(SOURCE_DIR, filename_base, season, episode)
+        _copy_and_fix_file(SOURCE_DIR, filename_base, season, episode)
 
 
 if __name__ == "__main__":

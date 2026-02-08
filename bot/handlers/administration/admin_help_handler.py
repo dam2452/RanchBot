@@ -28,10 +28,10 @@ class AdminHelpHandler(BotMessageHandler):
             await self.__reply_admin_help()
 
     async def __reply_admin_help(self) -> None:
-        await self.reply(get_admin_help_message(), data={"markdown": get_admin_help_message()})
+        await self._reply(get_admin_help_message(), data={"markdown": get_admin_help_message()})
 
         await self._log_system_message(logging.INFO, get_message_sent_log_message(self._message.get_username()))
 
     async def __reply_admin_shortcuts(self) -> None:
-        await self.reply(get_admin_shortcuts_message(), data={"markdown": get_admin_shortcuts_message()})
+        await self._reply(get_admin_shortcuts_message(), data={"markdown": get_admin_shortcuts_message()})
         await self._log_system_message(logging.INFO, get_shortcuts_sent_log_message(self._message.get_username()))

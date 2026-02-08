@@ -25,9 +25,10 @@ services:
       REST_API_PORT: ${REST_API_PORT:-8541}
       DISABLE_RATE_LIMITING: ${DISABLE_RATE_LIMITING:-false}
       INLINE_CACHE_CHANNEL_ID: ${INLINE_CACHE_CHANNEL_ID}
+      VIDEO_DATA_DIR: ${VIDEO_DATA_DIR:-/app/bot/RanchBotData}
     restart: ${RESTART_POLICY:-unless-stopped}
     volumes:
-      - /mnt/WD_RED_2TB_MIRROR/RanchBot/RANCZO-WIDEO:/app/bot/RANCZO-WIDEO:ro
+      - /mnt/WD_RED_2TB_MIRROR/RanchBot:/app/bot/RanchBotData:ro
     deploy:
       resources:
         limits:

@@ -19,6 +19,10 @@ from preprocessor.core.constants import (
     FILE_SUFFIXES,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.utils.constants import (
+    WordKeys,
+    WordTypeValues,
+)
 
 
 class SoundEventSeparator(BaseProcessor):
@@ -173,7 +177,7 @@ class SoundEventSeparator(BaseProcessor):
             f"{len(dialogue_segments)} dialogue, {len(sound_event_segments)} sound events",
         )
 
-    def __classify_segment(self, segment: Dict) -> str:
+    def __classify_segment(self, segment: Dict[str, Any]) -> str:
         words = segment.get("words", [])
         if not words:
             return "dialogue"
@@ -184,7 +188,7 @@ class SoundEventSeparator(BaseProcessor):
         for word in words:
             if self.__is_sound_event(word):
                 has_sound = True
-            elif word.get("type") not in ["spacing", ""]:
+            elif word.get(WordKeys.TYPE) not in [WordTypeValues.SPACING, ""]:
                 has_dialogue = True
 
         if has_sound and has_dialogue:
@@ -194,8 +198,8 @@ class SoundEventSeparator(BaseProcessor):
         return "dialogue"
 
     @staticmethod
-    def __is_sound_event(word: Dict) -> bool:
-        if word.get("type") == "audio_event":
+    def __is_sound_event(word: Dict[str, Any]) -> bool:
+        if word.get(WordKeys.TYPE) == WordTypeValues.AUDIO_EVENT:
             return True
 
         text = word.get("text", "").strip()
@@ -204,7 +208,7 @@ class SoundEventSeparator(BaseProcessor):
 
         return False
 
-    def __split_mixed_segment(self, segment: Dict) -> Tuple[List[Dict], List[Dict]]:
+    def __split_mixed_segment(self, segment: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         words = segment.get("words", [])
         dialogue_sequences = []
         sound_sequences = []
@@ -213,7 +217,7 @@ class SoundEventSeparator(BaseProcessor):
         current_words = []
 
         for word in words:
-            if word.get("type") == "spacing":
+            if word.get(WordKeys.TYPE) == WordTypeValues.SPACING:
                 if current_words:
                     current_words.append(word)
                 continue
@@ -244,12 +248,12 @@ class SoundEventSeparator(BaseProcessor):
         words: List[Dict],
         dialogue_sequences: List[Dict],
         sound_sequences: List[Dict],
-        original_segment: Dict,
+        original_segment: Dict[str, Any],
     ) -> None:
         if not words:
             return
 
-        non_spacing_words = [w for w in words if w.get("type") != "spacing"]
+        non_spacing_words = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
         if not non_spacing_words:
             return
 
@@ -275,7 +279,7 @@ class SoundEventSeparator(BaseProcessor):
             sound_sequences.append(new_segment)
 
     @staticmethod
-    def __clean_segment_text(segment: Dict) -> Dict:
+    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
         cleaned = segment.copy()
         if "text" in cleaned:
             text = cleaned["text"]
@@ -295,7 +299,7 @@ class SoundEventSeparator(BaseProcessor):
         return cleaned
 
     @staticmethod
-    def __enrich_sound_event(segment: Dict) -> Dict:
+    def __enrich_sound_event(segment: Dict[str, Any]) -> Dict[str, Any]:
         enriched = segment.copy()
         enriched["sound_type"] = "sound"
         return enriched
@@ -355,7 +359,7 @@ class SoundEventSeparator(BaseProcessor):
             millis = int((seconds % 1) * 1000)
             return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
-        def write_srt(segments: List[Dict], output_path: Path) -> None:
+        def _write_srt(segments: List[Dict], output_path: Path) -> None:
             with open(output_path, "w", encoding="utf-8") as f:
                 for idx, seg in enumerate(segments, start=1):
                     words = seg.get("words", [])
@@ -364,7 +368,7 @@ class SoundEventSeparator(BaseProcessor):
                     if not text or not words:
                         continue
 
-                    non_spacing_words = [w for w in words if w.get("type") != "spacing"]
+                    non_spacing_words = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
                     if not non_spacing_words:
                         continue
 
@@ -375,8 +379,8 @@ class SoundEventSeparator(BaseProcessor):
                     f.write(f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n")
                     f.write(f"{text}\n\n")
 
-        write_srt(dialogue_segments, clean_srt)
-        write_srt(sound_segments, sound_srt)
+        _write_srt(dialogue_segments, clean_srt)
+        _write_srt(sound_segments, sound_srt)
 
     def _get_progress_description(self) -> str:
         return "Separating sound events from dialogues"
