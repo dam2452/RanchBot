@@ -1,3 +1,4 @@
+from .auth_exceptions import TooManyActiveTokensError
 from .video_exceptions import (
     CompilationTooLargeException,
     VideoException,
@@ -5,6 +6,7 @@ from .video_exceptions import (
 )
 
 __all__ = [
+    "TooManyActiveTokensError",
     "VideoException",
     "VideoTooLargeException",
     "CompilationTooLargeException",
