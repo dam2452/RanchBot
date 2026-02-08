@@ -18,6 +18,8 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_invalid_args_count_message,
+    get_invalid_interval_log,
+    get_invalid_interval_message,
     get_invalid_segment_index_message,
     get_invalid_segment_log,
     get_max_extension_limit_message,
@@ -78,6 +80,11 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
         start_time = max(0.0, original_start_time - additional_start_offset - extend_before)
         end_time = min(original_end_time + additional_end_offset + extend_after, await get_video_duration(segment_info.get("video_path")))
+
+        if start_time >= end_time:
+            await self.reply_error(get_invalid_interval_message())
+            await self._log_system_message(logging.INFO, get_invalid_interval_log())
+            return None
 
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None
