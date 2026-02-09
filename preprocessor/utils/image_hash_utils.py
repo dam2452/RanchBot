@@ -2,8 +2,8 @@ import json
 from typing import Dict
 
 from preprocessor.config.config import settings
-from preprocessor.core.episode_manager import EpisodeInfo
 from preprocessor.core.path_manager import PathManager
+from preprocessor.episodes import EpisodeInfo
 
 
 def load_image_hashes_for_episode(

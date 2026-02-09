@@ -8,12 +8,6 @@ from typing import (
     Optional,
 )
 
-from preprocessor.types import (
-    CharacterDetectionInFrame,
-    EpisodeMetadata,
-    ObjectDetectionInFrame,
-    SceneTimestampsData,
-)
 from preprocessor.config.config import (
     get_base_output_dir,
     settings,
@@ -27,9 +21,15 @@ from preprocessor.core.constants import (
     FILE_EXTENSIONS,
     FILE_SUFFIXES,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
+from preprocessor.episodes import EpisodeManager
+from preprocessor.types import (
+    CharacterDetectionInFrame,
+    EpisodeMetadata,
+    ObjectDetectionInFrame,
+    SceneTimestampsData,
+)
 from preprocessor.utils.console import console
 from preprocessor.utils.constants import (
     CharacterDetectionKeys,
@@ -106,7 +106,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                 episode_info,
                 ELASTIC_SUBDIRS.text_segments,
                 segments_filename,
-                self.series_name,
             )
             outputs.append(OutputSpec(path=segments_file, required=True))
 
@@ -114,7 +113,7 @@ class ElasticDocumentGenerator(BaseProcessor):
             episode_code = episode_info.episode_num()
             trans_dir = self.path_manager.base_output_dir / settings.output_subdirs.transcriptions / season_code / episode_code
             sound_events_dir = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
-            sound_events_filename = self.episode_manager.file_naming.build_filename(
+            sound_events_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="sound_events",
@@ -126,7 +125,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.sound_events,
                     sound_events_elastic,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=sound_events_file, required=False))
         else:
@@ -155,7 +153,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.text_embeddings,
                     text_embeddings_filename,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=text_embeddings_file, required=True))
 
@@ -165,7 +162,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.video_frames,
                     video_frames_filename,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=video_frames_file, required=True))
 
@@ -181,7 +177,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.episode_names,
                     episode_name_filename,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=episode_name_file, required=True))
 
@@ -197,7 +192,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.text_statistics,
                     text_stats_elastic_filename,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=text_stats_elastic_file, required=True))
 
@@ -208,7 +202,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.full_episode_embeddings,
                     full_episode_elastic_filename,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=full_episode_elastic_file, required=True))
 
@@ -219,7 +212,6 @@ class ElasticDocumentGenerator(BaseProcessor):
                     episode_info,
                     ELASTIC_SUBDIRS.sound_event_embeddings,
                     sound_event_elastic_filename,
-                    self.series_name,
                 )
                 outputs.append(OutputSpec(path=sound_event_elastic_file, required=False))
 
@@ -272,7 +264,6 @@ class ElasticDocumentGenerator(BaseProcessor):
 
         episode_metadata = self.__build_episode_metadata(episode_info)
         episode_id = episode_info.episode_code()
-        from preprocessor.core.constants import FILE_EXTENSIONS
         filename = f"{self.series_name.lower()}_{episode_info.episode_code()}{FILE_EXTENSIONS['mp4']}"
         video_path = str(Path("bot") / f"{self.series_name.upper()}-WIDEO" / episode_info.season_code() / filename)
 

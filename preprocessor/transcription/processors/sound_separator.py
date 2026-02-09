@@ -18,7 +18,7 @@ from preprocessor.core.constants import (
     FILE_EXTENSIONS,
     FILE_SUFFIXES,
 )
-from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.constants import (
     WordKeys,
     WordTypeValues,

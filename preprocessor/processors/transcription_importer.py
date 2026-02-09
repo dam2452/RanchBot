@@ -10,9 +10,10 @@ from typing import (
     Tuple,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.console import (
     console,
     create_progress,
@@ -139,7 +140,7 @@ class TranscriptionImporter(BaseProcessor):
         if episode_info:
             converted_data["episode_info"] = EpisodeManager.get_metadata(episode_info)
 
-        filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+        filename = self.episode_manager.path_manager.build_filename(episode_info, extension="json")
         season_dir = self.output_dir / episode_info.season_code()
         output_file = season_dir / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)

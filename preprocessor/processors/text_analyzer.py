@@ -15,8 +15,8 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
 from preprocessor.text_analysis.text_statistics import TextStatistics
 from preprocessor.utils.file_utils import atomic_write_json
 
@@ -95,7 +95,7 @@ class TextAnalyzer(BaseProcessor):
         episode_info = item.metadata["episode_info"]
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
-        output_filename = self.episode_manager.file_naming.build_filename(
+        output_filename = self.episode_manager.path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="text_stats",
@@ -110,7 +110,7 @@ class TextAnalyzer(BaseProcessor):
         episode_info = item.metadata["episode_info"]
         clean_dir = episode_dir / settings.output_subdirs.transcription_subdirs.clean
 
-        output_filename = self.episode_manager.file_naming.build_filename(
+        output_filename = self.episode_manager.path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="text_stats",

@@ -4,6 +4,7 @@ from typing import (
     TypedDict,
 )
 
+
 class SceneDict(TypedDict):
     scene_number: int
     start_frame: int

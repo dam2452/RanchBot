@@ -1,8 +1,8 @@
 from typing import (
-    List,
     NotRequired,
     TypedDict,
 )
+
 
 class HashResult(TypedDict):
     frame_number: int

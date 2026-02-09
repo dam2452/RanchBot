@@ -14,11 +14,11 @@ from typing import (
 from PIL import Image
 
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
-from preprocessor.utils.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processor import BatchProcessor
 from preprocessor.utils.console import console
-from preprocessor.video.frame_utils import load_frames_from_requests
+from preprocessor.utils.image_hasher import PerceptualHasher
 from preprocessor.utils.time_utils import format_time_hms
+from preprocessor.video.frame_utils import load_frames_from_requests
 
 
 def _prefetch_batches(

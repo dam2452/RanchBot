@@ -8,8 +8,8 @@ from typing import (
     Optional,
 )
 
-import torch
 from PIL import Image
+import torch
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -73,24 +73,13 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         detections_output = episode_dir / detections_filename
         return [OutputSpec(path=detections_output, required=True)]
 
-    def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
-        expected = self.get_expected_outputs(item)
-        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
-
-    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:  # pylint: disable=too-many-locals
+    def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         self.initialize()
-
-        from PIL import Image  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
 
-        frame_files = sorted([
-            f for f in ramdisk_frames_dir.glob("*.jpg")
-            if f.is_file() and "frame_" in f.name
-        ])
-
-        if not frame_files:
-            console.print(f"[yellow]No frames found in {ramdisk_frames_dir}[/yellow]")
+        frame_files = self._load_frames_with_warning(ramdisk_frames_dir)
+        if frame_files is None:
             return
 
         console.print(f"[cyan]Detecting objects in {len(frame_files)} frames[/cyan]")

@@ -4,6 +4,7 @@ from typing import (
     Union,
 )
 
+
 class ClipSegment(TypedDict):
     video_path: Union[str, Any]
     start_time: float

@@ -13,15 +13,15 @@ import numpy as np
 import torch
 from transnetv2_pytorch import TransNetV2
 
-from preprocessor.types import SceneDict
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
+from preprocessor.types import SceneDict
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
 
@@ -42,7 +42,10 @@ class SceneDetector(BaseProcessor):
         )
 
         self.videos: Path = self._args["videos"]
-        self.output_dir: Path = self._args.get("output_dir", settings.scene_detection.output_dir)
+        self.output_dir: Path = self._args.get(
+            "output_dir",
+            settings.scene_detection.get_output_dir(self.series_name),
+        )
         self.threshold: float = self._args.get("threshold", settings.scene_detection.threshold)
         self.min_scene_len: int = self._args.get("min_scene_len", settings.scene_detection.min_scene_len)
 
@@ -82,7 +85,7 @@ class SceneDetector(BaseProcessor):
         episode_info = item.metadata.get("episode_info")
 
         if episode_info:
-            output_filename = self.episode_manager.file_naming.build_filename(
+            output_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="scenes",

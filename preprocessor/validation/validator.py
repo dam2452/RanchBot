@@ -9,8 +9,8 @@ from rich.console import Console
 from rich.progress import track
 
 from preprocessor.config.config import settings
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.path_manager import PathManager
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.validation.episode_stats import EpisodeStats
 from preprocessor.validation.report_generator import ReportGenerator

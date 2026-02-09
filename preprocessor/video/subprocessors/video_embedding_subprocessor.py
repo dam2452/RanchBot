@@ -1,5 +1,4 @@
 import gc
-import json
 import logging
 from pathlib import Path
 from typing import (
@@ -25,6 +24,8 @@ from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
 from preprocessor.video.frame_processor import FrameSubProcessor
+
+# pylint: disable=duplicate-code
 
 
 class VideoEmbeddingSubProcessor(FrameSubProcessor):
@@ -60,10 +61,6 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         self.gpu_processor = None
         self.__cleanup_memory()
 
-    def finalize(self) -> None:
-        if hasattr(self, 'logger'):
-            self.logger.finalize()
-
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
         episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.embeddings)
@@ -77,22 +74,14 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         video_output = episode_dir / video_filename
         return [OutputSpec(path=video_output, required=True)]
 
-    def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
-        expected = self.get_expected_outputs(item)
-        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
-
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         self.initialize()
 
         metadata_file = item.input_path
         episode_info = item.metadata["episode_info"]
 
-        with open(metadata_file, "r", encoding="utf-8") as f:
-            metadata = json.load(f)
-
-        frame_requests = metadata.get("frames", [])
-        if not frame_requests:
-            console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
+        frame_requests = self._load_frame_requests_from_metadata(metadata_file)
+        if frame_requests is None:
             return
 
         episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.embeddings)

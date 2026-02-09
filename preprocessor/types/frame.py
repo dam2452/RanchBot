@@ -3,6 +3,7 @@ from typing import (
     TypedDict,
 )
 
+
 class FrameRequest(TypedDict):
     frame: int
     time: float

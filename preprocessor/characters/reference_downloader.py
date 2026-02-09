@@ -21,10 +21,10 @@ from patchright.sync_api import (
     sync_playwright,
 )
 
-from preprocessor.characters.face_detection import init_face_detection
-from preprocessor.characters.image_search import BaseImageSearch
 from preprocessor.characters.duckduckgo_image_search import DuckDuckGoImageSearch
+from preprocessor.characters.face_detection import init_face_detection
 from preprocessor.characters.google_image_search import GoogleImageSearch
+from preprocessor.characters.image_search import BaseImageSearch
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.console import (
@@ -71,8 +71,6 @@ class CharacterReferenceDownloader(BaseProcessor):
 
     def get_output_subdir(self) -> str:
         return "character_references"
-        if "series_name" not in args:
-            raise ValueError("series_name is required")
 
     def __all_references_exist(self, characters: List[Dict[str, Any]]) -> bool:
         for char in characters:

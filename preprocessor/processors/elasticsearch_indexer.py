@@ -21,8 +21,8 @@ from preprocessor.config.config import (
     settings,
 )
 from preprocessor.core.base_processor import BaseProcessor
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
 from preprocessor.processors.elasticsearch_manager import ElasticSearchManager
 from preprocessor.utils.console import console
 

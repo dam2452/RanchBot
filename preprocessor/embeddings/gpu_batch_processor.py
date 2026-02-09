@@ -61,6 +61,37 @@ class GPUBatchProcessor:
 
         return suggested
 
+    @staticmethod
+    def __compute_embeddings(model: Any, batch_pil: List[Image.Image]) -> List[List[float]]:
+        inputs = [{"image": img} for img in batch_pil]
+        embeddings_tensor = model.process(inputs, normalize=True)
+        batch_np = embeddings_tensor.cpu().numpy()
+        del embeddings_tensor
+        results = [emb.tolist() for emb in batch_np]
+        del batch_np
+        torch.cuda.empty_cache()
+        return results
+
+    @staticmethod
+    def __report_batch_progress(
+        processed_count: int,
+        total_images: int,
+        elapsed: float,
+        current_batch_size: int,
+        batch_start_time: float,
+    ) -> None:
+        rate = current_batch_size / elapsed if elapsed > 0 else 0
+        console.print(
+            f"    [dim cyan]→ {processed_count}/{total_images} "
+            f"({processed_count / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.3f} img/s)[/dim cyan]",
+        )
+
+        elapsed_total = time.time() - batch_start_time
+        remaining_images = total_images - processed_count
+        if processed_count > 0:
+            eta = remaining_images / (processed_count / elapsed_total)
+            console.print(f"    [dim]Batch ETA: {eta:.0f}s[/dim]")
+
     def process_images_batch(
         self,
         pil_images: List[Image.Image],
@@ -76,29 +107,19 @@ class GPUBatchProcessor:
             sub_batch_start = time.time()
 
             try:
-                inputs = [{"image": img} for img in batch_pil]
-                embeddings_tensor = self.model.process(inputs, normalize=True)
+                results = self.__compute_embeddings(self.model, batch_pil)
                 self.__log_vram_usage()
-                batch_np = embeddings_tensor.cpu().numpy()
-                del embeddings_tensor
-                results = [emb.tolist() for emb in batch_np]
-                del batch_np
-                torch.cuda.empty_cache()
 
                 processed_count += current_batch_size
                 if total_images > self.progress_sub_batch_size:
                     elapsed = time.time() - sub_batch_start
-                    rate = current_batch_size / elapsed if elapsed > 0 else 0
-                    console.print(
-                        f"    [dim cyan]→ {processed_count}/{total_images} "
-                        f"({processed_count / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.3f} img/s)[/dim cyan]",
+                    self.__report_batch_progress(
+                        processed_count,
+                        total_images,
+                        elapsed,
+                        current_batch_size,
+                        batch_start_time,
                     )
-
-                    elapsed_total = time.time() - batch_start_time
-                    remaining_images = total_images - processed_count
-                    if processed_count > 0:
-                        eta = remaining_images / (processed_count / elapsed_total)
-                        console.print(f"    [dim]Batch ETA: {eta:.0f}s[/dim]")
 
                 return results
             except RuntimeError as e:

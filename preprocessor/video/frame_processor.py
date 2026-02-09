@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 import shutil
@@ -5,7 +6,11 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
+    Tuple,
 )
+
+import cv2
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
@@ -13,8 +18,10 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.console import console
+
+# pylint: disable=duplicate-code
 
 
 class FrameProcessor(BaseProcessor):
@@ -135,7 +142,8 @@ class FrameSubProcessor:
         raise NotImplementedError
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
-        raise NotImplementedError
+        expected = self.get_expected_outputs(item)
+        return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
     def needs_ramdisk(self) -> bool:
         return True
@@ -143,5 +151,66 @@ class FrameSubProcessor:
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
         raise NotImplementedError
 
+    @staticmethod
+    def _load_frame_files_from_ramdisk(ramdisk_frames_dir: Path) -> List[Path]:
+        return sorted([
+            f for f in ramdisk_frames_dir.glob("*.jpg")
+            if f.is_file() and "frame_" in f.name
+        ])
+
+    def _load_frames_with_warning(self, ramdisk_frames_dir: Path) -> Optional[List[Path]]:
+        frame_files = self._load_frame_files_from_ramdisk(ramdisk_frames_dir)
+        if not frame_files:
+            console.print(f"[yellow]No frames found in {ramdisk_frames_dir}[/yellow]")
+            return None
+        return frame_files
+
+    @staticmethod
+    def _load_detection_file(
+        detection_dir: Path,
+        ramdisk_frames_dir: Path,
+        glob_pattern: str,
+    ) -> Optional[Dict[str, Any]]:
+        detection_files = list(detection_dir.glob(glob_pattern))
+        detection_file = detection_files[0] if detection_files else None
+
+        if not detection_file or not detection_file.exists():
+            console.print(f"[yellow]No detections JSON found in {detection_dir}[/yellow]")
+            return None
+
+        if not ramdisk_frames_dir.exists():
+            console.print(f"[yellow]No frames directory found: {ramdisk_frames_dir}[/yellow]")
+            return None
+
+        with open(detection_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+    @staticmethod
+    def _load_frame_requests_from_metadata(metadata_file: Path) -> Optional[List[Dict[str, Any]]]:
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+        frame_requests = metadata.get("frames", [])
+        if not frame_requests:
+            console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
+            return None
+
+        return frame_requests
+
+    @staticmethod
+    def _draw_label_on_bbox(
+        img,
+        label: str,
+        x1: int,
+        y1: int,
+        color: Tuple[int, int, int],
+    ) -> None:
+        label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        label_y1 = max(y1 - 10, label_size[1])
+
+        cv2.rectangle(img, (x1, label_y1 - label_size[1] - 5), (x1 + label_size[0], label_y1), color, -1)
+        cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
     def finalize(self) -> None:
-        pass
+        if hasattr(self, 'logger'):
+            self.logger.finalize()

@@ -18,10 +18,11 @@ from preprocessor.types import (
     SceneTimestamp,
     SceneTimestampPoint,
     SceneTimestampsData,
+    SearchSegment,
     SeasonBucket,
     SeasonInfo,
     SeasonInfoDict,
-    SearchSegment,
+    SegmentWithScore,
     TranscriptionContext,
     VideoMetadata,
 )
@@ -50,6 +51,7 @@ __all__ = [
     "SeasonInfo",
     "SeasonInfoDict",
     "SearchSegment",
+    "SegmentWithScore",
     "TranscriptionContext",
     "VideoMetadata",
 ]

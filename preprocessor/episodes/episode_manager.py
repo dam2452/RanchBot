@@ -9,9 +9,9 @@ from typing import (
     Optional,
 )
 
-from preprocessor.core.episode_file_finder import EpisodeFileFinder
-from preprocessor.core.episode_parser import EpisodeInfoParser
 from preprocessor.core.path_manager import PathManager
+from preprocessor.episodes.episode_file_finder import EpisodeFileFinder
+from preprocessor.episodes.episode_parser import EpisodeInfoParser
 from preprocessor.utils.constants import (
     EpisodeMetadataKeys,
     EpisodesDataKeys,

@@ -1,6 +1,6 @@
-import logging
 from datetime import datetime
 import json
+import logging
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,23 +14,23 @@ from typing import (
 from PIL import Image
 import decord
 
-from preprocessor.types import FrameRequest
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
-    BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.enums import KeyframeStrategy
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.core.video_processor import VideoProcessor
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
+from preprocessor.episodes import EpisodeManager
+from preprocessor.types import FrameRequest
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
 
 
 @register_processor("export_frames")
-class FrameExporter(BaseProcessor):
+class FrameExporter(VideoProcessor):
     REQUIRES = ["videos", "scene_timestamps"]
     PRODUCES = ["frames"]
     PRIORITY = 30
@@ -45,15 +45,14 @@ class FrameExporter(BaseProcessor):
         )
         decord.bridge.set_bridge('native')
 
-        self.input_videos: Path = Path(self._args["videos"])
-        self.subdirectory_filter: Optional[str] = None
-        episodes_json_path = self._args.get("episodes_info_json")
-        self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
-
-        self.output_frames: Path = Path(self._args.get("output_frames", settings.frame_export.output_dir))
+        self.output_frames: Path = Path(
+            self._args.get("output_frames", settings.frame_export.get_output_dir(self.series_name)),
+        )
         self.output_frames.mkdir(parents=True, exist_ok=True)
 
-        self.scene_timestamps_dir: Path = Path(self._args.get("scene_timestamps_dir", settings.scene_detection.output_dir))
+        self.scene_timestamps_dir: Path = Path(
+            self._args.get("scene_timestamps_dir", settings.scene_detection.get_output_dir(self.series_name)),
+        )
 
         resolution = self._args.get("resolution", settings.frame_export.resolution)
         self.resize_width: int = resolution.width
@@ -68,18 +67,8 @@ class FrameExporter(BaseProcessor):
             self.frames_per_scene,
         )
 
-    def _get_processing_items(self) -> List[ProcessingItem]:
-        return self._create_video_processing_items(
-            source_path=self.input_videos,
-            extensions=self.get_video_glob_patterns(),
-            episode_manager=self.episode_manager,
-            skip_unparseable=True,
-            subdirectory_filter=self.subdirectory_filter,
-        )
-
     def _validate_args(self, args: Dict[str, Any]) -> None:
-        if "videos" not in args:
-            raise ValueError("videos path is required")
+        self._validate_videos_required(args)
 
         if "scene_timestamps_dir" in args:
             scene_path = Path(args["scene_timestamps_dir"])
@@ -92,7 +81,7 @@ class FrameExporter(BaseProcessor):
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
 
-        metadata_filename = self.episode_manager.file_naming.build_filename(
+        metadata_filename = self.episode_manager.path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="_frame_metadata",
@@ -112,7 +101,7 @@ class FrameExporter(BaseProcessor):
         episode_dir = self.__get_episode_dir(episode_info)
 
         if episode_dir.exists():
-            metadata_filename = self.episode_manager.file_naming.build_filename(
+            metadata_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_frame_metadata",
@@ -174,7 +163,7 @@ class FrameExporter(BaseProcessor):
         frame_pil = Image.fromarray(frame_np)
 
         resized = self.__resize_frame(frame_pil, self.current_video_dar)
-        base_filename = self.episode_manager.file_naming.build_base_filename(episode_info)
+        base_filename = self.episode_manager.path_manager.build_base_filename(episode_info)
         filename = f"{base_filename}_frame_{frame_num:06d}.jpg"
         resized.save(episode_dir / filename, quality=90)
 
@@ -253,7 +242,7 @@ class FrameExporter(BaseProcessor):
 
             frame_with_path = frame.copy()
             frame_num = frame["frame_number"]
-            base_filename = self.episode_manager.file_naming.build_base_filename(episode_info)
+            base_filename = self.episode_manager.path_manager.build_base_filename(episode_info)
             frame_with_path["frame_path"] = f"{base_filename}_frame_{frame_num:06d}.jpg"
             frames_with_paths.append(frame_with_path)
 
@@ -282,7 +271,7 @@ class FrameExporter(BaseProcessor):
             },
             "frames": frames_with_paths,
         }
-        metadata_filename = self.episode_manager.file_naming.build_filename(
+        metadata_filename = self.episode_manager.path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="_frame_metadata",

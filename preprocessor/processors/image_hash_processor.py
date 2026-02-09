@@ -17,12 +17,12 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
-from preprocessor.utils.image_hasher import PerceptualHasher
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
-from preprocessor.utils.metadata_utils import create_processing_metadata
+from preprocessor.utils.hash_save_utils import save_image_hashes_to_json
+from preprocessor.utils.image_hasher import PerceptualHasher
 
 # pylint: disable=duplicate-code
 
@@ -42,8 +42,12 @@ class ImageHashProcessor(BaseProcessor):
             loglevel=logging.DEBUG,
         )
 
-        self.frames_dir: Path = Path(self._args.get("frames_dir", settings.frame_export.output_dir))
-        self.output_dir: Path = Path(self._args.get("output_dir", settings.image_hash.output_dir))
+        self.frames_dir: Path = Path(
+            self._args.get("frames_dir", settings.frame_export.get_output_dir(self.series_name)),
+        )
+        self.output_dir: Path = Path(
+            self._args.get("output_dir", settings.image_hash.get_output_dir(self.series_name)),
+        )
         self.batch_size: int = self._args.get("batch_size", settings.embedding.batch_size)
         self.device: str = "cuda"
 
@@ -75,7 +79,7 @@ class ImageHashProcessor(BaseProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        hash_filename = self.episode_manager.file_naming.build_filename(
+        hash_filename = self.episode_manager.path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="image_hashes",
@@ -98,50 +102,33 @@ class ImageHashProcessor(BaseProcessor):
         metadata_file = item.input_path
         episode_info = item.metadata["episode_info"]
 
+        frame_requests = self.__load_frame_requests(metadata_file)
+        if frame_requests is None:
+            return
+
+        frames_dir = metadata_file.parent
+        hash_results = compute_hashes_in_batches(frames_dir, frame_requests, self.hasher, self.batch_size)
+
+        save_image_hashes_to_json(
+            episode_info=episode_info,
+            hash_results=hash_results,
+            series_name=self.series_name,
+            device=self.device,
+            batch_size=self.batch_size,
+        )
+        self.__cleanup_memory()
+
+    @staticmethod
+    def __load_frame_requests(metadata_file: Path) -> Optional[List[Dict[str, Any]]]:
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = json.load(f)
 
         frame_requests = metadata.get("frames", [])
         if not frame_requests:
             console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
-            return
+            return None
 
-        frames_dir = metadata_file.parent
-        hash_results = compute_hashes_in_batches(frames_dir, frame_requests, self.hasher, self.batch_size)
-
-        episode_dir = self.__get_episode_output_dir(episode_info)
-        self.__save_hashes(episode_dir, episode_info, hash_results)
-        self.__cleanup_memory()
-
-    def __get_episode_output_dir(self, episode_info) -> Path:
-        return self.path_manager.get_episode_dir(episode_info, settings.output_subdirs.image_hashes)
-
-    def __save_hashes(self, episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
-        episode_dir.mkdir(parents=True, exist_ok=True)
-
-        hash_data = create_processing_metadata(
-            episode_info=episode_info,
-            processing_params={
-                "device": self.device,
-                "batch_size": self.batch_size,
-                "hash_size": 8,
-            },
-            statistics={
-                "total_hashes": len(hash_results),
-                "unique_hashes": len(set(h.get("perceptual_hash") for h in hash_results if "perceptual_hash" in h)),
-            },
-            results_key="image_hashes",
-            results_data=hash_results,
-        )
-
-        hash_filename = self.episode_manager.file_naming.build_filename(
-            episode_info,
-            extension="json",
-            suffix="image_hashes",
-        )
-        hash_output = episode_dir / hash_filename
-        with open(hash_output, "w", encoding="utf-8") as f:
-            json.dump(hash_data, f, indent=2, ensure_ascii=False)
+        return frame_requests
 
     @staticmethod
     def __cleanup_memory() -> None:

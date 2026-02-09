@@ -1,3 +1,9 @@
+from .clip import ClipSegment
+from .detection import (
+    CharacterDetectionInFrame,
+    Detection,
+    ObjectDetectionInFrame,
+)
 from .episode import (
     EpisodeInfo,
     EpisodeMetadata,
@@ -11,23 +17,6 @@ from .scene import (
     SceneTimestampPoint,
     SceneTimestampsData,
 )
-from .clip import ClipSegment
-from .detection import (
-    CharacterDetectionInFrame,
-    Detection,
-    ObjectDetectionInFrame,
-)
-from .video import (
-    HashResult,
-    VideoMetadata,
-)
-from .transcription import (
-    BaseSegment,
-    ElasticsearchSegment,
-    SegmentWithScore,
-    SegmentWithTimes,
-    TranscriptionContext,
-)
 from .search import (
     ElasticsearchAggregations,
     ElasticsearchHit,
@@ -36,6 +25,17 @@ from .search import (
     EpisodeBucket,
     SearchSegment,
     SeasonBucket,
+)
+from .transcription import (
+    BaseSegment,
+    ElasticsearchSegment,
+    SegmentWithScore,
+    SegmentWithTimes,
+    TranscriptionContext,
+)
+from .video import (
+    HashResult,
+    VideoMetadata,
 )
 
 __all__ = [

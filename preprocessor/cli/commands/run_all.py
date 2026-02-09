@@ -4,6 +4,7 @@ from typing import Tuple
 
 import click
 
+from preprocessor.cli.helpers import create_state_manager
 from preprocessor.cli.pipeline.orchestrator import PipelineOrchestrator
 from preprocessor.cli.pipeline.steps import (
     run_archive_generation_step,
@@ -23,7 +24,6 @@ from preprocessor.cli.pipeline.steps import (
     run_transcribe_step,
     run_validation_step,
 )
-from preprocessor.cli.helpers import create_state_manager
 from preprocessor.config.config import (
     get_base_output_dir,
     settings,

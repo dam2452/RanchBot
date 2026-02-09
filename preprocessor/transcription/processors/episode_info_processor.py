@@ -6,7 +6,7 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
 
@@ -58,7 +58,7 @@ class EpisodeInfoProcessor:
             return json.load(f)
 
     def __write_episode_json(self, transcription: Dict[str, Any], episode_info) -> Tuple[Path, str]:
-        new_json_name = self.__episode_manager.file_naming.build_filename(episode_info, extension="json")
+        new_json_name = self.__episode_manager.path_manager.build_filename(episode_info, extension="json")
         season_dir = self.__output_path / episode_info.season_code()
         output_path = season_dir / new_json_name
         output_path.parent.mkdir(parents=True, exist_ok=True)

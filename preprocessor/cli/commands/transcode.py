@@ -4,13 +4,13 @@ import sys
 import click
 
 from preprocessor.cli.helpers import create_state_manager
-from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     TranscodeConfig,
     settings,
 )
 from preprocessor.processors.video_transcoder import VideoTranscoder
 from preprocessor.utils.resolution import Resolution
+from preprocessor.utils.resource_scope import ResourceScope
 
 
 @click.command(context_settings={"show_default": True})

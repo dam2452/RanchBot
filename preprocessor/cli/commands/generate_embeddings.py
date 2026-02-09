@@ -3,9 +3,9 @@ import sys
 
 import click
 
-from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import settings
 from preprocessor.processors.embedding_generator import EmbeddingGenerator
+from preprocessor.utils.resource_scope import ResourceScope
 
 
 @click.command(name="generate-embeddings", context_settings={"show_default": True})

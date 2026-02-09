@@ -11,12 +11,12 @@ from typing import (
 from rich.progress import Progress
 
 from preprocessor.config.config import settings
+from preprocessor.config.llm_provider import LLMProvider
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.enums import (
     ParserMode,
     ScraperMethod,
 )
-from preprocessor.config.llm_provider import LLMProvider
 from preprocessor.scraping.clipboard import ScraperClipboard
 from preprocessor.scraping.crawl4ai import ScraperCrawl4AI
 from preprocessor.utils.console import (

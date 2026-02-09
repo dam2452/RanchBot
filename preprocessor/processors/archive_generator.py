@@ -20,8 +20,8 @@ from preprocessor.core.constants import (
     FILE_EXTENSIONS,
     FILE_SUFFIXES,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.console import console
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs

@@ -13,8 +13,8 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcription.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcription.processors.normalized_audio_processor import NormalizedAudioProcessor
@@ -84,13 +84,13 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            filename = self.episode_manager.path_manager.build_filename(episode_info, extension="json")
             season_code = episode_info.season_code()
             episode_code = episode_info.episode_num()
             expected_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / filename
             expected_file.parent.mkdir(parents=True, exist_ok=True)
 
-            segmented_filename = self.episode_manager.file_naming.build_filename(
+            segmented_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_segmented",
@@ -153,13 +153,13 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            filename = self.episode_manager.path_manager.build_filename(episode_info, extension="json")
             season_code = episode_info.season_code()
             episode_code = episode_info.episode_num()
             expected_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / filename
             expected_file.parent.mkdir(parents=True, exist_ok=True)
 
-            segmented_filename = self.episode_manager.file_naming.build_filename(
+            segmented_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_segmented",
@@ -189,7 +189,7 @@ class TranscriptionGenerator(BaseProcessor):
             if not episode_info:
                 continue
 
-            filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+            filename = self.episode_manager.path_manager.build_filename(episode_info, extension="json")
             season_code = episode_info.season_code()
             episode_code = episode_info.episode_num()
             expected_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / filename

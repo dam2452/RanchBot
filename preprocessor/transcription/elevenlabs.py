@@ -12,7 +12,7 @@ from typing import (
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
-from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.episodes import EpisodeManager
 from preprocessor.transcription.engines.elevenlabs_engine import ElevenLabsEngine
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.utils.console import (
@@ -213,7 +213,7 @@ class ElevenLabsTranscriber(BaseProcessor):
         }
 
         json_dir = self.output_dir / "json"
-        filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+        filename = self.episode_manager.path_manager.build_filename(episode_info, extension="json")
         season_dir = json_dir / episode_info.season_code()
         output_file = season_dir / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)

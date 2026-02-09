@@ -67,7 +67,6 @@ class BaseProcessor(ABC):
         self.state_manager: Optional[StateManager] = args.get("state_manager")
         self.series_name: str = args.get("series_name", "unknown")
 
-        from preprocessor.core.path_manager import PathManager  # pylint: disable=import-outside-toplevel
         self.path_manager: PathManager = args.get(
             "path_manager",
             PathManager(self.series_name),
@@ -298,7 +297,7 @@ class BaseProcessor(ABC):
         skip_unparseable: bool = True,
         subdirectory_filter: Optional[str] = None,
     ) -> List[ProcessingItem]:
-        from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
+        from preprocessor.episodes import EpisodeManager  # pylint: disable=import-outside-toplevel
 
         series_name = self.series_name
 
@@ -352,7 +351,7 @@ class BaseProcessor(ABC):
         return items
 
     def _create_transcription_processing_item(self, transcription_file: Path) -> ProcessingItem:
-        from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
+        from preprocessor.episodes import EpisodeManager  # pylint: disable=import-outside-toplevel
 
         base_name = transcription_file.stem.replace(FILE_SUFFIXES["segmented"], "").replace(FILE_SUFFIXES["simple"], "")
 

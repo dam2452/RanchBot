@@ -4,6 +4,7 @@ from typing import (
     Union,
 )
 
+
 class EpisodeInfo(TypedDict):
     episode_number: int
     title: str

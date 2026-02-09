@@ -9,8 +9,6 @@ from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.scraping.episode_scraper import EpisodeScraper
 from preprocessor.utils.console import console
 from preprocessor.video.frame_processor import FrameProcessor
-from preprocessor.video.subprocessors.emotion_detection_subprocessor import EmotionDetectionSubProcessor
-from preprocessor.video.subprocessors.face_clustering_subprocessor import FaceClusteringSubProcessor
 from preprocessor.video.subprocessors import (
     CharacterDetectionSubProcessor,
     CharacterDetectionVisualizationSubProcessor,
@@ -19,6 +17,8 @@ from preprocessor.video.subprocessors import (
     ObjectDetectionVisualizationSubProcessor,
     VideoEmbeddingSubProcessor,
 )
+from preprocessor.video.subprocessors.emotion_detection_subprocessor import EmotionDetectionSubProcessor
+from preprocessor.video.subprocessors.face_clustering_subprocessor import FaceClusteringSubProcessor
 
 # pylint: disable=duplicate-code
 

@@ -11,7 +11,7 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.transcription_utils import fix_transcription_file_unicode
 
 

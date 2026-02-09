@@ -30,12 +30,11 @@ class JsonGenerator(BaseTranscriptionGenerator):
     def convert(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.format_type == "full":
             return self.convert_to_full_format(data)
-        elif self.format_type == "simple":
+        if self.format_type == "simple":
             return self.convert_to_simple_format(data)
-        elif self.format_type == "segmented":
+        if self.format_type == "segmented":
             return self.convert_to_segmented_format(data)
-        else:
-            raise ValueError(f"Unknown format type: {self.format_type}")
+        raise ValueError(f"Unknown format type: {self.format_type}")
 
     @staticmethod
     def convert_to_full_format(data: Dict[str, Any]) -> Dict[str, Any]:

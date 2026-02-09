@@ -6,7 +6,9 @@ from typing import (
     TypedDict,
     Union,
 )
+
 from .transcription import ElasticsearchSegment
+
 
 class SearchSegment(TypedDict):
     season: int

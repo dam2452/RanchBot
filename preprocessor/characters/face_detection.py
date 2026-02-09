@@ -1,12 +1,17 @@
 import os
-import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
+import warnings
 
 import cv2
+from insightface.app import FaceAnalysis
 import numpy as np
 from numpy.linalg import norm
-from insightface.app import FaceAnalysis
 import onnxruntime as ort
 
 from preprocessor.config.config import settings

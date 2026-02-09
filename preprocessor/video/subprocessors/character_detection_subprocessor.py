@@ -1,7 +1,6 @@
 import logging
 from pathlib import Path
 from typing import (
-    Any,
     Dict,
     List,
     Optional,
@@ -91,13 +90,10 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
         console.print(f"[cyan]Detecting characters in {len(frame_files)} frames[/cyan]")
 
-        fps = 25.0
-
         results = process_frames_for_detection(
             frame_files,
             self.face_app,
             self.character_vectors,
             self.threshold,
-            fps=fps,
         )
-        save_character_detections(episode_info, results, fps=fps)
+        save_character_detections(episode_info, results)

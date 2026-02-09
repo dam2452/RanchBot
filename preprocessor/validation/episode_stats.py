@@ -20,8 +20,8 @@ from preprocessor.core.constants import (
     OUTPUT_FILE_NAMES,
     OUTPUT_FILE_PATTERNS,
 )
-from preprocessor.core.episode_manager import EpisodeInfo
 from preprocessor.core.path_manager import PathManager
+from preprocessor.episodes import EpisodeInfo
 from preprocessor.validation.base_result import ValidationStatusMixin
 from preprocessor.validation.file_validators import (
     validate_image_file,

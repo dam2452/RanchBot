@@ -12,13 +12,12 @@ from typing import (
 
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
-    BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.core.video_processor import VideoProcessor
 from preprocessor.utils.constants import (
     FfprobeKeys,
     FfprobeStreamKeys,
@@ -27,7 +26,7 @@ from preprocessor.utils.resolution import Resolution
 
 
 @register_processor("transcode")
-class VideoTranscoder(BaseProcessor):
+class VideoTranscoder(VideoProcessor):
     REQUIRES = ["videos"]
     PRODUCES = ["transcoded_videos"]
     PRIORITY = 10
@@ -41,11 +40,6 @@ class VideoTranscoder(BaseProcessor):
             loglevel=logging.DEBUG,
         )
 
-        self.input_videos: Path = Path(self._args["videos"])
-        self.subdirectory_filter: Optional[str] = None
-        episodes_json_path = self._args.get("episodes_info_json")
-        self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
-
         self.resolution: Resolution = self._args["resolution"]
         self.codec: str = str(self._args["codec"])
         self.preset: str = "p7"
@@ -56,18 +50,8 @@ class VideoTranscoder(BaseProcessor):
         self.audio_bitrate_kbps: int = int(self._args.get("audio_bitrate_kbps", 128))
         self.gop_size: float = float(self._args["gop_size"])
 
-    def _get_processing_items(self) -> List[ProcessingItem]:
-        return self._create_video_processing_items(
-            source_path=self.input_videos,
-            extensions=self.get_video_glob_patterns(),
-            episode_manager=self.episode_manager,
-            skip_unparseable=True,
-            subdirectory_filter=self.subdirectory_filter,
-        )
-
     def _validate_args(self, args: Dict[str, Any]) -> None:
-        if "videos" not in args:
-            raise ValueError("videos path is required")
+        self._validate_videos_required(args)
         if "resolution" not in args:
             raise ValueError("resolution is required")
         if "codec" not in args:

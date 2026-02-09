@@ -4,12 +4,12 @@ from typing import Tuple
 
 import click
 
-from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     TranscriptionConfig,
     settings,
 )
 from preprocessor.processors.transcription_generator import TranscriptionGenerator
+from preprocessor.utils.resource_scope import ResourceScope
 
 # pylint: disable=duplicate-code
 

@@ -9,7 +9,6 @@ from typing import (
     Optional,
 )
 
-from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     get_output_path,
     settings,
@@ -17,6 +16,7 @@ from preprocessor.config.config import (
 from preprocessor.core.processing_metadata import ProcessingMetadata
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import console
+from preprocessor.utils.resource_scope import ResourceScope
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 

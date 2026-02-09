@@ -20,11 +20,11 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.constants import FILE_SUFFIXES
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
 from preprocessor.embeddings.episode_name_embedder import EpisodeNameEmbedder
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.embeddings.qwen3_vl_embedding import Qwen3VLEmbedder
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.batch_processing_utils import compute_embeddings_in_batches
 from preprocessor.utils.console import console
 from preprocessor.utils.constants import EpisodeMetadataKeys
@@ -51,8 +51,14 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         )
 
         self.transcription_jsons: Path = self._args["transcription_jsons"]
-        self.frames_dir: Path = self._args.get("frames_dir", settings.frame_export.output_dir)
-        self.output_dir: Path = self._args.get("output_dir", settings.embedding.default_output_dir)
+        self.frames_dir: Path = self._args.get(
+            "frames_dir",
+            settings.frame_export.get_output_dir(self.series_name),
+        )
+        self.output_dir: Path = self._args.get(
+            "output_dir",
+            settings.embedding.get_output_dir(self.series_name),
+        )
 
         self.model_name: str = self._args.get("model", settings.embedding_model.model_name)
         self.model_revision: str = self._args.get("model_revision", settings.embedding_model.model_revision)
@@ -68,7 +74,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.generate_full_episode: bool = self._args.get("generate_full_episode", settings.embedding.generate_full_episode_embedding)
         self.generate_sound_events: bool = self._args.get("generate_sound_events", True)
 
-        self.image_hashes_dir: Path = Path(self._args.get("image_hashes_dir", settings.image_hash.output_dir))
+        self.image_hashes_dir: Path = Path(self._args.get("image_hashes_dir", settings.image_hash.get_output_dir(self.series_name)))
 
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
@@ -157,7 +163,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             return outputs
 
         if self.generate_text:
-            text_filename = self.episode_manager.file_naming.build_filename(
+            text_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_embeddings_text",
@@ -171,7 +177,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             outputs.append(OutputSpec(path=episode_name_output, required=True))
 
         if self.generate_video:
-            video_filename = self.episode_manager.file_naming.build_filename(
+            video_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_embeddings_video",
@@ -180,7 +186,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             outputs.append(OutputSpec(path=video_output, required=True))
 
         if self.generate_full_episode:
-            full_episode_filename = self.episode_manager.file_naming.build_filename(
+            full_episode_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_embeddings_full_episode",
@@ -189,7 +195,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
             outputs.append(OutputSpec(path=full_episode_output, required=True))
 
         if self.generate_sound_events:
-            sound_events_filename = self.episode_manager.file_naming.build_filename(
+            sound_events_filename = self.episode_manager.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_embeddings_sound_events",

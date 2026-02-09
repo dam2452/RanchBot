@@ -21,9 +21,9 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.path_manager import PathManager
 from preprocessor.core.processor_registry import register_processor
+from preprocessor.episodes import EpisodeManager
 from preprocessor.utils.console import console
 from preprocessor.utils.detection_io import (
     process_frames_for_detection,
@@ -109,13 +109,10 @@ class CharacterDetector(BaseProcessor):
             if f.is_file() and "frame_" in f.name
         ])
 
-        fps = 25.0
-
         results = process_frames_for_detection(
             frame_files,
             self.face_app,
             self.character_vectors,
             self.threshold,
-            fps=fps,
         )
-        save_character_detections(episode_info, results, self.path_manager, fps=fps)
+        save_character_detections(episode_info, results, self.path_manager)

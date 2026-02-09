@@ -3,7 +3,9 @@ from typing import (
     NotRequired,
     TypedDict,
 )
+
 from .episode import EpisodeMetadata
+
 
 class BaseSegment(TypedDict):
     id: int

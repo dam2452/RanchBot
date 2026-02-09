@@ -10,11 +10,11 @@ from typing import (
 import numpy as np
 
 from preprocessor.config.config import settings
-from preprocessor.core.episode_manager import (
+from preprocessor.core.path_manager import PathManager
+from preprocessor.episodes import (
     EpisodeInfo,
     EpisodeManager,
 )
-from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.constants import EmbeddingKeys
 from preprocessor.utils.file_utils import atomic_write_json

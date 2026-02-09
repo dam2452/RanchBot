@@ -1,4 +1,3 @@
-import json
 import logging
 from pathlib import Path
 from typing import (
@@ -8,6 +7,7 @@ from typing import (
     Tuple,
 )
 
+import cv2
 import numpy as np
 
 from preprocessor.config.config import settings
@@ -32,10 +32,6 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
     def cleanup(self) -> None:
         pass
 
-    def finalize(self) -> None:
-        if hasattr(self, 'logger'):
-            self.logger.finalize()
-
     def needs_ramdisk(self) -> bool:
         return False
 
@@ -59,23 +55,16 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         return any(str(exp.path) in str(miss.path) for exp in expected for miss in missing_outputs)
 
     def process(self, item: ProcessingItem, ramdisk_frames_dir: Path) -> None:
-        import cv2  # pylint: disable=import-outside-toplevel
-
         episode_info = item.metadata["episode_info"]
         detection_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_detections)
-        detection_files = list(detection_dir.glob("*_object_detections.json"))
-        detection_file = detection_files[0] if detection_files else None
 
-        if not detection_file or not detection_file.exists():
-            console.print(f"[yellow]No detections JSON found in {detection_dir}[/yellow]")
+        detection_data = self._load_detection_file(
+            detection_dir,
+            ramdisk_frames_dir,
+            "*_object_detections.json",
+        )
+        if detection_data is None:
             return
-
-        if not ramdisk_frames_dir.exists():
-            console.print(f"[yellow]No frames directory found: {ramdisk_frames_dir}[/yellow]")
-            return
-
-        with open(detection_file, 'r', encoding='utf-8') as f:
-            detection_data = json.load(f)
 
         frames_with_detections = [f for f in detection_data.get("detections", []) if f['detection_count'] > 0]
         if not frames_with_detections:
@@ -111,8 +100,6 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
 
     @staticmethod
     def __draw_detections_on_frame(img, detections: List[Dict[str, Any]], colors: Dict[int, Tuple[int, int, int]], conf_threshold: float) -> None:
-        import cv2  # pylint: disable=import-outside-toplevel
-
         for detection in detections:
             if detection['confidence'] < conf_threshold:
                 continue
@@ -126,11 +113,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
 
             label = f"{detection['class_name']} {detection['confidence']:.2f}"
-            label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            label_y1 = max(y1 - 10, label_size[1])
-
-            cv2.rectangle(img, (x1, label_y1 - label_size[1] - 5), (x1 + label_size[0], label_y1), color, -1)
-            cv2.putText(img, label, (x1, label_y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            FrameSubProcessor._draw_label_on_bbox(img, label, x1, y1, color)
 
     @staticmethod
     def __generate_colors(num_colors: int = 80) -> Dict[int, Tuple[int, int, int]]:

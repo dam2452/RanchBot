@@ -14,16 +14,15 @@ from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
-from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
+from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
+from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.video.emotion_utils import (
     crop_face_from_frame,
     detect_emotions_batch,
     init_emotion_model,
 )
-from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
-from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.video.frame_processor import FrameSubProcessor
 
 
