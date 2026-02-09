@@ -18,6 +18,7 @@ from preprocessor.core.constants import (
     FILE_SUFFIXES,
     SUPPORTED_VIDEO_EXTENSIONS,
 )
+from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import (
     console,
@@ -42,6 +43,11 @@ class OutputSpec:
 class BaseProcessor(ABC):
     SUPPORTED_VIDEO_EXTENSIONS = SUPPORTED_VIDEO_EXTENSIONS
 
+    REQUIRES: List[str] = []
+    PRODUCES: List[str] = []
+    PRIORITY: int = 100
+    DESCRIPTION: str = ""
+
     def __init__(
         self,
         args: Dict[str, Any],
@@ -60,6 +66,12 @@ class BaseProcessor(ABC):
 
         self.state_manager: Optional[StateManager] = args.get("state_manager")
         self.series_name: str = args.get("series_name", "unknown")
+
+        from preprocessor.core.path_manager import PathManager  # pylint: disable=import-outside-toplevel
+        self.path_manager: PathManager = args.get(
+            "path_manager",
+            PathManager(self.series_name),
+        )
 
         from preprocessor.utils.progress_tracker import ProgressTracker  # pylint: disable=import-outside-toplevel
         self.progress = args.get("progress_tracker", ProgressTracker())
@@ -141,6 +153,10 @@ class BaseProcessor(ABC):
             f"{self.__class__.__name__} must implement _process_item() "
             "or override _execute() directly (legacy mode)",
         )
+
+    @abstractmethod
+    def get_output_subdir(self) -> str:
+        pass
 
     def __get_step_name(self) -> str:
         class_name = self.__class__.__name__
@@ -284,6 +300,21 @@ class BaseProcessor(ABC):
     ) -> List[ProcessingItem]:
         from preprocessor.core.episode_manager import EpisodeManager  # pylint: disable=import-outside-toplevel
 
+        series_name = self.series_name
+
+        if not source_path.is_file():
+            if source_path.name != series_name:
+                source_path = source_path / series_name
+
+            if not source_path.exists():
+                raise FileNotFoundError(
+                    f"Input directory does not exist: {source_path}\n"
+                    f"Expected structure: /input_data/{series_name}/S01/, /input_data/{series_name}/S02/, etc.\n\n"
+                    f"Migration guide:\n"
+                    f"  mkdir -p /input_data/{series_name}\n"
+                    f"  mv /input_data/S* /input_data/{series_name}/",
+                )
+
         video_files = []
 
         if source_path.is_file():
@@ -338,3 +369,68 @@ class BaseProcessor(ABC):
                 "base_name": base_name,
             },
         )
+
+    def _build_output_path(
+        self,
+        episode_info,
+        filename: str,
+        subdir: Optional[str] = None,
+    ) -> Path:
+        target_subdir = subdir if subdir is not None else self.get_output_subdir()
+        return self.path_manager.build_path(episode_info, target_subdir, filename)
+
+    def _build_output_paths(
+        self,
+        episode_info,
+        filenames: List[str],
+        subdir: Optional[str] = None,
+    ) -> List[Path]:
+        return [
+            self._build_output_path(episode_info, filename, subdir)
+            for filename in filenames
+        ]
+
+    def _build_season_path(
+        self,
+        episode_info,
+        filename: str,
+        subdir: Optional[str] = None,
+    ) -> Path:
+        target_subdir = subdir if subdir is not None else self.get_output_subdir()
+        return self.path_manager.build_season_path(episode_info, target_subdir, filename)
+
+    def _build_filename(
+        self,
+        episode_info,
+        extension: str = "json",
+        suffix: Optional[str] = None,
+    ) -> str:
+        if hasattr(self, 'episode_manager') and self.episode_manager:
+            return self.episode_manager.file_naming.build_filename(  # pylint: disable=no-member
+                episode_info,
+                extension=extension,
+                suffix=suffix,
+            )
+
+        file_naming = FileNamingConventions(self.series_name)
+        return file_naming.build_filename(
+            episode_info,
+            extension=extension,
+            suffix=suffix,
+        )
+
+    def _build_single_output(
+        self,
+        item: ProcessingItem,
+        suffix: str,
+        extension: str = "json",
+        subdir: Optional[str] = None,
+        required: bool = True,
+    ) -> List[OutputSpec]:
+        episode_info = item.metadata.get("episode_info")
+        if not episode_info:
+            return []
+
+        filename = self._build_filename(episode_info, extension=extension, suffix=suffix)
+        path = self._build_output_path(episode_info, filename, subdir=subdir)
+        return [OutputSpec(path=path, required=required)]

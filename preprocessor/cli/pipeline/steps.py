@@ -1,12 +1,15 @@
 from pathlib import Path
 
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    get_base_output_dir,
+    settings,
+)
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.utils.console import console
-from preprocessor.video.emotion_detection_subprocessor import EmotionDetectionSubProcessor
-from preprocessor.video.face_clustering_subprocessor import FaceClusteringSubProcessor
-from preprocessor.video.frame_processor import FrameProcessor
-from preprocessor.video.frame_subprocessors import (
+from preprocessor.video.helpers.frame_processor import FrameProcessor
+from preprocessor.video.subprocessors.emotion_detection_subprocessor import EmotionDetectionSubProcessor
+from preprocessor.video.subprocessors.face_clustering_subprocessor import FaceClusteringSubProcessor
+from preprocessor.video.subprocessors.frame_subprocessors import (
     CharacterDetectionSubProcessor,
     CharacterDetectionVisualizationSubProcessor,
     ImageHashSubProcessor,
@@ -82,7 +85,9 @@ def run_character_scrape_step(character_urls, characters_json, name, parser_mode
 
 
 def run_character_reference_download_step(name, characters_json, search_mode="normal", **_kwargs):
-    from preprocessor.characters.reference_downloader import CharacterReferenceDownloader  # pylint: disable=import-outside-toplevel
+    from preprocessor.characters.reference.reference_downloader import (
+        CharacterReferenceDownloader,  # pylint: disable=import-outside-toplevel
+    )
 
     if not characters_json.exists():
         console.print("[yellow]No characters.json found, skipping reference download[/yellow]")
@@ -92,7 +97,7 @@ def run_character_reference_download_step(name, characters_json, search_mode="no
         {
             "characters_json": characters_json,
             "series_name": name,
-            "output_dir": settings.character.output_dir,
+            "output_dir": settings.character.get_output_dir(name),
             "images_per_character": settings.character.reference_images_per_character,
             "search_mode": search_mode,
         },
@@ -101,9 +106,9 @@ def run_character_reference_download_step(name, characters_json, search_mode="no
 
 
 def run_character_reference_processing_step(name, state_manager, interactive_character_processing=False, debug_visualizations=False, **_kwargs):
-    from preprocessor.characters.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
+    from preprocessor.characters.reference.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
 
-    characters_dir = settings.character.output_dir
+    characters_dir = settings.character.get_output_dir(name)
     if not characters_dir.exists() or not list(characters_dir.iterdir()):
         console.print("[yellow]No character references found, skipping processing[/yellow]")
         return 0
@@ -111,7 +116,7 @@ def run_character_reference_processing_step(name, state_manager, interactive_cha
     processor = CharacterReferenceProcessor(
         {
             "characters_dir": characters_dir,
-            "output_dir": settings.character.processed_references_dir,
+            "output_dir": settings.character.get_processed_references_dir(name),
             "similarity_threshold": settings.character.reference_matching_threshold,
             "interactive": interactive_character_processing,
             "series_name": name,
@@ -127,13 +132,13 @@ def run_character_reference_processing_step(name, state_manager, interactive_cha
 
 
 def run_character_detection_step(**kwargs):
-    from preprocessor.characters.detector import CharacterDetector  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.character_detector import CharacterDetector  # pylint: disable=import-outside-toplevel
 
-    frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
-    characters_dir = settings.character.output_dir
-    output_dir = settings.character.detections_dir
-    episodes_info_json = kwargs.get("episodes_info_json")
     name = kwargs.get("name")
+    frames_dir = kwargs.get("output_frames", settings.frame_export.get_output_dir(name))
+    characters_dir = settings.character.get_output_dir(name)
+    output_dir = settings.character.get_detections_dir(name)
+    episodes_info_json = kwargs.get("episodes_info_json")
     state_manager = kwargs.get("state_manager")
 
     detector = CharacterDetector(
@@ -151,8 +156,8 @@ def run_character_detection_step(**kwargs):
 
 def run_transcode_step(videos, episodes_info_json, name, resolution, codec, state_manager, **kwargs):
     from preprocessor.config.config import TranscodeConfig  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.video_transcoder import VideoTranscoder  # pylint: disable=import-outside-toplevel
     from preprocessor.utils.resolution import Resolution  # pylint: disable=import-outside-toplevel
-    from preprocessor.video.transcoder import VideoTranscoder  # pylint: disable=import-outside-toplevel
 
     transcoded_videos = kwargs.get("transcoded_videos")
 
@@ -206,7 +211,7 @@ def run_transcribe_step(videos, episodes_info_json, name, model, language, devic
         return transcriber.work()
 
     from preprocessor.config.config import TranscriptionConfig  # pylint: disable=import-outside-toplevel
-    from preprocessor.transcription.generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.transcription_generator import TranscriptionGenerator  # pylint: disable=import-outside-toplevel
 
     console.print("[cyan]Using normal transcription mode (Whisper)[/cyan]")
 
@@ -244,7 +249,7 @@ def run_sound_separation_step(name, episodes_info_json, transcription_jsons, sta
 
 
 def run_scene_step(device, **kwargs):
-    from preprocessor.video.scene_detector import SceneDetector  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.scene_detector import SceneDetector  # pylint: disable=import-outside-toplevel
 
     videos = kwargs.get("videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
@@ -268,13 +273,13 @@ def run_scene_step(device, **kwargs):
 
 
 def run_frame_export_step(state_manager, **kwargs):
-    from preprocessor.video.frame_exporter import FrameExporter  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.frame_exporter import FrameExporter  # pylint: disable=import-outside-toplevel
 
     videos = kwargs.get("videos")
     scene_timestamps_dir = kwargs.get("scene_timestamps_dir")
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
-    output_frames = kwargs.get("output_frames", settings.frame_export.output_dir)
+    output_frames = kwargs.get("output_frames", settings.frame_export.get_output_dir(name))
 
     exporter = FrameExporter(
         {
@@ -291,16 +296,16 @@ def run_frame_export_step(state_manager, **kwargs):
 
 
 def run_image_hashing_step(device, state_manager, **kwargs):
-    from preprocessor.hashing.image_hash_processor import ImageHashProcessor  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.image_hash_processor import ImageHashProcessor  # pylint: disable=import-outside-toplevel
 
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
-    frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
+    frames_dir = kwargs.get("output_frames", settings.frame_export.get_output_dir(name))
 
     hasher = ImageHashProcessor(
         {
             "frames_dir": frames_dir,
-            "output_dir": settings.image_hash.output_dir,
+            "output_dir": settings.image_hash.get_output_dir(name),
             "batch_size": settings.embedding.batch_size,
             "device": device,
             "series_name": name,
@@ -314,20 +319,20 @@ def run_image_hashing_step(device, state_manager, **kwargs):
 
 
 def run_embedding_step(device, state_manager, **kwargs):
-    from preprocessor.embeddings.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.embedding_generator import EmbeddingGenerator  # pylint: disable=import-outside-toplevel
 
     transcription_jsons = kwargs.get("transcription_jsons")
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
-    frames_dir = kwargs.get("output_frames", settings.frame_export.output_dir)
+    frames_dir = kwargs.get("output_frames", settings.frame_export.get_output_dir(name))
     skip_full_episode = kwargs.get("skip_full_episode", False)
 
     embedding_generator = EmbeddingGenerator(
         {
             "transcription_jsons": transcription_jsons,
             "frames_dir": frames_dir,
-            "output_dir": settings.embedding.default_output_dir,
-            "image_hashes_dir": settings.image_hash.output_dir,
+            "output_dir": settings.embedding.get_output_dir(name),
+            "image_hashes_dir": settings.image_hash.get_output_dir(name),
             "model": settings.embedding_model.model_name,
             "segments_per_embedding": settings.text_chunking.segments_per_embedding,
             "generate_text": True,
@@ -346,18 +351,17 @@ def run_embedding_step(device, state_manager, **kwargs):
 
 
 def run_elastic_documents_step(**kwargs):
-    from preprocessor.config.config import (  # pylint: disable=import-outside-toplevel
-        BASE_OUTPUT_DIR,
-        get_output_path,
-    )
-    from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
+    from preprocessor.config.config import get_output_path  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.elastic_document_generator import ElasticDocumentGenerator  # pylint: disable=import-outside-toplevel
 
-    transcription_jsons = BASE_OUTPUT_DIR / settings.output_subdirs.transcriptions
-    embeddings_dir = BASE_OUTPUT_DIR / settings.output_subdirs.embeddings
-    scene_timestamps_dir = kwargs.get("scene_timestamps_dir") or (BASE_OUTPUT_DIR / settings.output_subdirs.scenes)
-    character_detections_dir = BASE_OUTPUT_DIR / settings.output_subdirs.character_detections
-    object_detections_dir = BASE_OUTPUT_DIR / settings.output_subdirs.object_detections
     name = kwargs.get("name")
+    base_output = get_base_output_dir(name)
+
+    transcription_jsons = base_output / settings.output_subdirs.transcriptions
+    embeddings_dir = base_output / settings.output_subdirs.embeddings
+    scene_timestamps_dir = kwargs.get("scene_timestamps_dir") or (base_output / settings.output_subdirs.scenes)
+    character_detections_dir = base_output / settings.output_subdirs.character_detections
+    object_detections_dir = base_output / settings.output_subdirs.object_detections
     episodes_info_json = kwargs.get("episodes_info_json")
 
     generator = ElasticDocumentGenerator(
@@ -377,7 +381,7 @@ def run_elastic_documents_step(**kwargs):
 
 def run_index_step(name, dry_run, state_manager, **kwargs):
     from preprocessor.config.config import get_output_path  # pylint: disable=import-outside-toplevel
-    from preprocessor.indexing.elasticsearch import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.elasticsearch_indexer import ElasticSearchIndexer  # pylint: disable=import-outside-toplevel
 
     episodes_info_json = kwargs.get("episodes_info_json")
     elastic_documents_dir = get_output_path(settings.output_subdirs.elastic_documents)
@@ -411,7 +415,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
 ):
     name = kwargs.get("name")
     episodes_info_json = kwargs.get("episodes_info_json")
-    output_frames = kwargs.get("output_frames", settings.frame_export.output_dir)
+    output_frames = kwargs.get("output_frames", settings.frame_export.get_output_dir(name))
 
     processor = FrameProcessor(
         {
@@ -445,7 +449,7 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
 
     if not skip_character_detection:
         char_detection_sub = CharacterDetectionSubProcessor(
-            characters_dir=Path(settings.character.output_dir),
+            characters_dir=Path(settings.character.get_output_dir(name)),
             use_gpu=True,
             threshold=settings.character.frame_detection_threshold,
         )
@@ -494,15 +498,16 @@ def run_frame_processing_step(  # pylint: disable=too-many-locals,too-many-argum
 
 
 def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=too-many-locals
-    from preprocessor.config.config import BASE_OUTPUT_DIR  # pylint: disable=import-outside-toplevel
     from preprocessor.validation.global_validator import GlobalValidator  # pylint: disable=import-outside-toplevel
     from preprocessor.validation.validator import Validator  # pylint: disable=import-outside-toplevel
 
+    base_output = get_base_output_dir(name)
+
     console.print("[bold cyan]Running global validation...[/bold cyan]")
-    global_validator = GlobalValidator(series_name=name, base_output_dir=BASE_OUTPUT_DIR)
+    global_validator = GlobalValidator(series_name=name, base_output_dir=base_output)
     global_result = global_validator.validate()
 
-    validation_reports_dir = BASE_OUTPUT_DIR / settings.output_subdirs.validation_reports
+    validation_reports_dir = base_output / settings.output_subdirs.validation_reports
     validation_reports_dir.mkdir(parents=True, exist_ok=True)
 
     from preprocessor.utils.file_utils import atomic_write_json  # pylint: disable=import-outside-toplevel
@@ -556,7 +561,7 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
             season=season,
             series_name=name,
             anomaly_threshold=20.0,
-            base_output_dir=BASE_OUTPUT_DIR,
+            base_output_dir=base_output,
             episodes_info_json=episodes_info_json,
         )
 
@@ -572,7 +577,7 @@ def run_validation_step(name, episodes_info_json, **kwargs):  # pylint: disable=
 
 
 def run_text_analysis_step(name, episodes_info_json, language, state_manager, **_kwargs):
-    from preprocessor.text_analysis.text_analyzer import TextAnalyzer  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.text_analyzer import TextAnalyzer  # pylint: disable=import-outside-toplevel
 
     analyzer = TextAnalyzer(
         {
@@ -586,15 +591,14 @@ def run_text_analysis_step(name, episodes_info_json, language, state_manager, **
 
 
 def run_archive_generation_step(**kwargs):
-    from preprocessor.config.config import (  # pylint: disable=import-outside-toplevel
-        BASE_OUTPUT_DIR,
-        get_output_path,
-    )
-    from preprocessor.indexing.archive_generator import ArchiveGenerator  # pylint: disable=import-outside-toplevel
+    from preprocessor.config.config import get_output_path  # pylint: disable=import-outside-toplevel
+    from preprocessor.processors.archive_generator import ArchiveGenerator  # pylint: disable=import-outside-toplevel
 
-    elastic_documents_dir = get_output_path(settings.output_subdirs.elastic_documents)
-    output_dir = BASE_OUTPUT_DIR / settings.output_subdirs.archives
     name = kwargs.get("name")
+    base_output = get_base_output_dir(name)
+
+    elastic_documents_dir = get_output_path(settings.output_subdirs.elastic_documents, name)
+    output_dir = base_output / settings.output_subdirs.archives
     episodes_info_json = kwargs.get("episodes_info_json")
 
     generator = ArchiveGenerator(

@@ -7,7 +7,11 @@ from preprocessor.cli.options.common import (
     episodes_info_option,
     name_option,
 )
-from preprocessor.indexing.elastic_document_generator import ElasticDocumentGenerator
+from preprocessor.config.config import (
+    get_output_path,
+    settings,
+)
+from preprocessor.processors.elastic_document_generator import ElasticDocumentGenerator
 
 
 @click.command(name="generate-elastic-documents", context_settings={"show_default": True})
@@ -40,7 +44,7 @@ from preprocessor.indexing.elastic_document_generator import ElasticDocumentGene
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default="/app/output_data/elastic_documents",
+    default=None,
     help="Output directory",
 )
 @name_option()
@@ -55,6 +59,8 @@ def generate_elastic_documents(
     name: str,
     episodes_info_json: Path,
 ) -> None:
+    if output_dir is None:
+        output_dir = get_output_path(settings.output_subdirs.elastic_documents, name)
     args = {
         "transcription_jsons": transcription_jsons,
         "embeddings_dir": embeddings_dir,

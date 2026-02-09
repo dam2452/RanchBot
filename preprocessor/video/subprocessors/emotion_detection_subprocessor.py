@@ -16,6 +16,7 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.emotion_utils import (
     crop_face_from_frame,
@@ -24,7 +25,7 @@ from preprocessor.utils.emotion_utils import (
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.file_utils import atomic_write_json
-from preprocessor.video.frame_processor import FrameSubProcessor
+from preprocessor.video.helpers.frame_processor import FrameSubProcessor
 
 
 class EmotionDetectionSubProcessor(FrameSubProcessor):
@@ -46,14 +47,14 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
         marker_file = episode_dir / ".emotion_complete"
         return [OutputSpec(path=marker_file, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
         series_name = item.metadata["series_name"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
 
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(
@@ -77,7 +78,7 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
 
         episode_info = item.metadata["episode_info"]
         series_name = item.metadata["series_name"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
 
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(

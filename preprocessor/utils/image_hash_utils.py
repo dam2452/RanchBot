@@ -1,27 +1,28 @@
 import json
-from typing import (
-    Any,
-    Dict,
-)
+from typing import Dict
 
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeInfo
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.path_manager import PathManager
 
 
-def load_image_hashes_for_episode(episode_info_dict: Dict[str, Any], logger=None) -> Dict[int, str]:
+def load_image_hashes_for_episode(
+    episode_info_dict: Dict[str, int],
+    series_name: str,
+    logger=None,
+) -> Dict[int, str]:
     season = episode_info_dict.get("season")
     episode = episode_info_dict.get("episode_number")
     if season is None or episode is None:
         return {}
 
-    episode_info = EpisodeInfo(
-        absolute_episode=0,
-        season=season,
-        relative_episode=episode,
-        title="",
+    path_manager = PathManager(series_name)
+    episode_info = EpisodeInfo.create_minimal(season, episode, series_name)
+
+    hashes_episode_dir = path_manager.get_episode_dir(
+        episode_info,
+        settings.output_subdirs.image_hashes,
     )
-    hashes_episode_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.image_hashes)
 
     hash_files = list(hashes_episode_dir.glob("*_image_hashes.json"))
     if not hash_files:

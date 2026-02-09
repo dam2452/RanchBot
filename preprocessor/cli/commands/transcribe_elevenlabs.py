@@ -14,7 +14,7 @@ from preprocessor.utils.console import console
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.transcription.output_dir),
+    default=None,
     help="Output directory for transcriptions",
 )
 @click.option(
@@ -56,6 +56,9 @@ def transcribe_elevenlabs(
     no_state: bool,
 ):
     """Transcribe videos using ElevenLabs API."""
+    if output_dir is None:
+        output_dir = settings.transcription.get_output_dir(name)
+
     state_manager = create_state_manager(name, no_state)
 
     transcriber = ElevenLabsTranscriber(

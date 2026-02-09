@@ -3,7 +3,7 @@ import sys
 
 import click
 
-from preprocessor.text_analysis.text_analyzer import TextAnalyzer
+from preprocessor.processors.text_analyzer import TextAnalyzer
 
 
 @click.command(context_settings={"show_default": True})

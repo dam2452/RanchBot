@@ -11,8 +11,8 @@ from typing import (
 from insightface.app import FaceAnalysis
 import numpy as np
 
-from preprocessor.characters.face_detection_utils import load_character_references
-from preprocessor.characters.utils import init_face_detection
+from preprocessor.characters.face.face_detection_utils import load_character_references
+from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -21,7 +21,7 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.file_naming import FileNamingConventions
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.utils.console import console
 from preprocessor.utils.detection_io import (
     process_frames_for_detection,
@@ -31,8 +31,13 @@ from preprocessor.utils.detection_io import (
 # pylint: disable=duplicate-code
 
 
-
+@register_processor("detect_characters")
 class CharacterDetector(BaseProcessor):
+    REQUIRES = ["frames"]
+    PRODUCES = ["character_detections"]
+    PRIORITY = 60
+    DESCRIPTION = "Detect characters in frames"
+
     def __init__(self, args: Dict[str, Any]):
         super().__init__(
             args=args,
@@ -42,7 +47,7 @@ class CharacterDetector(BaseProcessor):
         )
 
         self.frames_dir: Path = self._args["frames_dir"]
-        self.characters_dir: Path = self._args.get("characters_dir", settings.character.output_dir)
+        self.characters_dir: Path = self._args.get("characters_dir", settings.character.get_output_dir(self.series_name))
         self.threshold: float = settings.character.frame_detection_threshold
 
         episodes_info_json = self._args.get("episodes_info_json")
@@ -54,6 +59,9 @@ class CharacterDetector(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "frames_dir" not in args:
             raise ValueError("frames_dir is required")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.character_detections
 
     # pylint: disable=duplicate-code
     def _get_processing_items(self) -> List[ProcessingItem]:
@@ -71,11 +79,7 @@ class CharacterDetector(BaseProcessor):
             extension="json",
             suffix="character_detections",
         )
-        detections_output = OutputPathBuilder.build_output_path(
-            episode_info,
-            settings.output_subdirs.character_detections,
-            detections_filename,
-        )
+        detections_output = self._build_output_path(episode_info, detections_filename)
         return [OutputSpec(path=detections_output, required=True)]
     # pylint: enable=duplicate-code
 
@@ -112,4 +116,4 @@ class CharacterDetector(BaseProcessor):
             self.threshold,
             fps=fps,
         )
-        save_character_detections(episode_info, results, fps=fps)
+        save_character_detections(episode_info, results, self.path_manager, fps=fps)

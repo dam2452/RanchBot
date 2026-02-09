@@ -24,8 +24,15 @@ is_docker = os.getenv("DOCKER_CONTAINER", "false").lower() == "true"
 BASE_OUTPUT_DIR = Path("/app/output_data") if is_docker else Path("preprocessor/output_data")
 
 
-def get_output_path(relative_path: str) -> Path:
-    return BASE_OUTPUT_DIR / relative_path
+def get_base_output_dir(series_name: Optional[str] = None) -> Path:
+    base = Path("/app/output_data") if is_docker else Path("preprocessor/output_data")
+    if series_name:
+        return base / series_name.lower()
+    return base
+
+
+def get_output_path(relative_path: str, series_name: Optional[str] = None) -> Path:
+    return get_base_output_dir(series_name) / relative_path
 
 
 # ============================================================================
@@ -90,12 +97,15 @@ class BaseAPISettings:
 
 @dataclass
 class TranscodeSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "transcoded_videos"
     codec: str = "h264_nvenc"
     target_file_size_mb: float = 50.0
     target_duration_seconds: float = 100.0
     audio_bitrate_kbps: int = 128
     gop_size: float = 0.5
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "transcoded_videos"
 
     def calculate_video_bitrate_mbps(self) -> float:
         total_bitrate_mbps = (self.target_file_size_mb * 8) / self.target_duration_seconds
@@ -117,7 +127,10 @@ class TranscodeSettings:
 class SceneDetectionSettings:
     threshold: float = 0.5
     min_scene_len: int = 10
-    output_dir: Path = BASE_OUTPUT_DIR / "scene_timestamps"
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "scene_timestamps"
 
 
 @dataclass
@@ -133,8 +146,11 @@ class KeyframeExtractionSettings:
 
 @dataclass
 class FrameExportSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "exported_frames"
     resolution: Resolution = Resolution.R1080P
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "exported_frames"
 
 
 # ============================================================================
@@ -143,10 +159,13 @@ class FrameExportSettings:
 
 @dataclass
 class TranscriptionSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "transcriptions"
     model: str = "large-v3-turbo"
     language: str = "Polish"
     device: str = "cuda"
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "transcriptions"
 
 
 @dataclass
@@ -203,12 +222,15 @@ class EmbeddingModelSettings:
 
 @dataclass
 class EmbeddingSettings:
-    default_output_dir: Path = BASE_OUTPUT_DIR / "embeddings"
     batch_size: int = 32
     text_batch_size: int = 64
     progress_sub_batch_size: int = 100
     prefetch_chunks: int = 2
     generate_full_episode_embedding: bool = True
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "embeddings"
 
 
 # ============================================================================
@@ -223,10 +245,13 @@ class FaceRecognitionSettings:
 
 @dataclass
 class FaceClusteringSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "face_clusters"
     min_cluster_size: int = 5
     min_samples: int = 3
     save_noise: bool = True
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "face_clusters"
 
 
 @dataclass
@@ -241,26 +266,41 @@ class EmotionDetectionSettings:
 
 @dataclass
 class CharacterSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "characters"
     reference_images_per_character: int = 3
-    characters_list_file: Path = BASE_OUTPUT_DIR / "characters.json"
-    detections_dir: Path = BASE_OUTPUT_DIR / "character_detections"
-    processed_references_dir: Path = BASE_OUTPUT_DIR / "character_references_processed"
     normalized_face_size: Tuple[int, int] = (112, 112)
     face_detection_threshold: float = 0.2
     reference_matching_threshold: float = 0.50
     frame_detection_threshold: float = 0.55
 
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "characters"
 
-_OBJECT_DETECTIONS_DIR = BASE_OUTPUT_DIR / "object_detections"
+    @staticmethod
+    def get_characters_list_file(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "characters.json"
+
+    @staticmethod
+    def get_detections_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "character_detections"
+
+    @staticmethod
+    def get_processed_references_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "character_references_processed"
 
 
 @dataclass
 class ObjectDetectionSettings:
     model_name: str = "ustc-community/dfine-xlarge-obj2coco"
     conf_threshold: float = 0.30
-    output_dir: Path = _OBJECT_DETECTIONS_DIR
-    visualized_output_dir: Path = _OBJECT_DETECTIONS_DIR / "visualizations"
+
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "object_detections"
+
+    @staticmethod
+    def get_visualized_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "object_detections" / "visualizations"
 
 
 # ============================================================================
@@ -269,7 +309,9 @@ class ObjectDetectionSettings:
 
 @dataclass
 class ImageHashSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "image_hashes"
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "image_hashes"
 
 
 @dataclass
@@ -297,7 +339,9 @@ class ImageScraperSettings(BaseAPISettings):
 
 @dataclass
 class ScraperSettings:
-    output_dir: Path = BASE_OUTPUT_DIR / "scraped_pages"
+    @staticmethod
+    def get_output_dir(series_name: str) -> Path:
+        return get_base_output_dir(series_name) / "scraped_pages"
 
 
 # ============================================================================

@@ -9,11 +9,9 @@ from typing import (
     Optional,
 )
 
-from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
 from preprocessor.core.episode_file_finder import EpisodeFileFinder
 from preprocessor.core.episode_parser import EpisodeInfoParser
 from preprocessor.core.file_naming import FileNamingConventions
-from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.utils.constants import (
     EpisodeMetadataKeys,
     EpisodesDataKeys,
@@ -38,8 +36,24 @@ class EpisodeInfo:
     def season_dir_name(self) -> str:
         return f"S{self.season:02d}"
 
+    def season_code(self) -> str:
+        return f"S{self.season:02d}"
+
+    def episode_num(self) -> str:
+        return f"E{self.relative_episode:02d}"
+
     def is_special(self) -> bool:
         return self.season == 0
+
+    @staticmethod
+    def create_minimal(season: int, episode: int, series_name: str) -> "EpisodeInfo":
+        return EpisodeInfo(
+            absolute_episode=0,
+            season=season,
+            relative_episode=episode,
+            title="",
+            series_name=series_name,
+        )
 
 
 class EpisodeManager:
@@ -100,23 +114,6 @@ class EpisodeManager:
             series_name=self.series_name,
         )
 
-    def build_output_path(self, episode_info: EpisodeInfo, base_dir: Path, extension: str = DEFAULT_VIDEO_EXTENSION) -> Path:
-        filename = self.file_naming.build_filename(episode_info, extension=extension.lstrip('.'))
-        season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
-        season_dir = base_dir / season_dir_name
-        season_dir.mkdir(parents=True, exist_ok=True)
-        return season_dir / filename
-
-    @staticmethod
-    def get_episode_subdir(episode_info: EpisodeInfo, subdir: str) -> Path:
-        return OutputPathBuilder.get_episode_dir(episode_info, subdir)
-
-    @staticmethod
-    def build_episode_output_path(episode_info: EpisodeInfo, subdir: str, filename: str) -> Path:
-        return OutputPathBuilder.build_output_path(episode_info, subdir, filename)
-
-    def build_video_path_for_elastic(self, episode_info: EpisodeInfo) -> str:
-        return OutputPathBuilder.build_elastic_video_path(episode_info, self.series_name)
 
     def find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool = True) -> Optional[Path]:
         return self.file_finder.find_transcription_file(episode_info, search_dir, prefer_segmented)

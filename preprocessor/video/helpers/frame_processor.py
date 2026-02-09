@@ -26,7 +26,9 @@ class FrameProcessor(BaseProcessor):
             loglevel=logging.DEBUG,
         )
 
-        self.frames_dir: Path = Path(self._args.get("frames_dir", settings.frame_export.output_dir))
+        self.frames_dir: Path = Path(
+            self._args.get("frames_dir", settings.frame_export.get_output_dir(self.series_name))
+        )
         self.ramdisk_path: Path = Path(self._args.get("ramdisk_path", "/dev/shm"))
 
         episodes_info_json = self._args.get("episodes_info_json")
@@ -36,6 +38,9 @@ class FrameProcessor(BaseProcessor):
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         pass
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.frames
 
     def add_sub_processor(self, processor: 'FrameSubProcessor') -> None:
         self.sub_processors.append(processor)

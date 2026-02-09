@@ -51,8 +51,8 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         )
 
         self.transcription_jsons: Path = self._args["transcription_jsons"]
-        self.frames_dir: Path = self._args.get("frames_dir", settings.frame_export.get_output_dir(self.series_name))
-        self.output_dir: Path = self._args.get("output_dir", settings.embedding.get_output_dir(self.series_name))
+        self.frames_dir: Path = self._args.get("frames_dir", settings.frame_export.output_dir)
+        self.output_dir: Path = self._args.get("output_dir", settings.embedding.default_output_dir)
 
         self.model_name: str = self._args.get("model", settings.embedding_model.model_name)
         self.model_revision: str = self._args.get("model_revision", settings.embedding_model.model_revision)
@@ -68,9 +68,7 @@ class EmbeddingGenerator(BaseProcessor): # pylint: disable=too-many-instance-att
         self.generate_full_episode: bool = self._args.get("generate_full_episode", settings.embedding.generate_full_episode_embedding)
         self.generate_sound_events: bool = self._args.get("generate_sound_events", True)
 
-        self.image_hashes_dir: Path = Path(
-            self._args.get("image_hashes_dir", settings.image_hash.get_output_dir(self.series_name)),
-        )
+        self.image_hashes_dir: Path = Path(self._args.get("image_hashes_dir", settings.image_hash.output_dir))
 
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)

@@ -35,12 +35,17 @@ class SoundEventSeparator(BaseProcessor):
             loglevel=args.get("loglevel", 20),
         )
 
-        self.transcription_dir = Path(self._args.get("transcription_dir", settings.transcription.output_dir))
+        self.transcription_dir = Path(
+            self._args.get("transcription_dir", settings.transcription.get_output_dir(self.series_name)),
+        )
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         pass
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         segmented_files = list(self.transcription_dir.rglob("**/raw/*_segmented.json"))

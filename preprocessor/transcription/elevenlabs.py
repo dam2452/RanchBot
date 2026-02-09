@@ -10,6 +10,7 @@ from typing import (
     Optional,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.transcription.engines.elevenlabs_engine import ElevenLabsEngine
@@ -32,6 +33,9 @@ class ElevenLabsTranscriber(BaseProcessor):
         videos_path = Path(args["videos"])
         if not videos_path.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
 
     def __init__(self, args: Dict[str, Any]):
         super().__init__(
@@ -209,7 +213,9 @@ class ElevenLabsTranscriber(BaseProcessor):
         }
 
         json_dir = self.output_dir / "json"
-        output_file = self.episode_manager.build_output_path(episode_info, json_dir)
+        filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+        season_dir = json_dir / episode_info.season_code()
+        output_file = season_dir / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:

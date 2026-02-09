@@ -7,20 +7,27 @@ from typing import (
     List,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.transcription.generators.multi_format_generator import MultiFormatGenerator
 from preprocessor.transcription.processors.audio_normalizer import AudioNormalizer
 from preprocessor.transcription.processors.normalized_audio_processor import NormalizedAudioProcessor
 from preprocessor.transcription.processors.unicode_fixer import TranscriptionUnicodeFixer
 
 
+@register_processor("transcribe")
 class TranscriptionGenerator(BaseProcessor):
+    REQUIRES = ["videos"]
+    PRODUCES = ["transcriptions"]
+    PRIORITY = 20
+    DESCRIPTION = "Generate transcriptions using Whisper"
+
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
@@ -51,6 +58,9 @@ class TranscriptionGenerator(BaseProcessor):
         if not videos_path.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
 
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
+
     def _get_processing_items(self) -> List[ProcessingItem]:
         if self.__check_all_transcriptions_exist():
             return []
@@ -75,22 +85,18 @@ class TranscriptionGenerator(BaseProcessor):
                 continue
 
             filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
-            expected_file = OutputPathBuilder.build_transcription_path(
-                episode_info,
-                filename,
-                subdir="raw",
-            )
+            season_code = episode_info.season_code()
+            episode_code = episode_info.episode_num()
+            expected_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / filename
+            expected_file.parent.mkdir(parents=True, exist_ok=True)
 
             segmented_filename = self.episode_manager.file_naming.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_segmented",
             )
-            segmented_file = OutputPathBuilder.build_transcription_path(
-                episode_info,
-                segmented_filename,
-                subdir="raw",
-            )
+            segmented_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / segmented_filename
+            segmented_file.parent.mkdir(parents=True, exist_ok=True)
 
             if not expected_file.exists() and not segmented_file.exists():
                 outputs.append(OutputSpec(path=expected_file, required=True))
@@ -148,22 +154,18 @@ class TranscriptionGenerator(BaseProcessor):
                 continue
 
             filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
-            expected_file = OutputPathBuilder.build_transcription_path(
-                episode_info,
-                filename,
-                subdir="raw",
-            )
+            season_code = episode_info.season_code()
+            episode_code = episode_info.episode_num()
+            expected_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / filename
+            expected_file.parent.mkdir(parents=True, exist_ok=True)
 
             segmented_filename = self.episode_manager.file_naming.build_filename(
                 episode_info,
                 extension="json",
                 suffix="_segmented",
             )
-            segmented_file = OutputPathBuilder.build_transcription_path(
-                episode_info,
-                segmented_filename,
-                subdir="raw",
-            )
+            segmented_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / segmented_filename
+            segmented_file.parent.mkdir(parents=True, exist_ok=True)
 
             if not expected_file.exists() and not segmented_file.exists():
                 missing_files.append(f"{video_file.name} -> {expected_file}")
@@ -188,11 +190,10 @@ class TranscriptionGenerator(BaseProcessor):
                 continue
 
             filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
-            expected_file = OutputPathBuilder.build_transcription_path(
-                episode_info,
-                filename,
-                subdir="raw",
-            )
+            season_code = episode_info.season_code()
+            episode_code = episode_info.episode_num()
+            expected_file = self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code / "raw" / filename
+            expected_file.parent.mkdir(parents=True, exist_ok=True)
 
             if any(expected_file == output.path for output in missing_outputs):
                 missing_video_files.append(video_file)

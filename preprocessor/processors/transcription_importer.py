@@ -12,13 +12,20 @@ from typing import (
 
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.utils.console import (
     console,
     create_progress,
 )
 
 
+@register_processor("import_transcriptions")
 class TranscriptionImporter(BaseProcessor):
+    REQUIRES = []
+    PRODUCES = ["transcriptions"]
+    PRIORITY = 15
+    DESCRIPTION = "Import external transcriptions"
+
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "source_dir" not in args:
             raise ValueError("source_dir is required")
@@ -30,6 +37,9 @@ class TranscriptionImporter(BaseProcessor):
         source_dir = Path(args["source_dir"])
         if not source_dir.exists():
             raise FileNotFoundError(f"Source directory not found: {source_dir}")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
 
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
@@ -129,7 +139,9 @@ class TranscriptionImporter(BaseProcessor):
         if episode_info:
             converted_data["episode_info"] = EpisodeManager.get_metadata(episode_info)
 
-        output_file = self.episode_manager.build_output_path(episode_info, self.output_dir)
+        filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
+        season_dir = self.output_dir / episode_info.season_code()
+        output_file = season_dir / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_file, "w", encoding="utf-8") as f:

@@ -11,7 +11,6 @@ from typing import (
 
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.core.file_naming import FileNamingConventions
-from preprocessor.core.output_path_builder import OutputPathBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class EpisodeFileFinder:
             return search_dir
 
         episode_code = episode_info.episode_code()
-        season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
+        season_dir_name = episode_info.season_code()
         search_dirs = [search_dir / season_dir_name, search_dir]
 
         for dir_path in search_dirs:
@@ -52,7 +51,7 @@ class EpisodeFileFinder:
         if not search_dir.exists():
             return None
 
-        season_dir_name = OutputPathBuilder.get_season_dir(episode_info)
+        season_dir_name = episode_info.season_code()
         season_dir = search_dir / season_dir_name
         if not season_dir.exists():
             return None

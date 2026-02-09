@@ -103,7 +103,7 @@ class BaseScraper(BaseProcessor):
         if self.scraper_method == ScraperMethod.CLIPBOARD:
             return ScraperClipboard.scrape(url, headless=self.headless)
         if self.scraper_method == ScraperMethod.CRAWL4AI:
-            return ScraperCrawl4AI.scrape(url, save_markdown=True, output_dir=settings.scraper.output_dir)
+            return ScraperCrawl4AI.scrape(url, save_markdown=True, output_dir=settings.scraper.get_output_dir(self.series_name))
         self.logger.error(f"Unknown scraper method: {self.scraper_method}")
         return None
 

@@ -9,21 +9,28 @@ from typing import (
     Optional,
 )
 
+from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.constants import DEFAULT_VIDEO_EXTENSION
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.utils.constants import (
     FfprobeKeys,
     FfprobeStreamKeys,
 )
 from preprocessor.utils.resolution import Resolution
-from preprocessor.video.base_video_processor import BaseVideoProcessor
+from preprocessor.video.helpers.base_video_processor import BaseVideoProcessor
 
 
+@register_processor("transcode")
 class VideoTranscoder(BaseVideoProcessor):
+    REQUIRES = ["videos"]
+    PRODUCES = ["transcoded_videos"]
+    PRIORITY = 10
+    DESCRIPTION = "Transcode videos to H.264 with consistent format"
+
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
@@ -66,9 +73,13 @@ class VideoTranscoder(BaseVideoProcessor):
         if not videos_path.is_dir():
             raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
 
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.video
+
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        output_path = OutputPathBuilder.build_video_path(episode_info, self.series_name, extension=DEFAULT_VIDEO_EXTENSION)
+        filename = f"{self.series_name}_{episode_info.episode_code()}{DEFAULT_VIDEO_EXTENSION}"
+        output_path = self._build_season_path(episode_info, filename)
         return [OutputSpec(path=output_path, required=True)]
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:

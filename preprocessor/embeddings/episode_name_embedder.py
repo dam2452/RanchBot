@@ -10,7 +10,11 @@ from typing import (
 import numpy as np
 
 from preprocessor.config.config import settings
-from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.episode_manager import (
+    EpisodeInfo,
+    EpisodeManager,
+)
+from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.constants import EmbeddingKeys
 from preprocessor.utils.file_utils import atomic_write_json
@@ -28,7 +32,7 @@ class EpisodeNameEmbedder:
         self.model = model
         self.episode_manager = episode_manager
         self.series_name = series_name
-        self.output_dir = output_dir or settings.embedding.default_output_dir
+        self.output_dir = output_dir or settings.embedding.get_output_dir(series_name)
         self.logger = logger or logging.getLogger(__name__)
 
     def __generate_episode_name_embeddings(
@@ -94,20 +98,19 @@ class EpisodeNameEmbedder:
 
     @staticmethod
     def __save_episode_name_embedding(
-            season: int,
+        season: int,
         episode: int,
         embedding_data: Dict[str, Any],
+        series_name: str,
     ) -> Path:
-        from preprocessor.core.episode_manager import EpisodeInfo  # pylint: disable=import-outside-toplevel
-        from preprocessor.core.output_path_builder import OutputPathBuilder  # pylint: disable=import-outside-toplevel
+        path_manager = PathManager(series_name)
+        episode_info = EpisodeInfo.create_minimal(season, episode, series_name)
 
-        episode_info = EpisodeInfo(
-            absolute_episode=0,
-            season=season,
-            relative_episode=episode,
-            title="",
+        output_file = path_manager.build_path(
+            episode_info,
+            settings.output_subdirs.embeddings,
+            "episode_name_embedding.json",
         )
-        output_file = OutputPathBuilder.build_embedding_path(episode_info, "episode_name_embedding.json")
 
         atomic_write_json(output_file, embedding_data, indent=2, ensure_ascii=False)
 
@@ -124,7 +127,7 @@ class EpisodeNameEmbedder:
         season = embedding_data[EmbeddingKeys.EPISODE_METADATA]["season"]
         episode = embedding_data[EmbeddingKeys.EPISODE_METADATA]["episode_number"]
 
-        output_file = self.__save_episode_name_embedding(season, episode, embedding_data)
+        output_file = self.__save_episode_name_embedding(season, episode, embedding_data, self.series_name)
         console.print(
             f"[green]Generated episode name embedding for {embedding_data[EmbeddingKeys.EPISODE_ID]}: {embedding_data[EmbeddingKeys.TITLE]}[/green]",
         )
@@ -135,21 +138,26 @@ class EpisodeNameEmbedder:
     def load_episode_name_embedding(
         season: int,
         episode: int,
+        series_name: str,
         output_dir: Optional[Path] = None,
     ) -> Optional[Dict[str, Any]]:
-        from preprocessor.core.episode_manager import EpisodeInfo  # pylint: disable=import-outside-toplevel
-        from preprocessor.core.output_path_builder import OutputPathBuilder  # pylint: disable=import-outside-toplevel
-
         if output_dir is None:
-            output_dir = settings.embedding.default_output_dir
+            output_dir = settings.embedding.get_output_dir(series_name)
 
+        path_manager = PathManager(series_name)
         episode_info = EpisodeInfo(
             absolute_episode=0,
             season=season,
             relative_episode=episode,
             title="",
+            series_name=series_name,
         )
-        embedding_file = OutputPathBuilder.build_embedding_path(episode_info, "episode_name_embedding.json")
+
+        embedding_file = path_manager.build_path(
+            episode_info,
+            settings.output_subdirs.embeddings,
+            "episode_name_embedding.json",
+        )
 
         if not embedding_file.exists():
             return None

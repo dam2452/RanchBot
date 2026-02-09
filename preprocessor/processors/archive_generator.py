@@ -7,7 +7,10 @@ from typing import (
 )
 import zipfile
 
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    get_base_output_dir,
+    settings,
+)
 from preprocessor.core.base_processor import (
     BaseProcessor,
     OutputSpec,
@@ -18,12 +21,19 @@ from preprocessor.core.constants import (
     FILE_SUFFIXES,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.utils.console import console
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
 
+@register_processor("generate_archives")
 class ArchiveGenerator(BaseProcessor):
+    REQUIRES = ["elastic_documents"]
+    PRODUCES = ["archives"]
+    PRIORITY = 90
+    DESCRIPTION = "Generate archive files"
+
     FOLDER_TO_FILE_SUFFIX = {
         ELASTIC_SUBDIRS.text_segments: "text_segments",
         ELASTIC_SUBDIRS.text_embeddings: "text_embeddings",
@@ -44,7 +54,7 @@ class ArchiveGenerator(BaseProcessor):
         )
 
         self.elastic_documents_dir: Path = self._args["elastic_documents_dir"]
-        self.output_dir: Path = self._args.get("output_dir", Path("/app/output_data/archives"))
+        self.output_dir: Path = self._args.get("output_dir", get_base_output_dir(self.series_name) / "archives")
         self.allow_partial: bool = self._args.get("allow_partial", False)
 
         episodes_info_json = self._args.get("episodes_info_json")
@@ -53,6 +63,9 @@ class ArchiveGenerator(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "elastic_documents_dir" not in args:
             raise ValueError("elastic_documents_dir is required")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.archives
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         segments_dir = self.elastic_documents_dir / ELASTIC_SUBDIRS.text_segments
@@ -90,8 +103,8 @@ class ArchiveGenerator(BaseProcessor):
         archive_name = f"{base_name}.zip"
         archive_path = (
             self.output_dir
-            / f"S{episode_info.season:02d}"
-            / f"E{episode_info.relative_episode:02d}"
+            / episode_info.season_code()
+            / episode_info.episode_num()
             / archive_name
         )
 
@@ -132,8 +145,8 @@ class ArchiveGenerator(BaseProcessor):
             file_path = (
                 self.elastic_documents_dir
                 / folder_name
-                / f"S{episode_info.season:02d}"
-                / f"E{episode_info.relative_episode:02d}"
+                / episode_info.season_code()
+                / episode_info.episode_num()
                 / file_name
             )
 

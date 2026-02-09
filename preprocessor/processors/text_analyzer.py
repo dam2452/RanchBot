@@ -7,7 +7,7 @@ from typing import (
 )
 
 from preprocessor.config.config import (
-    BASE_OUTPUT_DIR,
+    get_base_output_dir,
     settings,
 )
 from preprocessor.core.base_processor import (
@@ -16,11 +16,18 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.text_analysis.text_statistics import TextStatistics
 from preprocessor.utils.file_utils import atomic_write_json
 
 
+@register_processor("analyze_text")
 class TextAnalyzer(BaseProcessor):
+    REQUIRES = ["transcriptions"]
+    PRODUCES = ["text_analysis"]
+    PRIORITY = 70
+    DESCRIPTION = "Analyze transcription text statistics"
+
     def __init__(self, args: Dict[str, Any]):
         super().__init__(
             args=args,
@@ -28,7 +35,7 @@ class TextAnalyzer(BaseProcessor):
             error_exit_code=40,
             loglevel=logging.INFO,
         )
-        self.transcriptions_base = BASE_OUTPUT_DIR / settings.output_subdirs.transcriptions
+        self.transcriptions_base = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions
         self.language = args.get("language", "pl")
         self.episode_manager = EpisodeManager(
             args.get("episodes_info_json"),
@@ -38,6 +45,9 @@ class TextAnalyzer(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "series_name" not in args:
             raise ValueError("series_name is required")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         items = []

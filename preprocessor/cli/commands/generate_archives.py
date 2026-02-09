@@ -8,24 +8,24 @@ from preprocessor.cli.options.common import (
     name_option,
 )
 from preprocessor.config.config import (
-    BASE_OUTPUT_DIR,
+    get_base_output_dir,
     settings,
 )
-from preprocessor.indexing.archive_generator import ArchiveGenerator
+from preprocessor.processors.archive_generator import ArchiveGenerator
 
 
 @click.command(name="generate-archives", context_settings={"show_default": True})
 @click.option(
     "--elastic-documents-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=BASE_OUTPUT_DIR / settings.output_subdirs.elastic_documents,
-    help="Directory with Elasticsearch documents",
+    default=None,
+    help="Directory with Elasticsearch documents (defaults to {series_name}/elastic_documents)",
 )
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=BASE_OUTPUT_DIR / settings.output_subdirs.archives,
-    help="Output directory for ZIP archives",
+    default=None,
+    help="Output directory for ZIP archives (defaults to {series_name}/archives)",
 )
 @click.option(
     "--season",
@@ -59,6 +59,13 @@ def generate_archives(
     name: str,
     episodes_info_json: Path,
 ) -> None:
+    base_output = get_base_output_dir(name)
+
+    if elastic_documents_dir is None:
+        elastic_documents_dir = base_output / settings.output_subdirs.elastic_documents
+    if output_dir is None:
+        output_dir = base_output / settings.output_subdirs.archives
+
     args = {
         "elastic_documents_dir": elastic_documents_dir,
         "output_dir": output_dir,

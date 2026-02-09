@@ -14,6 +14,9 @@ class CharacterScraper(BaseScraper):
         super().__init__(args)
         self.series_name: str = self._args.get("series_name", "")
 
+    def get_output_subdir(self) -> str:
+        return "scraped_pages"
+
     def _process_scraped_pages(self, scraped_pages: List[Dict[str, Any]]) -> None:
         characters = self.llm.extract_characters(scraped_pages, self.series_name)
         if not characters:

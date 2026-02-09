@@ -21,10 +21,10 @@ from patchright.sync_api import (
     sync_playwright,
 )
 
-from preprocessor.characters.base_image_search import BaseImageSearch
-from preprocessor.characters.duckduckgo_search import DuckDuckGoImageSearch
-from preprocessor.characters.google_image_search import GoogleImageSearch
-from preprocessor.characters.utils import init_face_detection
+from preprocessor.characters.search.base_image_search import BaseImageSearch
+from preprocessor.characters.search.duckduckgo_search import DuckDuckGoImageSearch
+from preprocessor.characters.search.google_image_search import GoogleImageSearch
+from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.console import (
@@ -44,7 +44,7 @@ class CharacterReferenceDownloader(BaseProcessor):
 
         self.characters_json: Path = self._args["characters_json"]
         self.series_name: str = self._args["series_name"]
-        self.output_dir: Path = self._args.get("output_dir", settings.character.output_dir)
+        self.output_dir: Path = self._args.get("output_dir", settings.character.get_output_dir(self.series_name))
         self.images_per_character: int = self._args.get(
             "images_per_character",
             settings.character.reference_images_per_character,
@@ -68,6 +68,9 @@ class CharacterReferenceDownloader(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "characters_json" not in args:
             raise ValueError("characters_json is required")
+
+    def get_output_subdir(self) -> str:
+        return "character_references"
         if "series_name" not in args:
             raise ValueError("series_name is required")
 

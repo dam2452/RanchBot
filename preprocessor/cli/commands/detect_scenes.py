@@ -5,7 +5,7 @@ import click
 
 from preprocessor.cli_utils.resource_scope import ResourceScope
 from preprocessor.config.config import settings
-from preprocessor.video.scene_detector import SceneDetector
+from preprocessor.processors.scene_detector import SceneDetector
 
 
 @click.command(name="detect-scenes", context_settings={"show_default": True})
@@ -13,7 +13,7 @@ from preprocessor.video.scene_detector import SceneDetector
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.scene_detection.output_dir),
+    default=None,
     help="Output directory for scene JSON files",
 )
 @click.option(
@@ -28,8 +28,12 @@ from preprocessor.video.scene_detector import SceneDetector
     default=settings.scene_detection.min_scene_len,
     help="Minimum scene length in frames",
 )
-def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_len: int):
+@click.option("--name", required=True, help="Series name")
+def detect_scenes(videos: Path, output_dir: Path, threshold: float, min_scene_len: int, name: str):
     """Detect scene changes in videos using TransNetV2."""
+    if output_dir is None:
+        output_dir = settings.scene_detection.get_output_dir(name)
+
     with ResourceScope():
         detector = SceneDetector(
             {

@@ -24,7 +24,10 @@ from preprocessor.cli.pipeline.steps import (
     run_validation_step,
 )
 from preprocessor.cli.utils import create_state_manager
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    get_base_output_dir,
+    settings,
+)
 from preprocessor.utils.console import console
 from preprocessor.utils.resolution import Resolution
 
@@ -44,14 +47,14 @@ from preprocessor.utils.resolution import Resolution
 @click.option(
     "--transcription-jsons",
     type=click.Path(path_type=Path),
-    default=str(settings.transcription.output_dir),
-    help="Output directory for transcription JSONs",
+    default=None,
+    help="Output directory for transcription JSONs (defaults to {series_name}/transcriptions)",
 )
 @click.option(
     "--scene-timestamps-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.scene_detection.output_dir),
-    help="Output directory for scene timestamps",
+    default=None,
+    help="Output directory for scene timestamps (defaults to {series_name}/scene_timestamps)",
 )
 @click.option("--series-name", required=True, help="Series name")
 @click.option(
@@ -179,12 +182,16 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 ):
     """Run complete video processing pipeline."""
     if transcoded_videos is None:  # pylint: disable=duplicate-code
-        transcoded_videos = settings.transcode.output_dir
+        transcoded_videos = settings.transcode.get_output_dir(series_name)
     if codec is None:
         codec = settings.transcode.codec
+    if transcription_jsons is None:
+        transcription_jsons = settings.transcription.get_output_dir(series_name)
+    if scene_timestamps_dir is None:
+        scene_timestamps_dir = settings.scene_detection.get_output_dir(series_name)
 
     if not episodes_info_json:
-        default_episodes_json = Path("/app/output_data") / f"{series_name}_episodes.json"
+        default_episodes_json = get_base_output_dir(series_name) / f"{series_name}_episodes.json"
         if default_episodes_json.exists():
             episodes_info_json = default_episodes_json
             console.print(f"[cyan]Using existing episodes JSON: {episodes_info_json}[/cyan]")
@@ -197,7 +204,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             sys.exit(1)
 
     characters_json = None
-    default_characters_json = Path("/app/output_data") / f"{series_name}_characters.json"
+    default_characters_json = get_base_output_dir(series_name) / f"{series_name}_characters.json"
 
     if default_characters_json.exists():
         characters_json = default_characters_json
@@ -206,7 +213,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         characters_json = default_characters_json
         console.print(f"[cyan]Will scrape characters to: {characters_json}[/cyan]")
     else:
-        characters_json = settings.character.characters_list_file
+        characters_json = settings.character.get_characters_list_file(series_name)
         if characters_json and Path(characters_json).exists():
             console.print(f"[cyan]Using default characters JSON: {characters_json}[/cyan]")
         else:
@@ -223,7 +230,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         "transcoded_videos": transcoded_videos,
         "transcription_jsons": transcription_jsons,
         "scene_timestamps_dir": scene_timestamps_dir,
-        "output_frames": settings.frame_export.output_dir,
+        "output_frames": settings.frame_export.get_output_dir(series_name),
         "name": series_name,
         "resolution": resolution,
         "codec": codec,
@@ -252,7 +259,7 @@ def run_all(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         "skip_full_episode": skip_full_episode,
     }
 
-    metadata_output_dir = Path("/app/output_data/processing_metadata")
+    metadata_output_dir = get_base_output_dir(series_name) / "processing_metadata"
 
     orchestrator = PipelineOrchestrator(
         state_manager=state_manager,

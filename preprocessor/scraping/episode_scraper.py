@@ -20,6 +20,9 @@ class EpisodeScraper(BaseScraper):
         self.expected_episodes_count: Optional[int] = self._args.get("expected_episodes_count")
         self.videos_dir: Optional[Path] = self._args.get("videos_dir")
 
+    def get_output_subdir(self) -> str:
+        return "scraped_pages"
+
     def _process_scraped_pages(self, scraped_pages: List[Dict[str, Any]]) -> None:
         all_seasons = self.llm.extract_all_seasons(scraped_pages)
         if not all_seasons:

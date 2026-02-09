@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import List
 
-from preprocessor.config.config import BASE_OUTPUT_DIR
 from preprocessor.validation.base_result import BaseValidationResult
 from preprocessor.validation.file_validators import (
     validate_image_file,
@@ -17,7 +16,7 @@ class GlobalValidator:
     def __init__(
         self,
         series_name: str,
-        base_output_dir: Path = BASE_OUTPUT_DIR,
+        base_output_dir: Path,
     ):
         self.series_name = series_name
         self.base_output_dir = base_output_dir

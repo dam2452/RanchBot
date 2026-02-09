@@ -9,8 +9,8 @@ from preprocessor.config.config import (
     TranscodeConfig,
     settings,
 )
+from preprocessor.processors.video_transcoder import VideoTranscoder
 from preprocessor.utils.resolution import Resolution
-from preprocessor.video.transcoder import VideoTranscoder
 
 
 @click.command(context_settings={"show_default": True})
@@ -18,7 +18,7 @@ from preprocessor.video.transcoder import VideoTranscoder
 @click.option(
     "--transcoded-videos",
     type=click.Path(path_type=Path),
-    default=str(settings.transcode.output_dir),
+    default=None,
     help="Output directory for transcoded videos",
 )
 @click.option(
@@ -55,7 +55,11 @@ def transcode(
 ):
     """Transcode videos to target resolution with FFmpeg."""
     if transcoded_videos is None:  # pylint: disable=duplicate-code
-        transcoded_videos = settings.transcode.output_dir
+        if name:
+            transcoded_videos = settings.transcode.get_output_dir(name)
+        else:
+            from preprocessor.config.config import BASE_OUTPUT_DIR  # pylint: disable=import-outside-toplevel
+            transcoded_videos = BASE_OUTPUT_DIR / "transcoded_videos"
     if codec is None:
         codec = settings.transcode.codec
     if gop_size is None:

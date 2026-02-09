@@ -16,16 +16,26 @@ from elasticsearch.helpers import (
     async_bulk,
 )
 
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    get_base_output_dir,
+    settings,
+)
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.search.elastic_manager import ElasticSearchManager
 from preprocessor.utils.console import console
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
 
+@register_processor("index_elasticsearch")
 class ElasticSearchIndexer(BaseProcessor):
+    REQUIRES = ["elastic_documents"]
+    PRODUCES = ["indexed"]
+    PRIORITY = 95
+    DESCRIPTION = "Index documents in Elasticsearch"
+
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
@@ -36,7 +46,10 @@ class ElasticSearchIndexer(BaseProcessor):
 
         self.dry_run = self._args.get("dry_run", False)
         self.name = self._args["name"]
-        self.elastic_documents_dir = self._args.get("elastic_documents_dir", Path("/app/output_data/elastic_documents"))
+        self.elastic_documents_dir = self._args.get(
+            "elastic_documents_dir",
+            get_base_output_dir(self.series_name) / "elastic_documents"
+        )
         self.transcription_jsons = self._args.get("transcription_jsons")
         self.append = self._args.get("append", False)
 
@@ -47,6 +60,9 @@ class ElasticSearchIndexer(BaseProcessor):
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if "name" not in args:
             raise ValueError("index name is required")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.elastic_documents
 
     @staticmethod
     def __sanitize_error_for_logging(error: Dict[str, Any]) -> Dict[str, Any]:

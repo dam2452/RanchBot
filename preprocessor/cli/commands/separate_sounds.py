@@ -12,7 +12,7 @@ from preprocessor.transcription.processors.sound_separator import SoundEventSepa
 @click.option(
     "--transcription-dir",
     type=click.Path(exists=True, path_type=Path),
-    default=str(settings.transcription.output_dir),
+    default=None,
     help="Directory with transcription JSON files",
 )
 @click.option(
@@ -32,6 +32,9 @@ def separate_sounds(
     series_name: str,
 ):
     """Separate sound events from dialogues in transcription files."""
+    if transcription_dir is None:
+        transcription_dir = settings.transcription.get_output_dir(series_name)
+
     args = {
         "transcription_dir": transcription_dir,
         "episodes_info_json": episodes_info_json,

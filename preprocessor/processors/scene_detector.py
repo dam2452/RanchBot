@@ -21,12 +21,18 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
 
 
+@register_processor("detect_scenes")
 class SceneDetector(BaseProcessor):
+    REQUIRES = ["videos"]
+    PRODUCES = ["scene_timestamps"]
+    PRIORITY = 25
+    DESCRIPTION = "Detect scene changes using TransNetV2"
+
     def __init__(self, args: Dict[str, Any]):
         super().__init__(
             args=args,
@@ -50,6 +56,9 @@ class SceneDetector(BaseProcessor):
             raise ValueError("videos path is required")
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. TransNetV2 requires GPU.")
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.scenes
 
     def cleanup(self) -> None:
         console.print("[cyan]Unloading TransNetV2 model and clearing GPU memory...[/cyan]")
@@ -78,10 +87,10 @@ class SceneDetector(BaseProcessor):
                 extension="json",
                 suffix="scenes",
             )
-            output_path = OutputPathBuilder.build_scene_path(episode_info, output_filename)
+            output_path = self._build_output_path(episode_info, output_filename)
         else:
             output_filename = f"{item.input_path.stem}_scenes.json"
-            output_path = OutputPathBuilder.get_episode_dir(None, settings.output_subdirs.scenes) / output_filename
+            output_path = self.path_manager.base_output_dir / self.get_output_subdir() / output_filename
 
         return [OutputSpec(path=output_path, required=True)]
 

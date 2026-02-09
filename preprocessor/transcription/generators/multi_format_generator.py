@@ -5,8 +5,11 @@ from typing import (
     Dict,
 )
 
+from preprocessor.config.config import (
+    get_base_output_dir,
+    settings,
+)
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.output_path_builder import OutputPathBuilder
 from preprocessor.transcription.generators.full_json_generator import FullJsonGenerator
 from preprocessor.transcription.generators.segmented_json_generator import SegmentedJsonGenerator
 from preprocessor.transcription.generators.simple_json_generator import SimpleJsonGenerator
@@ -49,11 +52,9 @@ class MultiFormatGenerator:
                 return
 
             filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
-            main_output_file = OutputPathBuilder.build_transcription_path(
-                episode_info,
-                filename,
-                subdir="raw",
-            )
+            season_code = episode_info.season_code()
+            episode_code = episode_info.episode_num()
+            main_output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
 
             if main_output_file.exists():
                 self.logger.info(f"Skipping (already exists): {episode_info.episode_code()}")
@@ -76,7 +77,10 @@ class MultiFormatGenerator:
 
     def __generate_full_json(self, data: Dict[str, Any], episode_info) -> None:
         filename = self.episode_manager.file_naming.build_filename(episode_info, extension="json")
-        output_file = OutputPathBuilder.build_transcription_path(episode_info, filename, subdir="raw")
+        season_code = episode_info.season_code()
+        episode_code = episode_info.episode_num()
+        output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         generator = FullJsonGenerator(Path("."), output_file.parent, self.logger)
@@ -94,7 +98,10 @@ class MultiFormatGenerator:
             extension="json",
             suffix="segmented",
         )
-        output_file = OutputPathBuilder.build_transcription_path(episode_info, filename, subdir="raw")
+        season_code = episode_info.season_code()
+        episode_code = episode_info.episode_num()
+        output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         generator = SegmentedJsonGenerator(Path("."), output_file.parent, self.logger)
@@ -116,7 +123,10 @@ class MultiFormatGenerator:
             extension="json",
             suffix="simple",
         )
-        output_file = OutputPathBuilder.build_transcription_path(episode_info, filename, subdir="raw")
+        season_code = episode_info.season_code()
+        episode_code = episode_info.episode_num()
+        output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         generator = SimpleJsonGenerator(Path("."), output_file.parent, self.logger)
@@ -134,7 +144,10 @@ class MultiFormatGenerator:
 
     def __generate_srt(self, data: Dict[str, Any], episode_info) -> None:
         filename = self.episode_manager.file_naming.build_filename(episode_info, extension="srt")
-        output_file = OutputPathBuilder.build_transcription_path(episode_info, filename, subdir="raw")
+        season_code = episode_info.season_code()
+        episode_code = episode_info.episode_num()
+        output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         generator = SrtGenerator(Path("."), output_file.parent, self.logger)
@@ -147,7 +160,10 @@ class MultiFormatGenerator:
 
     def __generate_txt(self, data: Dict[str, Any], episode_info) -> None:
         filename = self.episode_manager.file_naming.build_filename(episode_info, extension="txt")
-        output_file = OutputPathBuilder.build_transcription_path(episode_info, filename, subdir="raw")
+        season_code = episode_info.season_code()
+        episode_code = episode_info.episode_num()
+        output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         generator = TxtGenerator(Path("."), output_file.parent, self.logger)

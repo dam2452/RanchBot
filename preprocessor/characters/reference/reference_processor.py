@@ -15,7 +15,7 @@ import cv2
 from insightface.app import FaceAnalysis
 import numpy as np
 
-from preprocessor.characters.utils import init_face_detection
+from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -68,6 +68,9 @@ class CharacterReferenceProcessor(BaseProcessor):
         for key in required:
             if key not in args:
                 raise ValueError(f"Missing required argument: {key}")
+
+    def get_output_subdir(self) -> str:
+        return "character_references"
 
     def _load_resources(self) -> bool:
         self.face_app = init_face_detection()

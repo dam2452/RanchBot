@@ -7,10 +7,10 @@ from typing import (
     Optional,
 )
 
-from preprocessor.characters.face_detection_utils import detect_characters_in_frame
+from preprocessor.characters.face.face_detection_utils import detect_characters_in_frame
 from preprocessor.config.config import settings
 from preprocessor.core.file_naming import FileNamingConventions
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_minimal_episode_info
@@ -26,8 +26,9 @@ def _parse_frame_number(frame_filename: str) -> Optional[int]:
 def save_character_detections(
     episode_info,
     results: List[Dict[str, Any]],
+    path_manager: Optional[PathManager] = None,
     fps: float = 25.0,
-) -> None:
+) -> Path:
     detections_data = {
         "episode_info": create_minimal_episode_info(episode_info),
         "video_metadata": {
@@ -36,24 +37,26 @@ def save_character_detections(
         "detections": results,
     }
 
-    file_naming = FileNamingConventions(episode_info.series_name)
+    series_name = episode_info.series_name or "unknown"
+    file_naming = FileNamingConventions(series_name)
+
     detections_filename = file_naming.build_filename(
         episode_info,
         extension="json",
         suffix="character_detections",
     )
-    detections_output = OutputPathBuilder.build_output_path(
+
+    if path_manager is None:
+        path_manager = PathManager(series_name)
+
+    detections_output = path_manager.build_path(
         episode_info,
         settings.output_subdirs.character_detections,
         detections_filename,
     )
     atomic_write_json(detections_output, detections_data, indent=2, ensure_ascii=False)
 
-    frames_with_chars = sum(1 for r in results if r["characters"])
-    console.print(
-        f"[green]✓ {episode_info.episode_code()}: {len(results)} frames, "
-        f"{frames_with_chars} with characters[/green]",
-    )
+    return detections_output
 
 
 def process_frames_for_detection(

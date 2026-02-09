@@ -21,14 +21,20 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.enums import KeyframeStrategy
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
-from preprocessor.video.base_video_processor import BaseVideoProcessor
+from preprocessor.video.helpers.base_video_processor import BaseVideoProcessor
 
 
+@register_processor("export_frames")
 class FrameExporter(BaseVideoProcessor):
+    REQUIRES = ["videos", "scene_timestamps"]
+    PRODUCES = ["frames"]
+    PRIORITY = 30
+    DESCRIPTION = "Export keyframes from videos"
+
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
@@ -65,16 +71,18 @@ class FrameExporter(BaseVideoProcessor):
             if scene_path and not scene_path.exists():
                 console.print(f"[yellow]Warning: Scene timestamps directory does not exist: {scene_path}[/yellow]")
 
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.frames
+
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = OutputPathBuilder.get_episode_dir(episode_info, settings.output_subdirs.frames)
 
         metadata_filename = self.episode_manager.file_naming.build_filename(
             episode_info,
             extension="json",
             suffix="_frame_metadata",
         )
-        metadata_file = episode_dir / metadata_filename
+        metadata_file = self._build_output_path(episode_info, metadata_filename)
         return [OutputSpec(path=metadata_file, required=True)]
 
     def _get_temp_files(self, item: ProcessingItem) -> List[str]:
@@ -121,7 +129,9 @@ class FrameExporter(BaseVideoProcessor):
             raise
 
     def __get_episode_dir(self, episode_info) -> Path:
-        return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.frames)
+        season_code = episode_info.season_code()
+        episode_code = episode_info.episode_num()
+        return self.path_manager.base_output_dir / self.get_output_subdir() / season_code / episode_code
 
     def __prepare_data(self, episode_info) -> Dict[str, Any]:
         data = {}

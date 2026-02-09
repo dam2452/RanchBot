@@ -8,10 +8,7 @@ from typing import (
 from rich.console import Console
 from rich.progress import track
 
-from preprocessor.config.config import (
-    BASE_OUTPUT_DIR,
-    settings,
-)
+from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.utils.file_utils import atomic_write_json
@@ -28,7 +25,7 @@ class Validator:
         season: str,
         series_name: str = "ranczo",
         anomaly_threshold: float = 20.0,
-        base_output_dir: Path = BASE_OUTPUT_DIR,
+        base_output_dir: Path = None,
         episodes_info_json: Optional[Path] = None,
     ):
         self.season = season

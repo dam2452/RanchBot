@@ -5,14 +5,14 @@ import click
 
 from preprocessor.cli.utils import create_state_manager
 from preprocessor.config.config import settings
-from preprocessor.hashing.image_hash_processor import ImageHashProcessor
+from preprocessor.processors.image_hash_processor import ImageHashProcessor
 
 
 @click.command(context_settings={"show_default": True})
 @click.option(
     "--frames-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=str(settings.frame_export.output_dir),
+    default=None,
     help="Directory with exported frames",
 )
 @click.option(
@@ -24,7 +24,7 @@ from preprocessor.hashing.image_hash_processor import ImageHashProcessor
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.image_hash.output_dir),
+    default=None,
     help="Output directory for image hashes",
 )
 @click.option(
@@ -44,6 +44,11 @@ def image_hashing(
     no_state: bool,
 ):
     """Generate perceptual hashes for exported frames."""
+    if frames_dir is None:
+        frames_dir = settings.frame_export.get_output_dir(name)
+    if output_dir is None:
+        output_dir = settings.image_hash.get_output_dir(name)
+
     state_manager = create_state_manager(name, no_state)
 
     hasher = ImageHashProcessor(

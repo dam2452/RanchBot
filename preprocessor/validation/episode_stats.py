@@ -11,16 +11,17 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.config.config import settings
+from preprocessor.config.config import (
+    get_base_output_dir,
+    settings,
+)
 from preprocessor.core.constants import (
+    DEFAULT_VIDEO_EXTENSION,
     OUTPUT_FILE_NAMES,
     OUTPUT_FILE_PATTERNS,
 )
-from preprocessor.core.episode_manager import (
-    EpisodeInfo,
-    EpisodeManager,
-)
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.episode_manager import EpisodeInfo
+from preprocessor.core.path_manager import PathManager
 from preprocessor.validation.base_result import ValidationStatusMixin
 from preprocessor.validation.file_validators import (
     validate_image_file,
@@ -75,7 +76,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.__validate_other_files()
 
     def __validate_transcription(self):
-        transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
+        transcriptions_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.transcriptions)
         base_name = f"{self.series_name}_{self.episode_info.episode_code()}"
 
         raw_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.raw
@@ -165,7 +166,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.warnings.append(f"Invalid sound events JSON: {result.error_message}")
 
     def __validate_exported_frames(self):
-        frames_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.frames)
+        frames_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.frames)
         if not frames_dir.exists():
             self.warnings.append(f"Missing {settings.output_subdirs.frames} directory: {frames_dir}")
             return
@@ -200,7 +201,10 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.exported_frames_avg_resolution = most_common_res
 
     def __validate_video(self):
-        video_file = OutputPathBuilder.build_video_path(self.episode_info, self.series_name)
+        filename = f"{self.series_name.lower()}_{self.episode_info.episode_code()}{DEFAULT_VIDEO_EXTENSION}"
+        season_dir = get_base_output_dir(self.series_name) / settings.output_subdirs.video / self.episode_info.season_code()
+        video_file = season_dir / filename
+
         if not video_file.exists():
             self.warnings.append(f"Missing video file: {video_file}")
             return
@@ -216,7 +220,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.video_resolution = (result.metadata["width"], result.metadata["height"])
 
     def __validate_scenes(self):
-        scenes_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.scenes)
+        scenes_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.scenes)
         scenes_file = scenes_dir / f"{self.series_name}_{self.episode_info.episode_code()}{OUTPUT_FILE_PATTERNS['scenes_suffix']}"
         if not scenes_file.exists():
             self.errors.append(f"Missing scenes file: {scenes_file}")
@@ -240,7 +244,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.errors.append(f"Error reading scenes: {e}")
 
     def __validate_image_hashes(self):
-        hashes_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.image_hashes)
+        hashes_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.image_hashes)
         if not hashes_dir.exists():
             self.warnings.append(f"Missing {settings.output_subdirs.image_hashes} directory")
             return
@@ -263,7 +267,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.__check_size_anomalies(sizes, "image_hashes")
 
     def __validate_character_visualizations(self):
-        viz_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_visualizations)
+        viz_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.character_visualizations)
         if not viz_dir.exists():
             return
 
@@ -285,7 +289,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.warnings.append(f"{invalid_count} invalid character visualization images found")
 
     def __validate_face_clusters(self):
-        clusters_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.face_clusters)
+        clusters_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.face_clusters)
         if not clusters_dir.exists():
             return
 
@@ -331,7 +335,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             self.errors.append(f"Error reading face clustering metadata: {e}")
 
     def __validate_object_detections(self):
-        detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_detections)
+        detections_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.object_detections)
         if not detections_dir.exists():
             self.warnings.append(f"Missing {settings.output_subdirs.object_detections} directory")
             return
@@ -354,7 +358,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.__check_size_anomalies(sizes, "object_detections")
 
     def __validate_object_visualizations(self):
-        viz_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.object_visualizations)
+        viz_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.object_visualizations)
         if not viz_dir.exists():
             return
 
@@ -425,14 +429,14 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                 )
 
     def __validate_other_files(self):
-        char_detections_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.character_detections)
+        char_detections_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.character_detections)
         detections_file = char_detections_dir / OUTPUT_FILE_NAMES["detections"]
         if detections_file.exists():
             result = validate_json_file(detections_file)
             if not result.is_valid:
                 self.errors.append(f"Invalid {OUTPUT_FILE_NAMES['detections']}: {result.error_message}")
 
-        embeddings_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.embeddings)
+        embeddings_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.embeddings)
         if embeddings_dir.exists():
             embeddings_file = embeddings_dir / OUTPUT_FILE_NAMES["embeddings_text"]
             if embeddings_file.exists():
@@ -452,7 +456,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         ]
         found_elastic_docs = False
         for subdir in elastic_subdirs:
-            elastic_docs_dir = EpisodeManager.get_episode_subdir(
+            elastic_docs_dir = PathManager(self.series_name).get_episode_dir(
                 self.episode_info,
                 f"{settings.output_subdirs.elastic_documents}/{subdir}",
             )
@@ -468,7 +472,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not found_elastic_docs:
             self.warnings.append(f"Missing {settings.output_subdirs.elastic_documents} directory")
 
-        transcriptions_dir = EpisodeManager.get_episode_subdir(self.episode_info, settings.output_subdirs.transcriptions)
+        transcriptions_dir = PathManager(self.series_name).get_episode_dir(self.episode_info,settings.output_subdirs.transcriptions)
         if transcriptions_dir.exists():
             clean_dir = transcriptions_dir / settings.output_subdirs.transcription_subdirs.clean
             text_stats_file = clean_dir / f"{self.series_name}_{self.episode_info.episode_code()}_text_stats.json"

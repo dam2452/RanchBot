@@ -16,7 +16,7 @@ from insightface.app import FaceAnalysis
 import numpy as np
 import torch
 
-from preprocessor.characters.utils import init_face_detection
+from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,
@@ -24,11 +24,12 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_processing_metadata
-from preprocessor.video.frame_processor import FrameSubProcessor
+from preprocessor.video.helpers.frame_processor import FrameSubProcessor
 
 
 class FaceClusteringSubProcessor(FrameSubProcessor):
@@ -66,7 +67,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.face_clusters)
         series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         metadata_filename = file_naming.build_filename(
@@ -179,7 +180,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         all_frame_files: List[Path],
         series_name: str,
     ) -> None:
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.face_clusters)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         clusters = defaultdict(list)
@@ -244,7 +245,7 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         all_frame_files: List[Path],
         series_name: str,
     ) -> None:
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.face_clusters)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.face_clusters)
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         n_noise = list(labels).count(-1)

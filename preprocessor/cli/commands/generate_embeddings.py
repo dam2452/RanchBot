@@ -5,7 +5,7 @@ import click
 
 from preprocessor.cli_utils.resource_scope import ResourceScope
 from preprocessor.config.config import settings
-from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
+from preprocessor.processors.embedding_generator import EmbeddingGenerator
 
 
 @click.command(name="generate-embeddings", context_settings={"show_default": True})
@@ -18,19 +18,19 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
 @click.option(
     "--frames-dir",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=str(settings.frame_export.output_dir),
+    default=None,
     help="Directory with exported frames",
 )
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.embedding.default_output_dir),
+    default=None,
     help="Output directory",
 )
 @click.option(
     "--image-hashes-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.image_hash.output_dir),
+    default=None,
     help="Directory with image hashes",
 )
 @click.option(
@@ -93,6 +93,7 @@ from preprocessor.embeddings.embedding_generator import EmbeddingGenerator
     default=settings.text_chunking.text_chunk_overlap,
     help="Number of overlapping sentences between chunks (only for --sentence-chunking)",
 )
+@click.option("--name", required=True, help="Series name")
 def generate_embeddings(  # pylint: disable=too-many-arguments
     transcription_jsons: Path,
     frames_dir: Path,
@@ -109,8 +110,16 @@ def generate_embeddings(  # pylint: disable=too-many-arguments
     batch_size: int,
     sentences_per_chunk: int,
     chunk_overlap: int,
+    name: str,
 ):
     """Generate text and video embeddings from transcriptions and exported frames."""
+    if frames_dir is None:
+        frames_dir = settings.frame_export.get_output_dir(name)
+    if output_dir is None:
+        output_dir = settings.embedding.get_output_dir(name)
+    if image_hashes_dir is None:
+        image_hashes_dir = settings.image_hash.get_output_dir(name)
+
     with ResourceScope():
         generator = EmbeddingGenerator(
             {

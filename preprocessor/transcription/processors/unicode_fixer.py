@@ -24,12 +24,17 @@ class TranscriptionUnicodeFixer(BaseProcessor):
             loglevel=args.get("loglevel", 20),
         )
 
-        self.transcription_jsons = Path(self._args.get("transcription_jsons", settings.transcription.output_dir))
+        self.transcription_jsons = Path(
+            self._args.get("transcription_jsons", settings.transcription.get_output_dir(self.series_name)),
+        )
         episodes_info_json = self._args.get("episodes_info_json")
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name)
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         pass
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         transcription_files = list(self.transcription_jsons.rglob("*.json"))

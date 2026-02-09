@@ -9,7 +9,7 @@ from preprocessor.config.config import (
     TranscriptionConfig,
     settings,
 )
-from preprocessor.transcription.generator import TranscriptionGenerator
+from preprocessor.processors.transcription_generator import TranscriptionGenerator
 
 # pylint: disable=duplicate-code
 
@@ -26,7 +26,7 @@ from preprocessor.transcription.generator import TranscriptionGenerator
 @click.option(
     "--transcription-jsons",
     type=click.Path(path_type=Path),
-    default=str(settings.transcription.output_dir),
+    default=None,
     help="Output directory for transcription JSONs",
 )
 @click.option(
@@ -59,6 +59,9 @@ def transcribe(
     name: str,
 ):
     """Generate transcriptions using Whisper."""
+    if transcription_jsons is None:
+        transcription_jsons = settings.transcription.get_output_dir(name)
+
     config = TranscriptionConfig(
         videos=videos,
         episodes_info_json=episodes_info_json,

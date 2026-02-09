@@ -5,8 +5,8 @@ import click
 
 from preprocessor.cli.utils import create_state_manager
 from preprocessor.config.config import settings
+from preprocessor.processors.frame_exporter import FrameExporter
 from preprocessor.utils.resolution import Resolution
-from preprocessor.video.frame_exporter import FrameExporter
 
 
 @click.command(context_settings={"show_default": True})
@@ -20,13 +20,13 @@ from preprocessor.video.frame_exporter import FrameExporter
 @click.option(
     "--scene-timestamps-dir",
     type=click.Path(exists=True, path_type=Path),
-    default=str(settings.scene_detection.output_dir),
+    default=None,
     help="Directory with scene timestamps",
 )
 @click.option(
     "--output-frames",
     type=click.Path(path_type=Path),
-    default=str(settings.frame_export.output_dir),
+    default=None,
     help="Output directory for exported frames",
 )
 @click.option(
@@ -47,6 +47,11 @@ def export_frames(
     no_state: bool,
 ):
     """Export keyframes at target resolution based on configured keyframe strategy."""
+    if scene_timestamps_dir is None:
+        scene_timestamps_dir = settings.scene_detection.get_output_dir(name)
+    if output_frames is None:
+        output_frames = settings.frame_export.get_output_dir(name)
+
     state_manager = create_state_manager(name, no_state)
 
     res = Resolution.from_str(resolution)

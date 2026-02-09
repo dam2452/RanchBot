@@ -15,8 +15,8 @@ from insightface.app import FaceAnalysis
 import numpy as np
 import torch
 
-from preprocessor.characters.face_detection_utils import load_character_references
-from preprocessor.characters.utils import init_face_detection
+from preprocessor.characters.face.face_detection_utils import load_character_references
+from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,
@@ -24,6 +24,7 @@ from preprocessor.core.base_processor import (
 )
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
 from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import (
@@ -39,7 +40,7 @@ from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.image_hash_utils import load_image_hashes_for_episode
 from preprocessor.utils.metadata_utils import create_processing_metadata
-from preprocessor.video.frame_processor import FrameSubProcessor
+from preprocessor.video.helpers.frame_processor import FrameSubProcessor
 
 # pylint: disable=duplicate-code
 
@@ -67,7 +68,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.image_hashes)
         series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         hash_filename = file_naming.build_filename(
@@ -101,7 +102,7 @@ class ImageHashSubProcessor(FrameSubProcessor):
         self.__save_hashes(episode_info, hash_results, series_name)
 
     def __save_hashes(self, episode_info, hash_results: List[Dict[str, Any]], series_name: str) -> None:
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.image_hashes)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         hash_data = create_processing_metadata(
@@ -176,7 +177,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.embeddings)
         series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         video_filename = file_naming.build_filename(
@@ -205,11 +206,13 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames in metadata for {metadata_file}[/yellow]")
             return
 
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.embeddings)
         checkpoint_file = episode_dir / "embeddings_video_checkpoint.json"
 
+        series_name = item.metadata.get("series_name", "unknown")
         image_hashes = load_image_hashes_for_episode(
             {"season": episode_info.season, "episode_number": episode_info.relative_episode},
+            series_name,
             self.logger,
         )
         video_embeddings = compute_embeddings_in_batches(
@@ -226,7 +229,7 @@ class VideoEmbeddingSubProcessor(FrameSubProcessor):
         self.__save_embeddings(episode_info, video_embeddings, series_name)
 
     def __save_embeddings(self, episode_info, video_embeddings: List[Dict[str, Any]], series_name: str) -> None:
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.embeddings)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.embeddings)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         video_data = create_processing_metadata(
@@ -290,7 +293,7 @@ class CharacterDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
         series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(
@@ -373,7 +376,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_detections)
         series_name = item.metadata["series_name"]
         file_naming = FileNamingConventions(series_name)
         detections_filename = file_naming.build_filename(
@@ -481,7 +484,7 @@ class ObjectDetectionSubProcessor(FrameSubProcessor):
         self.__save_detections(episode_info, detections_data, series_name)
 
     def __save_detections(self, episode_info, detections_data: Dict[str, Any], series_name: str) -> None:
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_detections)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
         output_data = create_processing_metadata(
@@ -536,13 +539,13 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_visualizations)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_visualizations)
         marker_file = episode_dir / ".visualization_complete"
         return [OutputSpec(path=marker_file, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
-        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_detections)
         detection_files = list(detection_dir.glob("*_object_detections.json"))
         detection_file = detection_files[0] if detection_files else None
 
@@ -557,7 +560,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
         import cv2  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
-        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_detections)
+        detection_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_detections)
         detection_files = list(detection_dir.glob("*_object_detections.json"))
         detection_file = detection_files[0] if detection_files else None
 
@@ -577,7 +580,7 @@ class ObjectDetectionVisualizationSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames with detections for {episode_info.episode_code()}[/yellow]")
             return
 
-        output_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.object_visualizations)
+        output_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.object_visualizations)
         output_dir.mkdir(parents=True, exist_ok=True)
         colors = self.__generate_colors()
         conf_threshold = detection_data.get("processing_params", {}).get("confidence_threshold", 0.25)
@@ -656,13 +659,13 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
 
     def get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        episode_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_visualizations)
+        episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_visualizations)
         marker_file = episode_dir / ".visualization_complete"
         return [OutputSpec(path=marker_file, required=True)]
 
     def should_run(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> bool:
         episode_info = item.metadata["episode_info"]
-        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
         detection_files = list(detection_dir.glob("*_character_detections.json"))
         detection_file = detection_files[0] if detection_files else None
 
@@ -677,7 +680,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
         import cv2  # pylint: disable=import-outside-toplevel
 
         episode_info = item.metadata["episode_info"]
-        detection_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_detections)
+        detection_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
         detection_files = list(detection_dir.glob("*_character_detections.json"))
         detection_file = detection_files[0] if detection_files else None
 
@@ -697,7 +700,7 @@ class CharacterDetectionVisualizationSubProcessor(FrameSubProcessor):
             console.print(f"[yellow]No frames with character detections for {episode_info.episode_code()}[/yellow]")
             return
 
-        output_dir = EpisodeManager.get_episode_subdir(episode_info, settings.output_subdirs.character_visualizations)
+        output_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_visualizations)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         all_character_names = set()

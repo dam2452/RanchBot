@@ -5,7 +5,7 @@ import click
 
 from preprocessor.cli.utils import create_state_manager
 from preprocessor.config.config import settings
-from preprocessor.transcription.importer import TranscriptionImporter
+from preprocessor.processors.transcription_importer import TranscriptionImporter
 from preprocessor.utils.console import console
 
 
@@ -19,7 +19,7 @@ from preprocessor.utils.console import console
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
-    default=str(settings.transcription.output_dir),
+    default=None,
     help="Output directory for converted transcriptions",
 )
 @click.option(
@@ -44,6 +44,9 @@ def import_transcriptions(
     no_state: bool,
 ):
     """Import and convert transcriptions from external sources."""
+    if output_dir is None:
+        output_dir = settings.transcription.get_output_dir(name)
+
     state_manager = create_state_manager(name, no_state)
 
     importer = TranscriptionImporter(

@@ -18,7 +18,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.output_path_builder import OutputPathBuilder
+from preprocessor.core.processor_registry import register_processor
 from preprocessor.hashing.image_hasher import PerceptualHasher
 from preprocessor.utils.batch_processing_utils import compute_hashes_in_batches
 from preprocessor.utils.console import console
@@ -27,8 +27,13 @@ from preprocessor.utils.metadata_utils import create_processing_metadata
 # pylint: disable=duplicate-code
 
 
-
+@register_processor("hash_images")
 class ImageHashProcessor(BaseProcessor):
+    REQUIRES = ["frames"]
+    PRODUCES = ["image_hashes"]
+    PRIORITY = 55
+    DESCRIPTION = "Generate perceptual hashes for frames"
+
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(
             args=args,
@@ -51,6 +56,9 @@ class ImageHashProcessor(BaseProcessor):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available. This application requires GPU.")
 
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.image_hashes
+
     def cleanup(self) -> None:
         console.print("[cyan]Unloading image hasher...[/cyan]")
         self.hasher = None
@@ -72,11 +80,7 @@ class ImageHashProcessor(BaseProcessor):
             extension="json",
             suffix="image_hashes",
         )
-        hash_output = OutputPathBuilder.build_output_path(
-            episode_info,
-            settings.output_subdirs.image_hashes,
-            hash_filename,
-        )
+        hash_output = self._build_output_path(episode_info, hash_filename)
         return [OutputSpec(path=hash_output, required=True)]
     # pylint: enable=duplicate-code
 
@@ -110,7 +114,7 @@ class ImageHashProcessor(BaseProcessor):
         self.__cleanup_memory()
 
     def __get_episode_output_dir(self, episode_info) -> Path:
-        return self.episode_manager.get_episode_subdir(episode_info, settings.output_subdirs.image_hashes)
+        return self.path_manager.get_episode_dir(episode_info, settings.output_subdirs.image_hashes)
 
     def __save_hashes(self, episode_dir: Path, episode_info, hash_results: List[Dict[str, Any]]) -> None:
         episode_dir.mkdir(parents=True, exist_ok=True)

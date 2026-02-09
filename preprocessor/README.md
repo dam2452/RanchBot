@@ -15,15 +15,15 @@ cp /twoje/wideo/*.mp4 input_data/videos/
 docker compose build
 
 # Pełny pipeline z scrapingiem
-./run-preprocessor.sh run-all /input_data/videos \
+./run-preprocessor.sh run-all /input_data/ranczo \
   --scrape-urls https://example.com/wiki/Seria \
   --character-urls https://example.com/wiki/Postacie \
-  --series-name nazwa_serii
+  --series-name ranczo
 
 # Z gotowymi metadanymi
-./run-preprocessor.sh run-all /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name nazwa_serii
+./run-preprocessor.sh run-all /input_data/kiepscy \
+  --episodes-info-json /input_data/kiepscy_episodes.json \
+  --series-name kiepscy
 
 # Pomiń transkodowanie i transkrypcję (użyj istniejących)
 ./run-preprocessor.sh run-all /input_data/videos \
@@ -129,10 +129,49 @@ SCRAPING          PROCESSING                              INDEXING
 
 ---
 
-## Struktura output
+## Multi-Series Support
 
+Pipeline wspiera przetwarzanie wielu seriali jednocześnie. Każdy serial ma dedykowany folder:
+
+**Input struktura:**
+```
+input_data/
+├── ranczo/
+│   ├── S01/
+│   ├── S02/
+│   └── S03/
+└── kiepscy/
+    ├── S01/
+    └── S02/
+```
+
+**Output struktura:**
 ```
 output_data/
+├── ranczo/
+│   ├── transcoded_videos/
+│   ├── transcriptions/
+│   ├── ranczo_episodes.json
+│   ├── ranczo_characters.json
+│   └── ...
+└── kiepscy/
+    ├── transcoded_videos/
+    ├── kiepscy_episodes.json
+    └── ...
+```
+
+**Migracja ze starej struktury:**
+```bash
+mkdir -p input_data/{series_name}
+mv input_data/S* input_data/{series_name}/
+```
+
+---
+
+## Struktura output (per serial)
+
+```
+output_data/{series_name}/
 ├── transcoded_videos/          # MP4 h264_nvenc (720p)
 ├── transcriptions/             # raw/ • clean/ • sound_events/
 ├── scene_timestamps/           # JSON z timestampami scen

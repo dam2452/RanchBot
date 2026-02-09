@@ -117,7 +117,7 @@ class PipelineOrchestrator:
                 total_size = sum(f.stat().st_size for f in video_files if f.is_file())
                 stats["transcoded_videos_total_size_mb"] = round(total_size / (1024 * 1024), 2)
 
-            output_frames_dir = Path(settings.frame_export.output_dir)
+            output_frames_dir = Path(settings.frame_export.get_output_dir(self.series_name))
             if output_frames_dir.exists():
                 frame_metadata_files = list(output_frames_dir.rglob("*_frame_metadata.json"))
                 stats["processed_episodes_count"] = len(frame_metadata_files)
@@ -131,14 +131,14 @@ class PipelineOrchestrator:
                         pass
                 stats["total_frames_extracted"] = total_frames
 
-            embeddings_dir = Path(settings.embedding.default_output_dir)
+            embeddings_dir = Path(settings.embedding.get_output_dir(self.series_name))
             if embeddings_dir.exists():
                 text_embedding_files = list(embeddings_dir.rglob("*_embeddings_text.json"))
                 video_embedding_files = list(embeddings_dir.rglob("*_embeddings_video.json"))
                 stats["text_embedding_files_count"] = len(text_embedding_files)
                 stats["video_embedding_files_count"] = len(video_embedding_files)
 
-            image_hashes_dir = Path(settings.image_hash.output_dir)
+            image_hashes_dir = Path(settings.image_hash.get_output_dir(self.series_name))
             if image_hashes_dir.exists():
                 hash_files = list(image_hashes_dir.rglob("*_image_hashes.json"))
                 stats["image_hash_files_count"] = len(hash_files)

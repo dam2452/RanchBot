@@ -12,7 +12,7 @@ from preprocessor.transcription.processors.unicode_fixer import TranscriptionUni
 @click.option(
     "--transcription-jsons",
     type=click.Path(exists=True, path_type=Path),
-    default=str(settings.transcription.output_dir),
+    default=None,
     help="Directory with transcription JSON files",
 )
 @click.option(
@@ -32,6 +32,9 @@ def fix_unicode(
     name: str,
 ):
     """Fix unicode escape sequences in transcription files."""
+    if transcription_jsons is None:
+        transcription_jsons = settings.transcription.get_output_dir(name)
+
     args = {
         "transcription_jsons": transcription_jsons,
         "episodes_info_json": episodes_info_json,
