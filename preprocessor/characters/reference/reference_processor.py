@@ -76,6 +76,18 @@ class CharacterReferenceProcessor(BaseProcessor):
         self.face_app = init_face_detection()
         return True
 
+    @staticmethod
+    def __safe_resize(img: np.ndarray, target_size: tuple) -> Optional[np.ndarray]:
+        if img is None or img.size == 0:
+            return None
+        if img.shape[0] == 0 or img.shape[1] == 0:
+            return None
+        try:
+            return cv2.resize(img, target_size)
+        except cv2.error as e:
+            logging.error(f"OpenCV resize error: {e}")
+            return None
+
     def _get_processing_items(self) -> List[ProcessingItem]:
         items = []
 
@@ -368,8 +380,9 @@ class CharacterReferenceProcessor(BaseProcessor):
                     x = padding + face_idx * (face_size + padding)
                     y = y_base
 
-                    face_resized = cv2.resize(face_data.face_img, (face_size, face_size))
-                    grid[y:y + face_size, x:x + face_size] = face_resized
+                    face_resized = self.__safe_resize(face_data.face_img, (face_size, face_size))
+                    if face_resized is not None:
+                        grid[y:y + face_size, x:x + face_size] = face_resized
 
                 label = f"Candidate {cand_idx + 1}"
                 cv2.putText(
@@ -403,8 +416,9 @@ class CharacterReferenceProcessor(BaseProcessor):
                 x = padding + col * (face_size + padding)
                 y = padding + row * (face_size + padding)
 
-                face_resized = cv2.resize(face_data.face_img, (face_size, face_size))
-                grid[y:y + face_size, x:x + face_size] = face_resized
+                face_resized = self.__safe_resize(face_data.face_img, (face_size, face_size))
+                if face_resized is not None:
+                    grid[y:y + face_size, x:x + face_size] = face_resized
 
                 label = str(idx + 1)
                 cv2.putText(
@@ -436,10 +450,16 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         face_vectors = []
         for idx, face_data in enumerate(selected_faces):
-            face_normalized = cv2.resize(
+            face_normalized = self.__safe_resize(
                 face_data.face_img,
                 settings.character.normalized_face_size,
             )
+
+            if face_normalized is None:
+                self.logger.warning(
+                    f"Skipping face {idx} for {char_name}: failed to resize (invalid dimensions)",
+                )
+                continue
 
             face_output_path = char_output_dir / f"face_{idx:02d}.jpg"
             cv2.imwrite(str(face_output_path), face_normalized)
@@ -697,7 +717,9 @@ class CharacterReferenceProcessor(BaseProcessor):
                 if face_img is None:
                     continue
 
-                face_resized = cv2.resize(face_img, (face_size, face_size))
+                face_resized = CharacterReferenceProcessor.__safe_resize(face_img, (face_size, face_size))
+                if face_resized is None:
+                    continue
 
                 x = label_col_width + stats_col_width + face_idx * face_col_width + padding
                 y = y_offset

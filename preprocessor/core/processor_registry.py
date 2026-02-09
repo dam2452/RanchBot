@@ -27,7 +27,7 @@ def get_processor_class(name: str) -> Type[BaseProcessor]:
         available = ", ".join(sorted(PROCESSOR_REGISTRY.keys()))
         raise ValueError(
             f"Unknown processor: '{name}'\n"
-            f"Available processors: {available}"
+            f"Available processors: {available}",
         )
     return PROCESSOR_REGISTRY[name]
 

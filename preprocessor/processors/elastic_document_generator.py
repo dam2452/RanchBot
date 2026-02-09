@@ -68,7 +68,7 @@ class ElasticDocumentGenerator(BaseProcessor):
         self.object_detections_dir: Optional[Path] = self._args.get("object_detections_dir")
         self.output_dir: Path = self._args.get(
             "output_dir",
-            get_base_output_dir(self.series_name) / "elastic_documents"
+            get_base_output_dir(self.series_name) / "elastic_documents",
         )
 
         episodes_info_json = self._args.get("episodes_info_json")

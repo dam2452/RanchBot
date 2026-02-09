@@ -21,10 +21,10 @@ from patchright.sync_api import (
     sync_playwright,
 )
 
+from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.characters.search.base_image_search import BaseImageSearch
 from preprocessor.characters.search.duckduckgo_search import DuckDuckGoImageSearch
 from preprocessor.characters.search.google_image_search import GoogleImageSearch
-from preprocessor.characters.face.utils import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.utils.console import (

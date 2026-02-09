@@ -27,7 +27,7 @@ class FrameProcessor(BaseProcessor):
         )
 
         self.frames_dir: Path = Path(
-            self._args.get("frames_dir", settings.frame_export.get_output_dir(self.series_name))
+            self._args.get("frames_dir", settings.frame_export.get_output_dir(self.series_name)),
         )
         self.ramdisk_path: Path = Path(self._args.get("ramdisk_path", "/dev/shm"))
 

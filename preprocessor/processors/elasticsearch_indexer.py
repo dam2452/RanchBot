@@ -48,7 +48,7 @@ class ElasticSearchIndexer(BaseProcessor):
         self.name = self._args["name"]
         self.elastic_documents_dir = self._args.get(
             "elastic_documents_dir",
-            get_base_output_dir(self.series_name) / "elastic_documents"
+            get_base_output_dir(self.series_name) / "elastic_documents",
         )
         self.transcription_jsons = self._args.get("transcription_jsons")
         self.append = self._args.get("append", False)
