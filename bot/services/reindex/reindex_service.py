@@ -22,7 +22,7 @@ from bot.services.reindex.series_scanner import SeriesScanner
 from bot.services.reindex.video_path_transformer import VideoPathTransformer
 from bot.services.reindex.zip_extractor import ZipExtractor
 from bot.settings import settings
-from preprocessor.search.elastic_manager import ElasticSearchManager
+from preprocessor.processors.elasticsearch_manager import ElasticSearchManager
 
 
 @dataclass

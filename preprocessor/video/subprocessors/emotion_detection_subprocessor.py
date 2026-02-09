@@ -15,17 +15,16 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
-from preprocessor.utils.emotion_utils import (
+from preprocessor.video.emotion_utils import (
     crop_face_from_frame,
     detect_emotions_batch,
     init_emotion_model,
 )
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.file_utils import atomic_write_json
-from preprocessor.video.helpers.frame_processor import FrameSubProcessor
+from preprocessor.video.frame_processor import FrameSubProcessor
 
 
 class EmotionDetectionSubProcessor(FrameSubProcessor):
@@ -56,8 +55,8 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
         series_name = item.metadata["series_name"]
         episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
 
-        file_naming = FileNamingConventions(series_name)
-        detections_filename = file_naming.build_filename(
+        path_manager = PathManager(series_name)
+        detections_filename = path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="character_detections",
@@ -80,8 +79,8 @@ class EmotionDetectionSubProcessor(FrameSubProcessor):
         series_name = item.metadata["series_name"]
         episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.character_detections)
 
-        file_naming = FileNamingConventions(series_name)
-        detections_filename = file_naming.build_filename(
+        path_manager = PathManager(series_name)
+        detections_filename = path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="character_detections",

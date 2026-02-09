@@ -10,14 +10,14 @@ from typing import (
 )
 
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
-from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 
 logger = logging.getLogger(__name__)
 
 
 class EpisodeFileFinder:
     def __init__(self, series_name: str):
-        self.file_naming = FileNamingConventions(series_name)
+        self.path_manager = PathManager(series_name)
 
     @staticmethod
     def find_video_file(episode_info, search_dir: Path) -> Optional[Path]:
@@ -57,7 +57,7 @@ class EpisodeFileFinder:
             return None
 
         if prefer_segmented:
-            segmented = season_dir / self.file_naming.build_filename(
+            segmented = season_dir / self.path_manager.build_filename(
                 episode_info,
                 extension="json",
                 suffix="segmented",
@@ -65,7 +65,7 @@ class EpisodeFileFinder:
             if segmented.exists():
                 return segmented
 
-        regular = season_dir / self.file_naming.build_filename(episode_info, extension="json")
+        regular = season_dir / self.path_manager.build_filename(episode_info, extension="json")
         if regular.exists():
             return regular
 

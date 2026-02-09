@@ -10,7 +10,7 @@ from rich.progress import track
 
 from preprocessor.config.config import settings
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.validation.episode_stats import EpisodeStats
 from preprocessor.validation.report_generator import ReportGenerator
@@ -107,8 +107,8 @@ class Validator:
                 "stats": stats.to_dict()["stats"],
             }
 
-            file_naming = FileNamingConventions(self.series_name)
-            report_filename = file_naming.build_filename(stats.episode_info, extension="json")
+            path_manager = PathManager(self.series_name)
+            report_filename = path_manager.build_filename(stats.episode_info, extension="json")
             report_path = self.validation_reports_dir / report_filename
             atomic_write_json(report_path, episode_report)
 

@@ -3,8 +3,8 @@ import sys
 
 import click
 
-from preprocessor.characters.reference.reference_processor import CharacterReferenceProcessor
-from preprocessor.cli.utils import create_state_manager
+from preprocessor.characters.reference_processor import CharacterReferenceProcessor
+from preprocessor.cli.helpers import create_state_manager
 from preprocessor.config.config import settings
 
 

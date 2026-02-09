@@ -23,7 +23,7 @@ from preprocessor.config.config import (
 from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.core.episode_manager import EpisodeManager
 from preprocessor.core.processor_registry import register_processor
-from preprocessor.search.elastic_manager import ElasticSearchManager
+from preprocessor.processors.elasticsearch_manager import ElasticSearchManager
 from preprocessor.utils.console import console
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs

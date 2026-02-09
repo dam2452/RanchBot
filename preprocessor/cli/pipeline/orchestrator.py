@@ -9,7 +9,7 @@ from typing import (
     Optional,
 )
 
-from preprocessor.cli_utils.resource_scope import ResourceScope
+from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     get_output_path,
     settings,

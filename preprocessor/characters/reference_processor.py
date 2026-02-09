@@ -15,7 +15,7 @@ import cv2
 from insightface.app import FaceAnalysis
 import numpy as np
 
-from preprocessor.characters.face.utils import init_face_detection
+from preprocessor.characters.face_detection import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,

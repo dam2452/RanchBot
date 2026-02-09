@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from preprocessor.characters.reference.reference_downloader import CharacterReferenceDownloader
+from preprocessor.characters.reference_downloader import CharacterReferenceDownloader
 from preprocessor.config.config import (
     get_base_output_dir,
     settings,
@@ -8,10 +8,10 @@ from preprocessor.config.config import (
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.scraping.episode_scraper import EpisodeScraper
 from preprocessor.utils.console import console
-from preprocessor.video.helpers.frame_processor import FrameProcessor
+from preprocessor.video.frame_processor import FrameProcessor
 from preprocessor.video.subprocessors.emotion_detection_subprocessor import EmotionDetectionSubProcessor
 from preprocessor.video.subprocessors.face_clustering_subprocessor import FaceClusteringSubProcessor
-from preprocessor.video.subprocessors.frame_subprocessors import (
+from preprocessor.video.subprocessors import (
     CharacterDetectionSubProcessor,
     CharacterDetectionVisualizationSubProcessor,
     ImageHashSubProcessor,
@@ -102,7 +102,7 @@ def run_character_reference_download_step(name, characters_json, search_mode="no
 
 
 def run_character_reference_processing_step(name, state_manager, interactive_character_processing=False, debug_visualizations=False, **_kwargs):
-    from preprocessor.characters.reference.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
+    from preprocessor.characters.reference_processor import CharacterReferenceProcessor  # pylint: disable=import-outside-toplevel
 
     characters_dir = settings.character.get_output_dir(name)
     if not characters_dir.exists() or not list(characters_dir.iterdir()):

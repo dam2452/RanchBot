@@ -11,7 +11,7 @@ from typing import (
 
 from preprocessor.core.episode_file_finder import EpisodeFileFinder
 from preprocessor.core.episode_parser import EpisodeInfoParser
-from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.constants import (
     EpisodeMetadataKeys,
     EpisodesDataKeys,
@@ -60,7 +60,7 @@ class EpisodeManager:
     def __init__(self, episodes_info_json: Optional[Path], series_name: str):
         self.series_name = series_name.lower()
         self.episodes_data: Optional[Dict[str, Any]] = None
-        self.file_naming = FileNamingConventions(self.series_name)
+        self.path_manager = PathManager(self.series_name)
         self.file_finder = EpisodeFileFinder(self.series_name)
         self.parser = EpisodeInfoParser()
 

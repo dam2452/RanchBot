@@ -18,7 +18,7 @@ from preprocessor.core.constants import (
     FILE_SUFFIXES,
     SUPPORTED_VIDEO_EXTENSIONS,
 )
-from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.utils.console import (
     console,
@@ -405,15 +405,7 @@ class BaseProcessor(ABC):
         extension: str = "json",
         suffix: Optional[str] = None,
     ) -> str:
-        if hasattr(self, 'episode_manager') and self.episode_manager:  # pylint: disable=no-member
-            return self.episode_manager.file_naming.build_filename(
-                episode_info,
-                extension=extension,
-                suffix=suffix,
-            )
-
-        file_naming = FileNamingConventions(self.series_name)
-        return file_naming.build_filename(
+        return self.path_manager.build_filename(
             episode_info,
             extension=extension,
             suffix=suffix,

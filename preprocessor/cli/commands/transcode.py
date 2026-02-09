@@ -3,8 +3,8 @@ import sys
 
 import click
 
-from preprocessor.cli.utils import create_state_manager
-from preprocessor.cli_utils.resource_scope import ResourceScope
+from preprocessor.cli.helpers import create_state_manager
+from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     TranscodeConfig,
     settings,

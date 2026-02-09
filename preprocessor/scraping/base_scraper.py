@@ -16,7 +16,7 @@ from preprocessor.core.enums import (
     ParserMode,
     ScraperMethod,
 )
-from preprocessor.providers.llm import LLMProvider
+from preprocessor.config.llm_provider import LLMProvider
 from preprocessor.scraping.clipboard import ScraperClipboard
 from preprocessor.scraping.crawl4ai import ScraperCrawl4AI
 from preprocessor.utils.console import (

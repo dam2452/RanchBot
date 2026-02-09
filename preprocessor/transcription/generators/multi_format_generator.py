@@ -10,9 +10,7 @@ from preprocessor.config.config import (
     settings,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.transcription.generators.full_json_generator import FullJsonGenerator
-from preprocessor.transcription.generators.segmented_json_generator import SegmentedJsonGenerator
-from preprocessor.transcription.generators.simple_json_generator import SimpleJsonGenerator
+from preprocessor.transcription.generators.json_generator import JsonGenerator
 from preprocessor.transcription.generators.srt_generator import SrtGenerator
 from preprocessor.transcription.generators.txt_generator import TxtGenerator
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
@@ -81,9 +79,8 @@ class MultiFormatGenerator:
         episode_code = episode_info.episode_num()
         output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        generator = FullJsonGenerator(Path("."), output_file.parent, self.logger)
+        generator = JsonGenerator("full", Path("."), output_file.parent, self.logger)
         full_json = generator.convert_to_full_format(data)
         full_json["episode_info"] = data.get("episode_info", {})
 
@@ -102,9 +99,8 @@ class MultiFormatGenerator:
         episode_code = episode_info.episode_num()
         output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        generator = SegmentedJsonGenerator(Path("."), output_file.parent, self.logger)
+        generator = JsonGenerator("segmented", Path("."), output_file.parent, self.logger)
         segmented_json = generator.convert_to_segmented_format(data)
 
         segmented_json["episode_info"] = {
@@ -127,9 +123,8 @@ class MultiFormatGenerator:
         episode_code = episode_info.episode_num()
         output_file = get_base_output_dir(self.series_name) / settings.output_subdirs.transcriptions / season_code / episode_code / "raw" / filename
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        generator = SimpleJsonGenerator(Path("."), output_file.parent, self.logger)
+        generator = JsonGenerator("simple", Path("."), output_file.parent, self.logger)
         simple_json = generator.convert_to_simple_format(data)
 
         simple_json["episode_info"] = {

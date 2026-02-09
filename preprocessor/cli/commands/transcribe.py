@@ -4,7 +4,7 @@ from typing import Tuple
 
 import click
 
-from preprocessor.cli_utils.resource_scope import ResourceScope
+from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import (
     TranscriptionConfig,
     settings,

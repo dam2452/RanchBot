@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 import json
 from pathlib import Path
@@ -13,9 +14,10 @@ from typing import (
 from PIL import Image
 import decord
 
-from bot.types import FrameRequest
+from preprocessor.types import FrameRequest
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
+    BaseProcessor,
     OutputSpec,
     ProcessingItem,
 )
@@ -25,11 +27,10 @@ from preprocessor.core.processor_registry import register_processor
 from preprocessor.embeddings.strategies.strategy_factory import KeyframeStrategyFactory
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
-from preprocessor.video.helpers.base_video_processor import BaseVideoProcessor
 
 
 @register_processor("export_frames")
-class FrameExporter(BaseVideoProcessor):
+class FrameExporter(BaseProcessor):
     REQUIRES = ["videos", "scene_timestamps"]
     PRODUCES = ["frames"]
     PRIORITY = 30
@@ -40,9 +41,14 @@ class FrameExporter(BaseVideoProcessor):
             args=args,
             class_name=self.__class__.__name__,
             error_exit_code=10,
-            input_videos_key="videos",
+            loglevel=logging.DEBUG,
         )
         decord.bridge.set_bridge('native')
+
+        self.input_videos: Path = Path(self._args["videos"])
+        self.subdirectory_filter: Optional[str] = None
+        episodes_json_path = self._args.get("episodes_info_json")
+        self.episode_manager = EpisodeManager(episodes_json_path, self.series_name)
 
         self.output_frames: Path = Path(self._args.get("output_frames", settings.frame_export.output_dir))
         self.output_frames.mkdir(parents=True, exist_ok=True)
@@ -60,6 +66,15 @@ class FrameExporter(BaseVideoProcessor):
         self.strategy = KeyframeStrategyFactory.create(
             self.keyframe_strategy,
             self.frames_per_scene,
+        )
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        return self._create_video_processing_items(
+            source_path=self.input_videos,
+            extensions=self.get_video_glob_patterns(),
+            episode_manager=self.episode_manager,
+            skip_unparseable=True,
+            subdirectory_filter=self.subdirectory_filter,
         )
 
     def _validate_args(self, args: Dict[str, Any]) -> None:

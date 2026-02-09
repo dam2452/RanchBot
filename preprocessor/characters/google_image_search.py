@@ -5,7 +5,7 @@ from typing import (
 
 from serpapi import GoogleSearch
 
-from preprocessor.characters.search.base_image_search import BaseImageSearch
+from preprocessor.characters.image_search import BaseImageSearch
 
 
 class GoogleImageSearch(BaseImageSearch):

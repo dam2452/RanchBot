@@ -16,20 +16,19 @@ from insightface.app import FaceAnalysis
 import numpy as np
 import torch
 
-from preprocessor.characters.face.utils import init_face_detection
+from preprocessor.characters.face_detection import init_face_detection
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 from preprocessor.utils.file_utils import atomic_write_json
 from preprocessor.utils.metadata_utils import create_processing_metadata
-from preprocessor.video.helpers.frame_processor import FrameSubProcessor
+from preprocessor.video.frame_processor import FrameSubProcessor
 
 
 class FaceClusteringSubProcessor(FrameSubProcessor):
@@ -69,8 +68,8 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
         episode_info = item.metadata["episode_info"]
         episode_dir = PathManager(episode_info.series_name or "unknown").get_episode_dir(episode_info,settings.output_subdirs.face_clusters)
         series_name = item.metadata["series_name"]
-        file_naming = FileNamingConventions(series_name)
-        metadata_filename = file_naming.build_filename(
+        path_manager = PathManager(series_name)
+        metadata_filename = path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="_face_clusters",
@@ -270,8 +269,8 @@ class FaceClusteringSubProcessor(FrameSubProcessor):
             results_key="clusters",
             results_data=cluster_stats,
         )
-        file_naming = FileNamingConventions(series_name)
-        metadata_filename = file_naming.build_filename(
+        path_manager = PathManager(series_name)
+        metadata_filename = path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="_face_clusters",

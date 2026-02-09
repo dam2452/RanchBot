@@ -3,7 +3,7 @@ import sys
 
 import click
 
-from preprocessor.cli_utils.resource_scope import ResourceScope
+from preprocessor.utils.resource_scope import ResourceScope
 from preprocessor.config.config import settings
 from preprocessor.transcription.processors.unicode_fixer import TranscriptionUnicodeFixer
 

@@ -14,9 +14,10 @@ from typing import (
 from PIL import Image
 
 from preprocessor.embeddings.gpu_batch_processor import GPUBatchProcessor
-from preprocessor.hashing.image_hasher import PerceptualHasher
+from preprocessor.utils.image_hasher import PerceptualHasher
+from preprocessor.utils.batch_processor import BatchProcessor
 from preprocessor.utils.console import console
-from preprocessor.utils.frame_utils import load_frames_from_requests
+from preprocessor.video.frame_utils import load_frames_from_requests
 from preprocessor.utils.time_utils import format_time_hms
 
 
@@ -54,35 +55,35 @@ def compute_hashes_in_batches(
     batch_size: int,
 ) -> List[Dict[str, Any]]:
     total_chunks = (len(frame_requests) + batch_size - 1) // batch_size
-    results = []
-
     console.print(f"[cyan]Computing hashes for {len(frame_requests)} frames in {total_chunks} batches[/cyan]")
 
     start_time = time.time()
+    batch_processor = BatchProcessor(batch_size)
+    processed_batches = 0
 
-    for chunk_idx in range(total_chunks):
-        chunk_start = chunk_idx * batch_size
-        chunk_end = min(chunk_start + batch_size, len(frame_requests))
-        chunk_requests = frame_requests[chunk_start:chunk_end]
-
-        pil_images = load_frames_from_requests(frames_dir, chunk_requests)
+    def _process_hash_batch(batch_requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        nonlocal processed_batches
+        pil_images = load_frames_from_requests(frames_dir, batch_requests)
         phashes = hasher.compute_phash_batch(pil_images)
 
-        for request, phash in zip(chunk_requests, phashes):
+        batch_results = []
+        for request, phash in zip(batch_requests, phashes):
             result = request.copy()
             result["perceptual_hash"] = phash
-            results.append(result)
+            batch_results.append(result)
 
         del pil_images
-
+        processed_batches += 1
         _report_batch_progress(
-            chunk_idx + 1,
+            processed_batches,
             total_chunks,
-            chunk_idx + 1,
+            processed_batches,
             total_chunks,
             start_time,
         )
+        return batch_results
 
+    results = batch_processor.process(frame_requests, _process_hash_batch)
     console.print(f"[green]✓ Computed {len(results)} hashes[/green]")
     return results
 

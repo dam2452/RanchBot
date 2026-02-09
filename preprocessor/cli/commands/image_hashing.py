@@ -3,7 +3,7 @@ import sys
 
 import click
 
-from preprocessor.cli.utils import create_state_manager
+from preprocessor.cli.helpers import create_state_manager
 from preprocessor.config.config import settings
 from preprocessor.processors.image_hash_processor import ImageHashProcessor
 

@@ -8,6 +8,7 @@ from typing import (
 from PIL import Image
 import torch
 
+from preprocessor.utils.batch_processor import BatchProcessor
 from preprocessor.utils.console import console
 from preprocessor.utils.error_handling_logger import ErrorHandlingLogger
 
@@ -28,6 +29,7 @@ class GPUBatchProcessor:
         self.device = device
         self.max_vram_used = 0.0
         self.vram_samples = []
+        self.batch_processor = BatchProcessor(min(self.batch_size, self.progress_sub_batch_size))
 
     def __log_vram_usage(self) -> None:
         if torch.cuda.is_available():
@@ -59,46 +61,46 @@ class GPUBatchProcessor:
 
         return suggested
 
-    def process_images_batch(  # pylint: disable=too-many-locals
+    def process_images_batch(
         self,
         pil_images: List[Image.Image],
         chunk_idx: int,
     ) -> List[List[float]]:
-        results = []
         total_images = len(pil_images)
-        effective_batch_size = min(self.batch_size, self.progress_sub_batch_size)
         batch_start_time = time.time()
+        processed_count = 0
 
-        for sub_idx in range(0, total_images, effective_batch_size):
-            sub_end = min(sub_idx + effective_batch_size, total_images)
-            batch_pil = pil_images[sub_idx:sub_end]
+        def _process_sub_batch(batch_pil: List[Image.Image]) -> List[List[float]]:
+            nonlocal processed_count
             current_batch_size = len(batch_pil)
+            sub_batch_start = time.time()
 
-            try:  # pylint: disable=too-many-try-statements
-                sub_batch_start = time.time()
-
+            try:
                 inputs = [{"image": img} for img in batch_pil]
                 embeddings_tensor = self.model.process(inputs, normalize=True)
                 self.__log_vram_usage()
                 batch_np = embeddings_tensor.cpu().numpy()
                 del embeddings_tensor
-                results.extend([emb.tolist() for emb in batch_np])
+                results = [emb.tolist() for emb in batch_np]
                 del batch_np
                 torch.cuda.empty_cache()
 
+                processed_count += current_batch_size
                 if total_images > self.progress_sub_batch_size:
                     elapsed = time.time() - sub_batch_start
                     rate = current_batch_size / elapsed if elapsed > 0 else 0
                     console.print(
-                        f"    [dim cyan]→ {sub_idx + 1}-{sub_end}/{total_images} "
-                        f"({sub_end / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.3f} img/s)[/dim cyan]",
+                        f"    [dim cyan]→ {processed_count}/{total_images} "
+                        f"({processed_count / total_images * 100:.0f}%) - {elapsed:.1f}s ({rate:.3f} img/s)[/dim cyan]",
                     )
 
                     elapsed_total = time.time() - batch_start_time
-                    if sub_end < total_images:
-                        remaining_images = total_images - sub_end
-                        eta = remaining_images / (sub_end / elapsed_total) if elapsed_total > 0 else 0
+                    remaining_images = total_images - processed_count
+                    if processed_count > 0:
+                        eta = remaining_images / (processed_count / elapsed_total)
                         console.print(f"    [dim]Batch ETA: {eta:.0f}s[/dim]")
+
+                return results
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
                     torch.cuda.empty_cache()
@@ -108,7 +110,7 @@ class GPUBatchProcessor:
                     )
                 raise e
             except Exception as e:
-                self.logger.error(f"Unexpected error in chunk {chunk_idx} sub-batch {sub_idx}-{sub_end}: {e}")
+                self.logger.error(f"Unexpected error in chunk {chunk_idx}: {e}")
                 raise e
 
-        return results
+        return self.batch_processor.process(pil_images, _process_sub_batch)

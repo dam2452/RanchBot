@@ -15,7 +15,7 @@ from transformers import (
 )
 
 from preprocessor.config.config import settings
-from preprocessor.hashing.image_hasher import PerceptualHasher
+from preprocessor.utils.image_hasher import PerceptualHasher
 from preprocessor.utils.constants import (
     ElasticsearchAggregationKeys,
     ElasticsearchKeys,

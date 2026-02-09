@@ -8,7 +8,7 @@ from typing import (
     Optional,
 )
 
-from bot.types import (
+from preprocessor.types import (
     CharacterDetectionInFrame,
     EpisodeMetadata,
     ObjectDetectionInFrame,

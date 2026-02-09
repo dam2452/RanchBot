@@ -3,7 +3,7 @@ import sys
 
 import click
 
-from preprocessor.cli.utils import create_state_manager
+from preprocessor.cli.helpers import create_state_manager
 from preprocessor.config.config import settings
 from preprocessor.processors.frame_exporter import FrameExporter
 from preprocessor.utils.resolution import Resolution

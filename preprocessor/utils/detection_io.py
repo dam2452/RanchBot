@@ -7,9 +7,8 @@ from typing import (
     Optional,
 )
 
-from preprocessor.characters.face.face_detection_utils import detect_characters_in_frame
+from preprocessor.characters.face_detection import detect_characters_in_frame
 from preprocessor.config.config import settings
-from preprocessor.core.file_naming import FileNamingConventions
 from preprocessor.core.path_manager import PathManager
 from preprocessor.utils.console import console
 from preprocessor.utils.file_utils import atomic_write_json
@@ -38,9 +37,9 @@ def save_character_detections(
     }
 
     series_name = episode_info.series_name or "unknown"
-    file_naming = FileNamingConventions(series_name)
+    path_manager = PathManager(series_name)
 
-    detections_filename = file_naming.build_filename(
+    detections_filename = path_manager.build_filename(
         episode_info,
         extension="json",
         suffix="character_detections",

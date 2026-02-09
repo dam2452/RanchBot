@@ -11,8 +11,10 @@ from typing import (
 from insightface.app import FaceAnalysis
 import numpy as np
 
-from preprocessor.characters.face.face_detection_utils import load_character_references
-from preprocessor.characters.face.utils import init_face_detection
+from preprocessor.characters.face_detection import (
+    init_face_detection,
+    load_character_references,
+)
 from preprocessor.config.config import settings
 from preprocessor.core.base_processor import (
     BaseProcessor,
@@ -20,7 +22,7 @@ from preprocessor.core.base_processor import (
     ProcessingItem,
 )
 from preprocessor.core.episode_manager import EpisodeManager
-from preprocessor.core.file_naming import FileNamingConventions
+from preprocessor.core.path_manager import PathManager
 from preprocessor.core.processor_registry import register_processor
 from preprocessor.utils.console import console
 from preprocessor.utils.detection_io import (
@@ -73,8 +75,8 @@ class CharacterDetector(BaseProcessor):
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         episode_info = item.metadata["episode_info"]
-        file_naming = FileNamingConventions(self.series_name)
-        detections_filename = file_naming.build_filename(
+        path_manager = PathManager(self.series_name)
+        detections_filename = path_manager.build_filename(
             episode_info,
             extension="json",
             suffix="character_detections",
