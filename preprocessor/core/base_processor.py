@@ -405,8 +405,8 @@ class BaseProcessor(ABC):
         extension: str = "json",
         suffix: Optional[str] = None,
     ) -> str:
-        if hasattr(self, 'episode_manager') and self.episode_manager:
-            return self.episode_manager.file_naming.build_filename(  # pylint: disable=no-member
+        if hasattr(self, 'episode_manager') and self.episode_manager:  # pylint: disable=no-member
+            return self.episode_manager.file_naming.build_filename(
                 episode_info,
                 extension=extension,
                 suffix=suffix,

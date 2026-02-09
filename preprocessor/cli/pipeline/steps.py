@@ -1,10 +1,12 @@
 from pathlib import Path
 
+from preprocessor.characters.reference.reference_downloader import CharacterReferenceDownloader
 from preprocessor.config.config import (
     get_base_output_dir,
     settings,
 )
 from preprocessor.core.constants import SUPPORTED_VIDEO_EXTENSIONS
+from preprocessor.scraping.episode_scraper import EpisodeScraper
 from preprocessor.utils.console import console
 from preprocessor.video.helpers.frame_processor import FrameProcessor
 from preprocessor.video.subprocessors.emotion_detection_subprocessor import EmotionDetectionSubProcessor
@@ -22,8 +24,6 @@ from preprocessor.video.subprocessors.frame_subprocessors import (
 
 
 def run_scrape_step(scrape_urls, episodes_info_json, videos=None, parser_mode="normal", **_kwargs):
-    from preprocessor.scraping.episode_scraper import EpisodeScraper  # pylint: disable=import-outside-toplevel
-
     if not scrape_urls:
         return 0
 
@@ -85,10 +85,6 @@ def run_character_scrape_step(character_urls, characters_json, name, parser_mode
 
 
 def run_character_reference_download_step(name, characters_json, search_mode="normal", **_kwargs):
-    from preprocessor.characters.reference.reference_downloader import (
-        CharacterReferenceDownloader,  # pylint: disable=import-outside-toplevel
-    )
-
     if not characters_json.exists():
         console.print("[yellow]No characters.json found, skipping reference download[/yellow]")
         return 0
