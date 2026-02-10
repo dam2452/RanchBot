@@ -1,0 +1,63 @@
+from pathlib import Path
+from typing import Optional
+
+from preprocessor.config.step_configs import CharacterReferenceConfig
+from preprocessor.core.artifacts import SourceVideo
+from preprocessor.core.base_step import PipelineStep
+from preprocessor.core.context import ExecutionContext
+from preprocessor.modules.scraping.reference_processor import CharacterReferenceProcessor
+
+
+class CharacterReferenceStep(
+    PipelineStep[SourceVideo, SourceVideo, CharacterReferenceConfig],
+):
+    def __init__(self, config: CharacterReferenceConfig) -> None:
+        super().__init__(config)
+        self._executed = False
+
+    @property
+    def name(self) -> str:
+        return "process_character_references"
+
+    def execute(
+        self, input_data: SourceVideo, context: ExecutionContext,
+    ) -> Optional[SourceVideo]:
+        if self._executed:
+            return input_data
+
+        characters_path = Path(self.config.characters_file)
+        output_dir = Path(self.config.output_dir)
+
+        if not characters_path.exists():
+            raise FileNotFoundError(
+                f"Characters file not found: {characters_path}. "
+                f"Run scrape_characters first.",
+            )
+
+        if output_dir.exists() and any(output_dir.iterdir()) and not context.force_rerun:
+            context.logger.info(f"Character references already exist in: {output_dir}")
+            self._executed = True
+            return input_data
+
+        context.logger.info(f"Processing character references from {characters_path}")
+
+        processor = CharacterReferenceProcessor(
+            {
+                "characters_file": characters_path,
+                "output_dir": output_dir,
+                "search_engine": self.config.search_engine,
+                "images_per_character": self.config.images_per_character,
+            },
+        )
+
+        exit_code = processor.work()
+
+        if exit_code != 0:
+            raise RuntimeError(
+                f"Character reference processor failed with exit code {exit_code}",
+            )
+
+        context.logger.info(f"Character references saved to: {output_dir}")
+
+        self._executed = True
+        return input_data

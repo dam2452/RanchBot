@@ -1,4 +1,4 @@
-from preprocessor.types import (
+from preprocessor.config.types import (
     BaseSegment,
     CharacterDetectionInFrame,
     ClipSegment,

@@ -18,11 +18,10 @@ from elasticsearch.helpers import (
     async_bulk,
 )
 
+from bot.search.elastic_search_manager import ElasticSearchManager
 from bot.services.reindex.series_scanner import SeriesScanner
 from bot.services.reindex.video_path_transformer import VideoPathTransformer
 from bot.services.reindex.zip_extractor import ZipExtractor
-from bot.settings import settings
-from preprocessor.processors.elasticsearch_manager import ElasticSearchManager
 
 
 @dataclass
@@ -188,9 +187,6 @@ class ReindexService:
     async def __init_elasticsearch(self) -> None:
         if self.__es_manager is None:
             self.__es_manager = await ElasticSearchManager.connect_to_elasticsearch(
-                settings.ES_HOST,
-                settings.ES_USER,
-                settings.ES_PASS.get_secret_value(),
                 self.__logger,
             )
 
