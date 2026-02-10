@@ -10,11 +10,16 @@ on:
 
   workflow_dispatch:
     inputs:
-      disable_tests:
-        description: 'Disable E2E Tests'
+      enable_integration:
+        description: 'Enable Integration Tests'
         type: boolean
         required: false
-        default: false
+        default: true
+      enable_e2e:
+        description: 'Enable E2E Tests'
+        type: boolean
+        required: false
+        default: true
 
 jobs:
   build_and_test_staging:
@@ -58,6 +63,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Set up Python
+        if: ${{ inputs.enable_integration == true || inputs.enable_e2e == true }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run Integration Tests
+        if: ${{ inputs.enable_integration == true }}
+        env:
+          PIP_ROOT_USER_ACTION: ignore
+        run: |
+          python3 -m pip install -r requirements.txt
+          python3 -m pytest tests/integration/ -v --tb=short
+
       - name: Log in to registry
         uses: docker/login-action@v3
         with:
@@ -85,19 +104,13 @@ jobs:
           fi
           echo "Bot is healthy and ready"
 
-      - name: Set up Python
-        if: ${{ inputs.disable_tests != true }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
       - name: Run E2E Tests
-        if: ${{ inputs.disable_tests != true }}
+        if: ${{ inputs.enable_e2e == true }}
         env:
           PIP_ROOT_USER_ACTION: ignore
         run: |
          python3 -m pip install -r requirements.txt
-         python3 -m pytest
+         python3 -m pytest tests/e2e/ -v --tb=short
 
   build_production:
     needs: build_and_test_staging
