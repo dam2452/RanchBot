@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from aiogram import (
@@ -11,6 +12,8 @@ from bot.factory import create_all_factories
 from bot.settings import settings
 
 logger = logging.getLogger(__name__)
+
+_active_inline_tasks = {}
 
 
 class OptimizedAiohttpSession(AiohttpSession):
@@ -39,12 +42,32 @@ async def run_telegram_bot():
 
     if inline_handlers:
         async def combined_inline_handler(inline_query):
-            try:
-                for handler in inline_handlers:
-                    await handler(inline_query)
-                    break
-            except Exception as e:
-                logger.error(f"Error in combined inline handler: {type(e).__name__}: {e}", exc_info=True)
+            user_id = inline_query.from_user.id
+
+            if user_id in _active_inline_tasks:
+                task = _active_inline_tasks[user_id]
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+
+            async def process():
+                try:
+                    for handler in inline_handlers:
+                        await handler(inline_query)
+                        break
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error in combined inline handler: {type(e).__name__}: {e}", exc_info=True)
+                finally:
+                    _active_inline_tasks.pop(user_id, None)
+
+            task = asyncio.create_task(process())
+            _active_inline_tasks[user_id] = task
+            await task
 
         dp.inline_query.register(combined_inline_handler)
         logger.info("Combined inline handler registered")
