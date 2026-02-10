@@ -1,11 +1,16 @@
+import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict, Any
-import json
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
+from bot.database.database_manager import DatabaseManager
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
-from bot.database.database_manager import DatabaseManager
 from tests.e2e.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -135,13 +140,13 @@ class BaseIntegrationTest:
         text: str,
         user_id: Optional[int] = None,
         chat_id: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> FakeMessage:
         return FakeMessage(
             text=text,
             user_id=user_id or self.admin_id,
             chat_id=chat_id,
-            **kwargs
+            **kwargs,
         )
 
     def create_responder(self) -> FakeResponder:

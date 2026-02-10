@@ -1,5 +1,10 @@
 import logging
-from typing import List, Dict, Any, Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 
 class MockElasticsearch:
@@ -49,7 +54,7 @@ class MockElasticsearch:
         series_name: str,
         season_filter: Optional[int] = None,
         episode_filter: Optional[int] = None,
-        size: int = 1
+        size: int = 1,
     ) -> List[Dict[str, Any]]:
         cls._call_log.append({
             'method': 'find_segment_by_quote',
@@ -78,7 +83,7 @@ class MockElasticsearch:
     async def get_season_details_from_elastic(
         cls,
         logger: logging.Logger,
-        series_name: str
+        series_name: str,
     ) -> Dict[str, int]:
         cls._call_log.append({
             'method': 'get_season_details_from_elastic',

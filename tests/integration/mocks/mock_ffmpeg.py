@@ -1,7 +1,12 @@
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any
 import tempfile
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 
 class MockFFmpeg:
@@ -23,7 +28,7 @@ class MockFFmpeg:
         cls,
         source_video_path: str,
         mock_clip_path: Optional[Path] = None,
-        create_file: bool = True
+        create_file: bool = True,
     ) -> Path:
         if mock_clip_path is None:
             temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
@@ -121,5 +126,5 @@ class MockFFmpeg:
 
         raise AssertionError(
             f"extract_clip not called with video_path={video_path}, "
-            f"start_time={start_time}, end_time={end_time}"
+            f"start_time={start_time}, end_time={end_time}",
         )

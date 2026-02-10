@@ -1,9 +1,14 @@
-import pytest
 import logging
 
-from tests.integration.base_integration_test import BaseIntegrationTest, FakeMessage, FakeResponder
-from tests.integration.mocks.test_data import TestSegments
+import pytest
+
 from bot.handlers.not_sending_videos.search_handler import SearchHandler
+from tests.integration.base_integration_test import (
+    BaseIntegrationTest,
+    FakeMessage,
+    FakeResponder,
+)
+from tests.integration.mocks.test_data import TestSegments
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +26,7 @@ class TestSearchHandlerIntegration(BaseIntegrationTest):
             season=ep_info['season'],
             episode_number=ep_info['episode_number'],
             episode_title=ep_info['title'],
-            quote_keywords=['geniusz']
+            quote_keywords=['geniusz'],
         )
 
         message = self.create_message('/szukaj geniusz')

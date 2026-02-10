@@ -13,13 +13,12 @@ def pytest_collection_modifyitems(items):
 
 from bot.database.database_manager import DatabaseManager
 from bot.search.transcription_finder import TranscriptionFinder
-from bot.video.clips_extractor import ClipsExtractor
 from bot.video.clips_compiler import ClipsCompiler
+from bot.video.clips_extractor import ClipsExtractor
 from tests.e2e.settings import settings as s
-
+from tests.integration.mocks.mock_database import MockDatabase
 from tests.integration.mocks.mock_elasticsearch import MockElasticsearch
 from tests.integration.mocks.mock_ffmpeg import MockFFmpeg
-from tests.integration.mocks.mock_database import MockDatabase
 
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()

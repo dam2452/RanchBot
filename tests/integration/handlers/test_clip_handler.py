@@ -1,9 +1,14 @@
-import pytest
 import logging
 
-from tests.integration.base_integration_test import BaseIntegrationTest, FakeMessage, FakeResponder
-from tests.integration.mocks.test_data import TestSegments
+import pytest
+
 from bot.handlers.sending_videos.clip_handler import ClipHandler
+from tests.integration.base_integration_test import (
+    BaseIntegrationTest,
+    FakeMessage,
+    FakeResponder,
+)
+from tests.integration.mocks.test_data import TestSegments
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +26,7 @@ class TestClipHandlerIntegration(BaseIntegrationTest):
             season=ep_info['season'],
             episode_number=ep_info['episode_number'],
             episode_title=ep_info['title'],
-            quote_keywords=['geniusz']
+            quote_keywords=['geniusz'],
         )
         mock_ffmpeg.add_mock_clip(segment['video_path'])
 

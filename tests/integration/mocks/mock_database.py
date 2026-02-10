@@ -1,6 +1,14 @@
+from datetime import (
+    datetime,
+    timedelta,
+)
 import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 
 class MockDatabase:
@@ -139,7 +147,7 @@ class MockDatabase:
         clip_type: str,
         adjusted_start_time: float,
         adjusted_end_time: float,
-        **kwargs
+        **kwargs,
     ):
         cls._last_clips[chat_id] = {
             'chat_id': chat_id,
@@ -147,7 +155,7 @@ class MockDatabase:
             'clip_type': clip_type,
             'adjusted_start_time': adjusted_start_time,
             'adjusted_end_time': adjusted_end_time,
-            **kwargs
+            **kwargs,
         }
 
         cls._call_log.append({
