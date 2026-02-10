@@ -59,7 +59,7 @@ async def run_telegram_bot():
                         await handler(inline_query)
                         break
                 except asyncio.CancelledError:
-                    raise
+                    logger.info(f"Cancelling previous session for user {user_id}")
                 except Exception as e:
                     logger.error(f"Error in combined inline handler: {type(e).__name__}: {e}", exc_info=True)
                 finally:
