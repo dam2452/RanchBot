@@ -130,7 +130,7 @@ class ElasticSearchManager:
         video_base_path: Path,
         logger: logging.Logger,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[dict]:
         actions = []
         for season_path in base_path.iterdir():
             if not season_path.is_dir():
@@ -151,7 +151,7 @@ class ElasticSearchManager:
         season_path: Path,
         video_base_path: Path,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[dict]:
         season_actions = []
         season_dir = season_path.name
 
@@ -178,7 +178,7 @@ class ElasticSearchManager:
         season_dir: str,
         video_base_path: Path,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[dict]:
         actions = []
         with episode_file.open("r", encoding="utf-8") as f:
             data = json.load(f)
