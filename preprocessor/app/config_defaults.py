@@ -38,7 +38,7 @@ def get_default_step_configs(series_name: str) -> Dict[str, object]:
         ),
         'separate_sounds': SoundSeparationConfig(),
         'analyze_text': TextAnalysisConfig(language='pl'),
-        'detect_scenes': SceneDetectionConfig(threshold=0.5, min_scene_len=15),
+        'detect_scenes': SceneDetectionConfig(threshold=0.5, min_scene_len=10),
         'export_frames': FrameExportConfig(frames_per_scene=3),
         'text_embeddings': TextEmbeddingConfig(
             model_name='Qwen/Qwen2-VL-8B-Instruct',

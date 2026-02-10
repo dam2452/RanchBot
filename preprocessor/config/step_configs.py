@@ -33,7 +33,7 @@ class TranscodeConfig(BaseModel):
 
 class SceneDetectionConfig(BaseModel):
     threshold: float = Field(default=0.5, ge=0, le=1)
-    min_scene_len: int = Field(default=15, ge=1)
+    min_scene_len: int = Field(default=10, ge=1)
 
 class FrameExportConfig(BaseModel):
     resolution: Resolution = Field(default=Resolution.R720P)
@@ -52,7 +52,7 @@ class WhisperTranscriptionConfig(BaseModel):
     model: str = 'large-v3-turbo'
     language: str = 'pl'
     device: str = 'cuda'
-    beam_size: int = Field(default=5, ge=1)
+    beam_size: int = Field(default=10, ge=1)
     temperature: float = Field(default=0.0, ge=0.0, le=1.0)
 
 class TextAnalysisConfig(BaseModel):

@@ -102,7 +102,7 @@ scene_data = StepBuilder(
     description="Wykrywa zmiany scen używając TransNetV2",
     produces=["scene_detections/{season}/{episode}.json"],
     needs=[transcoded_videos],
-    config=SceneDetectionConfig(threshold=0.5, min_scene_len=15),
+    config=SceneDetectionConfig(threshold=0.5, min_scene_len=10),
 )
 
 exported_frames = StepBuilder(
@@ -126,7 +126,7 @@ transcription_data = StepBuilder(
         model="large-v3-turbo",
         language="pl",
         device="cuda",
-        beam_size=5,
+        beam_size=10,
         temperature=0.0,
     ),
 )

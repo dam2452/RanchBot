@@ -27,7 +27,7 @@ class TransNetWrapper:
         self,
         video_path: Path,
         threshold: float=0.5,
-        min_scene_len: int=15,
+        min_scene_len: int=10,
     ) -> List[Dict[str, Any]]:
         if self.model is None:
             raise RuntimeError('Model not loaded. Call load_model() first.')

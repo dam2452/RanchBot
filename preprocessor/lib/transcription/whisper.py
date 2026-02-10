@@ -14,7 +14,7 @@ from preprocessor.lib.ui.console import console
 
 class Whisper:
 
-    def __init__(self, model: str='large-v3-turbo', language: str='pl', device: str='cuda', beam_size: int=5, temperature: float=0.0) -> None:
+    def __init__(self, model: str='large-v3-turbo', language: str='pl', device: str='cuda', beam_size: int=10, temperature: float=0.0) -> None:
         self.model_name: str = model
         self.language: str = language
         self.device: str = device
