@@ -10,134 +10,190 @@ Docker pipeline do przetwarzania wideo z GPU: transkodowanie, transkrypcja, dete
 
 ```bash
 cd preprocessor
-mkdir -p input_data/videos output_data
-cp /twoje/wideo/*.mp4 input_data/videos/
+mkdir -p input_data output_data
 docker compose build
 
-# Pełny pipeline z scrapingiem
-./run-preprocessor.sh run-all /input_data/ranczo \
-  --scrape-urls https://example.com/wiki/Seria \
-  --character-urls https://example.com/wiki/Postacie \
-  --series-name ranczo
+# Podstawowe użycie - pełny pipeline
+./run-preprocessor.sh run-all --series ranczo
 
-# Z gotowymi metadanymi
-./run-preprocessor.sh run-all /input_data/kiepscy \
-  --episodes-info-json /input_data/kiepscy_episodes.json \
-  --series-name kiepscy
+# Z pomijaniem konkretnych kroków
+./run-preprocessor.sh run-all --series kiepscy --skip transcode --skip transcribe
 
-# Pomiń transkodowanie i transkrypcję (użyj istniejących)
-./run-preprocessor.sh run-all /input_data/videos \
-  --episodes-info-json /input_data/episodes.json \
-  --series-name nazwa_serii \
-  --skip-transcode \
-  --skip-transcribe
+# Wymuszenie ponownego przetworzenia (ignoruje cache)
+./run-preprocessor.sh run-all --series ranczo --force-rerun
 
-# Tryb premium (Gemini + ElevenLabs + Google Images)
-./run-preprocessor.sh run-all /input_data/videos \
-  --series-name nazwa_serii \
-  --parser-mode premium \
-  --transcription-mode premium \
-  --search-mode premium
+# Pojedynczy krok
+./run-preprocessor.sh transcode --series ranczo
+./run-preprocessor.sh detect-scenes --series ranczo
+
+# Search
+./run-preprocessor.sh search --series ranczo --text "Lucy Wilska"
+./run-preprocessor.sh search --series kiepscy --stats
 ```
+
+**Konfiguracja:** Wszystkie parametry (URLs do scrapingu, tryby transkrypcji, bitrate, etc.) są w plikach `series_configs/*.json`
 
 ---
 
-## Pipeline (13 kroków)
+## Konfiguracja per-seria
 
+Pipeline używa plików JSON w `series_configs/` do konfiguracji każdego serialu:
+
+**Struktura:**
 ```
-SCRAPING          PROCESSING                              INDEXING
-───────────────────────────────────────────────────────────────────────
-[0a] episodes  ─┬→ [1] transcode → [2] transcribe → [3] separate sounds
-[0b] characters │  [4] analyze text
-[0c] download   │  [5] detect scenes → [6] export frames
-[0d] process   ─┘  [7] text embeddings
-                   [8] frame processing (8a-8f)
-                   [9] elastic docs → [10] archives → [11] index → [12] validate
+series_configs/
+├── defaults.json          # Domyślne ustawienia dla wszystkich seriali
+├── ranczo.json           # Nadpisuje defaults tylko dla Ranczo
+└── kiepscy.json          # Nadpisuje defaults tylko dla Kiepskich
 ```
+
+**Przykład `kiepscy.json`:**
+```json
+{
+  "display_name": "Świat według Kiepskich",
+  "series_name": "kiepscy",
+  "pipeline_mode": "full",
+  "indexing": {
+    "elasticsearch": {
+      "index_name": "kiepscy_clips"
+    }
+  },
+  "processing": {
+    "transcode": {
+      "force_deinterlace": true,
+      "video_bitrate_mbps": 2.5
+    },
+    "transcription": {
+      "mode": "whisper",
+      "model": "large-v3-turbo"
+    }
+  },
+  "scraping": {
+    "episodes": {
+      "parser_mode": "premium",
+      "urls": ["https://pl.wikipedia.org/wiki/Lista_odcinków..."]
+    },
+    "characters": {
+      "parser_mode": "premium",
+      "urls": ["https://pl.wikipedia.org/wiki/Lista_postaci..."]
+    },
+    "character_references": {
+      "search_engine": "google"
+    }
+  },
+  "skip_steps": []
+}
+```
+
+**Tryby pipeline:**
+- `"pipeline_mode": "full"` - uruchamia wszystkie kroki
+- `"pipeline_mode": "selective"` - pomija kroki z `skip_steps` automatycznie
+
+**Dostępne parametry:** Zobacz `defaults.json` dla pełnej listy opcji konfiguracyjnych.
 
 ---
 
-## Flagi Skip
+## Pipeline (19 kroków)
 
-| Flaga | Krok |
-|-------|------|
-| `--skip-transcode` | 1: Transkodowanie |
-| `--skip-transcribe` | 2-3: Transkrypcja + separacja |
-| `--skip-text-analysis` | 4: Analiza tekstu |
-| `--skip-scenes` | 5: Detekcja scen |
-| `--skip-frame-export` | 6: Eksport klatek |
-| `--skip-embeddings` | 7: Text embeddings |
-| `--skip-character-reference-processing` | 0d: Przetwarzanie referencji postaci |
-| `--skip-elastic-documents` | 9: Dokumenty ES |
-| `--skip-archives` | 10: Archiwizacja ZIP |
-| `--skip-index` | 11: Indeksowanie |
-| `--skip-validation` | 12: Walidacja |
+```
+SCRAPING                  PROCESSING                              INDEXING
+─────────────────────────────────────────────────────────────────────────────
+[1] scrape_episodes  ──┬─→ [4] transcode ─→ [5] transcribe ─→ [6] separate_sounds
+[2] scrape_characters  │   [7] analyze_text
+[3] process_references─┘   [8] detect_scenes ─→ [9] export_frames
+                           [10] text_embeddings
+                           [11] video_embeddings
+                           [12] image_hashing
+                           [13] detect_characters
+                           [14] detect_emotions
+                           [15] cluster_faces
+                           [16] detect_objects
+                           [17] generate_elastic_docs ─→ [18] generate_archives ─→ [19] index_to_elasticsearch
+```
 
-<details>
-<summary>Flagi frame processing (8a-8f)</summary>
-
-| Flaga | Krok |
-|-------|------|
-| `--skip-image-hashing` | 8a: Image hashing |
-| `--skip-video-embeddings` | 8b: Video embeddings |
-| `--skip-character-detection` | 8c: Character detection |
-| `--skip-emotion-detection` | 8d: Emotion detection |
-| `--skip-face-clustering` | 8e: Face clustering |
-| `--skip-object-detection` | 8f: Object detection |
-
-**Uwaga:** Wizualizacje są domyślnie wyłączone. Użyj `--debug-visualizations` aby je włączyć.
-
-</details>
-
-**Premium modes:** `--parser-mode premium` (Gemini 2.5 Flash) • `--transcription-mode premium` (ElevenLabs) • `--search-mode premium` (Google Images)
+**Kroki są automatycznie wykonywane w poprawnej kolejności** - pipeline rozwiązuje zależności i tworzy plan wykonania.
 
 ---
 
-## Główne komendy
+## Dostępne komendy
 
 ```bash
-# Pełny pipeline
-./run-preprocessor.sh run-all /input_data/videos --series-name nazwa_serii [OPTIONS]
+# Pipeline
+./run-preprocessor.sh run-all --series NAZWA [--skip STEP_ID ...] [--force-rerun]
 
-# Pojedyncze kroki
-./run-preprocessor.sh scrape-episodes --urls URL --output-file /input_data/episodes.json
-./run-preprocessor.sh transcode /input_data/videos [--episodes-info-json FILE] [--resolution 720p]
-./run-preprocessor.sh transcribe /input_data/videos --name series --episodes-info-json FILE
-./run-preprocessor.sh transcribe-elevenlabs /input_data/videos --name series --episodes-info-json FILE
-./run-preprocessor.sh separate-sounds --transcription-jsons /app/output_data/transcriptions
-./run-preprocessor.sh analyze-text --season S10 --language pl
-./run-preprocessor.sh detect-scenes /input_data/videos [--threshold 0.5]
-./run-preprocessor.sh export-frames /input_data/videos
-./run-preprocessor.sh process-character-references --name series
-./run-preprocessor.sh image-hashing --frames-dir /app/output_data/exported_frames
-./run-preprocessor.sh generate-embeddings --transcription-jsons /app/output_data/transcriptions
-./run-preprocessor.sh generate-elastic-documents --transcription-jsons /app/output_data/transcriptions
-./run-preprocessor.sh generate-archives --series-name nazwa_serii
-./run-preprocessor.sh index --name nazwa_serii
-./run-preprocessor.sh validate --season S01 --series-name nazwa_serii
+# Scraping
+./run-preprocessor.sh scrape-episodes --series NAZWA
+./run-preprocessor.sh scrape-characters --series NAZWA
+./run-preprocessor.sh process-references --series NAZWA
 
-# Narzędzia
-./run-preprocessor.sh search --text "query"
-./run-preprocessor.sh search --text-semantic "query"
-./run-preprocessor.sh search --image /path/to/image.jpg
-./run-preprocessor.sh search --character "Nazwa"
-./run-preprocessor.sh search --emotion "happiness"
-./run-preprocessor.sh search --stats
-./run-preprocessor.sh fix-unicode --transcription-jsons DIR --episodes-info-json FILE --name series
-./run-preprocessor.sh import-transcriptions --input-dir DIR --episodes-info-json FILE --name series
+# Video processing
+./run-preprocessor.sh transcode --series NAZWA
+./run-preprocessor.sh detect-scenes --series NAZWA
+./run-preprocessor.sh export-frames --series NAZWA
+
+# Audio/Text processing
+./run-preprocessor.sh transcribe --series NAZWA
+./run-preprocessor.sh separate-sounds --series NAZWA
+./run-preprocessor.sh analyze-text --series NAZWA
+
+# Embeddings
+./run-preprocessor.sh text-embeddings --series NAZWA
+./run-preprocessor.sh video-embeddings --series NAZWA
+
+# Visual analysis
+./run-preprocessor.sh image-hashing --series NAZWA
+./run-preprocessor.sh detect-characters --series NAZWA
+./run-preprocessor.sh detect-emotions --series NAZWA
+./run-preprocessor.sh cluster-faces --series NAZWA
+./run-preprocessor.sh detect-objects --series NAZWA
+
+# Indexing
+./run-preprocessor.sh generate-elastic-docs --series NAZWA
+./run-preprocessor.sh generate-archives --series NAZWA
+./run-preprocessor.sh index-to-elasticsearch --series NAZWA
+
+# Search (wymaga uruchomionego Elasticsearch)
+./run-preprocessor.sh search --series NAZWA --text "query"
+./run-preprocessor.sh search --series NAZWA --text-semantic "query"
+./run-preprocessor.sh search --series NAZWA --image /input_data/screenshot.jpg
+./run-preprocessor.sh search --series NAZWA --character "Postać"
+./run-preprocessor.sh search --series NAZWA --emotion "happiness"
+./run-preprocessor.sh search --series NAZWA --object "person:5+"
+./run-preprocessor.sh search --series NAZWA --stats
+./run-preprocessor.sh search --series NAZWA --list-characters
+
+# Utilities
+./run-preprocessor.sh visualize --series NAZWA  # Wizualizacja grafu zależności
+./run-preprocessor.sh bash                       # Shell w kontenerze
+```
+
+**Parametry:**
+- `--series NAZWA` - **WYMAGANY** dla wszystkich komend (np. `ranczo`, `kiepscy`)
+- `--force-rerun` - Ignoruje cache i przetwarza ponownie
+- `--skip STEP_ID` - Pomija konkretny krok (można użyć wielokrotnie)
+
+**Step IDs do --skip:**
+```
+scrape_episodes, scrape_characters, process_references,
+transcode, transcribe, separate_sounds, analyze_text,
+detect_scenes, export_frames, text_embeddings, video_embeddings,
+image_hashing, detect_characters, detect_emotions, cluster_faces, detect_objects,
+generate_elastic_docs, generate_archives, index_to_elasticsearch
 ```
 
 ---
 
 ## Multi-Series Support
 
-Pipeline wspiera przetwarzanie wielu seriali jednocześnie. Każdy serial ma dedykowany folder:
+Pipeline wspiera przetwarzanie wielu seriali jednocześnie. Każdy serial ma dedykowany folder i konfigurację.
 
 **Input struktura:**
 ```
 input_data/
 ├── ranczo/
 │   ├── S01/
+│   │   ├── S01E01.mp4
+│   │   └── S01E02.mp4
 │   ├── S02/
 │   └── S03/
 └── kiepscy/
@@ -151,19 +207,30 @@ output_data/
 ├── ranczo/
 │   ├── transcoded_videos/
 │   ├── transcriptions/
-│   ├── ranczo_episodes.json
-│   ├── ranczo_characters.json
+│   ├── scene_timestamps/
+│   ├── exported_frames/
+│   ├── embeddings/
+│   ├── elastic_documents/
+│   ├── .preprocessing_state_ranczo.json
 │   └── ...
 └── kiepscy/
     ├── transcoded_videos/
-    ├── kiepscy_episodes.json
+    ├── .preprocessing_state_kiepscy.json
     └── ...
+```
+
+**Config struktura:**
+```
+series_configs/
+├── defaults.json          # Domyślne dla wszystkich
+├── ranczo.json           # Overrides dla Ranczo
+└── kiepscy.json          # Overrides dla Kiepskich
 ```
 
 **Migracja ze starej struktury:**
 ```bash
-mkdir -p input_data/{series_name}
-mv input_data/S* input_data/{series_name}/
+mkdir -p input_data/nazwa_serii
+mv input_data/S* input_data/nazwa_serii/
 ```
 
 ---
@@ -172,11 +239,11 @@ mv input_data/S* input_data/{series_name}/
 
 ```
 output_data/{series_name}/
-├── transcoded_videos/          # MP4 h264_nvenc (720p)
+├── transcoded_videos/          # MP4 h264_nvenc (720p domyślnie)
 ├── transcriptions/             # raw/ • clean/ • sound_events/
 ├── scene_timestamps/           # JSON z timestampami scen
-├── exported_frames/            # JPG 1080p (domyślnie)
-├── embeddings/                 # text • video • sound_events • full_episode
+├── exported_frames/            # PNG (1080p domyślnie)
+├── embeddings/                 # text/ • video/ • sound_events/ • full_episode/
 ├── image_hashes/               # perceptual hashes klatek
 ├── character_detections/       # detections.json + visualizations/ (opcjonalne)
 ├── character_references_processed/  # face vectors postaci
@@ -184,10 +251,17 @@ output_data/{series_name}/
 ├── face_clusters/              # HDBSCAN clusters
 ├── object_detections/          # D-FINE detections + visualizations/ (opcjonalne)
 ├── elastic_documents/          # JSONL per typ dokumentu
+│   ├── text_segments/
+│   ├── text_embeddings/
+│   ├── video_frames/
+│   └── episode_names/
 ├── archives/                   # ZIP per odcinek
 ├── validation_reports/         # JSON raporty walidacji
 ├── processing_metadata/        # metadata kroków pipeline
-└── scraped_pages/              # zapisane strony wiki
+├── scraped_pages/              # zapisane strony wiki
+├── {series}_episodes.json      # metadane odcinków
+├── {series}_characters.json    # lista postaci
+└── .preprocessing_state_{series}.json  # stan pipeline (cache)
 ```
 
 ---
@@ -197,6 +271,7 @@ output_data/{series_name}/
 | Komponent | Stack |
 |-----------|-------|
 | Transkodowanie | FFmpeg + h264_nvenc (GPU) |
+| Deinterlacing | bwdif (opcjonalnie, auto-detect lub force) |
 | Transkrypcja | Whisper large-v3-turbo / ElevenLabs Scribe v1 |
 | Sceny | TransNetV2 |
 | Embeddingi | Qwen/Qwen3-VL-Embedding-8B (4096-dim) |
@@ -210,13 +285,92 @@ output_data/{series_name}/
 
 ---
 
+## Parametry konfiguracyjne
+
+**Wszystkie parametry są w `series_configs/*.json`**. Poniżej wartości domyślne z `defaults.json`:
+
+**Transkodowanie (`processing.transcode`):**
+```json
+{
+  "codec": "h264_nvenc",
+  "resolution": "720p",
+  "video_bitrate_mbps": 2.5,
+  "minrate_mbps": 1.5,
+  "maxrate_mbps": 3.5,
+  "bufsize_mbps": 5.0,
+  "audio_bitrate_kbps": 128,
+  "gop_size": 2.0,
+  "force_deinterlace": false
+}
+```
+
+**Detekcja scen (`processing.scene_detection`):**
+```json
+{
+  "threshold": 0.5,
+  "min_scene_len": 10
+}
+```
+
+**Eksport klatek (`processing.frame_export`):**
+```json
+{
+  "frames_per_scene": 3
+}
+```
+
+**Transkrypcja (`processing.transcription`):**
+```json
+{
+  "mode": "whisper",
+  "model": "large-v3-turbo",
+  "language": "pl",
+  "device": "cuda"
+}
+```
+
+**Scraping (`scraping`):**
+```json
+{
+  "episodes": {
+    "parser_mode": "normal",
+    "urls": ["https://..."]
+  },
+  "characters": {
+    "parser_mode": "normal",
+    "urls": ["https://..."]
+  },
+  "character_references": {
+    "search_engine": "duckduckgo",
+    "images_per_character": 5
+  }
+}
+```
+
+**Elasticsearch (`indexing.elasticsearch`):**
+```json
+{
+  "index_name": "nazwa_clips",
+  "host": "localhost:9200",
+  "dry_run": false,
+  "append": false
+}
+```
+
+**Tryby:**
+- `parser_mode`: `"normal"` (Qwen2.5-Coder) | `"premium"` (Gemini 2.5 Flash)
+- `transcription.mode`: `"whisper"` | `"elevenlabs"`
+- `search_engine`: `"duckduckgo"` | `"google"` (wymaga SERPAPI_API_KEY)
+
+---
+
 ## Użycie VRAM
 
 **Target:** ~21GB VRAM (85% z 24GB dla modelu embeddingowego)
 
-**Batch sizes:**
-- Video embeddings: 32 (domyślnie), progress sub-batch: 100
-- Text embeddings: 64 (domyślnie)
+**Batch sizes (domyślne):**
+- Video embeddings: 32, progress sub-batch: 100
+- Text embeddings: 64
 - Object detection: 8
 - Emotion detection: 32
 
@@ -252,70 +406,27 @@ Faktyczne użycie VRAM zależy od:
 
 ## Formaty plików
 
-**Input:** `.mp4` `.avi` `.mkv` `.mov` `.flv` `.wmv` `.webm`
+**Input wideo:** `.mp4` `.avi` `.mkv` `.mov` `.flv` `.wmv` `.webm`
 **Output wideo:** `.mp4` (h264_nvenc, 720p domyślnie)
-**Output klatki:** `.jpg` (1080p domyślnie)
+**Output klatki:** `.png` (1080p domyślnie)
 **Nazewnictwo odcinków:** `S01E01`, `s01e12`, `S10E05` (case-insensitive)
 **Nazewnictwo folderów:** `S01`, `Sezon 1`, `Season 10` → autonormalizacja do `SXX`
-**Metadane:** JSON (episodes.json, characters.json)
-**Elastic docs:** JSONL per typ (text_segments, video_frames, etc.)
+**Metadane:** JSON (`{series}_episodes.json`, `{series}_characters.json`)
+**Elastic docs:** JSONL per typ (`text_segments`, `video_frames`, `text_embeddings`, `episode_names`)
 
 ---
 
-## Parametry konfiguracyjne
+## State Management
 
-**Transkodowanie:**
-- Target file size: 50MB per 100s
-- Audio bitrate: 128 kbps
-- GOP size: 0.5s
+Pipeline automatycznie zapisuje stan przetwarzania w `.preprocessing_state_{series}.json`:
+- Śledzi które kroki zostały ukończone dla każdego odcinka
+- Pozwala na wznowienie po przerwaniu (Ctrl+C)
+- Pomija już przetworzone odcinki (chyba że `--force-rerun`)
 
-**Scene detection:**
-- Threshold: 0.5
-- Min scene length: 10 frames
-
-**Text chunking:**
-- Segments per embedding: 5
-- Sentences per chunk: 8
-- Chunk overlap: 3
-
-**Character detection:**
-- Reference images per character: 3
-- Normalized face size: 112x112
-- Face detection threshold: 0.2
-- Reference matching threshold: 0.50
-- Frame detection threshold: 0.55
-
-**Object detection:**
-- Confidence threshold: 0.30
-
-**Embeddings:**
-- Dimension: 4096
-- Max model length: 8192 tokens
-- Chunked prefill: enabled
-
----
-
-## Dodatkowe opcje
-
-**State management:**
-- `--no-state` - wyłącz zapisywanie stanu (brak wznowienia po przerwaniu)
-- Domyślnie pipeline zapisuje stan i można wznowić po Ctrl+C
-
-**Ramdisk:**
-- `--ramdisk-path /mnt/ramdisk` - użyj RAMdisk dla tymczasowych plików (szybsze przetwarzanie)
-- Domyślnie: `/dev/shm` (shared memory, 4GB z docker-compose)
-- RAMdisk używany do: kopiowania klatek podczas frame processing, tymczasowych plików transkrypcji
-
-**Interaktywny tryb:**
-- `--interactive-character-processing` - manualna selekcja twarzy przy przetwarzaniu referencji postaci
-
-**Debug:**
-- `--debug-visualizations` - włącz wizualizacje dla detekcji postaci i obiektów (wyłączone domyślnie)
-- `--dry-run` - test indeksowania bez wysyłania do Elasticsearch
-
-**Embeddingi:**
-- `--skip-full-episode` - pomiń generowanie embeddingów całych odcinków (tylko text, video, sound events)
-- `--batch-size N` - rozmiar batcha dla embeddingów (domyślnie 32 dla video, 64 dla text)
+**Resetowanie stanu:**
+```bash
+rm output_data/ranczo/.preprocessing_state_ranczo.json
+```
 
 ---
 
@@ -340,26 +451,124 @@ docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
 
 ```bash
 # Logi
-docker logs ranchbot-preprocessing-app -f
+docker logs -f preprocessor-preprocessor-run-XXX
 
 # GPU check
 nvidia-smi
 docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
 
-# OOM na GPU → zmniejsz batch size
-./run-preprocessor.sh generate-embeddings --batch-size 16  # domyślnie 32
+# OOM na GPU
+# Zmniejsz batch_size w series_configs/{series}.json
 
 # Brak miejsca na dysku
 docker system prune -a
 docker volume prune
-du -sh output_data/*  # sprawdź co zajmuje miejsce
+du -sh output_data/*
 
 # Wznów pipeline po przerwaniu
-./run-preprocessor.sh run-all /input_data/videos --series-name nazwa_serii --name nazwa_serii
+./run-preprocessor.sh run-all --series nazwa_serii
+# Stan jest automatycznie przywracany z .preprocessing_state_{series}.json
+
+# Reset stanu dla konkretnego serialu
+rm output_data/nazwa_serii/.preprocessing_state_nazwa_serii.json
 
 # Reset całego named volume z modelami
 docker volume rm ranchbot-ai-models
 
 # Shell w kontenerze
 ./run-preprocessor.sh bash
+
+# Debug - wizualizacja grafu pipeline
+./run-preprocessor.sh visualize --series nazwa_serii
+```
+
+---
+
+## Search Guide
+
+Szczegółowy opis funkcjonalności search znajduje się w `SEARCH_GUIDE.md`.
+
+**Quick examples:**
+```bash
+# Statystyki
+./run-preprocessor.sh search --series ranczo --stats
+
+# Full-text search
+./run-preprocessor.sh search --series ranczo --text "Lucy Wilska" --season 10
+
+# Semantic search
+./run-preprocessor.sh search --series ranczo --text-semantic "wesele"
+
+# Visual search
+./run-preprocessor.sh search --series ranczo --image /input_data/screenshot.jpg
+
+# Search by character/emotion/object
+./run-preprocessor.sh search --series ranczo --character "Lucy Wilska" --emotion "happiness"
+./run-preprocessor.sh search --series ranczo --object "person:5+"
+
+# Lista postaci
+./run-preprocessor.sh search --series ranczo --list-characters
+```
+
+---
+
+## Tworzenie nowego serialu
+
+1. **Przygotuj dane:**
+   ```bash
+   mkdir -p input_data/nowy_serial/S01
+   cp /path/to/videos/*.mp4 input_data/nowy_serial/S01/
+   ```
+
+2. **Stwórz config:**
+   ```bash
+   cp series_configs/defaults.json series_configs/nowy_serial.json
+   ```
+
+3. **Edytuj config:**
+   ```json
+   {
+     "series_name": "nowy_serial",
+     "display_name": "Nowy Serial",
+     "indexing": {
+       "elasticsearch": {
+         "index_name": "nowy_serial_clips"
+       }
+     },
+     "scraping": {
+       "episodes": {
+         "urls": ["https://..."]
+       },
+       "characters": {
+         "urls": ["https://..."]
+       }
+     }
+   }
+   ```
+
+4. **Uruchom pipeline:**
+   ```bash
+   ./run-preprocessor.sh run-all --series nowy_serial
+   ```
+
+---
+
+## API Keys (opcjonalne)
+
+Ustaw w `.env` lub docker-compose environment:
+
+```bash
+# ElevenLabs (dla premium transcription)
+ELEVEN_API_KEY=your_key
+
+# Google Images (dla premium character references)
+SERPAPI_API_KEY=your_key
+
+# Gemini (dla premium scraping)
+GEMINI_API_KEY=your_key
+
+# Elasticsearch (jeśli wymaga auth)
+ES_HOST=localhost:9200
+ES_USER=elastic
+ES_PASS=password
 ```

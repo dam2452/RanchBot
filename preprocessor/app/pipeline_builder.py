@@ -1,28 +1,33 @@
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     List,
 )
 
+from preprocessor.app.video_discovery import VideoDiscovery
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.lib.episodes.episode_manager import EpisodeManager
 
+if TYPE_CHECKING:
+    from preprocessor.app.pipeline import PipelineDefinition
 
-class Pipeline:
+
+class PipelineExecutor:
     def __init__(self, context: ExecutionContext):
         self.context = context
         self.steps: List[PipelineStep] = []
 
-    def add_step(self, step: PipelineStep) -> "Pipeline":
+    def add_step(self, step: PipelineStep) -> "PipelineExecutor":
         self.steps.append(step)
         return self
 
     def run_for_episodes(
         self, source_path: Path, episode_manager: EpisodeManager,
     ) -> None:
-        video_files = self.__discover_videos(source_path)
+        video_files = VideoDiscovery.discover(source_path)
         self.context.logger.info(
             f"Discovered {len(video_files)} video files in {source_path}",
         )
@@ -93,14 +98,6 @@ class Pipeline:
             return
         self.context.state_manager.mark_step_completed(step_name, episode_id)
 
-    @staticmethod
-    def __discover_videos(source_path: Path) -> List[Path]:
-        extensions = ["*.mp4", "*.mkv", "*.avi"]
-        videos = []
-        for ext in extensions:
-            videos.extend(source_path.glob(f"**/{ext}"))
-        return sorted(videos)
-
     def cleanup(self) -> None:
         for step in self.steps:
             if hasattr(step, "cleanup"):
@@ -108,3 +105,34 @@ class Pipeline:
                     step.cleanup()
                 except Exception as e:
                     self.context.logger.error(f"Cleanup failed for step {step.name}: {e}")
+
+    def execute_step(
+        self,
+        pipeline: "PipelineDefinition",
+        step_id: str,
+        source_path: Path,
+        episode_manager: EpisodeManager,
+    ) -> None:
+        step = pipeline.get_step(step_id)
+        self.context.logger.info(f"🔧 Step: {step_id}")
+        self.context.logger.info(f"📝 {step.description}")
+
+        StepClass = step.load_class()
+        instance = StepClass(step.config)
+
+        runner = PipelineExecutor(self.context)
+        runner.add_step(instance)
+        runner.run_for_episodes(source_path, episode_manager)
+
+        self.context.logger.info(f"✅ Step '{step_id}' completed")
+
+    def execute_steps(
+        self,
+        pipeline: "PipelineDefinition",
+        step_ids: List[str],
+        source_path: Path,
+        episode_manager: EpisodeManager,
+    ) -> None:
+        for step_id in step_ids:
+            self.context.logger.info(f"{'=' * 80}")
+            self.execute_step(pipeline, step_id, source_path, episode_manager)

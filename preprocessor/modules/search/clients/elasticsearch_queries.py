@@ -13,8 +13,25 @@ from preprocessor.modules.search.clients.embedding_service import EmbeddingServi
 
 class ElasticsearchQueries:
 
-    def __init__(self, embedding_service: EmbeddingService) -> None:
+    def __init__(self, embedding_service: EmbeddingService, index_base: str) -> None:
         self._embedding_service = embedding_service
+        self._index_base = index_base
+
+    @property
+    def _segments_index(self) -> str:
+        return f'{self._index_base}_text_segments'
+
+    @property
+    def _text_embeddings_index(self) -> str:
+        return f'{self._index_base}_text_embeddings'
+
+    @property
+    def _video_frames_index(self) -> str:
+        return f'{self._index_base}_video_frames'
+
+    @property
+    def _episode_names_index(self) -> str:
+        return f'{self._index_base}_episode_names'
 
     @staticmethod
     def _build_episode_filters(season: Optional[int], episode: Optional[int]) -> List[Dict[str, Any]]:
@@ -39,7 +56,7 @@ class ElasticsearchQueries:
         must_clauses.extend(self._build_episode_filters(season, episode))
         query_body = {'bool': {'must': must_clauses}}
         return await es_client.search(
-            index='ranczo_segments',
+            index=self._segments_index,
             query=query_body,
             size=limit,
             _source=[
@@ -67,7 +84,7 @@ class ElasticsearchQueries:
         if filter_clauses:
             knn_query['filter'] = filter_clauses
         return await es_client.search(
-            index='ranczo_text_embeddings',
+            index=self._text_embeddings_index,
             knn=knn_query,
             size=limit,
             _source=[
@@ -103,7 +120,7 @@ class ElasticsearchQueries:
         if filter_clauses:
             knn_query['filter'] = filter_clauses
         return await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             knn=knn_query,
             size=limit,
             _source=[
@@ -139,7 +156,7 @@ class ElasticsearchQueries:
         if filter_clauses:
             knn_query['filter'] = filter_clauses
         return await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             knn=knn_query,
             size=limit,
             _source=[
@@ -148,8 +165,8 @@ class ElasticsearchQueries:
             ],
         )
 
-    @staticmethod
     async def search_by_character(
+        self,
         es_client: AsyncElasticsearch,
         character: str,
         season: Optional[int]=None,
@@ -162,9 +179,9 @@ class ElasticsearchQueries:
                 'query': {'term': {'character_appearances.name': character}},
             },
         }]
-        must_clauses.extend(ElasticsearchQueries._build_episode_filters(season, episode))
+        must_clauses.extend(self._build_episode_filters(season, episode))
         return await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             query={'bool': {'must': must_clauses}},
             size=limit,
             _source=[
@@ -173,8 +190,8 @@ class ElasticsearchQueries:
             ],
         )
 
-    @staticmethod
     async def search_by_emotion(
+        self,
         es_client: AsyncElasticsearch,
         emotion: str,
         season: Optional[int]=None,
@@ -186,7 +203,7 @@ class ElasticsearchQueries:
         if character:
             nested_must.append({'term': {'character_appearances.name': character}})
         must_clauses = [{'nested': {'path': 'character_appearances', 'query': {'bool': {'must': nested_must}}}}]
-        must_clauses.extend(ElasticsearchQueries._build_episode_filters(season, episode))
+        must_clauses.extend(self._build_episode_filters(season, episode))
         nested_filter: Dict[str, Any] = {'term': {'character_appearances.emotion.label': emotion}}
         if character:
             nested_filter = {
@@ -198,7 +215,7 @@ class ElasticsearchQueries:
                 },
             }
         return await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             query={'bool': {'must': must_clauses}},
             sort=[{
                 'character_appearances.emotion.confidence': {
@@ -214,15 +231,15 @@ class ElasticsearchQueries:
             ],
         )
 
-    @staticmethod
     async def search_by_object(
+        self,
         es_client: AsyncElasticsearch,
         object_query: str,
         season: Optional[int]=None,
         episode: Optional[int]=None,
         limit: int=20,
     ) -> Dict[str, Any]:
-        filter_clauses = ElasticsearchQueries._build_episode_filters(season, episode)
+        filter_clauses = self._build_episode_filters(season, episode)
         must_clauses: List[Dict[str, Any]] = []
         if ':' in object_query:
             object_class, count_filter = object_query.split(':', 1)
@@ -282,7 +299,7 @@ class ElasticsearchQueries:
         query_body = {'bool': {'must': must_clauses, 'filter': filter_clauses}}
         object_class = object_query.split(':')[0].strip() if ':' in object_query else object_query.strip()
         return await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             query=query_body,
             sort=[{
                 'detected_objects.count': {
@@ -301,14 +318,14 @@ class ElasticsearchQueries:
             ],
         )
 
-    @staticmethod
     async def search_perceptual_hash(
+        self,
         es_client: AsyncElasticsearch,
         phash: str,
         limit: int=10,
     ) -> Dict[str, Any]:
         return await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             query={'term': {'perceptual_hash': phash}},
             size=limit,
             _source=[
@@ -317,10 +334,9 @@ class ElasticsearchQueries:
             ],
         )
 
-    @staticmethod
-    async def list_characters(es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
+    async def list_characters(self, es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
         result = await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             size=0,
             aggs={
                 'characters_nested': {
@@ -336,10 +352,9 @@ class ElasticsearchQueries:
         buckets = result['aggregations']['characters_nested']['character_names']['buckets']
         return [(b['key'], b['doc_count']) for b in buckets]
 
-    @staticmethod
-    async def list_objects(es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
+    async def list_objects(self, es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
         result = await es_client.search(
-            index='ranczo_video_frames',
+            index=self._video_frames_index,
             size=0,
             aggs={
                 'objects_nested': {
@@ -355,8 +370,8 @@ class ElasticsearchQueries:
         buckets = result['aggregations']['objects_nested']['object_classes']['buckets']
         return [(b['key'], b['doc_count']) for b in buckets]
 
-    @staticmethod
     async def search_episode_name(
+        self,
         es_client: AsyncElasticsearch,
         query: str,
         season: Optional[int]=None,
@@ -369,7 +384,7 @@ class ElasticsearchQueries:
             must_clauses.append({'term': {'episode_metadata.season': season}})
         query_body = {'bool': {'must': must_clauses}}
         return await es_client.search(
-            index='ranczo_episode_names',
+            index=self._episode_names_index,
             query=query_body,
             size=limit,
             _source=['episode_id', 'title', 'video_path', 'episode_metadata'],
@@ -395,17 +410,16 @@ class ElasticsearchQueries:
         if filter_clauses:
             knn_query['filter'] = filter_clauses
         return await es_client.search(
-            index='ranczo_episode_names',
+            index=self._episode_names_index,
             knn=knn_query,
             size=limit,
             _source=['episode_id', 'title', 'video_path', 'episode_metadata'],
         )
 
-    @staticmethod
-    async def get_stats(es_client: AsyncElasticsearch) -> Dict[str, int]:
+    async def get_stats(self, es_client: AsyncElasticsearch) -> Dict[str, int]:
         return {
-            'segments': (await es_client.count(index='ranczo_segments'))['count'],
-            'text_embeddings': (await es_client.count(index='ranczo_text_embeddings'))['count'],
-            'video_embeddings': (await es_client.count(index='ranczo_video_frames'))['count'],
-            'episode_names': (await es_client.count(index='ranczo_episode_names'))['count'],
+            'segments': (await es_client.count(index=self._segments_index))['count'],
+            'text_embeddings': (await es_client.count(index=self._text_embeddings_index))['count'],
+            'video_embeddings': (await es_client.count(index=self._video_frames_index))['count'],
+            'episode_names': (await es_client.count(index=self._episode_names_index))['count'],
         }

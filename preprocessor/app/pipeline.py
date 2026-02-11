@@ -1,4 +1,5 @@
 from typing import (
+    TYPE_CHECKING,
     Dict,
     List,
     Optional,
@@ -9,8 +10,11 @@ import networkx as nx
 
 from preprocessor.app.step_builder import StepBuilder
 
+if TYPE_CHECKING:
+    from preprocessor.lib.core.logging import ErrorHandlingLogger
 
-class Pipeline:
+
+class PipelineDefinition:
     def __init__(self, name: str) -> None:
         self.name: str = name
         self._steps: Dict[str, StepBuilder] = {}
@@ -25,7 +29,7 @@ class Pipeline:
             )
         self._steps[step.id] = step
 
-    def validate(self) -> None:
+    def validate(self, logger: Optional["ErrorHandlingLogger"] = None) -> None:
         self._graph = nx.DiGraph()
 
         for step_id, step in self._steps.items():
@@ -40,12 +44,17 @@ class Pipeline:
         if not nx.is_directed_acyclic_graph(self._graph):
             self._raise_cycle_error()
 
-        print(
+        message = (
             f"✅ Pipeline '{self.name}' validated successfully:\n"
             f"   - {len(self._steps)} steps registered\n"
             f"   - DAG structure confirmed\n"
-            f"   - No cyclic dependencies",
+            f"   - No cyclic dependencies"
         )
+
+        if logger:
+            logger.info(message)
+        else:
+            print(message)
 
     def _raise_missing_dependency_error(
         self, step_id: str, missing_dep_id: str,
@@ -149,5 +158,8 @@ class Pipeline:
         lines.append("=" * 80)
         return "\n".join(lines)
 
+    def get_all_steps(self) -> Dict[str, StepBuilder]:
+        return dict(self._steps)
+
     def __repr__(self) -> str:
-        return f"Pipeline(name='{self.name}', steps={len(self._steps)})"
+        return f"PipelineDefinition(name='{self.name}', steps={len(self._steps)})"

@@ -1,6 +1,6 @@
 from typing import Dict
 
-from preprocessor.app.pipeline import Pipeline
+from preprocessor.app.pipeline import PipelineDefinition
 from preprocessor.app.step_builder import (
     Phase,
     StepBuilder,
@@ -34,7 +34,7 @@ PROCESSING = Phase("PROCESSING", color="green")
 INDEXING = Phase("INDEXING", color="yellow")
 
 
-def build_pipeline(series_name: str) -> Pipeline:  # pylint: disable=too-many-locals
+def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals
     series_config: SeriesConfig = SeriesConfig.load(series_name)
 
     episodes_metadata = StepBuilder(
@@ -283,7 +283,7 @@ def build_pipeline(series_name: str) -> Pipeline:  # pylint: disable=too-many-lo
         ),
     )
 
-    pipeline = Pipeline(name=f"{series_name}_processing")
+    pipeline = PipelineDefinition(name=f"{series_name}_processing")
 
     pipeline.register(episodes_metadata)
     pipeline.register(characters_metadata)
@@ -322,4 +322,4 @@ def visualize(series_name: str = "ranczo") -> None:
 
 def get_step_configs(series_name: str) -> Dict[str, object]:
     pipeline = build_pipeline(series_name)
-    return {step_id: step.config for step_id, step in pipeline._steps.items()}
+    return {step_id: step.config for step_id, step in pipeline.get_all_steps().items()}

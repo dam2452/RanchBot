@@ -1,21 +1,20 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from preprocessor.config.config import get_base_output_dir
+from preprocessor.core.path_service import PathService
 
 if TYPE_CHECKING:
     from preprocessor.lib.episodes.episode_manager import EpisodeInfo
 
+
 class PathManager:
-
     def __init__(self, series_name: str) -> None:
-        self._series_name: str = series_name.lower()
+        self._service: PathService = PathService(series_name)
 
-    def build_filename(self, episode_info: 'EpisodeInfo', extension: str='json', suffix: str='') -> str:
-        base: str = f'{self._series_name}_{episode_info.episode_code()}'
-        suffix_str: str = f'_{suffix}' if suffix else ''
-        return f'{base}{suffix_str}.{extension}'
+    def build_filename(
+        self, episode_info: 'EpisodeInfo', extension: str = 'json', suffix: str = '',
+    ) -> str:
+        return self._service.build_filename(episode_info, extension, suffix)
 
     def get_episode_dir(self, episode_info: 'EpisodeInfo', subdir: str) -> Path:
-        base_output_dir: Path = get_base_output_dir(self._series_name)
-        return base_output_dir / subdir / episode_info.season_code() / episode_info.episode_num()
+        return self._service.get_episode_dir(episode_info, subdir)
