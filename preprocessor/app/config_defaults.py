@@ -41,7 +41,7 @@ def get_default_step_configs(series_name: str) -> Dict[str, object]:
         'detect_scenes': SceneDetectionConfig(threshold=0.5, min_scene_len=10),
         'export_frames': FrameExportConfig(frames_per_scene=3),
         'text_embeddings': TextEmbeddingConfig(
-            model_name='Qwen/Qwen2-VL-8B-Instruct',
+            model_name='Qwen/Qwen3-VL-Embedding-8B',
             batch_size=8,
             device='cuda',
             text_sentences_per_chunk=5,
@@ -49,7 +49,7 @@ def get_default_step_configs(series_name: str) -> Dict[str, object]:
         ),
         'image_hashing': ImageHashConfig(batch_size=32),
         'video_embeddings': VideoEmbeddingConfig(
-            model_name='Qwen/Qwen2-VL-8B-Instruct',
+            model_name='Qwen/Qwen3-VL-Embedding-8B',
             batch_size=8,
             device='cuda',
         ),

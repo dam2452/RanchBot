@@ -60,14 +60,14 @@ class TextAnalysisConfig(BaseModel):
     language: str = 'pl'
 
 class TextEmbeddingConfig(BaseModel):
-    model_name: str = 'Qwen/Qwen2-VL-8B-Instruct'
+    model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
     batch_size: int = Field(default=8, ge=1)
     device: str = 'cuda'
     text_sentences_per_chunk: int = Field(default=5, ge=1)
     text_chunk_overlap: int = Field(default=1, ge=0)
 
 class VideoEmbeddingConfig(BaseModel):
-    model_name: str = 'Qwen/Qwen2-VL-8B-Instruct'
+    model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
     batch_size: int = Field(default=8, ge=1)
     device: str = 'cuda'
 
