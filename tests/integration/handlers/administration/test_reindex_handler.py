@@ -1,7 +1,6 @@
 import logging
 from unittest.mock import (
     AsyncMock,
-    MagicMock,
     patch,
 )
 
@@ -20,11 +19,10 @@ class MockReindexResult:
         self.episodes_processed = episodes_processed
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestReindexHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_reindex_missing_argument(self, mock_db):
+    async def test_reindex_missing_argument(self):
         message = self.create_message('/reindex')
         responder = self.create_responder()
 
@@ -36,7 +34,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert 'użyj' in all_responses.lower() or 'usage' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_reindex_invalid_target_format(self, mock_db):
+    async def test_reindex_invalid_target_format(self):
         message = self.create_message('/reindex invalid@#$%')
         responder = self.create_responder()
 
@@ -46,7 +44,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_reindex_valid_series_name(self, mock_db):
+    async def test_reindex_valid_series_name(self):
         message = self.create_message('/ridx ranczo')
         responder = self.create_responder()
 
@@ -63,7 +61,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send response"
 
     @pytest.mark.asyncio
-    async def test_reindex_all_command(self, mock_db):
+    async def test_reindex_all_command(self):
         message = self.create_message('/reindex all')
         responder = self.create_responder()
 
@@ -87,7 +85,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert '300' in all_responses or '30' in all_responses
 
     @pytest.mark.asyncio
-    async def test_reindex_all_new_command(self, mock_db):
+    async def test_reindex_all_new_command(self):
         message = self.create_message('/reindeksuj all-new')
         responder = self.create_responder()
 
@@ -108,7 +106,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send response"
 
     @pytest.mark.asyncio
-    async def test_reindex_all_new_no_new_series(self, mock_db):
+    async def test_reindex_all_new_no_new_series(self):
         message = self.create_message('/reindex all-new')
         responder = self.create_responder()
 
@@ -127,7 +125,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_reindex_with_exception(self, mock_db):
+    async def test_reindex_with_exception(self):
         message = self.create_message('/reindex ranczo')
         responder = self.create_responder()
 
@@ -146,7 +144,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
         assert 'błąd' in all_responses.lower() or 'error' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_reindex_accepts_underscores_and_hyphens(self, mock_db):
+    async def test_reindex_accepts_underscores_and_hyphens(self):
         message = self.create_message('/reindex test_series-name')
         responder = self.create_responder()
 

@@ -3,7 +3,6 @@ from datetime import (
     datetime,
     timedelta,
 )
-import logging
 from typing import (
     Any,
     Dict,
@@ -11,8 +10,22 @@ from typing import (
     Optional,
 )
 
+from bot.database.models import (
+    ClipType,
+    LastClip,
+    SearchHistory,
+    SubscriptionKey,
+    UserProfile,
+    VideoClip,
+)
+
 
 class MockDatabase:
+    """
+    Mock database implementing the same interface as DatabaseManager.
+    This class has many public methods as required by the database interface,
+    and private methods are used internally for mock implementation.
+    """
     _users: Dict[int, Dict[str, Any]] = {}
     _roles: Dict[int, List[str]] = {}
     _subscriptions: Dict[int, datetime] = {}
@@ -242,27 +255,6 @@ class MockDatabase:
         })
 
     @classmethod
-    def __get_db_connection(cls):
-        """Mock context manager for database connection"""
-        class MockConnection:
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
-                pass
-
-            async def execute(self, *args, **kwargs):
-                pass
-
-            async def fetch(self, *args, **kwargs):
-                return []
-
-            async def fetchrow(self, *args, **kwargs):
-                return None
-
-        return MockConnection()
-
-    @classmethod
     async def create_subscription_key(cls, days: int, key: str):
         cls._subscription_keys[key] = days
         cls._call_log.append({
@@ -277,10 +269,9 @@ class MockDatabase:
 
     @classmethod
     async def get_all_subscription_keys(cls):
-        from bot.database.models import SubscriptionKey
         return [
-            SubscriptionKey(key=k, days=v)
-            for k, v in cls._subscription_keys.items()
+            SubscriptionKey(id=i, key=k, days=v, is_active=True)
+            for i, (k, v) in enumerate(cls._subscription_keys.items(), 1)
         ]
 
     @classmethod
@@ -296,7 +287,6 @@ class MockDatabase:
 
     @classmethod
     async def get_admin_users(cls):
-        from bot.database.models import UserProfile
         admin_users = []
         for user_id, roles in cls._roles.items():
             if 'admin' in roles and user_id in cls._users:
@@ -313,7 +303,6 @@ class MockDatabase:
 
     @classmethod
     async def get_moderator_users(cls):
-        from bot.database.models import UserProfile
         moderator_users = []
         for user_id, roles in cls._roles.items():
             if 'moderator' in roles and user_id in cls._users:
@@ -330,7 +319,6 @@ class MockDatabase:
 
     @classmethod
     async def get_all_users(cls):
-        from bot.database.models import UserProfile
         return [
             UserProfile(
                 user_id=user['user_id'],
@@ -397,7 +385,6 @@ class MockDatabase:
 
     @classmethod
     async def get_saved_clips(cls, user_id: int):
-        from bot.database.models import VideoClip
         if user_id not in cls._saved_clips:
             return []
         return [
@@ -418,7 +405,7 @@ class MockDatabase:
         ]
 
     @classmethod
-    async def save_clip(
+    async def save_clip(    # pylint: disable=too-many-arguments,unused-argument
         cls, chat_id: int, user_id: int, clip_name: str, video_data: bytes,
         start_time: float, end_time: float, duration: float,
         is_compilation: bool = False, season: Optional[int] = None,
@@ -460,7 +447,6 @@ class MockDatabase:
             return None
         for i, clip in enumerate(cls._saved_clips[user_id], 1):
             if clip['name'] == clip_name:
-                from bot.database.models import VideoClip
                 return VideoClip(
                     id=i,
                     chat_id=user_id,
@@ -493,12 +479,7 @@ class MockDatabase:
     async def get_last_clip_by_chat_id(cls, chat_id: int):
         if chat_id not in cls._last_clips:
             return None
-        from datetime import date
 
-        from bot.database.models import (
-            ClipType,
-            LastClip,
-        )
         clip_data = cls._last_clips[chat_id]
         return LastClip(
             id=1,
@@ -527,7 +508,6 @@ class MockDatabase:
     async def get_last_search_by_chat_id(cls, chat_id: int):
         if chat_id not in cls._last_searches:
             return None
-        from bot.database.models import SearchHistory
         search_data = cls._last_searches[chat_id]
         return SearchHistory(
             id=1,

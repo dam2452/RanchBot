@@ -3,21 +3,16 @@ import logging
 import pytest
 
 from bot.handlers.not_sending_videos.search_handler import SearchHandler
-from tests.integration.base_integration_test import (
-    BaseIntegrationTest,
-    FakeMessage,
-    FakeResponder,
-)
+from tests.integration.base_integration_test import BaseIntegrationTest
 from tests.integration.mocks.test_data import TestSegments
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestSearchHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_search_existing_quote_returns_results(self, mock_es, mock_ffmpeg):
+    async def test_search_existing_quote_returns_results(self, mock_es):
         segment = TestSegments.get_geniusz_segment()
         ep_info = segment.pop('episode_info')
         segment.pop('_quote_keywords', None)
@@ -40,7 +35,7 @@ class TestSearchHandlerIntegration(BaseIntegrationTest):
         assert 'geniusz' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_search_nonexistent_quote_returns_no_results(self, mock_es, mock_ffmpeg):
+    async def test_search_nonexistent_quote_returns_no_results(self):
         message = self.create_message('/szukaj nieistniejący_cytat')
         responder = self.create_responder()
 
@@ -50,7 +45,7 @@ class TestSearchHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send response"
 
     @pytest.mark.asyncio
-    async def test_search_without_arguments_returns_validation_error(self, mock_es, mock_ffmpeg):
+    async def test_search_without_arguments_returns_validation_error(self):
         message = self.create_message('/szukaj')
         responder = self.create_responder()
 

@@ -12,12 +12,11 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
     async def test_add_subscription_success(self, mock_db):
-        test_user = await self.add_test_user(user_id=12345, username='test_user')
+        await self.add_test_user(user_id=12345, username='test_user')
 
         message = self.create_message('/addsubscription 12345 30')
         responder = self.create_responder()
@@ -35,7 +34,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert subscription_end == expected_date, "Subscription end date should match"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_extend_existing(self, mock_db):
+    async def test_add_subscription_extend_existing(self):
         await self.add_test_user(user_id=12346, subscription_days=10)
 
         message = self.create_message('/addsub 12346 20')
@@ -47,7 +46,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send success message"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_nonexistent_user(self, mock_db):
+    async def test_add_subscription_nonexistent_user(self):
         message = self.create_message('/addsubscription 99999 30')
         responder = self.create_responder()
 
@@ -59,7 +58,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert 'błąd' in all_responses.lower() or 'error' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_add_subscription_missing_arguments(self, mock_db):
+    async def test_add_subscription_missing_arguments(self):
         message = self.create_message('/addsubscription')
         responder = self.create_responder()
 
@@ -69,7 +68,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_missing_days(self, mock_db):
+    async def test_add_subscription_missing_days(self):
         message = self.create_message('/addsubscription 12345')
         responder = self.create_responder()
 
@@ -79,7 +78,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_invalid_user_id_format(self, mock_db):
+    async def test_add_subscription_invalid_user_id_format(self):
         message = self.create_message('/addsubscription abc 30')
         responder = self.create_responder()
 
@@ -89,7 +88,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_invalid_days_format(self, mock_db):
+    async def test_add_subscription_invalid_days_format(self):
         await self.add_test_user(user_id=12347)
 
         message = self.create_message('/addsubscription 12347 abc')
@@ -101,7 +100,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_negative_days(self, mock_db):
+    async def test_add_subscription_negative_days(self):
         await self.add_test_user(user_id=12348)
 
         message = self.create_message('/addsubscription 12348 -10')
@@ -113,7 +112,7 @@ class TestAddSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_subscription_zero_days(self, mock_db):
+    async def test_add_subscription_zero_days(self):
         await self.add_test_user(user_id=12349)
 
         message = self.create_message('/addsubscription 12349 0')

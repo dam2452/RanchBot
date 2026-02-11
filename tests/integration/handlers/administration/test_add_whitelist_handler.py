@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestAddWhitelistHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -27,7 +26,7 @@ class TestAddWhitelistHandlerIntegration(BaseIntegrationTest):
         assert user_exists, "User should be added to whitelist"
 
     @pytest.mark.asyncio
-    async def test_add_whitelist_duplicate_user(self, mock_db):
+    async def test_add_whitelist_duplicate_user(self):
         await self.add_test_user(user_id=33334)
 
         message = self.create_message('/addw 33334')
@@ -39,7 +38,7 @@ class TestAddWhitelistHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send success message"
 
     @pytest.mark.asyncio
-    async def test_add_whitelist_missing_argument(self, mock_db):
+    async def test_add_whitelist_missing_argument(self):
         message = self.create_message('/addwhitelist')
         responder = self.create_responder()
 
@@ -49,7 +48,7 @@ class TestAddWhitelistHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_whitelist_invalid_user_id_format(self, mock_db):
+    async def test_add_whitelist_invalid_user_id_format(self):
         message = self.create_message('/addwhitelist abc')
         responder = self.create_responder()
 
@@ -59,7 +58,7 @@ class TestAddWhitelistHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_add_whitelist_negative_user_id(self, mock_db):
+    async def test_add_whitelist_negative_user_id(self):
         message = self.create_message('/addwhitelist -123')
         responder = self.create_responder()
 

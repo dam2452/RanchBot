@@ -34,7 +34,11 @@ from bot.utils.constants import DatabaseKeys
 
 db_manager_logger = logging.getLogger(__name__)
 
-class DatabaseManager: # pylint: disable=too-many-public-methods
+class DatabaseManager:
+    """
+    Database manager implementing DatabaseInterface.
+    This class has many public methods as required by the database interface.
+    """
     pool: asyncpg.Pool = None
     _db_fully_initialized: bool = False
 

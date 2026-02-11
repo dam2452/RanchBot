@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestDeleteClipHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -84,7 +83,7 @@ class TestDeleteClipHandlerIntegration(BaseIntegrationTest):
         assert len(clips) == 1, "Clip should not be deleted"
 
     @pytest.mark.asyncio
-    async def test_delete_clip_no_saved_clips(self, mock_db):
+    async def test_delete_clip_no_saved_clips(self):
         user_id = self.admin_id
 
         message = self.create_message('/usunklip test', user_id=user_id)
@@ -98,7 +97,7 @@ class TestDeleteClipHandlerIntegration(BaseIntegrationTest):
         assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_delete_clip_missing_argument(self, mock_db):
+    async def test_delete_clip_missing_argument(self):
         message = self.create_message('/usunklip')
         responder = self.create_responder()
 

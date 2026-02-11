@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestCreateKeyHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -52,7 +51,7 @@ class TestCreateKeyHandlerIntegration(BaseIntegrationTest):
         assert key_days == 7, "Key with special characters should be created"
 
     @pytest.mark.asyncio
-    async def test_create_key_missing_arguments(self, mock_db):
+    async def test_create_key_missing_arguments(self):
         message = self.create_message('/addkey')
         responder = self.create_responder()
 
@@ -64,7 +63,7 @@ class TestCreateKeyHandlerIntegration(BaseIntegrationTest):
         assert 'użyj' in all_responses.lower() or 'usage' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_create_key_missing_key_name(self, mock_db):
+    async def test_create_key_missing_key_name(self):
         message = self.create_message('/addkey 30')
         responder = self.create_responder()
 

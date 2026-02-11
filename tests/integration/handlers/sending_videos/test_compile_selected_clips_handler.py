@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -42,7 +41,7 @@ class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should require at least 2 clips"
 
     @pytest.mark.asyncio
-    async def test_compile_selected_clips_no_saved_clips(self, mock_db, mock_ffmpeg):
+    async def test_compile_selected_clips_no_saved_clips(self):
         user_id = self.admin_id
 
         message = self.create_message('/concatclips 1 2', user_id=user_id)
@@ -56,7 +55,7 @@ class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
         assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_compile_selected_clips_missing_argument(self, mock_db, mock_ffmpeg):
+    async def test_compile_selected_clips_missing_argument(self):
         message = self.create_message('/połączklipy')
         responder = self.create_responder()
 
@@ -66,7 +65,7 @@ class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_compile_selected_clips_invalid_index(self, mock_db, mock_ffmpeg):
+    async def test_compile_selected_clips_invalid_index(self, mock_db):
         user_id = self.admin_id
         await mock_db.save_clip(user_id, user_id, 'clip1', b'data1', 0.0, 5.0, 5.0)
 
@@ -79,7 +78,7 @@ class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_compile_selected_clips_invalid_format(self, mock_db, mock_ffmpeg):
+    async def test_compile_selected_clips_invalid_format(self, mock_db):
         user_id = self.admin_id
         await mock_db.save_clip(user_id, user_id, 'clip1', b'data1', 0.0, 5.0, 5.0)
 
@@ -92,7 +91,7 @@ class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_compile_selected_clips_zero_index(self, mock_db, mock_ffmpeg):
+    async def test_compile_selected_clips_zero_index(self, mock_db):
         user_id = self.admin_id
         await mock_db.save_clip(user_id, user_id, 'clip1', b'data1', 0.0, 5.0, 5.0)
         await mock_db.save_clip(user_id, user_id, 'clip2', b'data2', 0.0, 10.0, 10.0)
@@ -128,7 +127,7 @@ class TestCompileSelectedClipsHandlerIntegration(BaseIntegrationTest):
         mock_ffmpeg.add_mock_clip_from_bytes(b'data1')
         mock_ffmpeg.add_mock_clip_from_bytes(b'data2')
 
-        for command in ['/połączklipy', '/polaczklipy', '/concatclips', '/pk']:
+        for command in ('/połączklipy', '/polaczklipy', '/concatclips', '/pk'):
             responder = self.create_responder()
             message = self.create_message(f'{command} 1 2', user_id=user_id)
 

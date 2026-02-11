@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestListKeysHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -33,7 +32,7 @@ class TestListKeysHandlerIntegration(BaseIntegrationTest):
         assert '60' in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_keys_when_no_keys_exist(self, mock_db):
+    async def test_list_keys_when_no_keys_exist(self):
         message = self.create_message('/listkey')
         responder = self.create_responder()
 

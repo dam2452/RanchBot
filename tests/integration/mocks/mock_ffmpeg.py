@@ -31,9 +31,8 @@ class MockFFmpeg:
         create_file: bool = True,
     ) -> Path:
         if mock_clip_path is None:
-            temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
-            mock_clip_path = Path(temp_file.name)
-            temp_file.close()
+            with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+                mock_clip_path = Path(temp_file.name)
             cls._temp_files.append(mock_clip_path)
 
         if create_file and not mock_clip_path.exists():
@@ -44,9 +43,8 @@ class MockFFmpeg:
 
     @classmethod
     def add_mock_clip_from_bytes(cls, video_data: bytes) -> Path:
-        temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
-        mock_clip_path = Path(temp_file.name)
-        temp_file.close()
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+            mock_clip_path = Path(temp_file.name)
         cls._temp_files.append(mock_clip_path)
         mock_clip_path.write_bytes(video_data)
         return mock_clip_path
@@ -79,9 +77,8 @@ class MockFFmpeg:
             return mock_path
 
         if output_path is None:
-            temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
-            output_path = Path(temp_file.name)
-            temp_file.close()
+            with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+                output_path = Path(temp_file.name)
             cls._temp_files.append(output_path)
 
         output_path.write_bytes(b'FAKE_EXTRACTED_CLIP')

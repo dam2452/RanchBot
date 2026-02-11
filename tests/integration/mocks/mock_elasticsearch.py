@@ -54,8 +54,8 @@ class MockElasticsearch:
         quote: str,
         logger: logging.Logger,
         series_name: str,
-        season_filter: Optional[int] = None,
-        episode_filter: Optional[int] = None,
+        _season_filter: Optional[int] = None,
+        _episode_filter: Optional[int] = None,
         size: int = 1,
     ) -> List[Dict[str, Any]]:
         cls._call_log.append({
@@ -84,7 +84,7 @@ class MockElasticsearch:
     @classmethod
     async def get_season_details_from_elastic(
         cls,
-        logger: logging.Logger,
+        _logger: logging.Logger,
         series_name: str,
     ) -> Dict[str, int]:
         cls._call_log.append({
@@ -117,7 +117,7 @@ class MockElasticsearch:
         cls._video_paths[(season, episode)] = video_path
 
     @classmethod
-    async def find_video_path_by_episode(cls, season: int, episode: int, logger: logging.Logger) -> Optional[str]:
+    async def find_video_path_by_episode(cls, season: int, episode: int, _logger: logging.Logger) -> Optional[str]:
         cls._call_log.append({
             'method': 'find_video_path_by_episode',
             'season': season,
@@ -126,7 +126,7 @@ class MockElasticsearch:
         return cls._video_paths.get((season, episode))
 
     @classmethod
-    async def find_episodes_by_season(cls, season: int, logger: logging.Logger, index: str = None) -> List[Dict[str, Any]]:
+    async def find_episodes_by_season(cls, season: int, _logger: logging.Logger, _index: str = None) -> List[Dict[str, Any]]:
         cls._call_log.append({
             'method': 'find_episodes_by_season',
             'season': season,

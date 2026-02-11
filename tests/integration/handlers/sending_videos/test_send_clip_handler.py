@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestSendClipHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -41,7 +40,7 @@ class TestSendClipHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_video(), "Handler should send video"
 
     @pytest.mark.asyncio
-    async def test_send_clip_nonexistent_name(self, mock_db, mock_ffmpeg):
+    async def test_send_clip_nonexistent_name(self, mock_db):
         user_id = self.admin_id
         await mock_db.save_clip(user_id, user_id, 'clip1', b'data', 0.0, 5.0, 5.0)
 
@@ -55,7 +54,7 @@ class TestSendClipHandlerIntegration(BaseIntegrationTest):
         assert not responder.has_sent_video(), "Handler should not send video"
 
     @pytest.mark.asyncio
-    async def test_send_clip_invalid_index(self, mock_db, mock_ffmpeg):
+    async def test_send_clip_invalid_index(self, mock_db):
         user_id = self.admin_id
         await mock_db.save_clip(user_id, user_id, 'clip1', b'data', 0.0, 5.0, 5.0)
 
@@ -69,7 +68,7 @@ class TestSendClipHandlerIntegration(BaseIntegrationTest):
         assert not responder.has_sent_video()
 
     @pytest.mark.asyncio
-    async def test_send_clip_no_saved_clips(self, mock_db, mock_ffmpeg):
+    async def test_send_clip_no_saved_clips(self):
         user_id = self.admin_id
 
         message = self.create_message('/wyslij test', user_id=user_id)
@@ -82,7 +81,7 @@ class TestSendClipHandlerIntegration(BaseIntegrationTest):
         assert not responder.has_sent_video()
 
     @pytest.mark.asyncio
-    async def test_send_clip_missing_argument(self, mock_db, mock_ffmpeg):
+    async def test_send_clip_missing_argument(self):
         message = self.create_message('/wyslij')
         responder = self.create_responder()
 
@@ -97,7 +96,7 @@ class TestSendClipHandlerIntegration(BaseIntegrationTest):
         await mock_db.save_clip(user_id, user_id, 'test', b'data', 0.0, 5.0, 5.0)
         mock_ffmpeg.add_mock_clip_from_bytes(b'data')
 
-        for command in ['/wyslij', '/send', '/w']:
+        for command in ('/wyslij', '/send', '/w'):
             responder = self.create_responder()
             message = self.create_message(f'{command} test', user_id=user_id)
 

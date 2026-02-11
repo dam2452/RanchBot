@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestUseKeyHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -48,7 +47,7 @@ class TestUseKeyHandlerIntegration(BaseIntegrationTest):
         assert user_exists, "User should be created"
 
     @pytest.mark.asyncio
-    async def test_use_key_invalid_key(self, mock_db):
+    async def test_use_key_invalid_key(self):
         message = self.create_message('/key invalid_key', user_id=10003)
         responder = self.create_responder()
 
@@ -60,7 +59,7 @@ class TestUseKeyHandlerIntegration(BaseIntegrationTest):
         assert 'nieprawidłowy' in all_responses.lower() or 'invalid' in all_responses.lower() or 'błąd' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_use_key_missing_argument(self, mock_db):
+    async def test_use_key_missing_argument(self):
         message = self.create_message('/key')
         responder = self.create_responder()
 

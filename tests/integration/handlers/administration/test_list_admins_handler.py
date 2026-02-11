@@ -8,11 +8,10 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestListAdminsHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_list_admins_with_default_admin(self, mock_db):
+    async def test_list_admins_with_default_admin(self):
         message = self.create_message('/listadmins')
         responder = self.create_responder()
 
@@ -24,7 +23,7 @@ class TestListAdminsHandlerIntegration(BaseIntegrationTest):
         assert str(self.admin_id) in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_admins_with_multiple_admins(self, mock_db):
+    async def test_list_admins_with_multiple_admins(self):
         await self.add_test_user(user_id=66661, username='admin1')
         await self.make_user_admin(66661)
         await self.add_test_user(user_id=66662, username='admin2')
@@ -42,7 +41,7 @@ class TestListAdminsHandlerIntegration(BaseIntegrationTest):
         assert '66662' in all_responses or 'admin2' in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_admins_excludes_moderators(self, mock_db):
+    async def test_list_admins_excludes_moderators(self):
         await self.add_test_user(user_id=66663, username='moderator1')
         await self.make_user_moderator(66663)
 
@@ -57,7 +56,7 @@ class TestListAdminsHandlerIntegration(BaseIntegrationTest):
         assert '66663' not in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_admins_excludes_regular_users(self, mock_db):
+    async def test_list_admins_excludes_regular_users(self):
         await self.add_test_user(user_id=66664, username='regular_user')
 
         message = self.create_message('/listadmins')
@@ -72,7 +71,7 @@ class TestListAdminsHandlerIntegration(BaseIntegrationTest):
             assert False, "Regular users should not appear in admins list"
 
     @pytest.mark.asyncio
-    async def test_list_admins_after_admin_removal(self, mock_db):
+    async def test_list_admins_after_admin_removal(self):
         await self.add_test_user(user_id=66665, username='temp_admin')
         await self.make_user_admin(66665)
         await self.remove_admin(66665)

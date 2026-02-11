@@ -10,7 +10,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestSaveClipHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -40,7 +39,7 @@ class TestSaveClipHandlerIntegration(BaseIntegrationTest):
         assert clips[0].name == 'test_clip'
 
     @pytest.mark.asyncio
-    async def test_save_clip_no_last_clip(self, mock_db, mock_ffmpeg):
+    async def test_save_clip_no_last_clip(self):
         message = self.create_message('/save my_clip')
         responder = self.create_responder()
 
@@ -52,7 +51,7 @@ class TestSaveClipHandlerIntegration(BaseIntegrationTest):
         assert 'nie' in all_responses.lower() or 'no' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_save_clip_missing_name(self, mock_db, mock_ffmpeg):
+    async def test_save_clip_missing_name(self):
         message = self.create_message('/zapisz')
         responder = self.create_responder()
 
@@ -62,7 +61,7 @@ class TestSaveClipHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_save_clip_numeric_name(self, mock_db, mock_ffmpeg):
+    async def test_save_clip_numeric_name(self, mock_db):
         chat_id = self.admin_id
         mock_db._last_clips[chat_id] = {
             'segment': json.dumps({'video_path': '/fake/path.mp4', 'episode_info': {}}),
@@ -105,7 +104,7 @@ class TestSaveClipHandlerIntegration(BaseIntegrationTest):
         assert 'istnieje' in all_responses.lower() or 'exists' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_save_clip_name_too_long(self, mock_db, mock_ffmpeg):
+    async def test_save_clip_name_too_long(self, mock_db):
         chat_id = self.admin_id
         mock_db._last_clips[chat_id] = {
             'segment': json.dumps({'video_path': '/fake/path.mp4', 'episode_info': {}}),

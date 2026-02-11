@@ -9,11 +9,10 @@ from tests.integration.mocks.test_data import TestSegments
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestTranscriptionHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_transcription_found(self, mock_db, mock_es, mock_ffmpeg):
+    async def test_transcription_found(self, mock_es):
         segment = TestSegments.get_geniusz_segment()
         ep_info = segment.pop('episode_info')
         segment.pop('_quote_keywords', None)
@@ -36,7 +35,7 @@ class TestTranscriptionHandlerIntegration(BaseIntegrationTest):
         assert 'geniusz' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_transcription_not_found(self, mock_db, mock_es, mock_ffmpeg):
+    async def test_transcription_not_found(self):
         message = self.create_message('/transcription nonexistent_quote')
         responder = self.create_responder()
 
@@ -48,7 +47,7 @@ class TestTranscriptionHandlerIntegration(BaseIntegrationTest):
         assert 'nie' in all_responses.lower() or 'no' in all_responses.lower() or 'brak' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_transcription_missing_argument(self, mock_db, mock_es, mock_ffmpeg):
+    async def test_transcription_missing_argument(self):
         message = self.create_message('/t')
         responder = self.create_responder()
 
@@ -58,7 +57,7 @@ class TestTranscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_transcription_with_multiple_words(self, mock_db, mock_es, mock_ffmpeg):
+    async def test_transcription_with_multiple_words(self, mock_es):
         segment = TestSegments.get_geniusz_segment()
         ep_info = segment.pop('episode_info')
         segment.pop('_quote_keywords', None)
@@ -79,7 +78,7 @@ class TestTranscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send transcription"
 
     @pytest.mark.asyncio
-    async def test_transcription_different_aliases(self, mock_db, mock_es, mock_ffmpeg):
+    async def test_transcription_different_aliases(self, mock_es):
         segment = TestSegments.get_geniusz_segment()
         ep_info = segment.pop('episode_info')
         segment.pop('_quote_keywords', None)
@@ -91,7 +90,7 @@ class TestTranscriptionHandlerIntegration(BaseIntegrationTest):
             quote_keywords=['test'],
         )
 
-        for command in ['/transkrypcja', '/transcription', '/t']:
+        for command in ('/transkrypcja', '/transcription', '/t'):
             responder = self.create_responder()
             message = self.create_message(f'{command} test')
 

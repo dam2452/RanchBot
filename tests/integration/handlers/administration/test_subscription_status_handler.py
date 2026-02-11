@@ -8,11 +8,10 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestSubscriptionStatusHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_subscription_status_with_active_subscription(self, mock_db):
+    async def test_subscription_status_with_active_subscription(self):
         user_id = self.admin_id
         await self.make_user_subscriber(user_id, days=30)
 
@@ -27,7 +26,7 @@ class TestSubscriptionStatusHandlerIntegration(BaseIntegrationTest):
         assert 'subskrypcja' in all_responses.lower() or 'subscription' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_subscription_status_without_subscription(self, mock_db):
+    async def test_subscription_status_without_subscription(self):
         user_id = 22222
         await self.add_test_user(user_id=user_id)
 
@@ -42,7 +41,7 @@ class TestSubscriptionStatusHandlerIntegration(BaseIntegrationTest):
         assert 'brak' in all_responses.lower() or 'no' in all_responses.lower() or 'nie' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_subscription_status_with_expired_subscription(self, mock_db):
+    async def test_subscription_status_with_expired_subscription(self):
         user_id = 22223
         await self.add_test_user(user_id=user_id, subscription_days=-5)
 
@@ -55,7 +54,7 @@ class TestSubscriptionStatusHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send status message"
 
     @pytest.mark.asyncio
-    async def test_subscription_status_shows_correct_days_remaining(self, mock_db):
+    async def test_subscription_status_shows_correct_days_remaining(self):
         user_id = 22224
         await self.add_test_user(user_id=user_id, subscription_days=15)
 
@@ -70,11 +69,11 @@ class TestSubscriptionStatusHandlerIntegration(BaseIntegrationTest):
         assert '15' in all_responses or '14' in all_responses
 
     @pytest.mark.asyncio
-    async def test_subscription_status_with_different_aliases(self, mock_db):
+    async def test_subscription_status_with_different_aliases(self):
         user_id = self.admin_id
         await self.make_user_subscriber(user_id, days=7)
 
-        for command in ['/subskrypcja', '/subscription', '/sub']:
+        for command in ('/subskrypcja', '/subscription', '/sub'):
             responder = self.create_responder()
             message = self.create_message(command, user_id=user_id)
 

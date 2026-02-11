@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestUpdateUserNoteHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -71,7 +70,7 @@ class TestUpdateUserNoteHandlerIntegration(BaseIntegrationTest):
         assert user['note'] == 'New note', "Note should be replaced"
 
     @pytest.mark.asyncio
-    async def test_update_user_note_missing_arguments(self, mock_db):
+    async def test_update_user_note_missing_arguments(self):
         message = self.create_message('/note')
         responder = self.create_responder()
 
@@ -81,7 +80,7 @@ class TestUpdateUserNoteHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_update_user_note_missing_note_content(self, mock_db):
+    async def test_update_user_note_missing_note_content(self):
         message = self.create_message('/note 88885')
         responder = self.create_responder()
 
@@ -91,7 +90,7 @@ class TestUpdateUserNoteHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_update_user_note_invalid_user_id_format(self, mock_db):
+    async def test_update_user_note_invalid_user_id_format(self):
         message = self.create_message('/note abc Some note')
         responder = self.create_responder()
 
@@ -101,7 +100,7 @@ class TestUpdateUserNoteHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_update_user_note_negative_user_id(self, mock_db):
+    async def test_update_user_note_negative_user_id(self):
         message = self.create_message('/note -123 Some note')
         responder = self.create_responder()
 
@@ -111,7 +110,7 @@ class TestUpdateUserNoteHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_update_user_note_nonexistent_user(self, mock_db):
+    async def test_update_user_note_nonexistent_user(self):
         message = self.create_message('/note 99999 Note for nonexistent user')
         responder = self.create_responder()
 

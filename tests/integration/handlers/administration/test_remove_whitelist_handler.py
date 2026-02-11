@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestRemoveWhitelistHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -29,7 +28,7 @@ class TestRemoveWhitelistHandlerIntegration(BaseIntegrationTest):
         assert not user_exists, "User should be removed from whitelist"
 
     @pytest.mark.asyncio
-    async def test_remove_whitelist_nonexistent_user(self, mock_db):
+    async def test_remove_whitelist_nonexistent_user(self):
         message = self.create_message('/rmw 99999')
         responder = self.create_responder()
 
@@ -41,7 +40,7 @@ class TestRemoveWhitelistHandlerIntegration(BaseIntegrationTest):
         assert 'nie' in all_responses.lower() or 'not' in all_responses.lower() or 'brak' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_remove_whitelist_missing_argument(self, mock_db):
+    async def test_remove_whitelist_missing_argument(self):
         message = self.create_message('/removewhitelist')
         responder = self.create_responder()
 
@@ -51,7 +50,7 @@ class TestRemoveWhitelistHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_remove_whitelist_invalid_user_id_format(self, mock_db):
+    async def test_remove_whitelist_invalid_user_id_format(self):
         message = self.create_message('/removewhitelist abc')
         responder = self.create_responder()
 
@@ -61,7 +60,7 @@ class TestRemoveWhitelistHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_remove_whitelist_negative_user_id(self, mock_db):
+    async def test_remove_whitelist_negative_user_id(self):
         message = self.create_message('/removewhitelist -123')
         responder = self.create_responder()
 

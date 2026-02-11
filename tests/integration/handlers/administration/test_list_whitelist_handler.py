@@ -8,11 +8,10 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestListWhitelistHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_list_whitelist_with_multiple_users(self, mock_db):
+    async def test_list_whitelist_with_multiple_users(self):
         await self.add_test_user(user_id=55551, username='user1')
         await self.add_test_user(user_id=55552, username='user2')
         await self.add_test_user(user_id=55553, username='user3')
@@ -30,7 +29,7 @@ class TestListWhitelistHandlerIntegration(BaseIntegrationTest):
         assert '55553' in all_responses or 'user3' in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_whitelist_when_empty(self, mock_db):
+    async def test_list_whitelist_when_empty(self):
         message = self.create_message('/lw')
         responder = self.create_responder()
 
@@ -42,7 +41,7 @@ class TestListWhitelistHandlerIntegration(BaseIntegrationTest):
         assert 'brak' in all_responses.lower() or 'empty' in all_responses.lower() or 'pusta' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_list_whitelist_with_single_user(self, mock_db):
+    async def test_list_whitelist_with_single_user(self):
         await self.add_test_user(user_id=55554, username='single_user')
 
         message = self.create_message('/listwhitelist')
@@ -56,7 +55,7 @@ class TestListWhitelistHandlerIntegration(BaseIntegrationTest):
         assert '55554' in all_responses or 'single_user' in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_whitelist_shows_user_details(self, mock_db):
+    async def test_list_whitelist_shows_user_details(self):
         await self.add_test_user(
             user_id=55555,
             username='detailed_user',
@@ -74,7 +73,7 @@ class TestListWhitelistHandlerIntegration(BaseIntegrationTest):
         assert '55555' in all_responses
 
     @pytest.mark.asyncio
-    async def test_list_whitelist_includes_admin_users(self, mock_db):
+    async def test_list_whitelist_includes_admin_users(self):
         message = self.create_message('/listwhitelist')
         responder = self.create_responder()
 

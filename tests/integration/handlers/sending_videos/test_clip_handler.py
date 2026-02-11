@@ -3,17 +3,12 @@ import logging
 import pytest
 
 from bot.handlers.sending_videos.clip_handler import ClipHandler
-from tests.integration.base_integration_test import (
-    BaseIntegrationTest,
-    FakeMessage,
-    FakeResponder,
-)
+from tests.integration.base_integration_test import BaseIntegrationTest
 from tests.integration.mocks.test_data import TestSegments
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestClipHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -40,7 +35,7 @@ class TestClipHandlerIntegration(BaseIntegrationTest):
         assert len(responder.videos) == 1
 
     @pytest.mark.asyncio
-    async def test_clip_not_found_returns_error_message(self, mock_es, mock_ffmpeg):
+    async def test_clip_not_found_returns_error_message(self):
         message = self.create_message('/klip nieistniejący_cytat')
         responder = self.create_responder()
 
@@ -51,7 +46,7 @@ class TestClipHandlerIntegration(BaseIntegrationTest):
         assert not responder.has_sent_video(), "Handler should not send video"
 
     @pytest.mark.asyncio
-    async def test_no_quote_provided_returns_validation_error(self, mock_es, mock_ffmpeg):
+    async def test_no_quote_provided_returns_validation_error(self):
         message = self.create_message('/klip')
         responder = self.create_responder()
 

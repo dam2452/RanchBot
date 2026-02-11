@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestRemoveSubscriptionHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -29,7 +28,7 @@ class TestRemoveSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert subscription_end is None, "Subscription should be removed"
 
     @pytest.mark.asyncio
-    async def test_remove_subscription_user_without_subscription(self, mock_db):
+    async def test_remove_subscription_user_without_subscription(self):
         await self.add_test_user(user_id=11112)
 
         message = self.create_message('/rmsub 11112')
@@ -41,7 +40,7 @@ class TestRemoveSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send success message"
 
     @pytest.mark.asyncio
-    async def test_remove_subscription_missing_argument(self, mock_db):
+    async def test_remove_subscription_missing_argument(self):
         message = self.create_message('/removesubscription')
         responder = self.create_responder()
 
@@ -51,7 +50,7 @@ class TestRemoveSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_remove_subscription_invalid_user_id_format(self, mock_db):
+    async def test_remove_subscription_invalid_user_id_format(self):
         message = self.create_message('/removesubscription abc')
         responder = self.create_responder()
 
@@ -61,7 +60,7 @@ class TestRemoveSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_remove_subscription_negative_user_id(self, mock_db):
+    async def test_remove_subscription_negative_user_id(self):
         message = self.create_message('/removesubscription -123')
         responder = self.create_responder()
 
@@ -71,7 +70,7 @@ class TestRemoveSubscriptionHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send error message"
 
     @pytest.mark.asyncio
-    async def test_remove_subscription_nonexistent_user(self, mock_db):
+    async def test_remove_subscription_nonexistent_user(self):
         message = self.create_message('/removesubscription 99999')
         responder = self.create_responder()
 

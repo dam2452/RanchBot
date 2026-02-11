@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestReportIssueHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -24,7 +23,7 @@ class TestReportIssueHandlerIntegration(BaseIntegrationTest):
         assert mock_db._reports[0]['report'] == 'Bug found in search'
 
     @pytest.mark.asyncio
-    async def test_report_issue_with_long_text(self, mock_db):
+    async def test_report_issue_with_long_text(self):
         report_text = 'Long report text ' * 50
         message = self.create_message(f'/r {report_text}')
         responder = self.create_responder()
@@ -90,7 +89,7 @@ class TestReportIssueHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
     async def test_report_issue_different_aliases(self, mock_db):
-        for command in ['/report', '/zgłoś', '/zglos', '/r']:
+        for command in ('/report', '/zgłoś', '/zglos', '/r'):
             mock_db.reset()
             message = self.create_message(f'{command} Test report')
             responder = self.create_responder()

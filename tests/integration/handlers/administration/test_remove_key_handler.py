@@ -8,7 +8,6 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestRemoveKeyHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
@@ -43,7 +42,7 @@ class TestRemoveKeyHandlerIntegration(BaseIntegrationTest):
         assert key_days is None, "Key with spaces should be removed"
 
     @pytest.mark.asyncio
-    async def test_remove_key_nonexistent(self, mock_db):
+    async def test_remove_key_nonexistent(self):
         message = self.create_message('/removekey nonexistent_key')
         responder = self.create_responder()
 
@@ -55,7 +54,7 @@ class TestRemoveKeyHandlerIntegration(BaseIntegrationTest):
         assert 'nie' in all_responses.lower() or 'not' in all_responses.lower() or 'failure' in all_responses.lower()
 
     @pytest.mark.asyncio
-    async def test_remove_key_missing_argument(self, mock_db):
+    async def test_remove_key_missing_argument(self):
         message = self.create_message('/removekey')
         responder = self.create_responder()
 

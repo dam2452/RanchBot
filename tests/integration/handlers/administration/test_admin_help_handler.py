@@ -8,11 +8,10 @@ from tests.integration.base_integration_test import BaseIntegrationTest
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.usefixtures("mock_db")
 class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
-    async def test_admin_help_basic_message(self, mock_db):
+    async def test_admin_help_basic_message(self):
         message = self.create_message('/admin')
         responder = self.create_responder()
 
@@ -24,7 +23,7 @@ class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
         assert len(all_responses) > 50, "Help message should contain substantial content"
 
     @pytest.mark.asyncio
-    async def test_admin_help_shortcuts_with_skroty(self, mock_db):
+    async def test_admin_help_shortcuts_with_skroty(self):
         message = self.create_message('/admin skróty')
         responder = self.create_responder()
 
@@ -34,7 +33,7 @@ class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send shortcuts message"
 
     @pytest.mark.asyncio
-    async def test_admin_help_shortcuts_with_skroty_without_diacritics(self, mock_db):
+    async def test_admin_help_shortcuts_with_skroty_without_diacritics(self):
         message = self.create_message('/admin skroty')
         responder = self.create_responder()
 
@@ -44,7 +43,7 @@ class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send shortcuts message"
 
     @pytest.mark.asyncio
-    async def test_admin_help_shortcuts_with_skrot(self, mock_db):
+    async def test_admin_help_shortcuts_with_skrot(self):
         message = self.create_message('/admin skrót')
         responder = self.create_responder()
 
@@ -54,7 +53,7 @@ class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send shortcuts message"
 
     @pytest.mark.asyncio
-    async def test_admin_help_with_random_argument(self, mock_db):
+    async def test_admin_help_with_random_argument(self):
         message = self.create_message('/admin random_text')
         responder = self.create_responder()
 
@@ -64,7 +63,7 @@ class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send basic help message"
 
     @pytest.mark.asyncio
-    async def test_admin_help_with_mixed_case_shortcuts(self, mock_db):
+    async def test_admin_help_with_mixed_case_shortcuts(self):
         message = self.create_message('/admin SKRÓTY')
         responder = self.create_responder()
 
@@ -74,7 +73,7 @@ class TestAdminHelpHandlerIntegration(BaseIntegrationTest):
         assert responder.has_sent_text(), "Handler should send shortcuts message (case insensitive)"
 
     @pytest.mark.asyncio
-    async def test_admin_help_shortcuts_in_sentence(self, mock_db):
+    async def test_admin_help_shortcuts_in_sentence(self):
         message = self.create_message('/admin pokaż mi skróty proszę')
         responder = self.create_responder()
 
