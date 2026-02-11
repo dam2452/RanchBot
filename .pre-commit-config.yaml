@@ -27,10 +27,6 @@ repos:
     rev: v8.30.0
     hooks:
       - id: gitleaks
-  - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.93.3
-    hooks:
-      - id: trufflehog
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.6
     hooks:
@@ -44,15 +40,15 @@ repos:
     hooks:
       - id: isort
         args: ["--trailing-comma", "--multi-line=3", "--force-grid-wrap=2", "--combine-as", "--use-parentheses",  "--force-sort-within-sections", "--line-length=140"]
+  - repo: https://github.com/asottile/add-trailing-comma
+    rev: v4.0.0
+    hooks:
+      - id: add-trailing-comma
   - repo: https://github.com/PyCQA/pylint
     rev: v4.0.4
     hooks:
       - id: pylint
         args: ["--rcfile=./pylintrc"]
-  - repo: https://github.com/asottile/add-trailing-comma
-    rev: v4.0.0
-    hooks:
-      - id: add-trailing-comma
   - repo: local
     hooks:
       - id: check-version-bump
