@@ -34,7 +34,7 @@ class EpisodeScraperStep(
 
         context.logger.info(f"Scraping episodes from {len(self.config.urls)} URLs")
 
-        scraper = EpisodeScraper(  # pylint: disable=abstract-class-instantiated
+        scraper = EpisodeScraper(
             {
                 "urls": self.config.urls,
                 "output_file": output_path,
@@ -42,6 +42,7 @@ class EpisodeScraperStep(
                 "merge_sources": self.config.merge_sources,
                 "scraper_method": self.config.scraper_method,
                 "parser_mode": self.config.parser_mode,
+                "series_name": context.series_name,
             },
         )
 

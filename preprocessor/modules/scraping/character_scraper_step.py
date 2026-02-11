@@ -34,13 +34,14 @@ class CharacterScraperStep(
 
         context.logger.info(f"Scraping characters from {len(self.config.urls)} URLs")
 
-        scraper = CharacterScraper(  # pylint: disable=abstract-class-instantiated
+        scraper = CharacterScraper(
             {
                 "urls": self.config.urls,
                 "output_file": output_path,
                 "headless": self.config.headless,
                 "scraper_method": self.config.scraper_method,
                 "parser_mode": self.config.parser_mode,
+                "series_name": context.series_name,
             },
         )
 

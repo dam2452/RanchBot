@@ -48,16 +48,50 @@ class Pipeline:
             next_artifacts = []
 
             for artifact in current_artifacts:
+                episode_id = artifact.episode_id
+
+                if self.__should_skip_step(step.name, episode_id):
+                    self.context.logger.info(
+                        f"⏭️  Skipping {step.name} for {episode_id} (already completed)",
+                    )
+                    next_artifacts.append(artifact)
+                    continue
+
                 try:
+                    self.__mark_step_in_progress(step.name, episode_id)
                     result = step.execute(artifact, self.context)
+                    self.__mark_step_completed(step.name, episode_id)
+
                     if result:
                         next_artifacts.append(result)
+                    else:
+                        next_artifacts.append(artifact)
                 except Exception as e:
                     self.context.logger.error(
                         f"Step {step.name} failed for {artifact.episode_id}: {e}",
                     )
+                    raise
 
             current_artifacts = next_artifacts
+
+    def __should_skip_step(self, step_name: str, episode_id: str) -> bool:
+        if self.context.force_rerun:
+            return False
+
+        if self.context.state_manager is None:
+            return False
+
+        return self.context.state_manager.is_step_completed(step_name, episode_id)
+
+    def __mark_step_in_progress(self, step_name: str, episode_id: str) -> None:
+        if self.context.state_manager is None:
+            return
+        self.context.state_manager.mark_step_started(step_name, episode_id)
+
+    def __mark_step_completed(self, step_name: str, episode_id: str) -> None:
+        if self.context.state_manager is None:
+            return
+        self.context.state_manager.mark_step_completed(step_name, episode_id)
 
     @staticmethod
     def __discover_videos(source_path: Path) -> List[Path]:

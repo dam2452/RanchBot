@@ -86,6 +86,10 @@ class BaseScraper(BaseProcessor):
         with open(self.output_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
 
+    def get_output_subdir(self) -> str:
+        """Scrapery używają bezpośrednio output_file zamiast subdirektoriów per-episode."""
+        return ""
+
     @abstractmethod
     def _process_scraped_pages(self, scraped_pages: List[Dict[str, Any]]) -> None:
         pass

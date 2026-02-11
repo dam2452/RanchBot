@@ -66,9 +66,10 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         output_filename: str = self._episode_manager.path_manager.build_filename(episode_info, extension='json')
         output_path: Path = context.get_output_path(episode_info, 'transcriptions', output_filename)
         if output_path.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, episode_id):
-                context.logger.info(f'Skipping {episode_id} (cached)')
-                return TranscriptionData(episode_id=episode_id, episode_info=episode_info, path=output_path, language='pl', model='11labs', format='json')
+            context.logger.info(f'Skipping {episode_id} (output exists)')
+            if not context.is_step_completed(self.name, episode_id):
+                context.mark_step_completed(self.name, episode_id)
+            return TranscriptionData(episode_id=episode_id, episode_info=episode_info, path=output_path, language='pl', model='11labs', format='json')
         context.logger.info(f'Importing {episode_id} from {json_file.name}')
         context.mark_step_started(self.name, episode_id)
         with open(json_file, 'r', encoding='utf-8') as f:

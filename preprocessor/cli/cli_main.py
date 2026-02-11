@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Callable
 
@@ -9,6 +10,17 @@ from preprocessor.app.pipeline_factory import (
     visualize,
 )
 from preprocessor.cli.helpers import setup_pipeline_context
+from preprocessor.config.series_config import SeriesConfig
+
+
+def _get_input_base_path() -> Path:
+    is_docker: bool = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
+    return Path('/input_data') if is_docker else Path('preprocessor/input_data')
+
+
+def _get_output_base_path() -> Path:
+    is_docker: bool = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
+    return Path('/app/output_data') if is_docker else Path('preprocessor/output_data')
 
 
 @click.group()
@@ -18,8 +30,9 @@ def cli() -> None:
 
 
 @cli.command(name="visualize")
-def visualize_command() -> None:
-    visualize()
+@click.option("--series", default="ranczo", help="Series name (e.g., ranczo)")
+def visualize_command(series: str) -> None:
+    visualize(series)
 
 
 @cli.command(name="run-all")
@@ -31,33 +44,48 @@ def visualize_command() -> None:
     help="Step IDs to skip (e.g., --skip transcode --skip detect_scenes)",
 )
 def run_all(series: str, force_rerun: bool, skip: tuple) -> None:
-    pipeline = build_pipeline()
+    series_config = SeriesConfig.load(series)
+    pipeline = build_pipeline(series)
     setup = setup_pipeline_context(series, "run_all", force_rerun, with_episode_manager=True)
 
-    plan = pipeline.get_execution_order(skip=list(skip))
+    try:  # pylint: disable=too-many-try-statements
+        skip_list = list(skip)
+        if series_config.pipeline_mode == "selective":
+            skip_list.extend(series_config.skip_steps)
+            skip_list = list(set(skip_list))
+            if series_config.skip_steps:
+                setup.logger.info(f"🔧 Selective mode: auto-skipping {', '.join(series_config.skip_steps)}")
 
-    setup.logger.info(f"📋 Execution plan: {' → '.join(plan)}")
-    setup.logger.info(f"📂 Source: preprocessor/input_data/{series}")
+        plan = pipeline.get_execution_order(skip=skip_list)
 
-    source_path = Path("preprocessor/input_data") / series
+        input_base = _get_input_base_path()
+        source_path = input_base / series
 
-    for step_id in plan:
-        step = pipeline.get_step(step_id)
-        setup.logger.info(f"{'=' * 80}")
-        setup.logger.info(f"🔧 Step: {step_id}")
-        setup.logger.info(f"📝 {step.description}")
+        setup.logger.info(f"📋 Execution plan: {' → '.join(plan)}")
+        setup.logger.info(f"📂 Source: {source_path}")
 
-        StepClass = step.load_class()
-        instance = StepClass(step.config)
+        for step_id in plan:
+            step = pipeline.get_step(step_id)
+            setup.logger.info(f"{'=' * 80}")
+            setup.logger.info(f"🔧 Step: {step_id}")
+            setup.logger.info(f"📝 {step.description}")
 
-        runner = PipelineRunner(setup.context)
-        runner.add_step(instance)
-        runner.run_for_episodes(source_path, setup.episode_manager)
+            StepClass = step.load_class()
+            instance = StepClass(step.config)
 
-        setup.logger.info(f"✅ Step '{step_id}' completed")
+            runner = PipelineRunner(setup.context)
+            runner.add_step(instance)
+            runner.run_for_episodes(source_path, setup.episode_manager)
 
-    setup.logger.info("=" * 80)
-    setup.logger.info("🎉 Pipeline completed successfully!")
+            setup.logger.info(f"✅ Step '{step_id}' completed")
+
+        setup.logger.info("=" * 80)
+        setup.logger.info("🎉 Pipeline completed successfully!")
+    except KeyboardInterrupt:
+        setup.logger.info("\n🛑 Interrupted by user")
+        raise
+    finally:
+        setup.logger.finalize()
 
 
 def _create_step_command(step_id: str, step_description: str) -> Callable:
@@ -65,39 +93,46 @@ def _create_step_command(step_id: str, step_description: str) -> Callable:
     @click.option("--series", required=True, help="Series name (e.g., ranczo)")
     @click.option("--force-rerun", is_flag=True, help="Force rerun even if cached")
     def step_command(series: str, force_rerun: bool, _step_id: str = step_id) -> None:
-        pipeline = build_pipeline()
+        pipeline = build_pipeline(series)
         setup = setup_pipeline_context(series, _step_id, force_rerun, with_episode_manager=True)
 
-        step = pipeline.get_step(_step_id)
+        try:  # pylint: disable=too-many-try-statements
+            step = pipeline.get_step(_step_id)
 
-        deps = step.dependency_ids
-        if deps:
-            setup.logger.info(f"📦 Dependencies: {', '.join(deps)}")
-            for dep_id in deps:
-                if not setup.context.state_manager.is_step_completed(dep_id, "*"):
-                    setup.logger.warning(
-                        f"⚠️  Dependency '{dep_id}' may not be completed. "
-                        f"Run it first or use --force-rerun.",
-                    )
+            deps = step.dependency_ids
+            if deps:
+                setup.logger.info(f"📦 Dependencies: {', '.join(deps)}")
+                for dep_id in deps:
+                    if not setup.context.state_manager.is_step_completed(dep_id, "*"):
+                        setup.logger.warning(
+                            f"⚠️  Dependency '{dep_id}' may not be completed. "
+                            f"Run it first or use --force-rerun.",
+                        )
 
-        setup.logger.info(f"🔧 Running: {_step_id}")
-        setup.logger.info(f"📝 {step.description}")
+            setup.logger.info(f"🔧 Running: {_step_id}")
+            setup.logger.info(f"📝 {step.description}")
 
-        StepClass = step.load_class()
-        instance = StepClass(step.config)
+            StepClass = step.load_class()
+            instance = StepClass(step.config)
 
-        source_path = Path("preprocessor/input_data") / series
+            input_base = _get_input_base_path()
+            source_path = input_base / series
 
-        runner = PipelineRunner(setup.context)
-        runner.add_step(instance)
-        runner.run_for_episodes(source_path, setup.episode_manager)
+            runner = PipelineRunner(setup.context)
+            runner.add_step(instance)
+            runner.run_for_episodes(source_path, setup.episode_manager)
 
-        setup.logger.info(f"✅ Step '{_step_id}' completed successfully")
+            setup.logger.info(f"✅ Step '{_step_id}' completed successfully")
+        except KeyboardInterrupt:
+            setup.logger.info("\n🛑 Interrupted by user")
+            raise
+        finally:
+            setup.logger.finalize()
 
     return step_command
 
 
-_cli_pipeline = build_pipeline()
+_cli_pipeline = build_pipeline("ranczo")
 
 for _step_id, _step in _cli_pipeline._steps.items():
     command_func = _create_step_command(_step_id, _step.description)

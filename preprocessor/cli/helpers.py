@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -53,18 +54,27 @@ def setup_pipeline_context(
     with_episode_manager: bool = True,
 ) -> PipelineSetup:
     logger: ErrorHandlingLogger = create_cli_logger(logger_name)
-    state_manager: StateManager = StateManager(series)
+
+    is_docker: bool = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
+    base_dir: Path = Path('/app/output_data') if is_docker else Path('preprocessor/output_data')
+
+    series_output_dir: Path = base_dir / series
+    series_output_dir.mkdir(parents=True, exist_ok=True)
+
+    state_manager: StateManager = StateManager(series, working_dir=series_output_dir)
     state_manager.load_or_create_state()
+
     context: ExecutionContext = ExecutionContext(
         series_name=series,
-        base_output_dir=Path('preprocessor/output_data'),
+        base_output_dir=base_dir,
         logger=logger,
         state_manager=state_manager,
         force_rerun=force_rerun,
     )
     episode_manager: Optional[EpisodeManager] = None
     if with_episode_manager:
-        episodes_json: Optional[Path] = Path(f'preprocessor/input_data/{series}/episodes.json')
+        input_base: Path = Path('/input_data') if is_docker else Path('preprocessor/input_data')
+        episodes_json: Optional[Path] = input_base / series / 'episodes.json'
         if not episodes_json.exists():
             episodes_json = None
         episode_manager = EpisodeManager(episodes_json, series, logger)

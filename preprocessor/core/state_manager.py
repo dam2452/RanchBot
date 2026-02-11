@@ -66,11 +66,12 @@ class ProcessingState:
         )
 
 class StateManager:
-    STATE_FILE: str = '.preprocessing_state.json'
+    STATE_FILE_TEMPLATE: str = '.preprocessing_state_{series}.json'
 
     def __init__(self, series_name: str, working_dir: Path = Path('.')) -> None:
         self.__series_name: str = series_name
-        self.__state_file: Path = working_dir / self.STATE_FILE
+        state_filename: str = self.STATE_FILE_TEMPLATE.format(series=series_name)
+        self.__state_file: Path = working_dir / state_filename
         self.__state: Optional[ProcessingState] = None
         self.__cleanup_registered: bool = False
         self.__interrupted: bool = False

@@ -20,18 +20,19 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}.mp4'
         output_path = context.get_season_output_path(input_data.episode_info, 'transcoded_videos', output_filename)
         if output_path.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached)')
-                resolution_str = (
-                    f'{self.config.resolution.width}x{self.config.resolution.height}'
-                )
-                return TranscodedVideo(
-                    path=output_path,
-                    episode_id=input_data.episode_id,
-                    episode_info=input_data.episode_info,
-                    resolution=resolution_str,
-                    codec=self.config.codec,
-                )
+            context.logger.info(f'Skipping {input_data.episode_id} (output exists)')
+            if not context.is_step_completed(self.name, input_data.episode_id):
+                context.mark_step_completed(self.name, input_data.episode_id)
+            resolution_str = (
+                f'{self.config.resolution.width}x{self.config.resolution.height}'
+            )
+            return TranscodedVideo(
+                path=output_path,
+                episode_id=input_data.episode_id,
+                episode_info=input_data.episode_info,
+                resolution=resolution_str,
+                codec=self.config.codec,
+            )
         probe_data = FFmpegWrapper.probe_video(input_data.path)
         input_fps = FFmpegWrapper.get_framerate(probe_data)
         input_video_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
