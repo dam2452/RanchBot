@@ -264,4 +264,4 @@ class SoundEventSeparator(BaseProcessor):
                 current_words.append(word)
         if current_words:
             self.__finalize_sequence(current_type, current_words, dialogue_sequences, sound_sequences, segment)
-        return (dialogue_sequences, sound_sequences)
+        return dialogue_sequences, sound_sequences

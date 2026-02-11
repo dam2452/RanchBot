@@ -29,7 +29,7 @@ class FileValidator:
 
     @staticmethod
     def validate_image_file(path: Path) -> ValidationResult:
-        if (error := FileValidator.__check_file_exists(path)):
+        if error := FileValidator.__check_file_exists(path):
             return error
         try:
             with Image.open(path) as img:
@@ -52,7 +52,7 @@ class FileValidator:
 
     @staticmethod
     def validate_json_file(path: Path) -> ValidationResult:
-        if (error := FileValidator.__check_file_exists(path)):
+        if error := FileValidator.__check_file_exists(path):
             return error
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -68,7 +68,7 @@ class FileValidator:
 
     @staticmethod
     def validate_jsonl_file(path: Path) -> ValidationResult:
-        if (error := FileValidator.__check_file_exists(path)):
+        if error := FileValidator.__check_file_exists(path):
             return error
         try:
             line_count = 0
@@ -97,7 +97,7 @@ class FileValidator:
 
     @staticmethod
     def validate_video_file(path: Path) -> ValidationResult:
-        if (error := FileValidator.__check_file_exists(path)):
+        if error := FileValidator.__check_file_exists(path):
             return error
         try:
             result = subprocess.run(
@@ -142,7 +142,7 @@ class FileValidator:
 
     @staticmethod
     def __validate_archive_file(path: Path) -> ValidationResult: # pylint: disable=unused-private-member
-        if (error := FileValidator.__check_file_exists(path)):
+        if error := FileValidator.__check_file_exists(path):
             return error
         try:
             with zipfile.ZipFile(path, 'r') as zip_ref:

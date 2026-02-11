@@ -3,7 +3,6 @@ from abc import (
     abstractmethod,
 )
 from dataclasses import dataclass
-import logging
 from pathlib import Path
 import re
 from typing import (
@@ -43,7 +42,7 @@ class BaseProcessor(ABC):
     REQUIRES: List[str] = []
     SUPPORTED_VIDEO_EXTENSIONS = SUPPORTED_VIDEO_EXTENSIONS
 
-    def __init__(self, args: Dict[str, Any], class_name: str, error_exit_code: int, loglevel: int=logging.DEBUG) -> None:
+    def __init__(self, args: Dict[str, Any], class_name: str, error_exit_code: int, loglevel: int = 10) -> None:
         self._validate_args(args)
         self._args = args
         self.logger = ErrorHandlingLogger(class_name=class_name, loglevel=loglevel, error_exit_code=error_exit_code)
@@ -137,8 +136,6 @@ class BaseProcessor(ABC):
         if not items:
             console.print('[yellow]No items to process, skipping resource loading[/yellow]')
             return
-        for info_line in self.__get_processing_info():
-            console.print(info_line)
         if not self._load_resources():
             return
         step_name = self.__get_step_name()
@@ -148,8 +145,7 @@ class BaseProcessor(ABC):
                 for item in items:
                     try:
                         if self.state_manager:
-                            temp_files = self.__get_temp_files(item)
-                            self.state_manager.mark_step_started(step_name, item.episode_id, temp_files)
+                            self.state_manager.mark_step_started(step_name, item.episode_id, [])
                         missing_outputs = item.metadata.get('missing_outputs', [])
                         self._process_item(item, missing_outputs)
                         if self.state_manager:
@@ -162,24 +158,18 @@ class BaseProcessor(ABC):
             console.print('\n[yellow]Processing interrupted[/yellow]')
             raise
 
-    def __get_processing_info(self) -> List[str]:
-        return []
-
     def __get_step_name(self) -> str:
         class_name = self.__class__.__name__
         name = class_name.replace('Processor', '').replace('Generator', '').replace('Detector', '')
         name = name.replace('Transcoder', '').replace('Importer', '').replace('Indexer', '')
         return self.__to_snake_case(name)
 
-    def __get_temp_files(self, item: ProcessingItem) -> List[str]:  # pylint: disable=unused-argument
-        return []
-
     def __should_skip_item(
         self, item: ProcessingItem,
     ) -> Tuple[bool, List[OutputSpec], str]:
         expected_outputs = self._get_expected_outputs(item)
         if not expected_outputs:
-            return (False, [], '')
+            return False, [], ''
         missing_outputs = [
             output for output in expected_outputs
             if not output.path.exists() or output.path.stat().st_size == 0
@@ -190,7 +180,7 @@ class BaseProcessor(ABC):
             and self.state_manager.is_step_completed(step_name, item.episode_id)
         )
         if not missing_outputs and state_completed:
-            return (True, [], f'[yellow]Skipping (completed): {item.episode_id}[/yellow]')
+            return True, [], f'[yellow]Skipping (completed): {item.episode_id}[/yellow]'
         if not missing_outputs and (not state_completed):
             if self.state_manager:
                 self.state_manager.mark_step_completed(step_name, item.episode_id)
@@ -204,8 +194,8 @@ class BaseProcessor(ABC):
                 f'[yellow]Warning: State marked complete but outputs missing '
                 f'for {item.episode_id}[/yellow]',
             )
-            return (False, missing_outputs, '')
-        return (False, missing_outputs, '')
+            return False, missing_outputs, ''
+        return False, missing_outputs, ''
 
     @staticmethod
     def __to_snake_case(name: str) -> str:

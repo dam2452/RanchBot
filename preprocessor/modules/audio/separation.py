@@ -241,4 +241,4 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
                 dialogue_parts,
                 sound_parts,
             )
-        return (dialogue_parts, sound_parts)
+        return dialogue_parts, sound_parts

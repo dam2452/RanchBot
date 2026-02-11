@@ -98,14 +98,14 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
     def __extract_season_episode_fallback(file_path: Path) -> Tuple[int, int]:
         match: Optional[re.Match] = re.search('S(\\d+)E(\\d+)', file_path.name, re.IGNORECASE)
         if match:
-            return (int(match.group(1)), int(match.group(2)))
+            return int(match.group(1)), int(match.group(2))
         parent_match: Optional[re.Match] = re.search('S(\\d+)', file_path.parent.name, re.IGNORECASE)
         if parent_match:
             season: int = int(parent_match.group(1))
             episode_match: Optional[re.Match] = re.search('E(\\d+)', file_path.name, re.IGNORECASE)
             if episode_match:
-                return (season, int(episode_match.group(1)))
-        return (1, 1)
+                return season, int(episode_match.group(1))
+        return 1, 1
 
     def __find_transcription_files(self) -> List[Path]:
         pattern: str = '*.json'

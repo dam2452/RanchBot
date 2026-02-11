@@ -39,7 +39,7 @@ class EmotionDetector:
         y1 = max(0, y1)
         x2 = min(width, x2)
         y2 = min(height, y2)
-        return (x1, y1, x2, y2)
+        return x1, y1, x2, y2
 
     @staticmethod
     def __crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]: # pylint: disable=unused-private-member
@@ -109,4 +109,4 @@ class EmotionDetector:
         }
         confidence = float(max(scores))
         dominant_emotion = emotion.lower()
-        return (dominant_emotion, confidence, emotion_scores)
+        return dominant_emotion, confidence, emotion_scores

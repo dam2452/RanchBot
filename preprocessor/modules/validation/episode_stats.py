@@ -254,12 +254,12 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         extensions: Tuple[str, ...] = ('*.jpg', '*.png'),
     ) -> Tuple[int, int, List[str]]:
         if not directory.exists():
-            return (0, 0, [])
+            return 0, 0, []
         image_files = []
         for ext in extensions:
             image_files.extend(directory.glob(ext))
         if not image_files:
-            return (0, 0, [])
+            return 0, 0, []
         invalid_count = 0
         errors = []
         for img_file in image_files:
@@ -267,7 +267,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
             if not result.is_valid:
                 invalid_count += 1
                 errors.append(f'Invalid image {img_file.name}: {result.error_message}')
-        return (len(image_files), invalid_count, errors)
+        return len(image_files), invalid_count, errors
 
     def __validate_json_directory(
         self,
@@ -296,13 +296,13 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         directory: Path, exclude_pattern: Optional[str] = None,
     ) -> Tuple[int, List[int], List[str]]:
         if not directory.exists():
-            return (0, [], [])
+            return 0, [], []
         json_files = [
             f for f in directory.glob('*.json')
             if not exclude_pattern or exclude_pattern not in str(f)
         ]
         if not json_files:
-            return (0, [], [])
+            return 0, [], []
         sizes = []
         errors = []
         for json_file in json_files:
@@ -311,7 +311,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
                 errors.append(f'Invalid JSON {json_file.name}: {result.error_message}')
             else:
                 sizes.append(json_file.stat().st_size)
-        return (len(json_files), sizes, errors)
+        return len(json_files), sizes, errors
 
     def __validate_object_detections(self):
         self.__validate_json_directory(

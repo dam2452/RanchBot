@@ -40,10 +40,10 @@ class EpisodeScraper(BaseScraper):
     @staticmethod
     def __get_coverage_status(scraped: int, expected: int) -> Tuple[str, str]:
         if scraped < expected:
-            return ('missing', f'Missing {expected - scraped} episodes')
+            return 'missing', f'Missing {expected - scraped} episodes'
         if scraped > expected:
-            return ('extra', f'Scraped {scraped - expected} more episodes than video files')
-        return ('perfect', 'Perfect coverage')
+            return 'extra', f'Scraped {scraped - expected} more episodes than video files'
+        return 'perfect', 'Perfect coverage'
 
     def __get_expected_episodes_count(self) -> Optional[int]:
         if self.expected_episodes_count is not None:

@@ -54,22 +54,22 @@ class FFmpegWrapper:
         )
 
         if result.returncode != 0:
-            return (False, None)
+            return False, None
 
         stats = FFmpegWrapper.__parse_idet_output(result.stderr)
         if stats is None:
-            return (False, None)
+            return False, None
 
         total_interlaced = stats['tff'] + stats['bff']
         total_frames = total_interlaced + stats['progressive']
 
         if total_frames == 0:
-            return (False, None)
+            return False, None
 
         ratio = total_interlaced / total_frames
         stats['ratio'] = ratio
 
-        return (ratio > threshold, stats)
+        return ratio > threshold, stats
 
     @staticmethod
     def get_audio_bitrate(probe_data: Dict[str, Any]) -> Optional[int]:

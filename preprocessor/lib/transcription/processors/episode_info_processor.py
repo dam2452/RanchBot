@@ -63,4 +63,4 @@ class EpisodeInfoProcessor:
         with output_path.open('w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=4)
         self.__logger.info(f'Created episode info {output_path}.')
-        return (output_path, new_json_name)
+        return output_path, new_json_name

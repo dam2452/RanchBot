@@ -58,7 +58,7 @@ class EmbeddingService:
 
     def _load_model(self) -> Tuple[AutoModelForVision2Seq, AutoProcessor, str]:
         if self._model is not None:
-            return (self._model, self._processor, self._device)
+            return self._model, self._processor, self._device
         click.echo('Loading embedding model...', err=True)
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA is required but not available. This pipeline requires GPU.')
@@ -67,4 +67,4 @@ class EmbeddingService:
         self._model = AutoModelForVision2Seq.from_pretrained(model_name, dtype=torch.bfloat16, device_map='auto')
         self._processor = AutoProcessor.from_pretrained(model_name)
         click.echo(f'Model loaded on {self._device}', err=True)
-        return (self._model, self._processor, self._device)
+        return self._model, self._processor, self._device

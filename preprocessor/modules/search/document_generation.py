@@ -85,4 +85,4 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
                 }
                 f.write(json.dumps(doc, ensure_ascii=False) + '\n')
                 count += 1
-        return (output_path, count)
+        return output_path, count
