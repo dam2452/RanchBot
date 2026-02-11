@@ -53,3 +53,10 @@ repos:
     rev: v4.0.0
     hooks:
       - id: add-trailing-comma
+  - repo: local
+    hooks:
+      - id: check-version-bump
+        name: Check VERSION bump
+        entry: .pre-commit-hooks/check-version-bump.py
+        language: script
+        pass_filenames: false
