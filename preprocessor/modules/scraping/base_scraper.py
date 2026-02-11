@@ -87,7 +87,6 @@ class BaseScraper(BaseProcessor):
             json.dump(result, f, indent=2, ensure_ascii=False)
 
     def get_output_subdir(self) -> str:
-        """Scrapery używają bezpośrednio output_file zamiast subdirektoriów per-episode."""
         return ""
 
     @abstractmethod

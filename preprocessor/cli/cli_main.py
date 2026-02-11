@@ -150,7 +150,6 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     json_output: bool,
     host: str,
 ) -> None:
-    """Search tool - comprehensive Elasticsearch search"""
     import asyncio  # pylint: disable=import-outside-toplevel
     import json  # pylint: disable=import-outside-toplevel
     import sys  # pylint: disable=import-outside-toplevel

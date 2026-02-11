@@ -39,7 +39,6 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         output_path: Path,
         embedding_count: int,
     ) -> EmbeddingCollection:
-        """Create EmbeddingCollection with standard parameters."""
         return MetadataBuilder.create_embedding_collection(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,

@@ -40,7 +40,6 @@ class MetadataBuilder:
         embedding_count: int,
         embedding_type: str,
     ) -> EmbeddingCollection:
-        """Helper to create EmbeddingCollection with standard parameters."""
         return EmbeddingCollection(
             episode_id=episode_id,
             episode_info=episode_info,

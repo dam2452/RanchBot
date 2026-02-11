@@ -106,8 +106,6 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
     def _get_mapping_for_type(
         doc_type: str,  # pylint: disable=unused-argument
     ) -> Optional[Dict[str, Any]]:
-        """Get Elasticsearch mapping for document type."""
-        # TODO: Load mappings from config or separate file  # pylint: disable=fixme
         return None
 
     def cleanup(self) -> None:

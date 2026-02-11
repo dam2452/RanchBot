@@ -31,7 +31,6 @@ class ResultFormatter:
 
     @staticmethod
     def __format_character_appearances(appearances: list) -> str:
-        """Format character appearances with emotions."""
         chars_strs = []
         for char in appearances:
             char_str = char.get('name', 'Unknown')
@@ -44,12 +43,10 @@ class ResultFormatter:
 
     @staticmethod
     def __format_detected_objects(objects: list) -> str:
-        """Format detected objects list."""
         return ', '.join([f"{obj['class']}:{obj['count']}" for obj in objects])
 
     @staticmethod
     def __print_text_result(source: Dict[str, Any], scene_ctx: str) -> None:
-        """Print text search result."""
         click.echo(f"Segment ID: {source.get('segment_id', 'N/A')}")
         start_time = ResultFormatter.format_timestamp(source['start_time'])
         end_time = ResultFormatter.format_timestamp(source['end_time'])
@@ -59,7 +56,6 @@ class ResultFormatter:
 
     @staticmethod
     def __print_video_result(source: Dict[str, Any], scene_ctx: str) -> None:
-        """Print video/frame search result."""
         timestamp = ResultFormatter.format_timestamp(source['timestamp'])
         click.echo(f"Frame: {source['frame_number']} @ {timestamp}{scene_ctx}")
         if 'frame_type' in source:
