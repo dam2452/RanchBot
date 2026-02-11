@@ -9,11 +9,13 @@ from typing import (
 
 class MockElasticsearch:
     _segments: List[Dict[str, Any]] = []
+    _video_paths: Dict[tuple, str] = {}
     _call_log: List[Dict[str, Any]] = []
 
     @classmethod
     def reset(cls):
         cls._segments = []
+        cls._video_paths = {}
         cls._call_log = []
 
     @classmethod
@@ -109,3 +111,44 @@ class MockElasticsearch:
     @classmethod
     def get_call_count(cls, method_name: str) -> int:
         return sum(1 for call in cls._call_log if call['method'] == method_name)
+
+    @classmethod
+    def add_video_path(cls, season: int, episode: int, video_path: str):
+        cls._video_paths[(season, episode)] = video_path
+
+    @classmethod
+    async def find_video_path_by_episode(cls, season: int, episode: int, logger: logging.Logger) -> Optional[str]:
+        cls._call_log.append({
+            'method': 'find_video_path_by_episode',
+            'season': season,
+            'episode': episode,
+        })
+        return cls._video_paths.get((season, episode))
+
+    @classmethod
+    async def find_episodes_by_season(cls, season: int, logger: logging.Logger, index: str = None) -> List[Dict[str, Any]]:
+        cls._call_log.append({
+            'method': 'find_episodes_by_season',
+            'season': season,
+        })
+        episodes = []
+        for segment in cls._segments:
+            ep_info = segment.get('episode_info', {})
+            if ep_info.get('season') == season:
+                episode_data = {
+                    'episode_number': ep_info.get('episode_number'),
+                    'title': ep_info.get('title', 'Test Episode'),
+                }
+                if episode_data not in episodes:
+                    episodes.append(episode_data)
+        return episodes
+
+    @classmethod
+    async def find_segment_with_context(cls, quote: str, logger: logging.Logger, series_name: str, context_size: int = 15):
+        cls._call_log.append({
+            'method': 'find_segment_with_context',
+            'quote': quote,
+            'context_size': context_size,
+        })
+        segments = await cls.find_segment_by_quote(quote, logger, series_name, size=1)
+        return segments[0] if segments else None

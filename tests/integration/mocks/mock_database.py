@@ -19,6 +19,8 @@ class MockDatabase:
     _subscription_keys: Dict[str, int] = {}
     _reports: List[Dict[str, Any]] = []
     _last_clips: Dict[int, Dict[str, Any]] = {}
+    _saved_clips: Dict[int, List[Dict[str, Any]]] = {}
+    _last_searches: Dict[int, Dict[str, Any]] = {}
     _search_history: List[Dict[str, Any]] = []
     _command_usage: Dict[int, int] = {}
     _call_log: List[Dict[str, Any]] = []
@@ -31,6 +33,8 @@ class MockDatabase:
         cls._subscription_keys = {}
         cls._reports = []
         cls._last_clips = {}
+        cls._saved_clips = {}
+        cls._last_searches = {}
         cls._search_history = []
         cls._command_usage = {}
         cls._call_log = []
@@ -374,5 +378,143 @@ class MockDatabase:
             'method': 'add_report',
             'user_id': user_id,
         })
+
+    @classmethod
+    async def get_saved_clips(cls, user_id: int):
+        from bot.database.models import VideoClip
+        if user_id not in cls._saved_clips:
+            return []
+        return [
+            VideoClip(
+                id=i,
+                chat_id=user_id,
+                user_id=user_id,
+                name=clip['name'],
+                video_data=clip['video_data'],
+                start_time=clip['start_time'],
+                end_time=clip['end_time'],
+                duration=clip['duration'],
+                is_compilation=clip.get('is_compilation', False),
+                season=clip.get('season'),
+                episode_number=clip.get('episode_number'),
+            )
+            for i, clip in enumerate(cls._saved_clips[user_id], 1)
+        ]
+
+    @classmethod
+    async def save_clip(cls, chat_id: int, user_id: int, clip_name: str, video_data: bytes,
+                       start_time: float, end_time: float, duration: float,
+                       is_compilation: bool = False, season: Optional[int] = None,
+                       episode_number: Optional[int] = None):
+        if user_id not in cls._saved_clips:
+            cls._saved_clips[user_id] = []
+        cls._saved_clips[user_id].append({
+            'name': clip_name,
+            'video_data': video_data,
+            'start_time': start_time,
+            'end_time': end_time,
+            'duration': duration,
+            'is_compilation': is_compilation,
+            'season': season,
+            'episode_number': episode_number,
+        })
+        cls._call_log.append({
+            'method': 'save_clip',
+            'user_id': user_id,
+            'clip_name': clip_name,
+        })
+
+    @classmethod
+    async def is_clip_name_unique(cls, chat_id: int, clip_name: str) -> bool:
+        if chat_id not in cls._saved_clips:
+            return True
+        return not any(clip['name'] == clip_name for clip in cls._saved_clips[chat_id])
+
+    @classmethod
+    async def get_user_clip_count(cls, chat_id: int) -> int:
+        if chat_id not in cls._saved_clips:
+            return 0
+        return len(cls._saved_clips[chat_id])
+
+    @classmethod
+    async def get_clip_by_name(cls, user_id: int, clip_name: str):
+        if user_id not in cls._saved_clips:
+            return None
+        for i, clip in enumerate(cls._saved_clips[user_id], 1):
+            if clip['name'] == clip_name:
+                from bot.database.models import VideoClip
+                return VideoClip(
+                    id=i,
+                    chat_id=user_id,
+                    user_id=user_id,
+                    name=clip['name'],
+                    video_data=clip['video_data'],
+                    start_time=clip['start_time'],
+                    end_time=clip['end_time'],
+                    duration=clip['duration'],
+                    is_compilation=clip.get('is_compilation', False),
+                    season=clip.get('season'),
+                    episode_number=clip.get('episode_number'),
+                )
+        return None
+
+    @classmethod
+    async def delete_clip(cls, user_id: int, clip_name: str):
+        if user_id in cls._saved_clips:
+            cls._saved_clips[user_id] = [
+                clip for clip in cls._saved_clips[user_id]
+                if clip['name'] != clip_name
+            ]
+        cls._call_log.append({
+            'method': 'delete_clip',
+            'user_id': user_id,
+            'clip_name': clip_name,
+        })
+
+    @classmethod
+    async def get_last_clip_by_chat_id(cls, chat_id: int):
+        if chat_id not in cls._last_clips:
+            return None
+        from bot.database.models import (
+            ClipType,
+            LastClip,
+        )
+        from datetime import date
+        clip_data = cls._last_clips[chat_id]
+        return LastClip(
+            id=1,
+            chat_id=chat_id,
+            segment=clip_data.get('segment', '{}'),
+            clip_type=clip_data.get('clip_type', ClipType.SINGLE),
+            adjusted_start_time=clip_data.get('adjusted_start_time', 0.0),
+            adjusted_end_time=clip_data.get('adjusted_end_time', 0.0),
+            compiled_clip=clip_data.get('compiled_clip'),
+            is_adjusted=clip_data.get('is_adjusted', False),
+            timestamp=date.today(),
+        )
+
+    @classmethod
+    async def insert_last_search(cls, chat_id: int, quote: str, segments: str):
+        cls._last_searches[chat_id] = {
+            'quote': quote,
+            'segments': segments,
+        }
+        cls._call_log.append({
+            'method': 'insert_last_search',
+            'chat_id': chat_id,
+        })
+
+    @classmethod
+    async def get_last_search_by_chat_id(cls, chat_id: int):
+        if chat_id not in cls._last_searches:
+            return None
+        from bot.database.models import SearchHistory
+        search_data = cls._last_searches[chat_id]
+        return SearchHistory(
+            id=1,
+            chat_id=chat_id,
+            quote=search_data['quote'],
+            segments=search_data['segments'],
+        )
 
     pool = None

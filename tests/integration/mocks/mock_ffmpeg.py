@@ -43,6 +43,15 @@ class MockFFmpeg:
         return mock_clip_path
 
     @classmethod
+    def add_mock_clip_from_bytes(cls, video_data: bytes) -> Path:
+        temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
+        mock_clip_path = Path(temp_file.name)
+        temp_file.close()
+        cls._temp_files.append(mock_clip_path)
+        mock_clip_path.write_bytes(video_data)
+        return mock_clip_path
+
+    @classmethod
     def get_mock_clip_path(cls, source_video_path: str) -> Optional[Path]:
         return cls._video_files.get(source_video_path)
 
