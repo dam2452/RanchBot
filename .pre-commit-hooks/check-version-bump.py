@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
 
 def parse_version(version_str):
     try:
-        return tuple(map(int, version_str.strip().split('.')))
+        return tuple(int(x) for x in version_str.strip().split('.'))
     except (ValueError, AttributeError):
         return None
 
@@ -15,7 +15,7 @@ def get_current_version():
     version_file = Path('VERSION')
     if not version_file.exists():
         return None
-    return parse_version(version_file.read_text())
+    return parse_version(version_file.read_text(encoding='utf-8'))
 
 
 def get_main_version():
@@ -43,9 +43,9 @@ def main():
         sys.exit(0)
 
     if current_version <= main_version:
-        print(f'❌ ERROR: Version must be bumped!')
-        print(f'   Current version: {".".join(map(str, current_version))}')
-        print(f'   Main version:    {".".join(map(str, main_version))}')
+        print('❌ ERROR: Version must be bumped!')
+        print(f'   Current version: {".".join(str(x) for x in current_version)}')
+        print(f'   Main version:    {".".join(str(x) for x in main_version)}')
         sys.exit(1)
 
     sys.exit(0)
