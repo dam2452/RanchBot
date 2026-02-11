@@ -1,8 +1,8 @@
-from preprocessor.lib.ai.llm_provider import (
+from preprocessor.lib.ai.models import (
     CharacterInfo,
     EpisodeInfo,
-    LLMProvider,
     SeasonMetadata,
 )
+from preprocessor.lib.ai.provider import LLMProvider
 
 __all__ = ['LLMProvider', 'EpisodeInfo', 'SeasonMetadata', 'CharacterInfo']

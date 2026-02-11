@@ -50,7 +50,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
             threshold=self.config.threshold,
             min_scene_len=self.config.min_scene_len,
         )
-        video_info = self.transnet.get_video_info(input_data.path)
+        video_info = self.transnet.__get_video_info(input_data.path)
         output_data = {
             'total_scenes': len(scenes),
             'video_info': video_info,

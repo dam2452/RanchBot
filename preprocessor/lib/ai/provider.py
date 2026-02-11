@@ -7,18 +7,8 @@ from typing import (
     Type,
 )
 
-from openai import OpenAI
-from pydantic import (
-    BaseModel,
-    field_validator,
-    model_validator,
-)
-from vllm import (
-    LLM,
-    SamplingParams,
-)
+from pydantic import BaseModel
 
-from preprocessor.config.config import settings
 from preprocessor.config.enums import ParserMode
 from preprocessor.config.prompts import (
     extract_all_seasons_system,
@@ -32,78 +22,38 @@ from preprocessor.config.prompts import (
     merge_episode_data_system,
     merge_episode_data_user,
 )
+from preprocessor.lib.ai.clients import (
+    BaseLLMClient,
+    GeminiClient,
+    VLLMClient,
+)
+from preprocessor.lib.ai.models import (
+    AllSeasonsMetadata,
+    CharacterInfo,
+    CharactersList,
+    EpisodeMetadata,
+    SeasonMetadata,
+)
 from preprocessor.lib.ui.console import console
 
 
-class EpisodeInfo(BaseModel):
-    episode_in_season: int
-    overall_episode_number: int
-    title: str
-    premiere_date: Optional[str] = None
-    viewership: Optional[str] = None
-
-    @field_validator('viewership', mode='before')
-    @classmethod
-    @staticmethod
-    def convert_viewership_to_str(cls, v):
-        if v is None:
-            return None
-        if isinstance(v, int):
-            return str(v)
-        return v
-
-class SeasonMetadata(BaseModel):
-    season_number: int
-    episodes: List[EpisodeInfo]
-
-    @model_validator(mode='before')
-    @classmethod
-    @staticmethod
-    def convert_old_format(cls, data):
-        if isinstance(data, dict) and 'episodes' in data:
-            for idx, episode in enumerate(data['episodes'], start=1):
-                if isinstance(episode, dict) and 'episode_number' in episode and ('episode_in_season' not in episode):
-                    episode['episode_in_season'] = idx
-                    episode['overall_episode_number'] = episode['episode_number']
-                    del episode['episode_number']
-        return data
-
-class AllSeasonsMetadata(BaseModel):
-    seasons: List[SeasonMetadata]
-
-class EpisodeMetadata(BaseModel):
-    title: str
-    description: str
-    summary: str
-    season: Optional[int] = None
-    episode_number: Optional[int] = None
-
-class CharacterInfo(BaseModel):
-    name: str
-
-class CharactersList(BaseModel):
-    characters: List[CharacterInfo]
-
 class LLMProvider:
-    __DEFAULT_MODEL_NAME = 'Qwen/Qwen2.5-Coder-7B-Instruct'
-    __GEMINI_MODEL_NAME = 'gemini-2.5-flash'
-    __instance = None
-    __model = None
-    __openai_client = None
+    __instance: Optional['LLMProvider'] = None
+    __client: Optional[BaseLLMClient] = None
 
-    def __new__(cls, model_name: Optional[str]=None, parser_mode: Optional[ParserMode]=None):
+    def __new__(cls, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None) -> 'LLMProvider':
         if cls.__instance is None:
             cls.__instance = super().__new__(cls)
         return cls.__instance
 
-    def __init__(self, model_name: Optional[str]=None, parser_mode: Optional[ParserMode]=None):
-        self.parser_mode = parser_mode or ParserMode.NORMAL
-        if self.parser_mode == ParserMode.PREMIUM:
-            if self.__openai_client is None:
-                self.__init_gemini_client()
-        elif self.__model is None:
-            self.model_name = model_name or self.__DEFAULT_MODEL_NAME
-            self.__load_model()
+    def __init__(self, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None) -> None:
+        self._parser_mode = parser_mode or ParserMode.NORMAL
+
+        if self.__client is None:
+            if self._parser_mode == ParserMode.PREMIUM:
+                self.__client = GeminiClient()
+            else:
+                self.__client = VLLMClient(model_name=model_name)
 
     def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
         return self.__process_llm_request(
@@ -126,6 +76,7 @@ class LLMProvider:
             raise ValueError('No metadata to merge')
         if len(metadata_list) == 1:
             return metadata_list[0]
+
         combined_text = '\n\n---\n\n'.join([
             f'Source {i + 1}:\n'
             f'Title: {m.title}\n'
@@ -135,6 +86,7 @@ class LLMProvider:
             f'Episode: {m.episode_number}'
             for i, m in enumerate(metadata_list)
         ])
+
         result = self.__process_llm_request(
             system_prompt=merge_episode_data_system.get(),
             user_prompt=merge_episode_data_user.get().format(
@@ -152,6 +104,7 @@ class LLMProvider:
             url = page['url']
             markdown = page['markdown']
             combined_content += f'\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n'
+
         result = self.__process_llm_request(
             system_prompt=extract_all_seasons_system.get(),
             user_prompt=extract_all_seasons_user.get().format(
@@ -173,6 +126,7 @@ class LLMProvider:
             url = page['url']
             markdown = page['markdown']
             combined_content += f'\n\n=== SOURCE {i}: {url} ===\n\n{markdown}\n'
+
         result = self.__process_llm_request(
             system_prompt=extract_characters_system.get(),
             user_prompt=extract_characters_user.get().format(
@@ -192,67 +146,20 @@ class LLMProvider:
         response_model: Type[BaseModel],
         error_context: str,
     ) -> Optional[BaseModel]:
+        if self.__client is None:
+            raise RuntimeError('LLM client not initialized')
+
         try:
-            messages = [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_prompt}]
-            if self.parser_mode == ParserMode.PREMIUM:
-                content = self.__generate_with_gemini(messages)
-            else:
-                content = self.__generate(messages)
+            messages = [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt},
+            ]
+            content = self.__client.generate(messages)
             data = self.__extract_json(content)
             return response_model(**data)
         except Exception as e:
             console.print(f'[red]LLM {error_context}: {e}[/red]')
             return None
-
-    def __init_gemini_client(self) -> None:
-        console.print('[cyan]Initializing Gemini 2.5 Flash via OpenAI SDK...[/cyan]')
-        try:
-            api_key = settings.gemini.api_key
-            if not api_key:
-                raise ValueError('GEMINI_API_KEY not set in environment')
-            self.__openai_client = OpenAI(
-                base_url='https://generativelanguage.googleapis.com/v1beta/openai/',
-                api_key=api_key,
-            )
-            console.print('[green]✓ Gemini 2.5 Flash initialized[/green]')
-        except Exception as e:
-            console.print(f'[red]Failed to initialize Gemini client: {e}[/red]')
-            raise e
-
-    def __load_model(self) -> None:
-        console.print(f'[cyan]Loading LLM: {self.model_name} (vLLM, 128K context)[/cyan]')
-        try:
-            self.__model = LLM(
-                model=self.model_name,
-                trust_remote_code=True,
-                max_model_len=131072,
-                gpu_memory_utilization=0.95,
-                tensor_parallel_size=1,
-                dtype='bfloat16',
-                enable_chunked_prefill=True,
-                max_num_batched_tokens=16384,
-                enforce_eager=True,
-                disable_log_stats=True,
-            )
-            console.print('[green]✓ LLM loaded successfully (vLLM)[/green]')
-        except Exception as e:
-            console.print(f'[red]Failed to load model: {e}[/red]')
-            raise e
-
-    def __generate(self, messages: List[Dict], max_tokens: int=32768) -> str:
-        sampling_params = SamplingParams(
-            temperature=0.7,
-            top_p=0.8,
-            top_k=20,
-            max_tokens=max_tokens,
-            repetition_penalty=1.05,
-        )
-        outputs = self.__model.chat(messages=[messages], sampling_params=sampling_params)
-        return outputs[0].outputs[0].text.strip()
-
-    def __generate_with_gemini(self, messages: List[Dict]) -> str:
-        response = self.__openai_client.chat.completions.create(model=self.__GEMINI_MODEL_NAME, messages=messages)
-        return response.choices[0].message.content.strip()
 
     @staticmethod
     def __extract_json(content: str) -> Dict[str, Any]:

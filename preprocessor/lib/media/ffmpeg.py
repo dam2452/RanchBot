@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
+import re
 import subprocess
 from typing import (
     Any,
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 
@@ -34,9 +36,10 @@ class FFmpegWrapper:
         audio_bitrate: str,
         gop_size: int,
         target_fps: Optional[float] = None,
+        deinterlace: bool = False,
     ) -> None:
         width, height = [int(x) for x in resolution.split(':')]
-        vf_filter = FFmpegWrapper.__build_video_filter(width, height)
+        vf_filter = FFmpegWrapper.__build_video_filter(width, height, deinterlace)
         command = FFmpegWrapper.__build_base_command(input_path, codec, preset, target_fps)
         command.extend(
             FFmpegWrapper.__build_encoding_params(
@@ -88,12 +91,19 @@ class FFmpegWrapper:
         return int(int(bit_rate) / 1000)
 
     @staticmethod
-    def __build_video_filter(width: int, height: int) -> str:
-        return (
+    def __build_video_filter(width: int, height: int, deinterlace: bool = False) -> str:
+        filters = []
+
+        if deinterlace:
+            filters.append('bwdif=mode=0')
+
+        filters.append(
             f"scale='iw*sar:ih',scale={width}:{height}:"
             f"force_original_aspect_ratio=decrease,pad={width}:{height}:"
-            f"(ow-iw)/2:(oh-ih)/2:black,setsar=1"
+            f"(ow-iw)/2:(oh-ih)/2:black,setsar=1",
         )
+
+        return ','.join(filters)
 
     @staticmethod
     def __build_base_command(
@@ -151,3 +161,60 @@ class FFmpegWrapper:
     def __get_stream_by_type(probe_data: Dict[str, Any], codec_type: str) -> Optional[Dict[str, Any]]:
         streams = [s for s in probe_data.get('streams', []) if s.get('codec_type') == codec_type]
         return streams[0] if streams else None
+
+    @staticmethod
+    def detect_interlacing(
+        video_path: Path,
+        analysis_time: int = 30,
+        threshold: float = 0.15,
+    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        cmd = [
+            'ffmpeg',
+            '-hide_banner',
+            '-nostats',
+            '-i', str(video_path),
+            '-t', str(analysis_time),
+            '-vf', 'idet',
+            '-f', 'null',
+            '-',
+        ]
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            check=False,
+        )
+
+        stats = FFmpegWrapper.__parse_idet_output(result.stderr)
+        if stats is None:
+            return (False, None)
+
+        total_interlaced = stats['tff'] + stats['bff']
+        total_frames = total_interlaced + stats['progressive']
+
+        if total_frames == 0:
+            return (False, None)
+
+        ratio = total_interlaced / total_frames
+        stats['ratio'] = ratio
+
+        return (ratio > threshold, stats)
+
+    @staticmethod
+    def __parse_idet_output(stderr: str) -> Optional[Dict[str, int]]:
+        tff_match = re.search(r'TFF:\s*(\d+)', stderr)
+        bff_match = re.search(r'BFF:\s*(\d+)', stderr)
+        prog_match = re.search(r'Progressive:\s*(\d+)', stderr)
+
+        if not (tff_match and bff_match and prog_match):
+            return None
+
+        return {
+            'tff': int(tff_match.group(1)),
+            'bff': int(bff_match.group(1)),
+            'progressive': int(prog_match.group(1)),
+        }

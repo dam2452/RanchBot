@@ -14,7 +14,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
     def name(self) -> str:
         return 'video_transcode'
 
-    def execute(  # pylint: disable=too-many-locals
+    def execute(  # pylint: disable=too-many-locals,too-many-statements
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> TranscodedVideo:
         output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}.mp4'
@@ -71,6 +71,25 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 f'Adjusted to {audio_bitrate} kbps to avoid quality loss.'
             )
             context.logger.info(msg)
+        has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(input_data.path)
+        if has_interlacing and idet_stats:
+            context.logger.info(
+                f"Interlacing detected for {input_data.episode_id} "
+                f"({idet_stats['ratio']*100:.1f}% interlaced frames: "
+                f"TFF={idet_stats['tff']}, BFF={idet_stats['bff']}) - "
+                f"applying bwdif deinterlacing filter",
+            )
+        elif idet_stats:
+            context.logger.info(
+                f"Progressive content detected for {input_data.episode_id} "
+                f"({idet_stats['progressive']}/{idet_stats['progressive'] + idet_stats['tff'] + idet_stats['bff']} frames) - "
+                f"no deinterlacing needed",
+            )
+        else:
+            context.logger.warning(
+                f"Could not detect interlacing for {input_data.episode_id} - "
+                f"proceeding without deinterlacing",
+            )
         context.logger.info(f'Transcoding {input_data.episode_id}')
         temp_path = output_path.with_suffix('.mp4.tmp')
         context.mark_step_started(self.name, input_data.episode_id, [str(temp_path)])
@@ -88,6 +107,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 audio_bitrate=f'{audio_bitrate}k',
                 gop_size=int(target_fps * self.config.gop_size),
                 target_fps=target_fps if target_fps < input_fps else None,
+                deinterlace=has_interlacing,
             )
             temp_path.replace(output_path)
         except Exception:
