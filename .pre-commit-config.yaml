@@ -1,6 +1,13 @@
 fail_fast: false
 exclude: '^(bot/RANCZO-WIDEO/|bot/RANCZO-TRANSKRYPCJE/)'
 repos:
+  - repo: local
+    hooks:
+      - id: check-version-bump
+        name: Check VERSION bump
+        entry: .pre-commit-hooks/check-version-bump.py
+        language: script
+        pass_filenames: false
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -49,10 +56,3 @@ repos:
     hooks:
       - id: pylint
         args: ["--rcfile=./pylintrc"]
-  - repo: local
-    hooks:
-      - id: check-version-bump
-        name: Check VERSION bump
-        entry: .pre-commit-hooks/check-version-bump.py
-        language: script
-        pass_filenames: false
