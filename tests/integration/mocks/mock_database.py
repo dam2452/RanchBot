@@ -1,4 +1,5 @@
 from datetime import (
+    date,
     datetime,
     timedelta,
 )
@@ -15,6 +16,8 @@ class MockDatabase:
     _users: Dict[int, Dict[str, Any]] = {}
     _roles: Dict[int, List[str]] = {}
     _subscriptions: Dict[int, datetime] = {}
+    _subscription_keys: Dict[str, int] = {}
+    _reports: List[Dict[str, Any]] = []
     _last_clips: Dict[int, Dict[str, Any]] = {}
     _search_history: List[Dict[str, Any]] = []
     _command_usage: Dict[int, int] = {}
@@ -25,6 +28,8 @@ class MockDatabase:
         cls._users = {}
         cls._roles = {}
         cls._subscriptions = {}
+        cls._subscription_keys = {}
+        cls._reports = []
         cls._last_clips = {}
         cls._search_history = []
         cls._command_usage = {}
@@ -104,12 +109,16 @@ class MockDatabase:
 
     @classmethod
     async def add_subscription(cls, user_id: int, days: int):
-        cls._subscriptions[user_id] = datetime.now() + timedelta(days=days)
+        if user_id not in cls._users:
+            return None
+        end_date = date.today() + timedelta(days=days)
+        cls._subscriptions[user_id] = datetime.combine(end_date, datetime.min.time())
         cls._call_log.append({
             'method': 'add_subscription',
             'user_id': user_id,
             'days': days,
         })
+        return end_date
 
     @classmethod
     async def add_admin(cls, user_id: int):
@@ -236,5 +245,134 @@ class MockDatabase:
                 return None
 
         return MockConnection()
+
+    @classmethod
+    async def create_subscription_key(cls, days: int, key: str):
+        cls._subscription_keys[key] = days
+        cls._call_log.append({
+            'method': 'create_subscription_key',
+            'days': days,
+            'key': key,
+        })
+
+    @classmethod
+    async def get_subscription_days_by_key(cls, key: str) -> Optional[int]:
+        return cls._subscription_keys.get(key)
+
+    @classmethod
+    async def get_all_subscription_keys(cls):
+        from bot.database.models import SubscriptionKey
+        return [
+            SubscriptionKey(key=k, days=v)
+            for k, v in cls._subscription_keys.items()
+        ]
+
+    @classmethod
+    async def remove_subscription_key(cls, key: str) -> bool:
+        if key in cls._subscription_keys:
+            del cls._subscription_keys[key]
+            cls._call_log.append({
+                'method': 'remove_subscription_key',
+                'key': key,
+            })
+            return True
+        return False
+
+    @classmethod
+    async def get_admin_users(cls):
+        from bot.database.models import UserProfile
+        admin_users = []
+        for user_id, roles in cls._roles.items():
+            if 'admin' in roles and user_id in cls._users:
+                user = cls._users[user_id]
+                admin_users.append(UserProfile(
+                    user_id=user['user_id'],
+                    username=user.get('username', ''),
+                    full_name=user.get('full_name', ''),
+                    note=user.get('note'),
+                ))
+        return admin_users
+
+    @classmethod
+    async def get_moderator_users(cls):
+        from bot.database.models import UserProfile
+        moderator_users = []
+        for user_id, roles in cls._roles.items():
+            if 'moderator' in roles and user_id in cls._users:
+                user = cls._users[user_id]
+                moderator_users.append(UserProfile(
+                    user_id=user['user_id'],
+                    username=user.get('username', ''),
+                    full_name=user.get('full_name', ''),
+                    note=user.get('note'),
+                ))
+        return moderator_users
+
+    @classmethod
+    async def get_all_users(cls):
+        from bot.database.models import UserProfile
+        return [
+            UserProfile(
+                user_id=user['user_id'],
+                username=user.get('username', ''),
+                full_name=user.get('full_name', ''),
+                note=user.get('note'),
+            )
+            for user in cls._users.values()
+        ]
+
+    @classmethod
+    async def is_user_in_db(cls, user_id: int) -> bool:
+        return user_id in cls._users
+
+    @classmethod
+    async def remove_user(cls, user_id: int):
+        if user_id in cls._users:
+            del cls._users[user_id]
+        if user_id in cls._roles:
+            del cls._roles[user_id]
+        if user_id in cls._subscriptions:
+            del cls._subscriptions[user_id]
+        cls._call_log.append({
+            'method': 'remove_user',
+            'user_id': user_id,
+        })
+
+    @classmethod
+    async def remove_subscription(cls, user_id: int):
+        if user_id in cls._subscriptions:
+            del cls._subscriptions[user_id]
+        cls._call_log.append({
+            'method': 'remove_subscription',
+            'user_id': user_id,
+        })
+
+    @classmethod
+    async def get_user_subscription(cls, user_id: int) -> Optional[date]:
+        if user_id in cls._subscriptions:
+            return cls._subscriptions[user_id].date()
+        return None
+
+    @classmethod
+    async def update_user_note(cls, user_id: int, note: str):
+        if user_id in cls._users:
+            cls._users[user_id]['note'] = note
+        cls._call_log.append({
+            'method': 'update_user_note',
+            'user_id': user_id,
+            'note': note,
+        })
+
+    @classmethod
+    async def add_report(cls, user_id: int, report: str):
+        cls._reports.append({
+            'user_id': user_id,
+            'report': report,
+            'timestamp': datetime.now(),
+        })
+        cls._call_log.append({
+            'method': 'add_report',
+            'user_id': user_id,
+        })
 
     pool = None
