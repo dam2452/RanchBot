@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from preprocessor.core.path_service import PathService
+from preprocessor.lib.io.path_service import PathService
 
 
 class PathResolver:

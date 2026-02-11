@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from preprocessor.core.path_service import PathService
+from preprocessor.lib.io.path_service import PathService
 
 if TYPE_CHECKING:
     from preprocessor.lib.episodes.episode_manager import EpisodeInfo

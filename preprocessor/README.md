@@ -93,25 +93,27 @@ series_configs/
 
 ---
 
-## Pipeline (19 kroków)
+## Pipeline (20 kroków)
 
 ```
-SCRAPING                  PROCESSING                              INDEXING
-─────────────────────────────────────────────────────────────────────────────
+SCRAPING                  PROCESSING                              INDEXING                 VALIDATION
+──────────────────────────────────────────────────────────────────────────────────────────────────────
 [1] scrape_episodes  ──┬─→ [4] transcode ─→ [5] transcribe ─→ [6] separate_sounds
-[2] scrape_characters  │   [7] analyze_text
-[3] process_references─┘   [8] detect_scenes ─→ [9] export_frames
-                           [10] text_embeddings
-                           [11] video_embeddings
-                           [12] image_hashing
-                           [13] detect_characters
-                           [14] detect_emotions
-                           [15] cluster_faces
-                           [16] detect_objects
-                           [17] generate_elastic_docs ─→ [18] generate_archives ─→ [19] index_to_elasticsearch
+[2] scrape_characters  │   [7] analyze_text                                        ────┐
+[3] process_references─┘   [8] detect_scenes ─→ [9] export_frames                     │
+                           [10] text_embeddings                                         │
+                           [11] video_embeddings                                        ├─→ [20] validate
+                           [12] image_hashing                                           │
+                           [13] detect_characters                                       │
+                           [14] detect_emotions                                         │
+                           [15] cluster_faces                                           │
+                           [16] detect_objects                                          │
+                           [17] generate_elastic_docs ─→ [18] generate_archives ─→ [19] index_to_elasticsearch ─┘
 ```
 
 **Kroki są automatycznie wykonywane w poprawnej kolejności** - pipeline rozwiązuje zależności i tworzy plan wykonania.
+
+**Validation (krok 20)** - uruchamiany na końcu, weryfikuje poprawność wszystkich poprzednich kroków pipeline.
 
 ---
 
@@ -152,6 +154,9 @@ SCRAPING                  PROCESSING                              INDEXING
 ./run-preprocessor.sh generate-archives --series NAZWA
 ./run-preprocessor.sh index-to-elasticsearch --series NAZWA
 
+# Validation
+./run-preprocessor.sh validate --series NAZWA
+
 # Search (wymaga uruchomionego Elasticsearch)
 ./run-preprocessor.sh search --series NAZWA --text "query"
 ./run-preprocessor.sh search --series NAZWA --text-semantic "query"
@@ -178,7 +183,8 @@ scrape_episodes, scrape_characters, process_references,
 transcode, transcribe, separate_sounds, analyze_text,
 detect_scenes, export_frames, text_embeddings, video_embeddings,
 image_hashing, detect_characters, detect_emotions, cluster_faces, detect_objects,
-generate_elastic_docs, generate_archives, index_to_elasticsearch
+generate_elastic_docs, generate_archives, index_to_elasticsearch,
+validate
 ```
 
 ---

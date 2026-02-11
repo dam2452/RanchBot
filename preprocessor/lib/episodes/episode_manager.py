@@ -14,8 +14,8 @@ from preprocessor.config.constants import (
     EpisodeMetadataKeys,
     EpisodesDataKeys,
 )
-from preprocessor.core.path_manager import PathManager
 from preprocessor.lib.core.logging import ErrorHandlingLogger
+from preprocessor.lib.io.path_manager import PathManager
 
 
 @dataclass

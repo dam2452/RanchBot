@@ -6,10 +6,10 @@ from typing import (
 )
 
 from preprocessor.config.config import settings
-from preprocessor.core.path_manager import PathManager
 from preprocessor.lib.episodes import EpisodeInfo
 from preprocessor.lib.io.files import FileOperations
 from preprocessor.lib.io.metadata import MetadataBuilder
+from preprocessor.lib.io.path_manager import PathManager
 
 
 class HashStorage:

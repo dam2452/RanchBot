@@ -7,7 +7,7 @@ from typing import (
 
 from preprocessor.config.enums import FrameType
 from preprocessor.lib.ui.console import console
-from preprocessor.modules.video.strategies.base_strategy import BaseKeyframeStrategy
+from preprocessor.lib.video.strategies.base_strategy import BaseKeyframeStrategy
 
 
 class SceneChangesStrategy(BaseKeyframeStrategy):

@@ -14,9 +14,9 @@ from typing import (
 )
 
 from preprocessor.config.constants import SUPPORTED_VIDEO_EXTENSIONS
-from preprocessor.core.path_manager import PathManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.lib.core.logging import ErrorHandlingLogger
+from preprocessor.lib.io.path_manager import PathManager
 from preprocessor.lib.ui.console import (
     SimpleProgress,
     console,
@@ -52,6 +52,9 @@ class BaseProcessor(ABC):
         self.progress = args.get('progress_tracker', ProgressTracker())
 
     def cleanup(self) -> None:
+        pass
+
+    def _finalize(self) -> None:
         pass
 
     @abstractmethod
@@ -101,18 +104,15 @@ class BaseProcessor(ABC):
             f'(of {len(all_items)} total, {skipped_count} skipped)[/blue]',
         )
         self.__execute_processing(items_to_process)
+        self._finalize()
 
+    @abstractmethod
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
-        raise NotImplementedError(
-            f'{self.__class__.__name__} must implement _get_expected_outputs() '
-            'or override _execute() directly (legacy mode)',
-        )
+        pass
 
+    @abstractmethod
     def _get_processing_items(self) -> List[ProcessingItem]:
-        raise NotImplementedError(
-            f'{self.__class__.__name__} must implement _get_processing_items() '
-            'or override _execute() directly (legacy mode)',
-        )
+        pass
 
     def _get_progress_description(self) -> str:
         return f'Processing {self.__class__.__name__}'
@@ -120,13 +120,11 @@ class BaseProcessor(ABC):
     def _load_resources(self) -> bool:
         return True
 
+    @abstractmethod
     def _process_item(
         self, item: ProcessingItem, missing_outputs: List[OutputSpec],
     ) -> None:
-        raise NotImplementedError(
-            f'{self.__class__.__name__} must implement _process_item() '
-            'or override _execute() directly (legacy mode)',
-        )
+        pass
 
     @abstractmethod
     def _validate_args(self, args: Dict[str, Any]) -> None:
@@ -160,8 +158,10 @@ class BaseProcessor(ABC):
 
     def __get_step_name(self) -> str:
         class_name = self.__class__.__name__
-        name = class_name.replace('Processor', '').replace('Generator', '').replace('Detector', '')
-        name = name.replace('Transcoder', '').replace('Importer', '').replace('Indexer', '')
+        suffixes_to_remove = ['Processor', 'Generator', 'Detector', 'Transcoder', 'Importer', 'Indexer']
+        name = class_name
+        for suffix in suffixes_to_remove:
+            name = name.replace(suffix, '')
         return self.__to_snake_case(name)
 
     def __should_skip_item(
@@ -170,32 +170,38 @@ class BaseProcessor(ABC):
         expected_outputs = self._get_expected_outputs(item)
         if not expected_outputs:
             return False, [], ''
-        missing_outputs = [
-            output for output in expected_outputs
-            if not output.path.exists() or output.path.stat().st_size == 0
-        ]
+        missing_outputs = self.__get_missing_outputs(expected_outputs)
         step_name = self.__get_step_name()
-        state_completed = (
-            self.state_manager
-            and self.state_manager.is_step_completed(step_name, item.episode_id)
-        )
-        if not missing_outputs and state_completed:
+        state_completed = self.__is_step_completed_in_state(step_name, item.episode_id)
+        has_all_outputs = len(missing_outputs) == 0
+        if has_all_outputs and state_completed:
             return True, [], f'[yellow]Skipping (completed): {item.episode_id}[/yellow]'
-        if not missing_outputs and (not state_completed):
-            if self.state_manager:
-                self.state_manager.mark_step_completed(step_name, item.episode_id)
-            return (
-                True,
-                [],
-                f'[yellow]Skipping (files exist, state synced): {item.episode_id}[/yellow]',
-            )
-        if missing_outputs and state_completed:
+        if has_all_outputs and not state_completed:
+            self.__sync_state_completed(step_name, item.episode_id)
+            return True, [], f'[yellow]Skipping (files exist, state synced): {item.episode_id}[/yellow]'
+        if not has_all_outputs and state_completed:
             console.print(
                 f'[yellow]Warning: State marked complete but outputs missing '
                 f'for {item.episode_id}[/yellow]',
             )
-            return False, missing_outputs, ''
         return False, missing_outputs, ''
+
+    @staticmethod
+    def __get_missing_outputs(expected_outputs: List[OutputSpec]) -> List[OutputSpec]:
+        return [
+            output for output in expected_outputs
+            if not output.path.exists() or output.path.stat().st_size == 0
+        ]
+
+    def __is_step_completed_in_state(self, step_name: str, episode_id: str) -> bool:
+        return bool(
+            self.state_manager
+            and self.state_manager.is_step_completed(step_name, episode_id),
+        )
+
+    def __sync_state_completed(self, step_name: str, episode_id: str) -> None:
+        if self.state_manager:
+            self.state_manager.mark_step_completed(step_name, episode_id)
 
     @staticmethod
     def __to_snake_case(name: str) -> str:

@@ -6,8 +6,8 @@ from typing import (
     Optional,
 )
 
-from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.lib.core.logging import ErrorHandlingLogger
+from preprocessor.modules.base_processor import BaseProcessor
 
 
 class AudioNormalizer:

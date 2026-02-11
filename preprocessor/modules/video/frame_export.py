@@ -21,7 +21,7 @@ from preprocessor.core.artifacts import (
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.lib.io.files import atomic_write_json
-from preprocessor.modules.video.strategies.strategy_factory import KeyframeStrategyFactory
+from preprocessor.lib.video.strategies.strategy_factory import KeyframeStrategyFactory
 
 
 class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExportConfig]):

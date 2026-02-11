@@ -9,9 +9,9 @@ from rich.console import Console
 from rich.progress import track
 
 from preprocessor.config.config import settings
-from preprocessor.core.path_manager import PathManager
 from preprocessor.lib.episodes import EpisodeManager
 from preprocessor.lib.io.files import FileOperations
+from preprocessor.lib.io.path_manager import PathManager
 from preprocessor.modules.validation.episode_stats import EpisodeStats
 from preprocessor.modules.validation.report_generator import ReportGenerator
 from preprocessor.modules.validation.season_comparator import SeasonComparison

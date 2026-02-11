@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import List
 
-from preprocessor.lib.validation.base_result import BaseValidationResult
-from preprocessor.lib.validation.file_validators import FileValidator
+from preprocessor.modules.validation.base_result import BaseValidationResult
+from preprocessor.modules.validation.file_validators import FileValidator
 
 
 class GlobalValidationResult(BaseValidationResult):

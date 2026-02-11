@@ -4,6 +4,5 @@ from preprocessor.lib.characters.image_search import (
     DuckDuckGoImageSearch,
     GoogleImageSearch,
 )
-from preprocessor.lib.characters.reference_downloader import CharacterReferenceDownloader
 
-__all__ = ['BaseImageSearch', 'CharacterReferenceDownloader', 'DuckDuckGoImageSearch', 'FaceDetector', 'GoogleImageSearch']
+__all__ = ['BaseImageSearch', 'DuckDuckGoImageSearch', 'FaceDetector', 'GoogleImageSearch']

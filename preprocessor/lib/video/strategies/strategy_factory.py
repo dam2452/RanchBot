@@ -1,6 +1,6 @@
 from preprocessor.config.enums import KeyframeStrategy
-from preprocessor.modules.video.strategies.base_strategy import BaseKeyframeStrategy
-from preprocessor.modules.video.strategies.scene_changes_strategy import SceneChangesStrategy
+from preprocessor.lib.video.strategies.base_strategy import BaseKeyframeStrategy
+from preprocessor.lib.video.strategies.scene_changes_strategy import SceneChangesStrategy
 
 
 class KeyframeStrategyFactory:

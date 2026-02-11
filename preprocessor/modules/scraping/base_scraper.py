@@ -14,11 +14,11 @@ from preprocessor.config.enums import (
     ParserMode,
     ScraperMethod,
 )
-from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.lib.ai import LLMProvider
 from preprocessor.lib.scraping.clipboard import ScraperClipboard
 from preprocessor.lib.scraping.crawl4ai import ScraperCrawl4AI
 from preprocessor.lib.ui.console import console
+from preprocessor.modules.base_processor import BaseProcessor
 
 
 class BaseScraper(BaseProcessor):

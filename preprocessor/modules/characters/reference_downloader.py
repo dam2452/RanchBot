@@ -18,20 +18,22 @@ import numpy as np
 from patchright.sync_api import (
     BrowserContext,
     Page,
+    Playwright,
     sync_playwright,
 )
 
 from preprocessor.config.config import settings
-from preprocessor.core.base_processor import BaseProcessor
 from preprocessor.lib.characters.face_detection import FaceDetector
 from preprocessor.lib.characters.image_search import (
     BaseImageSearch,
     DuckDuckGoImageSearch,
     GoogleImageSearch,
 )
-from preprocessor.lib.ui.console import (
-    console,
-    create_progress,
+from preprocessor.lib.ui.console import console
+from preprocessor.modules.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
 )
 
 
@@ -49,75 +51,91 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.use_gpu: bool = True
         self.search_mode: str = self._args.get('search_mode', 'normal')
         self.search_engine: BaseImageSearch = self.__create_search_engine()
-        self.face_app: FaceAnalysis = None
+        self.face_app: Optional[FaceAnalysis] = None
+        self.playwright: Optional[Playwright] = None
         self.browser_context: Optional[BrowserContext] = None
 
-    def get_output_subdir(self, item: Optional['ProcessingItem'] = None) -> str:  # pylint: disable=unused-argument
+    def cleanup(self) -> None:
+        if self.browser_context:
+            self.browser_context.close()
+        if self.playwright:
+            self.playwright.stop()
+
+    def get_output_subdir(self) -> str:
         return 'character_references'
 
-    def _execute(self) -> None:
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        char_name = item.metadata['char_name']
+        output_folder = self.output_dir / char_name.replace(' ', '_').lower()
+        expected_files = [
+            OutputSpec(path=output_folder / f'{i:02d}.jpg', required=True)
+            for i in range(self.images_per_character)
+        ]
+        return expected_files
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
         if not self.characters_json.exists():
             console.print(f'[red]Characters JSON not found: {self.characters_json}[/red]')
-            return
+            return []
         with open(self.characters_json, encoding='utf-8') as f:
             data = json.load(f)
         characters = data.get('characters', [])
-        if not characters:
-            console.print('[yellow]No characters found in JSON[/yellow]')
-            return
-        if self.__all_references_exist(characters):
-            console.print(f'[green]✓ All reference images already exist for {len(characters)} characters (skipping)[/green]')
-            return
-        self.face_app = FaceDetector.init()
-        console.print(f'[blue]Downloading reference images for {len(characters)} characters...[/blue]')
-        with sync_playwright() as p:
-            self.browser_context = p.chromium.launch_persistent_context(
-                user_data_dir='/tmp/patchright_profile',
-                headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-                ignore_default_args=['--enable-automation'],
+        return [
+            ProcessingItem(
+                episode_id=f"char_{char['name']}",
+                input_path=self.characters_json,
+                metadata={'char_name': char['name']},
             )
-            with create_progress() as progress:
-                task = progress.add_task('Downloading references', total=len(characters))
-                for i, char in enumerate(characters):
-                    char_name = char['name']
-                    downloaded = False
-                    try:
-                        downloaded = self.__download_character_references(char_name, progress)
-                    except Exception as e:
-                        self.logger.error(f'Failed to download references for {char_name}: {e}')
-                    finally:
-                        progress.advance(task)
-                    if downloaded and i < len(characters) - 1:
-                        delay = random.uniform(settings.image_scraper.request_delay_min, settings.image_scraper.request_delay_max)
-                        time.sleep(delay)
-            self.browser_context.close()
-        console.print('[green]✓ Reference download completed[/green]')
+            for char in characters
+        ]
+
+    def _load_resources(self) -> bool:
+        self.face_app = FaceDetector.init()
+        self.playwright = sync_playwright().start()
+        self.browser_context = self.playwright.chromium.launch_persistent_context(
+            user_data_dir='/tmp/patchright_profile',
+            headless=True,
+            args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+            ignore_default_args=['--enable-automation'],
+        )
+        return True
+
+    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+        char_name = item.metadata['char_name']
+        output_folder = self.__prepare_output_folder(char_name)
+        existing_images = list(output_folder.glob('*.jpg'))
+        saved_count = len(existing_images)
+        if saved_count >= self.images_per_character:
+            return
+        search_query = f'Serial {self.series_name} {char_name} postać'
+        self.logger.info(f'Searching [{self.search_engine.name}]: {search_query}')
+        for attempt in range(settings.image_scraper.retry_attempts):
+            try:
+                results = self.search_engine.search(search_query)
+                saved_count = self.__process_search_results(results, output_folder, saved_count)
+                break
+            except KeyboardInterrupt:  # pylint: disable=try-except-raise
+                raise
+            except Exception as e:
+                if attempt < settings.image_scraper.retry_attempts - 1:
+                    delay = settings.image_scraper.retry_delay * 2 ** attempt
+                    self.logger.warning(
+                        f'Attempt {attempt + 1} failed for {char_name}, retrying in {delay}s: {e}',
+                    )
+                    time.sleep(delay)
+                else:
+                    self.logger.error(f'All retry attempts failed for {char_name}: {e}')
+        self.__log_results(char_name, saved_count)
+        delay = random.uniform(
+            settings.image_scraper.request_delay_min,
+            settings.image_scraper.request_delay_max,
+        )
+        time.sleep(delay)
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         if 'characters_json' not in args:
             raise ValueError('characters_json is required')
 
-    def __all_references_exist(self, characters: List[Dict[str, Any]]) -> bool:
-        for char in characters:
-            char_name = char['name']
-            output_folder = self.output_dir / char_name.replace(' ', '_').lower()
-            existing_images = list(output_folder.glob('*.jpg'))
-            if len(existing_images) < self.images_per_character:
-                return False
-        return True
-
-    def __check_existing_images(
-        self, output_folder: Path, char_name: str, progress,
-    ) -> Optional[int]:
-        existing_images = list(output_folder.glob('*.jpg'))
-        if len(existing_images) >= self.images_per_character:
-            progress.console.print(
-                f'[green]✓ {char_name}: {len(existing_images)} images '
-                f'already exist (skipping)[/green]',
-            )
-            return None
-        return len(existing_images)
 
     def __count_faces(self, img) -> int:
         faces = self.face_app.get(img)
@@ -129,39 +147,6 @@ class CharacterReferenceDownloader(BaseProcessor):
             return GoogleImageSearch(api_key=serpapi_key, max_results=self.max_results)
         return DuckDuckGoImageSearch(max_results=self.max_results)
 
-    def __download_character_references(self, char_name: str, progress) -> bool:
-        output_folder = self.__prepare_output_folder(char_name)
-        saved_count = self.__check_existing_images(output_folder, char_name, progress)
-        if saved_count is None:
-            return False
-        search_query = f'Serial {self.series_name} {char_name} postać'
-        progress.console.print(
-            f'[cyan]Searching [{self.search_engine.name}]: {search_query}[/cyan]',
-        )
-        for attempt in range(settings.image_scraper.retry_attempts):
-            try:
-                results = self.search_engine.search(search_query)
-                saved_count = self.__process_search_results(
-                    results, output_folder, saved_count,
-                )
-                break
-            except KeyboardInterrupt:
-                progress.console.print('\n[yellow]Download interrupted[/yellow]')
-                raise
-            except Exception as e:
-                if attempt < settings.image_scraper.retry_attempts - 1:
-                    delay = settings.image_scraper.retry_delay * 2 ** attempt
-                    self.logger.warning(
-                        f'Attempt {attempt + 1} failed for {char_name}, '
-                        f'retrying in {delay}s: {e}',
-                    )
-                    time.sleep(delay)
-                else:
-                    self.logger.error(
-                        f'All retry attempts failed for {char_name}: {e}',
-                    )
-        self.__print_results(char_name, saved_count, progress)
-        return True
 
     def __download_image_with_browser(
         self, img_url: str, page: Page,
@@ -196,23 +181,17 @@ class CharacterReferenceDownloader(BaseProcessor):
         output_folder.mkdir(parents=True, exist_ok=True)
         return output_folder
 
-    def __print_results(
-        self, char_name: str, saved_count: int, progress,
-    ) -> None:
+    def __log_results(self, char_name: str, saved_count: int) -> None:
         if saved_count >= self.images_per_character:
-            progress.console.print(
-                f'[green]✓[/green] {char_name}: '
-                f'{saved_count}/{self.images_per_character} images',
+            self.logger.info(
+                f'{char_name}: {saved_count}/{self.images_per_character} images',
             )
         elif saved_count > 0:
-            progress.console.print(
-                f'[yellow]⚠[/yellow] {char_name}: '
-                f'{saved_count}/{self.images_per_character} images (incomplete)',
+            self.logger.warning(
+                f'{char_name}: {saved_count}/{self.images_per_character} images (incomplete)',
             )
         else:
-            progress.console.print(
-                f'[red]✗[/red] {char_name}: No suitable images found',
-            )
+            self.logger.error(f'{char_name}: No suitable images found')
 
     def __process_search_results(
         self, results: List[Dict[str, Any]], output_folder: Path, saved_count: int,

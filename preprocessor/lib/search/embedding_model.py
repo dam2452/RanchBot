@@ -3,7 +3,7 @@ from typing import (
     Union,
 )
 
-from preprocessor.modules.search.clients.embedding_service import EmbeddingService
+from preprocessor.lib.search.clients.embedding_service import EmbeddingService
 
 
 class EmbeddingModelWrapper:

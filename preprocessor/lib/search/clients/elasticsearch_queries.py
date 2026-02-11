@@ -8,7 +8,7 @@ from typing import (
 
 from elasticsearch import AsyncElasticsearch
 
-from preprocessor.modules.search.clients.embedding_service import EmbeddingService
+from preprocessor.lib.search.clients.embedding_service import EmbeddingService
 
 
 class ElasticsearchQueries:

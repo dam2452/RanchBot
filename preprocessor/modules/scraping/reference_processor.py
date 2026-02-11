@@ -17,17 +17,17 @@ from insightface.app import FaceAnalysis
 import numpy as np
 
 from preprocessor.config.config import settings
-from preprocessor.core.base_processor import (
-    BaseProcessor,
-    OutputSpec,
-    ProcessingItem,
-)
 from preprocessor.lib.characters.face_detection import FaceDetector
 from preprocessor.lib.characters.models import (
     CandidateFace,
     FaceData,
 )
 from preprocessor.lib.ui.console import console
+from preprocessor.modules.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
 
 warnings.filterwarnings('ignore', message='.*estimate.*is deprecated.*', category=FutureWarning, module='insightface')
 
@@ -152,7 +152,7 @@ class CharacterReferenceProcessor(BaseProcessor):
         self.face_app = FaceDetector.init()
         return True
 
-    def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
+    def _process_item(self, item: ProcessingItem, _missing_outputs: List[OutputSpec]) -> None:
         char_dir = item.input_path
         char_name = item.metadata['char_name']
         console.print(f'[blue]Processing character: {char_name}[/blue]')

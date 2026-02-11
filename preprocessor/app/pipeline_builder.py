@@ -5,11 +5,11 @@ from typing import (
     List,
 )
 
-from preprocessor.app.video_discovery import VideoDiscovery
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.lib.episodes.episode_manager import EpisodeManager
+from preprocessor.lib.video.discovery import VideoDiscovery
 
 if TYPE_CHECKING:
     from preprocessor.app.pipeline import PipelineDefinition

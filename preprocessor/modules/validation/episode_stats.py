@@ -21,10 +21,10 @@ from preprocessor.config.constants import (
     OUTPUT_FILE_NAMES,
     OUTPUT_FILE_PATTERNS,
 )
-from preprocessor.core.path_manager import PathManager
 from preprocessor.lib.episodes import EpisodeInfo
-from preprocessor.lib.validation.base_result import ValidationStatusMixin
-from preprocessor.lib.validation.file_validators import FileValidator
+from preprocessor.lib.io.path_manager import PathManager
+from preprocessor.modules.validation.base_result import ValidationStatusMixin
+from preprocessor.modules.validation.file_validators import FileValidator
 
 ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
