@@ -1,0 +1,29 @@
+name: Check PR Title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Check PR title starts with version
+        run: |
+          VERSION=$(cat VERSION)
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          if [[ "$PR_TITLE" == "[$VERSION]"* ]]; then
+            echo "✅ PR title starts with [$VERSION]"
+            exit 0
+          else
+            echo "❌ ERROR: PR title must start with [$VERSION]"
+            echo "   Current title: $PR_TITLE"
+            echo "   Expected prefix: [$VERSION]"
+            echo ""
+            echo "   Example: [$VERSION] Add new feature"
+            exit 1
+          fi
