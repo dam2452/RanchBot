@@ -60,7 +60,7 @@ class TestListWhitelistHandlerIntegration(BaseIntegrationTest):
         await self.add_test_user(
             user_id=55555,
             username='detailed_user',
-            full_name='Full Name Test'
+            full_name='Full Name Test',
         )
 
         message = self.create_message('/listwhitelist')

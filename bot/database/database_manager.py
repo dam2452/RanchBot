@@ -840,6 +840,10 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 )
 
     @staticmethod
+    async def add_moderator(user_id: int) -> None:
+        await DatabaseManager.set_user_as_moderator(user_id)
+
+    @staticmethod
     async def remove_admin(user_id: int) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():

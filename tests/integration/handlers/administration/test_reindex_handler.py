@@ -71,10 +71,12 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
             mock_instance = AsyncMock()
             mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_instance.__aexit__ = AsyncMock(return_value=None)
-            mock_instance.reindex_all = AsyncMock(return_value=[
-                MockReindexResult('series1', 100, 10),
-                MockReindexResult('series2', 200, 20),
-            ])
+            mock_instance.reindex_all = AsyncMock(
+                return_value=[
+                    MockReindexResult('series1', 100, 10),
+                    MockReindexResult('series2', 200, 20),
+                ],
+            )
             mock_service.return_value = mock_instance
 
             handler = ReindexHandler(message, responder, logger)
@@ -93,9 +95,11 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
             mock_instance = AsyncMock()
             mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_instance.__aexit__ = AsyncMock(return_value=None)
-            mock_instance.reindex_all_new = AsyncMock(return_value=[
-                MockReindexResult('new_series', 50, 5),
-            ])
+            mock_instance.reindex_all_new = AsyncMock(
+                return_value=[
+                    MockReindexResult('new_series', 50, 5),
+                ],
+            )
             mock_service.return_value = mock_instance
 
             handler = ReindexHandler(message, responder, logger)

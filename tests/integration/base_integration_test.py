@@ -179,5 +179,8 @@ class BaseIntegrationTest:
     async def make_user_admin(self, user_id: int) -> None:
         await DatabaseManager.add_admin(user_id)
 
+    async def make_user_moderator(self, user_id: int) -> None:
+        await DatabaseManager.add_moderator(user_id)
+
     async def remove_admin(self, user_id: int) -> None:
         await DatabaseManager.remove_admin(user_id)

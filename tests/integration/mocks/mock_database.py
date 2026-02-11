@@ -147,6 +147,18 @@ class MockDatabase:
         })
 
     @classmethod
+    async def add_moderator(cls, user_id: int):
+        if user_id not in cls._roles:
+            cls._roles[user_id] = []
+        if 'moderator' not in cls._roles[user_id]:
+            cls._roles[user_id].append('moderator')
+
+        cls._call_log.append({
+            'method': 'add_moderator',
+            'user_id': user_id,
+        })
+
+    @classmethod
     async def is_admin_or_moderator(cls, user_id: int) -> bool:
         if user_id not in cls._roles:
             return False
@@ -289,12 +301,14 @@ class MockDatabase:
         for user_id, roles in cls._roles.items():
             if 'admin' in roles and user_id in cls._users:
                 user = cls._users[user_id]
-                admin_users.append(UserProfile(
-                    user_id=user['user_id'],
-                    username=user.get('username', ''),
-                    full_name=user.get('full_name', ''),
-                    note=user.get('note'),
-                ))
+                admin_users.append(
+                    UserProfile(
+                        user_id=user['user_id'],
+                        username=user.get('username', ''),
+                        full_name=user.get('full_name', ''),
+                        note=user.get('note'),
+                    ),
+                )
         return admin_users
 
     @classmethod
@@ -304,12 +318,14 @@ class MockDatabase:
         for user_id, roles in cls._roles.items():
             if 'moderator' in roles and user_id in cls._users:
                 user = cls._users[user_id]
-                moderator_users.append(UserProfile(
-                    user_id=user['user_id'],
-                    username=user.get('username', ''),
-                    full_name=user.get('full_name', ''),
-                    note=user.get('note'),
-                ))
+                moderator_users.append(
+                    UserProfile(
+                        user_id=user['user_id'],
+                        username=user.get('username', ''),
+                        full_name=user.get('full_name', ''),
+                        note=user.get('note'),
+                    ),
+                )
         return moderator_users
 
     @classmethod
@@ -402,10 +418,12 @@ class MockDatabase:
         ]
 
     @classmethod
-    async def save_clip(cls, chat_id: int, user_id: int, clip_name: str, video_data: bytes,
-                       start_time: float, end_time: float, duration: float,
-                       is_compilation: bool = False, season: Optional[int] = None,
-                       episode_number: Optional[int] = None):
+    async def save_clip(
+        cls, chat_id: int, user_id: int, clip_name: str, video_data: bytes,
+        start_time: float, end_time: float, duration: float,
+        is_compilation: bool = False, season: Optional[int] = None,
+        episode_number: Optional[int] = None,
+    ):
         if user_id not in cls._saved_clips:
             cls._saved_clips[user_id] = []
         cls._saved_clips[user_id].append({
@@ -475,11 +493,12 @@ class MockDatabase:
     async def get_last_clip_by_chat_id(cls, chat_id: int):
         if chat_id not in cls._last_clips:
             return None
+        from datetime import date
+
         from bot.database.models import (
             ClipType,
             LastClip,
         )
-        from datetime import date
         clip_data = cls._last_clips[chat_id]
         return LastClip(
             id=1,

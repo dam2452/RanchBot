@@ -44,7 +44,7 @@ class TestListAdminsHandlerIntegration(BaseIntegrationTest):
     @pytest.mark.asyncio
     async def test_list_admins_excludes_moderators(self, mock_db):
         await self.add_test_user(user_id=66663, username='moderator1')
-        await mock_db._roles[66663] = ['moderator']
+        await self.make_user_moderator(66663)
 
         message = self.create_message('/listadmins')
         responder = self.create_responder()
