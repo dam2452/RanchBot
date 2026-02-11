@@ -5,7 +5,7 @@ on:
     types: [opened, edited, synchronize]
 
 jobs:
-  check-title:
+  check-pr-title:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
