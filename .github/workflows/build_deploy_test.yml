@@ -126,3 +126,16 @@ jobs:
           tags: |
             dam245222/ranchbot:${{ steps.version.outputs.VERSION }}
             dam245222/ranchbot:latest
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="v${{ steps.version.outputs.VERSION }}"
+          if gh release view "$VERSION" &>/dev/null; then
+            echo "Release $VERSION already exists, skipping"
+          else
+            gh release create "$VERSION" \
+              --title "Release $VERSION" \
+              --notes "Docker image: \`dam245222/ranchbot:${{ steps.version.outputs.VERSION }}\`"
+          fi
