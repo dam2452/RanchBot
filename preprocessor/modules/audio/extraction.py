@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+from typing import List
 
 from preprocessor.config.step_configs import AudioExtractionConfig
 from preprocessor.core.artifacts import (
@@ -37,7 +38,7 @@ class AudioExtractionStep(PipelineStep[SourceVideo, AudioArtifact, AudioExtracti
                 )
         context.logger.info(f'Extracting audio for {input_data.episode_id}')
         context.mark_step_started(self.name, input_data.episode_id)
-        command: list[str] = [
+        command: List[str] = [
             'ffmpeg', '-y', '-v', 'error',
             '-i', str(input_data.path),
             '-vn',
