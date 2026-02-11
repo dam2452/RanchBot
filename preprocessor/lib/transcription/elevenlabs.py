@@ -23,20 +23,6 @@ from preprocessor.lib.ui.console import (
 
 class ElevenLabsTranscriber(BaseProcessor):
 
-    def _validate_args(self, args: Dict[str, Any]) -> None:
-        if 'videos' not in args:
-            raise ValueError('videos is required')
-        if 'output_dir' not in args:
-            raise ValueError('output_dir is required')
-        if 'series_name' not in args:
-            raise ValueError('series_name is required')
-        videos_path = Path(args['videos'])
-        if not videos_path.is_dir():
-            raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
-
-    def get_output_subdir(self) -> str:
-        return settings.output_subdirs.transcriptions
-
     def __init__(self, args: Dict[str, Any]):
         super().__init__(args=args, class_name=self.__class__.__name__, error_exit_code=5, loglevel=logging.DEBUG)
         self.input_videos: Path = Path(self._args['videos'])
@@ -48,6 +34,9 @@ class ElevenLabsTranscriber(BaseProcessor):
         self.diarize: bool = self._args.get('diarize', True)
         self.episode_manager = EpisodeManager(self.episodes_info_json, self.series_name, self.logger)
         self.engine = ElevenLabsEngine(logger=self.logger, model_id=self.model_id, language_code=self.language_code, diarize=self.diarize)
+
+    def get_output_subdir(self) -> str:
+        return settings.output_subdirs.transcriptions
 
     def _execute(self) -> None:
         video_files: List[Path] = []
@@ -97,6 +86,17 @@ class ElevenLabsTranscriber(BaseProcessor):
                 series_name=self.series_name,
             )
             multi_format_gen.generate()
+
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if 'videos' not in args:
+            raise ValueError('videos is required')
+        if 'output_dir' not in args:
+            raise ValueError('output_dir is required')
+        if 'series_name' not in args:
+            raise ValueError('series_name is required')
+        videos_path = Path(args['videos'])
+        if not videos_path.is_dir():
+            raise NotADirectoryError(f"Input videos is not a directory: '{videos_path}'")
 
     @staticmethod
     def __create_segments_from_words(words: List[Dict]) -> List[Dict]:

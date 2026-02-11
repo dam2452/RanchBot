@@ -46,6 +46,15 @@ class NormalizedAudioProcessor:
             compute_type=compute_type,
         )
 
+    def cleanup(self) -> None:
+        self.__logger.info('Unloading Whisper model and clearing GPU memory...')
+        if hasattr(self, '_NormalizedAudioProcessor__whisper_model'):
+            del self.__whisper_model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        self.__logger.info('Whisper model unloaded, GPU memory cleared')
+
     def __call__(self) -> None:
         if self.__audio_files is not None:
             for audio in self.__audio_files:
@@ -81,12 +90,3 @@ class NormalizedAudioProcessor:
             self.__logger.info(f'Processed: {normalized_audio}')
         except Exception as e:
             self.__logger.error(f'Error processing file {normalized_audio}: {e}')
-
-    def cleanup(self) -> None:
-        self.__logger.info('Unloading Whisper model and clearing GPU memory...')
-        if hasattr(self, '_NormalizedAudioProcessor__whisper_model'):
-            del self.__whisper_model
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        self.__logger.info('Whisper model unloaded, GPU memory cleared')

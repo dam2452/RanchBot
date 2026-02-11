@@ -26,20 +26,12 @@ class MultiFormatGenerator:
         self.series_name = series_name.lower() if series_name else 'unknown'
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name, logger)
 
-    def __call__(self) -> None:
-        self.generate()
-
     def generate(self) -> None:
         for transcription_file in self.jsons_dir.rglob('*.json'):
             self.__process_file(transcription_file)
 
-    def __load_transcription(self, transcription_file: Path) -> Optional[Dict[str, Any]]:
-        try:
-            with open(transcription_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            self.logger.error(f'Failed to load transcription {transcription_file}: {e}')
-            return None
+    def __call__(self) -> None:
+        self.generate()
 
     def __check_if_already_processed(self, episode_info) -> bool:
         filename = self.episode_manager.path_manager.build_filename(
@@ -72,23 +64,6 @@ class MultiFormatGenerator:
         self.__generate_simple_json(transcription, episode_info)
         self.__generate_srt(transcription, episode_info)
         self.__generate_txt(transcription, episode_info)
-
-    def __process_file(self, transcription_file: Path) -> None:
-        try:
-            transcription = self.__load_transcription(transcription_file)
-            if not transcription:
-                return
-            episode_info = self.episode_manager.parse_filename(transcription_file)
-            if not episode_info:
-                self.logger.error(
-                    f'Cannot extract episode info from {transcription_file.name}',
-                )
-                return
-            if self.__check_if_already_processed(episode_info):
-                return
-            self.__generate_all_formats(transcription, episode_info)
-        except Exception as e:
-            self.logger.error(f'Error processing file {transcription_file}: {e}')
 
     def __generate_full_json(self, data: Dict[str, Any], episode_info) -> None:
         filename = self.episode_manager.path_manager.build_filename(episode_info, extension='json')
@@ -154,3 +129,28 @@ class MultiFormatGenerator:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(txt_content)
         self.logger.info(f'Generated TXT: {output_file}')
+
+    def __load_transcription(self, transcription_file: Path) -> Optional[Dict[str, Any]]:
+        try:
+            with open(transcription_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            self.logger.error(f'Failed to load transcription {transcription_file}: {e}')
+            return None
+
+    def __process_file(self, transcription_file: Path) -> None:
+        try:
+            transcription = self.__load_transcription(transcription_file)
+            if not transcription:
+                return
+            episode_info = self.episode_manager.parse_filename(transcription_file)
+            if not episode_info:
+                self.logger.error(
+                    f'Cannot extract episode info from {transcription_file.name}',
+                )
+                return
+            if self.__check_if_already_processed(episode_info):
+                return
+            self.__generate_all_formats(transcription, episode_info)
+        except Exception as e:
+            self.logger.error(f'Error processing file {transcription_file}: {e}')

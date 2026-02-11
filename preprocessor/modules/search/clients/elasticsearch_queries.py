@@ -17,153 +17,49 @@ class ElasticsearchQueries:
         self._embedding_service = embedding_service
         self._index_base = index_base
 
-    @property
-    def __segments_index(self) -> str:
-        return f'{self._index_base}_text_segments'
-
-    @property
-    def __text_embeddings_index(self) -> str:
-        return f'{self._index_base}_text_embeddings'
-
-    @property
-    def __video_frames_index(self) -> str:
-        return f'{self._index_base}_video_frames'
-
-    @property
-    def __episode_names_index(self) -> str:
-        return f'{self._index_base}_episode_names'
-
-    @staticmethod
-    def __build_episode_filters(season: Optional[int], episode: Optional[int]) -> List[Dict[str, Any]]:
-        filters = []
-        if season is not None:
-            filters.append({'term': {'episode_metadata.season': season}})
-        if episode is not None:
-            filters.append({'term': {'episode_metadata.episode_number': episode}})
-        return filters
-
-    async def search_text_query(
-        self,
-        es_client: AsyncElasticsearch,
-        query: str,
-        season: Optional[int]=None,
-        episode: Optional[int]=None,
-        limit: int=20,
-    ) -> Dict[str, Any]:
-        must_clauses = [
-            {'multi_match': {'query': query, 'fields': ['text^2', 'episode_metadata.title'], 'fuzziness': 'AUTO'}},
-        ]
-        must_clauses.extend(self.__build_episode_filters(season, episode))
-        query_body = {'bool': {'must': must_clauses}}
-        return await es_client.search(
-            index=self.__segments_index,
-            query=query_body,
-            size=limit,
-            _source=[
-                'episode_id', 'segment_id', 'text', 'start_time', 'end_time', 'speaker',
-                'video_path', 'episode_metadata', 'scene_info',
-            ],
-        )
-
-    async def search_text_semantic(
-        self,
-        es_client: AsyncElasticsearch,
-        text: str,
-        season: Optional[int]=None,
-        episode: Optional[int]=None,
-        limit: int=10,
-    ) -> Dict[str, Any]:
-        embedding = self._embedding_service.get_text_embedding(text)
-        filter_clauses = self.__build_episode_filters(season, episode)
-        knn_query: Dict[str, Any] = {
-            'field': 'text_embedding',
-            'query_vector': embedding,
-            'k': limit,
-            'num_candidates': limit * 10,
+    async def get_stats(self, es_client: AsyncElasticsearch) -> Dict[str, int]:
+        return {
+            'segments': (await es_client.count(index=self.__segments_index))['count'],
+            'text_embeddings': (await es_client.count(index=self.__text_embeddings_index))['count'],
+            'video_embeddings': (await es_client.count(index=self.__video_frames_index))['count'],
+            'episode_names': (await es_client.count(index=self.__episode_names_index))['count'],
         }
-        if filter_clauses:
-            knn_query['filter'] = filter_clauses
-        return await es_client.search(
-            index=self.__text_embeddings_index,
-            knn=knn_query,
-            size=limit,
-            _source=[
-                'episode_id', 'embedding_id', 'text', 'segment_range',
-                'video_path', 'episode_metadata', 'scene_info',
-            ],
-        )
 
-    async def search_video_semantic(
-        self,
-        es_client: AsyncElasticsearch,
-        image_path: str,
-        season: Optional[int]=None,
-        episode: Optional[int]=None,
-        character: Optional[str]=None,
-        limit: int=10,
-    ) -> Dict[str, Any]:
-        embedding = self._embedding_service.get_image_embedding(image_path)
-        filter_clauses = self.__build_episode_filters(season, episode)
-        if character:
-            filter_clauses.append({
-                'nested': {
-                    'path': 'character_appearances',
-                    'query': {'term': {'character_appearances.name': character}},
-                },
-            })
-        knn_query: Dict[str, Any] = {
-            'field': 'video_embedding',
-            'query_vector': embedding,
-            'k': limit,
-            'num_candidates': limit * 10,
-        }
-        if filter_clauses:
-            knn_query['filter'] = filter_clauses
-        return await es_client.search(
+    async def list_characters(self, es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
+        result = await es_client.search(
             index=self.__video_frames_index,
-            knn=knn_query,
-            size=limit,
-            _source=[
-                'episode_id', 'frame_number', 'timestamp', 'frame_type', 'scene_number',
-                'perceptual_hash', 'video_path', 'episode_metadata', 'character_appearances', 'scene_info',
-            ],
-        )
-
-    async def search_text_to_video(
-        self,
-        es_client: AsyncElasticsearch,
-        text: str,
-        season: Optional[int]=None,
-        episode: Optional[int]=None,
-        character: Optional[str]=None,
-        limit: int=10,
-    ) -> Dict[str, Any]:
-        embedding = self._embedding_service.get_text_embedding(text)
-        filter_clauses = self.__build_episode_filters(season, episode)
-        if character:
-            filter_clauses.append({
-                'nested': {
-                    'path': 'character_appearances',
-                    'query': {'term': {'character_appearances.name': character}},
+            size=0,
+            aggs={
+                'characters_nested': {
+                    'nested': {'path': 'character_appearances'},
+                    'aggs': {
+                        'character_names': {
+                            'terms': {'field': 'character_appearances.name', 'size': 1000},
+                        },
+                    },
                 },
-            })
-        knn_query: Dict[str, Any] = {
-            'field': 'video_embedding',
-            'query_vector': embedding,
-            'k': limit,
-            'num_candidates': limit * 10,
-        }
-        if filter_clauses:
-            knn_query['filter'] = filter_clauses
-        return await es_client.search(
-            index=self.__video_frames_index,
-            knn=knn_query,
-            size=limit,
-            _source=[
-                'episode_id', 'frame_number', 'timestamp', 'frame_type', 'scene_number',
-                'perceptual_hash', 'video_path', 'episode_metadata', 'character_appearances', 'scene_info',
-            ],
+            },
         )
+        buckets = result['aggregations']['characters_nested']['character_names']['buckets']
+        return [(b['key'], b['doc_count']) for b in buckets]
+
+    async def list_objects(self, es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
+        result = await es_client.search(
+            index=self.__video_frames_index,
+            size=0,
+            aggs={
+                'objects_nested': {
+                    'nested': {'path': 'detected_objects'},
+                    'aggs': {
+                        'object_classes': {
+                            'terms': {'field': 'detected_objects.class', 'size': 1000},
+                        },
+                    },
+                },
+            },
+        )
+        buckets = result['aggregations']['objects_nested']['object_classes']['buckets']
+        return [(b['key'], b['doc_count']) for b in buckets]
 
     async def search_by_character(
         self,
@@ -318,58 +214,6 @@ class ElasticsearchQueries:
             ],
         )
 
-    async def search_perceptual_hash(
-        self,
-        es_client: AsyncElasticsearch,
-        phash: str,
-        limit: int=10,
-    ) -> Dict[str, Any]:
-        return await es_client.search(
-            index=self.__video_frames_index,
-            query={'term': {'perceptual_hash': phash}},
-            size=limit,
-            _source=[
-                'episode_id', 'frame_number', 'timestamp', 'video_path',
-                'episode_metadata', 'perceptual_hash', 'scene_info',
-            ],
-        )
-
-    async def list_characters(self, es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
-        result = await es_client.search(
-            index=self.__video_frames_index,
-            size=0,
-            aggs={
-                'characters_nested': {
-                    'nested': {'path': 'character_appearances'},
-                    'aggs': {
-                        'character_names': {
-                            'terms': {'field': 'character_appearances.name', 'size': 1000},
-                        },
-                    },
-                },
-            },
-        )
-        buckets = result['aggregations']['characters_nested']['character_names']['buckets']
-        return [(b['key'], b['doc_count']) for b in buckets]
-
-    async def list_objects(self, es_client: AsyncElasticsearch) -> List[Tuple[str, int]]:
-        result = await es_client.search(
-            index=self.__video_frames_index,
-            size=0,
-            aggs={
-                'objects_nested': {
-                    'nested': {'path': 'detected_objects'},
-                    'aggs': {
-                        'object_classes': {
-                            'terms': {'field': 'detected_objects.class', 'size': 1000},
-                        },
-                    },
-                },
-            },
-        )
-        buckets = result['aggregations']['objects_nested']['object_classes']['buckets']
-        return [(b['key'], b['doc_count']) for b in buckets]
-
     async def search_episode_name(
         self,
         es_client: AsyncElasticsearch,
@@ -416,10 +260,166 @@ class ElasticsearchQueries:
             _source=['episode_id', 'title', 'video_path', 'episode_metadata'],
         )
 
-    async def get_stats(self, es_client: AsyncElasticsearch) -> Dict[str, int]:
-        return {
-            'segments': (await es_client.count(index=self.__segments_index))['count'],
-            'text_embeddings': (await es_client.count(index=self.__text_embeddings_index))['count'],
-            'video_embeddings': (await es_client.count(index=self.__video_frames_index))['count'],
-            'episode_names': (await es_client.count(index=self.__episode_names_index))['count'],
+    async def search_perceptual_hash(
+        self,
+        es_client: AsyncElasticsearch,
+        phash: str,
+        limit: int=10,
+    ) -> Dict[str, Any]:
+        return await es_client.search(
+            index=self.__video_frames_index,
+            query={'term': {'perceptual_hash': phash}},
+            size=limit,
+            _source=[
+                'episode_id', 'frame_number', 'timestamp', 'video_path',
+                'episode_metadata', 'perceptual_hash', 'scene_info',
+            ],
+        )
+
+    async def search_text_query(
+        self,
+        es_client: AsyncElasticsearch,
+        query: str,
+        season: Optional[int]=None,
+        episode: Optional[int]=None,
+        limit: int=20,
+    ) -> Dict[str, Any]:
+        must_clauses = [
+            {'multi_match': {'query': query, 'fields': ['text^2', 'episode_metadata.title'], 'fuzziness': 'AUTO'}},
+        ]
+        must_clauses.extend(self.__build_episode_filters(season, episode))
+        query_body = {'bool': {'must': must_clauses}}
+        return await es_client.search(
+            index=self.__segments_index,
+            query=query_body,
+            size=limit,
+            _source=[
+                'episode_id', 'segment_id', 'text', 'start_time', 'end_time', 'speaker',
+                'video_path', 'episode_metadata', 'scene_info',
+            ],
+        )
+
+    async def search_text_semantic(
+        self,
+        es_client: AsyncElasticsearch,
+        text: str,
+        season: Optional[int]=None,
+        episode: Optional[int]=None,
+        limit: int=10,
+    ) -> Dict[str, Any]:
+        embedding = self._embedding_service.get_text_embedding(text)
+        filter_clauses = self.__build_episode_filters(season, episode)
+        knn_query: Dict[str, Any] = {
+            'field': 'text_embedding',
+            'query_vector': embedding,
+            'k': limit,
+            'num_candidates': limit * 10,
         }
+        if filter_clauses:
+            knn_query['filter'] = filter_clauses
+        return await es_client.search(
+            index=self.__text_embeddings_index,
+            knn=knn_query,
+            size=limit,
+            _source=[
+                'episode_id', 'embedding_id', 'text', 'segment_range',
+                'video_path', 'episode_metadata', 'scene_info',
+            ],
+        )
+
+    async def search_text_to_video(
+        self,
+        es_client: AsyncElasticsearch,
+        text: str,
+        season: Optional[int]=None,
+        episode: Optional[int]=None,
+        character: Optional[str]=None,
+        limit: int=10,
+    ) -> Dict[str, Any]:
+        embedding = self._embedding_service.get_text_embedding(text)
+        filter_clauses = self.__build_episode_filters(season, episode)
+        if character:
+            filter_clauses.append({
+                'nested': {
+                    'path': 'character_appearances',
+                    'query': {'term': {'character_appearances.name': character}},
+                },
+            })
+        knn_query: Dict[str, Any] = {
+            'field': 'video_embedding',
+            'query_vector': embedding,
+            'k': limit,
+            'num_candidates': limit * 10,
+        }
+        if filter_clauses:
+            knn_query['filter'] = filter_clauses
+        return await es_client.search(
+            index=self.__video_frames_index,
+            knn=knn_query,
+            size=limit,
+            _source=[
+                'episode_id', 'frame_number', 'timestamp', 'frame_type', 'scene_number',
+                'perceptual_hash', 'video_path', 'episode_metadata', 'character_appearances', 'scene_info',
+            ],
+        )
+
+    async def search_video_semantic(
+        self,
+        es_client: AsyncElasticsearch,
+        image_path: str,
+        season: Optional[int]=None,
+        episode: Optional[int]=None,
+        character: Optional[str]=None,
+        limit: int=10,
+    ) -> Dict[str, Any]:
+        embedding = self._embedding_service.get_image_embedding(image_path)
+        filter_clauses = self.__build_episode_filters(season, episode)
+        if character:
+            filter_clauses.append({
+                'nested': {
+                    'path': 'character_appearances',
+                    'query': {'term': {'character_appearances.name': character}},
+                },
+            })
+        knn_query: Dict[str, Any] = {
+            'field': 'video_embedding',
+            'query_vector': embedding,
+            'k': limit,
+            'num_candidates': limit * 10,
+        }
+        if filter_clauses:
+            knn_query['filter'] = filter_clauses
+        return await es_client.search(
+            index=self.__video_frames_index,
+            knn=knn_query,
+            size=limit,
+            _source=[
+                'episode_id', 'frame_number', 'timestamp', 'frame_type', 'scene_number',
+                'perceptual_hash', 'video_path', 'episode_metadata', 'character_appearances', 'scene_info',
+            ],
+        )
+
+    @staticmethod
+    def __build_episode_filters(season: Optional[int], episode: Optional[int]) -> List[Dict[str, Any]]:
+        filters = []
+        if season is not None:
+            filters.append({'term': {'episode_metadata.season': season}})
+        if episode is not None:
+            filters.append({'term': {'episode_metadata.episode_number': episode}})
+        return filters
+
+    @property
+    def __episode_names_index(self) -> str:
+        return f'{self._index_base}_episode_names'
+
+    @property
+    def __segments_index(self) -> str:
+        return f'{self._index_base}_text_segments'
+
+    @property
+    def __text_embeddings_index(self) -> str:
+        return f'{self._index_base}_text_embeddings'
+
+    @property
+    def __video_frames_index(self) -> str:
+        return f'{self._index_base}_video_frames'

@@ -31,10 +31,6 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         decord.bridge.set_bridge('native')
         self.strategy = KeyframeStrategyFactory.create(self.config.keyframe_strategy, self.config.frames_per_scene)
 
-    @property
-    def name(self) -> str:
-        return 'frame_export'
-
     def execute(self, input_data: SceneCollection, context: ExecutionContext) -> FrameCollection:
         episode_dir = context.get_output_path(input_data.episode_info, 'exported_frames', '')
         metadata_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_frame_metadata.json'
@@ -87,21 +83,25 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             metadata_path=metadata_file,
         )
 
-    def __extract_frames(
-        self,
-        video_file: Path,
-        frame_requests: List[FrameRequest],
-        episode_dir: Path,
-        episode_info,
-        context: ExecutionContext,
-    ) -> None:
-        video_metadata = self.__get_video_metadata(video_file)
-        dar = self.__calculate_display_aspect_ratio(video_metadata)
-        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
-        for req in frame_requests:
-            frame_num = req['frame_number']
-            self.__extract_and_save_frame(vr, frame_num, episode_dir, episode_info, dar, context.series_name)
-        del vr
+    @property
+    def name(self) -> str:
+        return 'frame_export'
+
+    @staticmethod
+    def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
+        width = metadata.get('width', 0)
+        height = metadata.get('height', 0)
+        if width == 0 or height == 0:
+            raise ValueError('Invalid video dimensions')
+        sar_str = metadata.get('sample_aspect_ratio', '1:1')
+        if sar_str == 'N/A' or not sar_str:
+            sar_str = '1:1'
+        try:
+            sar_num, sar_denom = [int(x) for x in sar_str.split(':')]
+            sar = sar_num / sar_denom if sar_denom != 0 else 1.0
+        except (ValueError, ZeroDivisionError):
+            sar = 1.0
+        return width / height * sar
 
     def __extract_and_save_frame(
         self,
@@ -119,6 +119,22 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         filename = f'{base_filename}_frame_{frame_num:06d}.jpg'
         resized.save(episode_dir / filename, quality=90)
 
+    def __extract_frames(
+        self,
+        video_file: Path,
+        frame_requests: List[FrameRequest],
+        episode_dir: Path,
+        episode_info,
+        context: ExecutionContext,
+    ) -> None:
+        video_metadata = self.__get_video_metadata(video_file)
+        dar = self.__calculate_display_aspect_ratio(video_metadata)
+        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+        for req in frame_requests:
+            frame_num = req['frame_number']
+            self.__extract_and_save_frame(vr, frame_num, episode_dir, episode_info, dar, context.series_name)
+        del vr
+
     @staticmethod
     def __get_video_metadata(video_path: Path) -> Dict[str, Any]:
         cmd = [
@@ -132,22 +148,6 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         if not streams:
             raise ValueError(f'No video streams found in {video_path}')
         return streams[0]
-
-    @staticmethod
-    def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
-        width = metadata.get('width', 0)
-        height = metadata.get('height', 0)
-        if width == 0 or height == 0:
-            raise ValueError('Invalid video dimensions')
-        sar_str = metadata.get('sample_aspect_ratio', '1:1')
-        if sar_str == 'N/A' or not sar_str:
-            sar_str = '1:1'
-        try:
-            sar_num, sar_denom = [int(x) for x in sar_str.split(':')]
-            sar = sar_num / sar_denom if sar_denom != 0 else 1.0
-        except (ValueError, ZeroDivisionError):
-            sar = 1.0
-        return width / height * sar
 
     def __resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
         target_width = self.config.resolution.width

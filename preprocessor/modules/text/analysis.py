@@ -16,10 +16,6 @@ from preprocessor.lib.text.text_statistics import TextStatistics
 
 class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, TextAnalysisConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'text_analysis'
-
     def execute(self, input_data: TranscriptionData, context: ExecutionContext) -> TextAnalysisResults:
         output_filename = input_data.path.stem + '_text_stats.json'
         output_path = input_data.path.parent / output_filename
@@ -48,3 +44,7 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
         atomic_write_json(output_path, result_data)
         context.mark_step_completed(self.name, input_data.episode_id)
         return TextAnalysisResults(episode_id=input_data.episode_id, episode_info=input_data.episode_info, path=output_path, statistics=result_data)
+
+    @property
+    def name(self) -> str:
+        return 'text_analysis'

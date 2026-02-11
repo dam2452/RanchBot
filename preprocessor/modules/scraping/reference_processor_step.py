@@ -15,10 +15,6 @@ class CharacterReferenceStep(
         super().__init__(config)
         self._executed = False
 
-    @property
-    def name(self) -> str:
-        return "process_character_references"
-
     def execute(
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> Optional[SourceVideo]:
@@ -61,3 +57,7 @@ class CharacterReferenceStep(
 
         self._executed = True
         return input_data
+
+    @property
+    def name(self) -> str:
+        return "process_character_references"

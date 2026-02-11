@@ -29,9 +29,9 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         self._face_app = None
         self._character_vectors: Dict[str, np.ndarray] = {}
 
-    @property
-    def name(self) -> str:
-        return 'character_detection'
+    def cleanup(self) -> None:
+        self._face_app = None
+        self._character_vectors = {}
 
     def execute(
         self, input_data: FrameCollection, context: ExecutionContext,
@@ -104,6 +104,10 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             detection_count=len(results),
         )
 
+    @property
+    def name(self) -> str:
+        return 'character_detection'
+
     @staticmethod
     def __count_characters(results: List[Dict[str, Any]]) -> Dict[str, int]:
         counts: Dict[str, int] = {}
@@ -112,7 +116,3 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
                 name: str = face.get('character_name', 'unknown')
                 counts[name] = counts.get(name, 0) + 1
         return counts
-
-    def cleanup(self) -> None:
-        self._face_app = None
-        self._character_vectors = {}

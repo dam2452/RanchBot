@@ -5,15 +5,15 @@ from typing import (
 
 
 class HashResult(TypedDict):
-    frame_number: int
-    timestamp: float
-    hash: str
     file_path: NotRequired[str]
+    frame_number: int
+    hash: str
+    timestamp: float
 
 class VideoMetadata(TypedDict):
-    width: int
-    height: int
-    fps: float
-    duration: float
-    codec: NotRequired[str]
     bitrate: NotRequired[int]
+    codec: NotRequired[str]
+    duration: float
+    fps: float
+    height: int
+    width: int

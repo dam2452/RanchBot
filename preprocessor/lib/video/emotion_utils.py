@@ -16,32 +16,6 @@ EMOTION_LABELS = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral'
 class EmotionDetector:
 
     @staticmethod
-    def __init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer: # pylint: disable=unused-private-member
-        model_name = settings.emotion_detection.model_name
-        if logger:
-            logger.info(f'Loading HSEmotion model: {model_name}...')
-        try:
-            fer = HSEmotionRecognizer(model_name=model_name)
-            if logger:
-                logger.info(f'HSEmotion model loaded: {model_name}')
-            return fer
-        except Exception as e:
-            raise RuntimeError(f'Failed to load HSEmotion model {model_name}: {e}') from e
-
-    @staticmethod
-    def __process_emotion_result(
-        emotion: str,
-        scores: np.ndarray,
-    ) -> Tuple[str, float, Dict[str, float]]:
-        emotion_scores = {
-            EMOTION_LABELS[i]: float(scores[i])
-            for i in range(len(EMOTION_LABELS))
-        }
-        confidence = float(max(scores))
-        dominant_emotion = emotion.lower()
-        return (dominant_emotion, confidence, emotion_scores)
-
-    @staticmethod
     def detect(
         face_image: np.ndarray,
         model: HSEmotionRecognizer,
@@ -110,3 +84,29 @@ class EmotionDetector:
                     except Exception:
                         results.append(None)
         return results
+
+    @staticmethod
+    def __init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer: # pylint: disable=unused-private-member
+        model_name = settings.emotion_detection.model_name
+        if logger:
+            logger.info(f'Loading HSEmotion model: {model_name}...')
+        try:
+            fer = HSEmotionRecognizer(model_name=model_name)
+            if logger:
+                logger.info(f'HSEmotion model loaded: {model_name}')
+            return fer
+        except Exception as e:
+            raise RuntimeError(f'Failed to load HSEmotion model {model_name}: {e}') from e
+
+    @staticmethod
+    def __process_emotion_result(
+        emotion: str,
+        scores: np.ndarray,
+    ) -> Tuple[str, float, Dict[str, float]]:
+        emotion_scores = {
+            EMOTION_LABELS[i]: float(scores[i])
+            for i in range(len(EMOTION_LABELS))
+        }
+        confidence = float(max(scores))
+        dominant_emotion = emotion.lower()
+        return (dominant_emotion, confidence, emotion_scores)

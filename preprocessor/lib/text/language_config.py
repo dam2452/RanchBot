@@ -4,10 +4,10 @@ from typing import Set
 
 @dataclass
 class LanguageConfig:
-    vowels: Set[str]
     consonants: Set[str]
     punctuation: Set[str]
     special_chars: Set[str]
+    vowels: Set[str]
 POLISH_VOWELS = set('aąeęioóuyAĄEĘIOÓUY')
 POLISH_CONSONANTS = set('bcćdfghjklłmnńprsśtwzźżBCĆDFGHJKLŁMNŃPRSŚTWZŹŻ')
 ENGLISH_VOWELS = set('aeiouAEIOU')

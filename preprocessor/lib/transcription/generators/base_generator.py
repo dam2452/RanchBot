@@ -30,9 +30,9 @@ class BaseTranscriptionGenerator(ABC):
                 self.logger.error(f'Failed to generate output for {json_file}: {e}')
 
     @abstractmethod
-    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
+    def _get_output_filename(self, json_file: Path) -> str:
         ...
 
     @abstractmethod
-    def _get_output_filename(self, json_file: Path) -> str:
+    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
         ...

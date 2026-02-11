@@ -18,22 +18,22 @@ from preprocessor.lib.ui.console import console
 
 @dataclass
 class StepCheckpoint:
-    step: str
-    episode: str
     completed_at: str
+    episode: str
+    step: str
 
 @dataclass
 class InProgressStep:
-    step: str
     episode: str
     started_at: str
+    step: str
     temp_files: List[str] = field(default_factory=list)
 
 @dataclass
 class ProcessingState:
+    last_checkpoint: str
     series_name: str
     started_at: str
-    last_checkpoint: str
     completed_steps: List[StepCheckpoint] = field(default_factory=list)
     in_progress: Optional[InProgressStep] = None
 
@@ -72,6 +72,19 @@ class StateManager:
         self.__state_file: Path = working_dir / state_filename
         self.__state: Optional[ProcessingState] = None
 
+    def cleanup(self) -> None:
+        if self.__state_file.exists():
+            console.print(f'[blue]Cleaning up state file: {self.__state_file}[/blue]')
+            self.__state_file.unlink()
+
+    def is_step_completed(self, step: str, episode: str) -> bool:
+        if self.__state is None:
+            return False
+        return any(
+            (s.step == step and s.episode == episode)
+            for s in self.__state.completed_steps
+        )
+
     def load_or_create_state(self) -> ProcessingState:
         if self.__state_file.exists():
             console.print(f'[yellow]Found existing state file: {self.__state_file}[/yellow]')
@@ -92,12 +105,18 @@ class StateManager:
             self.__save_state()
             return self.__state
 
-    def __save_state(self) -> None:
+    def mark_step_completed(self, step: str, episode: str) -> None:
         if self.__state is None:
-            return
-        self.__state.last_checkpoint = datetime.now().isoformat()
-        with open(self.__state_file, 'w', encoding='utf-8') as f:
-            json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
+            raise RuntimeError('State not initialized')
+        checkpoint = StepCheckpoint(
+            step=step,
+            episode=episode,
+            completed_at=datetime.now().isoformat(),
+        )
+        self.__state.completed_steps.append(checkpoint)
+        self.__state.in_progress = None
+        self.__save_state()
+        console.print(f'[green]✓ Completed: {step} for {episode}[/green]')
 
     def mark_step_started(
         self, step: str, episode: str, temp_files: Optional[List[str]] = None,
@@ -112,27 +131,6 @@ class StateManager:
         )
         self.__save_state()
         console.print(f'[cyan]Started: {step} for {episode}[/cyan]')
-
-    def mark_step_completed(self, step: str, episode: str) -> None:
-        if self.__state is None:
-            raise RuntimeError('State not initialized')
-        checkpoint = StepCheckpoint(
-            step=step,
-            episode=episode,
-            completed_at=datetime.now().isoformat(),
-        )
-        self.__state.completed_steps.append(checkpoint)
-        self.__state.in_progress = None
-        self.__save_state()
-        console.print(f'[green]✓ Completed: {step} for {episode}[/green]')
-
-    def is_step_completed(self, step: str, episode: str) -> bool:
-        if self.__state is None:
-            return False
-        return any(
-            (s.step == step and s.episode == episode)
-            for s in self.__state.completed_steps
-        )
 
     def __rollback_in_progress(self) -> None: # pylint: disable=unused-private-member
         if self.__state is None or self.__state.in_progress is None:
@@ -152,7 +150,9 @@ class StateManager:
         self.__state.in_progress = None
         self.__save_state()
 
-    def cleanup(self) -> None:
-        if self.__state_file.exists():
-            console.print(f'[blue]Cleaning up state file: {self.__state_file}[/blue]')
-            self.__state_file.unlink()
+    def __save_state(self) -> None:
+        if self.__state is None:
+            return
+        self.__state.last_checkpoint = datetime.now().isoformat()
+        with open(self.__state_file, 'w', encoding='utf-8') as f:
+            json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)

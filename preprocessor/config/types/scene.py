@@ -6,23 +6,23 @@ from typing import (
 
 
 class SceneDict(TypedDict):
-    scene_number: int
-    start_frame: int
     end_frame: int
-    start_time: float
     end_time: float
     fps: float
+    scene_number: int
+    start_frame: int
+    start_time: float
 
 class SceneTimestampPoint(TypedDict):
     frame: int
     seconds: float
 
 class SceneTimestamp(TypedDict):
+    end: SceneTimestampPoint
     scene_number: int
     start: SceneTimestampPoint
-    end: SceneTimestampPoint
 
 class SceneTimestampsData(TypedDict):
+    fps: NotRequired[float]
     scenes: List[SceneTimestamp]
     total_scenes: NotRequired[int]
-    fps: NotRequired[float]

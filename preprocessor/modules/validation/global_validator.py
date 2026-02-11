@@ -21,21 +21,13 @@ class GlobalValidator:
         self.__validate_processing_metadata()
         return self.result
 
-    def __validate_json_file(self, file_path: Path, stats_key: str):
-        if file_path.exists():
-            result = FileValidator.validate_json_file(file_path)
-            if not result.is_valid:
-                self.result.errors.append(f'Invalid {file_path.name}: {result.error_message}')
-            else:
-                self.result.stats[stats_key] = True
-        else:
-            self.result.warnings.append(f'Missing {file_path.name}')
-
-    def __validate_main_json_files(self):
-        episodes_file = self.base_output_dir / f'{self.series_name}_episodes.json'
-        self.__validate_json_file(episodes_file, 'episodes_json_valid')
-        characters_file = self.base_output_dir / f'{self.series_name}_characters.json'
-        self.__validate_json_file(characters_file, 'characters_json_valid')
+    @staticmethod
+    def __get_character_images(char_folder: Path) -> List[Path]:
+        extensions = ['*.jpg', '*.jpeg', '*.png', '*.webp']
+        image_files = []
+        for ext in extensions:
+            image_files.extend(char_folder.glob(ext))
+        return image_files
 
     def __validate_characters_folder(self):
         characters_dir = self.base_output_dir / 'characters'
@@ -66,6 +58,22 @@ class GlobalValidator:
         if characters_without_images:
             self.result.warnings.append(f'{len(characters_without_images)} characters without reference images')
 
+    def __validate_json_file(self, file_path: Path, stats_key: str):
+        if file_path.exists():
+            result = FileValidator.validate_json_file(file_path)
+            if not result.is_valid:
+                self.result.errors.append(f'Invalid {file_path.name}: {result.error_message}')
+            else:
+                self.result.stats[stats_key] = True
+        else:
+            self.result.warnings.append(f'Missing {file_path.name}')
+
+    def __validate_main_json_files(self):
+        episodes_file = self.base_output_dir / f'{self.series_name}_episodes.json'
+        self.__validate_json_file(episodes_file, 'episodes_json_valid')
+        characters_file = self.base_output_dir / f'{self.series_name}_characters.json'
+        self.__validate_json_file(characters_file, 'characters_json_valid')
+
     def __validate_processing_metadata(self):
         metadata_dir = self.base_output_dir / 'processing_metadata'
         if not metadata_dir.exists():
@@ -80,11 +88,3 @@ class GlobalValidator:
             result = FileValidator.validate_json_file(json_file)
             if not result.is_valid:
                 self.result.errors.append(f'Invalid processing metadata {json_file.name}: {result.error_message}')
-
-    @staticmethod
-    def __get_character_images(char_folder: Path) -> List[Path]:
-        extensions = ['*.jpg', '*.jpeg', '*.png', '*.webp']
-        image_files = []
-        for ext in extensions:
-            image_files.extend(char_folder.glob(ext))
-        return image_files

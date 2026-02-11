@@ -10,12 +10,6 @@ from preprocessor.lib.transcription.generators.base_generator import BaseTranscr
 
 class TxtGenerator(BaseTranscriptionGenerator):
 
-    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
-        ...
-
-    def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(FILE_EXTENSIONS['json'], FILE_EXTENSIONS['txt'])
-
     @staticmethod
     def convert_to_txt_format(data: Dict[str, Any]) -> str:
         segments = data.get('segments', [])
@@ -25,3 +19,9 @@ class TxtGenerator(BaseTranscriptionGenerator):
             if text:
                 text_parts.append(text)
         return ' '.join(text_parts)
+
+    def _get_output_filename(self, json_file: Path) -> str:
+        return json_file.name.replace(FILE_EXTENSIONS['json'], FILE_EXTENSIONS['txt'])
+
+    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
+        ...

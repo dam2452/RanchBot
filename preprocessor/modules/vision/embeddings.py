@@ -29,24 +29,10 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         super().__init__(config)
         self._model: Optional[EmbeddingModelWrapper] = None
 
-    @property
-    def name(self) -> str:
-        return 'video_embedding'
-
-    def _create_embedding_collection(  # pylint: disable=duplicate-code
-        self,
-        input_data: FrameCollection,
-        output_path: Path,
-        embedding_count: int,
-    ) -> EmbeddingCollection:
-        return MetadataBuilder.create_embedding_collection(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            model_name=self.config.model_name,
-            embedding_count=embedding_count,
-            embedding_type='video',
-        )
+    def cleanup(self) -> None:
+        if self._model:
+            self._model.cleanup()  # pylint: disable=no-member
+            self._model = None
 
     def execute(  # pylint: disable=too-many-locals
         self, input_data: FrameCollection, context: ExecutionContext,
@@ -106,6 +92,25 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         context.mark_step_completed(self.name, input_data.episode_id)
         return self._create_embedding_collection(input_data, output_path, len(results))
 
+    @property
+    def name(self) -> str:
+        return 'video_embedding'
+
+    def _create_embedding_collection(  # pylint: disable=duplicate-code
+        self,
+        input_data: FrameCollection,
+        output_path: Path,
+        embedding_count: int,
+    ) -> EmbeddingCollection:
+        return MetadataBuilder.create_embedding_collection(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=output_path,
+            model_name=self.config.model_name,
+            embedding_count=embedding_count,
+            embedding_type='video',
+        )
+
     @staticmethod
     def __load_image_hashes(
         input_data: FrameCollection, context: ExecutionContext,
@@ -121,8 +126,3 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         except Exception as e:
             context.logger.warning(f'Could not load image hashes from {hash_path}: {e}')
             return {}
-
-    def cleanup(self) -> None:
-        if self._model:
-            self._model.cleanup()  # pylint: disable=no-member
-            self._model = None

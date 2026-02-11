@@ -16,6 +16,19 @@ class HashService:
     def __init__(self) -> None:
         self._hasher: Optional[PerceptualHasher] = None
 
+    def cleanup(self) -> None:
+        if self._hasher is not None:
+            del self._hasher
+            self._hasher = None
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    def get_perceptual_hash(self, image_path: Union[str, Path]) -> Optional[str]:
+        hasher = self.__load_hasher()
+        image = Image.open(image_path).convert('RGB')
+        hashes = hasher.compute_phash_batch([image])  # pylint: disable=no-member
+        return hashes[0] if hashes else None
+
     def __load_hasher(self) -> PerceptualHasher:
         if self._hasher is not None:
             return self._hasher
@@ -25,16 +38,3 @@ class HashService:
         self._hasher = PerceptualHasher(device='cuda', hash_size=8)  # pylint: disable=unexpected-keyword-arg
         click.echo('Hasher loaded on cuda', err=True)
         return self._hasher
-
-    def get_perceptual_hash(self, image_path: Union[str, Path]) -> Optional[str]:
-        hasher = self.__load_hasher()
-        image = Image.open(image_path).convert('RGB')
-        hashes = hasher.compute_phash_batch([image])  # pylint: disable=no-member
-        return hashes[0] if hashes else None
-
-    def cleanup(self) -> None:
-        if self._hasher is not None:
-            del self._hasher
-            self._hasher = None
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()

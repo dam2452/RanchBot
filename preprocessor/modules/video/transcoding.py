@@ -10,10 +10,6 @@ from preprocessor.lib.media.ffmpeg import FFmpegWrapper
 
 class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'video_transcode'
-
     def execute(  # pylint: disable=too-many-locals,too-many-statements
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> TranscodedVideo:
@@ -134,3 +130,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             resolution=resolution_str,
             codec=self.config.codec,
         )
+
+    @property
+    def name(self) -> str:
+        return 'video_transcode'

@@ -7,12 +7,12 @@ import numpy as np
 @dataclass
 class FaceData:
     bbox: np.ndarray
-    face_vector: np.ndarray
-    source_image_path: Path
-    source_image_idx: int
     face_img: np.ndarray
+    face_vector: np.ndarray
+    source_image_idx: int
+    source_image_path: Path
 
 @dataclass
 class CandidateFace:
-    faces: list[FaceData]
     avg_similarity: float
+    faces: list[FaceData]

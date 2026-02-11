@@ -5,9 +5,9 @@ class KeyframeStrategy(str, Enum):
     SCENE_CHANGES = 'scene_changes'
 
 class FrameType(str, Enum):
+    SCENE_END = 'scene_end'
     SCENE_SINGLE = 'scene_single'
     SCENE_START = 'scene_start'
-    SCENE_END = 'scene_end'
 
     @staticmethod
     def scene_mid(index: int) -> str:
@@ -22,9 +22,9 @@ class ParserMode(str, Enum):
     PREMIUM = 'premium'
 
 class TranscriptionFormat(str, Enum):
-    ELEVENLABS_SEGMENTED = '11labs_segmented'
     ELEVENLABS = '11labs'
+    ELEVENLABS_SEGMENTED = '11labs_segmented'
 
 class Device(str, Enum):
-    CUDA = 'cuda'
     CPU = 'cpu'
+    CUDA = 'cuda'

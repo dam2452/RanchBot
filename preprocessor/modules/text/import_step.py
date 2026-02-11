@@ -25,10 +25,6 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         super().__init__(config)
         self._episode_manager: Optional[EpisodeManager] = None
 
-    @property
-    def name(self) -> str:
-        return 'transcription_import'
-
     def execute(self, input_data: None, context: ExecutionContext) -> List[TranscriptionData]:
         if self._episode_manager is None:
             self._episode_manager = EpisodeManager(None, context.series_name, context.logger)
@@ -46,6 +42,70 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
             except Exception as e:
                 context.logger.error(f'Failed to import {json_file.name}: {e}')
         return results
+
+    @property
+    def name(self) -> str:
+        return 'transcription_import'
+
+    @staticmethod
+    def __convert_11labs_full(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
+        segments: List[Dict[str, Any]] = []
+        words: List[Dict[str, Any]] = data.get('words', [])
+        current_segment: Dict[str, Any] = {'words': [], 'start': None, 'end': None, 'text': '', 'speaker': 'unknown'}
+        for word in words:
+            if current_segment['start'] is None:
+                current_segment['start'] = word.get('start')
+            current_segment['words'].append(word)
+            current_segment['end'] = word.get('end')
+            if word.get('text', '').endswith(('.', '!', '?')) or len(current_segment['words']) >= 20:
+                current_segment['text'] = ' '.join((w.get('text', '') for w in current_segment['words']))
+                segments.append(dict(current_segment))
+                current_segment = {'words': [], 'start': None, 'end': None, 'text': '', 'speaker': word.get('speaker_id', 'unknown')}
+        if current_segment['words']:
+            current_segment['text'] = ' '.join((w.get('text', '') for w in current_segment['words']))
+            segments.append(current_segment)
+        for i, seg in enumerate(segments):
+            seg['id'] = i
+        return {
+            'transcription': {
+                'format': '11labs',
+                'source_file': source_file.name,
+                'language_code': data.get('language_code', 'pol'),
+                'language_probability': data.get('language_probability', 1.0),
+            },
+            'segments': segments,
+        }
+
+    @staticmethod
+    def __convert_11labs_segmented(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
+        segments: List[Dict[str, Any]] = []
+        for i, segment in enumerate(data.get('segments', [])):
+            converted_segment: Dict[str, Any] = {
+                'id': i,
+                'start': segment.get('start'),
+                'end': segment.get('end'),
+                'text': segment.get('text', ''),
+                'speaker': segment.get('speaker', 'unknown'),
+                'words': segment.get('words', []),
+            }
+            segments.append(converted_segment)
+        return {
+            'transcription': {'format': '11labs_segmented', 'source_file': source_file.name, 'segments': segments},
+            'segments': segments,
+        }
+
+    @staticmethod
+    def __extract_season_episode_fallback(file_path: Path) -> Tuple[int, int]:
+        match: Optional[re.Match] = re.search('S(\\d+)E(\\d+)', file_path.name, re.IGNORECASE)
+        if match:
+            return (int(match.group(1)), int(match.group(2)))
+        parent_match: Optional[re.Match] = re.search('S(\\d+)', file_path.parent.name, re.IGNORECASE)
+        if parent_match:
+            season: int = int(parent_match.group(1))
+            episode_match: Optional[re.Match] = re.search('E(\\d+)', file_path.name, re.IGNORECASE)
+            if episode_match:
+                return (season, int(episode_match.group(1)))
+        return (1, 1)
 
     def __find_transcription_files(self) -> List[Path]:
         pattern: str = '*.json'
@@ -93,63 +153,3 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
             model=converted_data.get('transcription', {}).get('format', '11labs'),
             format='json',
         )
-
-    @staticmethod
-    def __convert_11labs_segmented(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
-        segments: List[Dict[str, Any]] = []
-        for i, segment in enumerate(data.get('segments', [])):
-            converted_segment: Dict[str, Any] = {
-                'id': i,
-                'start': segment.get('start'),
-                'end': segment.get('end'),
-                'text': segment.get('text', ''),
-                'speaker': segment.get('speaker', 'unknown'),
-                'words': segment.get('words', []),
-            }
-            segments.append(converted_segment)
-        return {
-            'transcription': {'format': '11labs_segmented', 'source_file': source_file.name, 'segments': segments},
-            'segments': segments,
-        }
-
-    @staticmethod
-    def __convert_11labs_full(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
-        segments: List[Dict[str, Any]] = []
-        words: List[Dict[str, Any]] = data.get('words', [])
-        current_segment: Dict[str, Any] = {'words': [], 'start': None, 'end': None, 'text': '', 'speaker': 'unknown'}
-        for word in words:
-            if current_segment['start'] is None:
-                current_segment['start'] = word.get('start')
-            current_segment['words'].append(word)
-            current_segment['end'] = word.get('end')
-            if word.get('text', '').endswith(('.', '!', '?')) or len(current_segment['words']) >= 20:
-                current_segment['text'] = ' '.join((w.get('text', '') for w in current_segment['words']))
-                segments.append(dict(current_segment))
-                current_segment = {'words': [], 'start': None, 'end': None, 'text': '', 'speaker': word.get('speaker_id', 'unknown')}
-        if current_segment['words']:
-            current_segment['text'] = ' '.join((w.get('text', '') for w in current_segment['words']))
-            segments.append(current_segment)
-        for i, seg in enumerate(segments):
-            seg['id'] = i
-        return {
-            'transcription': {
-                'format': '11labs',
-                'source_file': source_file.name,
-                'language_code': data.get('language_code', 'pol'),
-                'language_probability': data.get('language_probability', 1.0),
-            },
-            'segments': segments,
-        }
-
-    @staticmethod
-    def __extract_season_episode_fallback(file_path: Path) -> Tuple[int, int]:
-        match: Optional[re.Match] = re.search('S(\\d+)E(\\d+)', file_path.name, re.IGNORECASE)
-        if match:
-            return (int(match.group(1)), int(match.group(2)))
-        parent_match: Optional[re.Match] = re.search('S(\\d+)', file_path.parent.name, re.IGNORECASE)
-        if parent_match:
-            season: int = int(parent_match.group(1))
-            episode_match: Optional[re.Match] = re.search('E(\\d+)', file_path.name, re.IGNORECASE)
-            if episode_match:
-                return (season, int(episode_match.group(1)))
-        return (1, 1)

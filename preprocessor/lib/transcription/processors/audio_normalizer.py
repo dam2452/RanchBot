@@ -29,19 +29,6 @@ class AudioNormalizer:
                 if video.suffix.lower() in self.SUPPORTED_VIDEO_EXTENSIONS:
                     self.__process_video(video)
 
-    def __process_video(self, video: Path) -> None:
-        try:
-            output_path = self.__output_dir / video.with_suffix('.wav').name
-            if output_path.exists():
-                return
-            audio_idx = self.__get_best_audio_stream(video)
-            if audio_idx is None:
-                self.__logger.error(f"Cannot find audio stream for file: '{video}'")
-                return
-            self.__normalize(video=video, audio_idx=audio_idx, output=output_path)
-        except Exception as e:
-            self.__logger.error(f'Error processing video {video}: {e}')
-
     def __get_best_audio_stream(self, video: Path) -> Optional[int]:
         cmd = ['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index,bit_rate', '-of', 'json', str(video)]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -62,3 +49,16 @@ class AudioNormalizer:
         self.__logger.info(f'Normalized audio: {tmp_output}')
         tmp_output.replace(output)
         self.__logger.info(f'Replaced original file with normalized audio: {video} -> {output}')
+
+    def __process_video(self, video: Path) -> None:
+        try:
+            output_path = self.__output_dir / video.with_suffix('.wav').name
+            if output_path.exists():
+                return
+            audio_idx = self.__get_best_audio_stream(video)
+            if audio_idx is None:
+                self.__logger.error(f"Cannot find audio stream for file: '{video}'")
+                return
+            self.__normalize(video=video, audio_idx=audio_idx, output=output_path)
+        except Exception as e:
+            self.__logger.error(f'Error processing video {video}: {e}')

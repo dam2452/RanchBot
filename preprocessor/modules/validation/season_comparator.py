@@ -14,27 +14,27 @@ from preprocessor.modules.validation.episode_stats import EpisodeStats
 
 @dataclass
 class MetricComparison:
-    metric_name: str
-    min_value: Optional[float]
-    max_value: Optional[float]
     avg_value: Optional[float]
     difference_percent: Optional[float]
+    max_value: Optional[float]
+    metric_name: str
+    min_value: Optional[float]
 
 @dataclass
 class Anomaly:
-    episode: str
-    metric: str
-    value: float
     avg: float
     deviation_percent: float
+    episode: str
+    metric: str
     severity: str
+    value: float
 
 @dataclass
 class SeasonComparison:
-    season: str
     anomaly_threshold: float
-    metrics: Dict[str, MetricComparison] = field(default_factory=dict)
+    season: str
     anomalies: List[Anomaly] = field(default_factory=list)
+    metrics: Dict[str, MetricComparison] = field(default_factory=dict)
 
     def compare_episodes(self, episodes_stats: Dict[str, EpisodeStats]):
         metric_keys = [
@@ -49,6 +49,30 @@ class SeasonComparison:
         ]
         for metric_key in metric_keys:
             self.__compare_metric(metric_key, episodes_stats)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'metrics': {
+                metric_name: {
+                    'min': metric.min_value,
+                    'max': metric.max_value,
+                    'avg': metric.avg_value,
+                    'difference_percent': metric.difference_percent,
+                }
+                for metric_name, metric in self.metrics.items()
+            },
+            'anomalies': [
+                {
+                    'episode': anomaly.episode,
+                    'metric': anomaly.metric,
+                    'value': anomaly.value,
+                    'avg': anomaly.avg,
+                    'deviation_percent': anomaly.deviation_percent,
+                    'severity': anomaly.severity,
+                }
+                for anomaly in self.anomalies
+            ],
+        }
 
     def __compare_metric(self, metric_key: str, episodes_stats: Dict[str, EpisodeStats]):
         values = []
@@ -92,27 +116,3 @@ class SeasonComparison:
                         severity=severity,
                     ),
                 )
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'metrics': {
-                metric_name: {
-                    'min': metric.min_value,
-                    'max': metric.max_value,
-                    'avg': metric.avg_value,
-                    'difference_percent': metric.difference_percent,
-                }
-                for metric_name, metric in self.metrics.items()
-            },
-            'anomalies': [
-                {
-                    'episode': anomaly.episode,
-                    'metric': anomaly.metric,
-                    'value': anomaly.value,
-                    'avg': anomaly.avg,
-                    'deviation_percent': anomaly.deviation_percent,
-                    'severity': anomaly.severity,
-                }
-                for anomaly in self.anomalies
-            ],
-        }

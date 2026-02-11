@@ -16,19 +16,19 @@ from typing import (
 class StepMetadata:
     name: str
     step_num: str
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
     duration_seconds: Optional[float] = None
-    status: str = 'pending'
+    end_time: Optional[datetime] = None
     exit_code: Optional[int] = None
     extra_info: Dict[str, Any] = field(default_factory=dict)
+    start_time: Optional[datetime] = None
+    status: str = 'pending'
+
+    def skip(self):
+        self.status = 'skipped'
 
     def start(self):
         self.start_time = datetime.now()
         self.status = 'running'
-
-    def skip(self):
-        self.status = 'skipped'
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -55,24 +55,21 @@ class ProcessingMetadata:
         self.steps: List[StepMetadata] = []
         self.final_status = 'running'
 
-    @staticmethod
-    def __sanitize_params(params: Dict[str, Any]) -> Dict[str, Any]:
-        sanitized = {}
-        for key, value in params.items():
-            if key in set('state_manager'):
-                continue
-            if isinstance(value, Path):
-                sanitized[key] = str(value)
-            elif isinstance(value, (str, int, float, bool, list, dict, type(None))):
-                sanitized[key] = value
-            else:
-                sanitized[key] = str(value)
-        return sanitized
-
     def add_step(self, name: str, step_num: str) -> StepMetadata:
         step = StepMetadata(name=name, step_num=step_num)
         self.steps.append(step)
         return step
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'series_name': self.series_name,
+            'start_time': self.start_time.isoformat(),
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'final_status': self.final_status,
+            'parameters': self.params,
+            'steps': [step.to_dict() for step in self.steps],
+            'statistics': self.__get_statistics(),
+        }
 
     def __get_statistics(self) -> Dict[str, Any]:
         completed_steps = [s for s in self.steps if s.status == 'success']
@@ -98,13 +95,16 @@ class ProcessingMetadata:
             ),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'series_name': self.series_name,
-            'start_time': self.start_time.isoformat(),
-            'end_time': self.end_time.isoformat() if self.end_time else None,
-            'final_status': self.final_status,
-            'parameters': self.params,
-            'steps': [step.to_dict() for step in self.steps],
-            'statistics': self.__get_statistics(),
-        }
+    @staticmethod
+    def __sanitize_params(params: Dict[str, Any]) -> Dict[str, Any]:
+        sanitized = {}
+        for key, value in params.items():
+            if key in set('state_manager'):
+                continue
+            if isinstance(value, Path):
+                sanitized[key] = str(value)
+            elif isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                sanitized[key] = value
+            else:
+                sanitized[key] = str(value)
+        return sanitized

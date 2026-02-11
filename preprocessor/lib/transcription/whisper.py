@@ -22,16 +22,14 @@ class Whisper:
         self.temperature: float = temperature
         self._model: Optional[WhisperModel] = None
 
-    def _load_model(self) -> WhisperModel:
+    def cleanup(self) -> None:
+        console.print('[cyan]Unloading Whisper model and clearing GPU memory...[/cyan]')
         if self._model is not None:
-            return self._model
-        if self.device != 'cuda':
-            raise ValueError(f'Only GPU (cuda) is supported, got device={self.device}')
-        compute_type = 'float16'
-        console.print(f'[cyan]Loading Whisper model: {self.model_name} on {self.device} with compute_type={compute_type}[/cyan]')
-        self._model = WhisperModel(self.model_name, device=self.device, compute_type=compute_type)
-        console.print('[green]✓ Whisper model loaded[/green]')
-        return self._model
+            del self._model
+            self._model = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        console.print('[green]✓ Whisper model unloaded, GPU memory cleared[/green]')
 
     def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         console.print(f'[cyan]Transcribing with Whisper: {audio_path.name}[/cyan]')
@@ -51,11 +49,13 @@ class Whisper:
         console.print(f'[green]✓ Transcription completed: {audio_path.name}[/green]')
         return result
 
-    def cleanup(self) -> None:
-        console.print('[cyan]Unloading Whisper model and clearing GPU memory...[/cyan]')
+    def _load_model(self) -> WhisperModel:
         if self._model is not None:
-            del self._model
-            self._model = None
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        console.print('[green]✓ Whisper model unloaded, GPU memory cleared[/green]')
+            return self._model
+        if self.device != 'cuda':
+            raise ValueError(f'Only GPU (cuda) is supported, got device={self.device}')
+        compute_type = 'float16'
+        console.print(f'[cyan]Loading Whisper model: {self.model_name} on {self.device} with compute_type={compute_type}[/cyan]')
+        self._model = WhisperModel(self.model_name, device=self.device, compute_type=compute_type)
+        console.print('[green]✓ Whisper model loaded[/green]')
+        return self._model

@@ -23,9 +23,10 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
         super().__init__(config)
         self._whisper: Optional[Whisper] = None
 
-    @property
-    def name(self) -> str:
-        return 'transcription'
+    def cleanup(self) -> None:
+        if self._whisper:
+            self._whisper.cleanup()
+            self._whisper = None
 
     def execute(self, input_data: AudioArtifact, context: ExecutionContext) -> TranscriptionData:
         output_filename: str = (
@@ -84,7 +85,6 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
             format='json',
         )
 
-    def cleanup(self) -> None:
-        if self._whisper:
-            self._whisper.cleanup()
-            self._whisper = None
+    @property
+    def name(self) -> str:
+        return 'transcription'

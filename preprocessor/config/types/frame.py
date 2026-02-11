@@ -6,6 +6,6 @@ from typing import (
 
 class FrameRequest(TypedDict):
     frame: int
+    scene_number: NotRequired[int]
     time: float
     type: str
-    scene_number: NotRequired[int]

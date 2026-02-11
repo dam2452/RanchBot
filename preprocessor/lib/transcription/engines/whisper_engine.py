@@ -26,6 +26,18 @@ class WhisperEngine(TranscriptionEngine):
         self.model = WhisperModel(model, device=device, compute_type=compute_type)
         console.print('[green]✓ Whisper model loaded[/green]')
 
+    def cleanup(self) -> None:
+        console.print('[cyan]Unloading Whisper model and clearing GPU memory...[/cyan]')
+        if hasattr(self, 'model'):
+            del self.model
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        console.print('[green]✓ Whisper model unloaded, GPU memory cleared[/green]')
+
+    def get_name(self) -> str:
+        return f'Whisper-{self.model_name}'
+
     def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         console.print(f'[cyan]Transcribing with Whisper: {audio_path.name}[/cyan]')
         if not audio_path.exists():
@@ -35,15 +47,3 @@ class WhisperEngine(TranscriptionEngine):
         result = WhisperUtils.build_transcription_result(segments, language=info.language)
         console.print(f'[green]✓ Transcription completed: {audio_path.name}[/green]')
         return result
-
-    def get_name(self) -> str:
-        return f'Whisper-{self.model_name}'
-
-    def cleanup(self) -> None:
-        console.print('[cyan]Unloading Whisper model and clearing GPU memory...[/cyan]')
-        if hasattr(self, 'model'):
-            del self.model
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        console.print('[green]✓ Whisper model unloaded, GPU memory cleared[/green]')

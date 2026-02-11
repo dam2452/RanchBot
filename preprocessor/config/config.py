@@ -30,39 +30,39 @@ def get_output_path(relative_path: str, series_name: Optional[str]=None) -> Path
 
 @dataclass
 class ElasticDocumentSubdirs:
-    text_segments: str = 'text_segments'
-    text_embeddings: str = 'text_embeddings'
-    video_frames: str = 'video_frames'
     episode_names: str = 'episode_names'
-    text_statistics: str = 'text_statistics'
     full_episode_embeddings: str = 'full_episode_embeddings'
-    sound_events: str = 'sound_events'
     sound_event_embeddings: str = 'sound_event_embeddings'
+    sound_events: str = 'sound_events'
+    text_embeddings: str = 'text_embeddings'
+    text_segments: str = 'text_segments'
+    text_statistics: str = 'text_statistics'
+    video_frames: str = 'video_frames'
 
 @dataclass
 class TranscriptionSubdirs:
-    raw: str = 'raw'
     clean: str = 'clean'
+    raw: str = 'raw'
     sound_events: str = 'sound_events'
 
 @dataclass
 class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
-    video: str = 'transcoded_videos'
-    transcriptions: str = 'transcriptions'
-    transcription_subdirs: TranscriptionSubdirs = field(default_factory=TranscriptionSubdirs)
-    scenes: str = 'scene_timestamps'
-    frames: str = 'exported_frames'
-    embeddings: str = 'embeddings'
-    image_hashes: str = 'image_hashes'
+    archives: str = 'archives'
     character_detections: str = 'character_detections'
     character_visualizations: str = 'character_detections/visualizations'
+    elastic_document_subdirs: ElasticDocumentSubdirs = field(default_factory=ElasticDocumentSubdirs)
+    elastic_documents: str = 'elastic_documents'
+    embeddings: str = 'embeddings'
     face_clusters: str = 'face_clusters'
+    frames: str = 'exported_frames'
+    image_hashes: str = 'image_hashes'
     object_detections: str = 'object_detections'
     object_visualizations: str = 'object_detections/visualizations'
-    elastic_documents: str = 'elastic_documents'
-    archives: str = 'archives'
+    scenes: str = 'scene_timestamps'
+    transcription_subdirs: TranscriptionSubdirs = field(default_factory=TranscriptionSubdirs)
+    transcriptions: str = 'transcriptions'
     validation_reports: str = 'validation_reports'
-    elastic_document_subdirs: ElasticDocumentSubdirs = field(default_factory=ElasticDocumentSubdirs)
+    video: str = 'transcoded_videos'
 
 @dataclass
 class BaseAPISettings:
@@ -74,26 +74,20 @@ class BaseAPISettings:
 
 @dataclass
 class TranscodeSettings:
-    codec: str = 'h264_nvenc'
-    target_file_size_mb: float = 50.0
-    target_duration_seconds: float = 100.0
     audio_bitrate_kbps: int = 128
+    codec: str = 'h264_nvenc'
     gop_size: float = 0.5
+    target_duration_seconds: float = 100.0
+    target_file_size_mb: float = 50.0
 
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
         return get_base_output_dir(series_name) / 'transcoded_videos'
 
-    def __calculate_video_bitrate_mbps(self) -> float: # pylint: disable=unused-private-member
-        total_bitrate_mbps = self.target_file_size_mb * 8 / self.target_duration_seconds
-        audio_bitrate_mbps = self.audio_bitrate_kbps / 1000.0
-        video_bitrate_mbps = total_bitrate_mbps - audio_bitrate_mbps
-        return round(video_bitrate_mbps, 2)
-
 @dataclass
 class SceneDetectionSettings:
-    threshold: float = 0.5
     min_scene_len: int = 10
+    threshold: float = 0.5
 
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
@@ -105,8 +99,8 @@ class SceneChangesSettings:
 
 @dataclass
 class KeyframeExtractionSettings:
-    strategy: str = 'scene_changes'
     scene_changes: SceneChangesSettings = field(default_factory=SceneChangesSettings)
+    strategy: str = 'scene_changes'
 
 @dataclass
 class FrameExportSettings:
@@ -118,9 +112,9 @@ class FrameExportSettings:
 
 @dataclass
 class TranscriptionSettings:
-    model: str = 'large-v3-turbo'
-    language: str = 'Polish'
     device: str = 'cuda'
+    language: str = 'Polish'
+    model: str = 'large-v3-turbo'
 
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
@@ -131,25 +125,25 @@ class WhisperSettings:
     model: str = 'large-v3-turbo'
 
     @classmethod
-    def __from_env(cls) -> 'WhisperSettings':  # pylint: disable=unused-private-member
+    def _from_env(cls) -> 'WhisperSettings':
         return cls(model=os.getenv('WHISPER_MODEL', 'large-v3-turbo'))
 
 @dataclass
 class TextChunkingSettings:
     segments_per_embedding: int = 5
-    text_sentences_per_chunk: int = 8
     text_chunk_overlap: int = 3
+    text_sentences_per_chunk: int = 8
 
 @dataclass
 class ElevenLabsSettings(BaseAPISettings):
-    model_id: str = 'scribe_v1'
-    language_code: str = 'pol'
     diarize: bool = True
-    polling_interval: int = 20
+    language_code: str = 'pol'
     max_attempts: int = 60
+    model_id: str = 'scribe_v1'
+    polling_interval: int = 20
 
     @classmethod
-    def __from_env(cls) -> 'ElevenLabsSettings':  # pylint: disable=unused-private-member
+    def _from_env(cls) -> 'ElevenLabsSettings':
         api_key = None
         if os.getenv('ELEVEN_API_KEY'):
             api_key = SecretStr(os.getenv('ELEVEN_API_KEY', ''))
@@ -157,24 +151,24 @@ class ElevenLabsSettings(BaseAPISettings):
 
 @dataclass
 class EmbeddingModelSettings:
+    embedding_dim: int = 4096
+    enable_chunked_prefill: bool = True
+    enforce_eager: bool = False
+    gpu_memory_utilization: float = 0.85
+    image_placeholder: str = '<|vision_start|><|image_pad|><|vision_end|>'
+    max_model_len: int = 8192
+    max_num_batched_tokens: int = 8192
     model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
     model_revision: str = 'main'
-    embedding_dim: int = 4096
-    gpu_memory_utilization: float = 0.85
     tensor_parallel_size: int = 1
-    max_model_len: int = 8192
-    image_placeholder: str = '<|vision_start|><|image_pad|><|vision_end|>'
-    enable_chunked_prefill: bool = True
-    max_num_batched_tokens: int = 8192
-    enforce_eager: bool = False
 
 @dataclass
 class EmbeddingSettings:
     batch_size: int = 32
-    text_batch_size: int = 64
-    progress_sub_batch_size: int = 100
-    prefetch_chunks: int = 2
     generate_full_episode_embedding: bool = True
+    prefetch_chunks: int = 2
+    progress_sub_batch_size: int = 100
+    text_batch_size: int = 64
 
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
@@ -182,8 +176,8 @@ class EmbeddingSettings:
 
 @dataclass
 class FaceRecognitionSettings:
-    model_name: str = 'buffalo_l'
     detection_size: Tuple[int, int] = (1280, 1280)
+    model_name: str = 'buffalo_l'
 
 @dataclass
 class FaceClusteringSettings:
@@ -200,17 +194,17 @@ class EmotionDetectionSettings:
     model_name: str = 'enet_b2_8'
 
     @classmethod
-    def __from_env(cls) -> 'EmotionDetectionSettings':  # pylint: disable=unused-private-member
+    def _from_env(cls) -> 'EmotionDetectionSettings':
         model_name = os.getenv('EMOTION_MODEL_NAME', 'enet_b2_8')
         return cls(model_name=model_name)
 
 @dataclass
 class CharacterSettings:
-    reference_images_per_character: int = 3
-    normalized_face_size: Tuple[int, int] = (112, 112)
     face_detection_threshold: float = 0.2
-    reference_matching_threshold: float = 0.5
     frame_detection_threshold: float = 0.55
+    normalized_face_size: Tuple[int, int] = (112, 112)
+    reference_images_per_character: int = 3
+    reference_matching_threshold: float = 0.5
 
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
@@ -218,8 +212,8 @@ class CharacterSettings:
 
 @dataclass
 class ObjectDetectionSettings:
-    model_name: str = 'ustc-community/dfine-xlarge-obj2coco'
     conf_threshold: float = 0.3
+    model_name: str = 'ustc-community/dfine-xlarge-obj2coco'
 
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
@@ -235,24 +229,24 @@ class ImageHashSettings:
 @dataclass
 class ImageScraperSettings(BaseAPISettings):
     max_results_to_scrape: int = 50
-    min_image_width: int = 800
     min_image_height: int = 600
+    min_image_width: int = 800
+    page_navigation_timeout: int = 30000
+    request_delay_max: float = 6.0
+    request_delay_min: float = 3.0
     retry_attempts: int = 3
     retry_delay: float = 3.0
-    request_delay_min: float = 3.0
-    request_delay_max: float = 6.0
-    page_navigation_timeout: int = 30000
-
-    @classmethod
-    def __from_env(cls) -> 'ImageScraperSettings':  # pylint: disable=unused-private-member
-        api_key = None
-        if os.getenv('SERPAPI_API_KEY'):
-            api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
-        return cls(_api_key=api_key)
 
     @property
     def serpapi_key(self) -> Optional[str]:
         return self.api_key
+
+    @classmethod
+    def _from_env(cls) -> 'ImageScraperSettings':
+        api_key = None
+        if os.getenv('SERPAPI_API_KEY'):
+            api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
+        return cls(_api_key=api_key)
 
 @dataclass
 class ScraperSettings:
@@ -264,18 +258,18 @@ class ScraperSettings:
 @dataclass
 class ElasticsearchSettings:
     host: str = ''
-    user: str = ''
     password: str = ''
+    user: str = ''
 
     @classmethod
-    def __from_env(cls) -> 'ElasticsearchSettings':  # pylint: disable=unused-private-member
+    def _from_env(cls) -> 'ElasticsearchSettings':
         return cls(host=os.getenv('ES_HOST', ''), user=os.getenv('ES_USER', ''), password=os.getenv('ES_PASS', ''))
 
 @dataclass
 class GeminiSettings(BaseAPISettings):
 
     @classmethod
-    def __from_env(cls) -> 'GeminiSettings':  # pylint: disable=unused-private-member
+    def _from_env(cls) -> 'GeminiSettings':
         api_key = None
         if os.getenv('GEMINI_API_KEY'):
             api_key = SecretStr(os.getenv('GEMINI_API_KEY', ''))
@@ -283,33 +277,33 @@ class GeminiSettings(BaseAPISettings):
 
 @dataclass
 class Settings:  # pylint: disable=too-many-instance-attributes
-    output_subdirs: OutputSubdirs
-    whisper: WhisperSettings
-    text_chunking: TextChunkingSettings
-    embedding_model: EmbeddingModelSettings
-    embedding: EmbeddingSettings
-    scene_detection: SceneDetectionSettings
-    keyframe_extraction: KeyframeExtractionSettings
-    frame_export: FrameExportSettings
-    image_hash: ImageHashSettings
-    scraper: ScraperSettings
     character: CharacterSettings
-    object_detection: ObjectDetectionSettings
-    face_recognition: FaceRecognitionSettings
-    face_clustering: FaceClusteringSettings
-    emotion_detection: EmotionDetectionSettings
-    image_scraper: ImageScraperSettings
-    elevenlabs: ElevenLabsSettings
     elasticsearch: ElasticsearchSettings
+    elevenlabs: ElevenLabsSettings
+    embedding: EmbeddingSettings
+    embedding_model: EmbeddingModelSettings
+    emotion_detection: EmotionDetectionSettings
+    face_clustering: FaceClusteringSettings
+    face_recognition: FaceRecognitionSettings
+    frame_export: FrameExportSettings
     gemini: GeminiSettings
+    image_hash: ImageHashSettings
+    image_scraper: ImageScraperSettings
+    keyframe_extraction: KeyframeExtractionSettings
+    object_detection: ObjectDetectionSettings
+    output_subdirs: OutputSubdirs
+    scene_detection: SceneDetectionSettings
+    scraper: ScraperSettings
+    text_chunking: TextChunkingSettings
     transcode: TranscodeSettings
     transcription: TranscriptionSettings
+    whisper: WhisperSettings
 
     @classmethod
-    def __from_env(cls) -> 'Settings':  # pylint: disable=unused-private-member
+    def _from_env(cls) -> 'Settings':
         return cls(
             output_subdirs=OutputSubdirs(),
-            whisper=WhisperSettings.__from_env(),
+            whisper=WhisperSettings._from_env(),
             text_chunking=TextChunkingSettings(),
             embedding_model=EmbeddingModelSettings(),
             embedding=EmbeddingSettings(),
@@ -322,28 +316,28 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings(),
             face_clustering=FaceClusteringSettings(),
-            emotion_detection=EmotionDetectionSettings.__from_env(),
-            image_scraper=ImageScraperSettings.__from_env(),
-            elevenlabs=ElevenLabsSettings.__from_env(),
-            elasticsearch=ElasticsearchSettings.__from_env(),
-            gemini=GeminiSettings.__from_env(),
+            emotion_detection=EmotionDetectionSettings._from_env(),
+            image_scraper=ImageScraperSettings._from_env(),
+            elevenlabs=ElevenLabsSettings._from_env(),
+            elasticsearch=ElasticsearchSettings._from_env(),
+            gemini=GeminiSettings._from_env(),
             transcode=TranscodeSettings(),
             transcription=TranscriptionSettings(),
         )
 
 @dataclass
 class TranscodeConfig:
-    videos: Path
-    transcoded_videos: Path
-    resolution: Resolution
     codec: str
     gop_size: float
-    episodes_info_json: Optional[Path] = None
-    video_bitrate_mbps: Optional[float] = None
-    minrate_mbps: Optional[float] = None
-    maxrate_mbps: Optional[float] = None
-    bufsize_mbps: Optional[float] = None
+    resolution: Resolution
+    transcoded_videos: Path
+    videos: Path
     audio_bitrate_kbps: int = 128
+    bufsize_mbps: Optional[float] = None
+    episodes_info_json: Optional[Path] = None
+    maxrate_mbps: Optional[float] = None
+    minrate_mbps: Optional[float] = None
+    video_bitrate_mbps: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -362,13 +356,13 @@ class TranscodeConfig:
 
 @dataclass
 class TranscriptionConfig:
-    videos: Path
-    episodes_info_json: Path
-    transcription_jsons: Path
-    model: str
-    language: str
     device: str
+    episodes_info_json: Path
+    language: str
+    model: str
     name: str
+    transcription_jsons: Path
+    videos: Path
     extra_json_keys_to_remove: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -387,9 +381,9 @@ class TranscriptionConfig:
 class IndexConfig:
     name: str
     transcription_jsons: Path
-    dry_run: bool = False
     append: bool = False
+    dry_run: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {'name': self.name, 'transcription_jsons': str(self.transcription_jsons), 'dry_run': self.dry_run, 'append': self.append}
-settings = Settings.__from_env()
+settings = Settings._from_env()

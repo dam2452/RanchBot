@@ -11,38 +11,38 @@ from .transcription import ElasticsearchSegment
 
 
 class SearchSegment(TypedDict):
-    season: int
-    episode_number: int
-    title: str
-    start_time: float
     end_time: float
+    episode_number: int
+    season: int
+    start_time: float
+    title: str
 
 class ElasticsearchHit(TypedDict):
-    _source: ElasticsearchSegment
     _score: float
+    _source: ElasticsearchSegment
 
 class ElasticsearchHits(TypedDict):
     hits: List[ElasticsearchHit]
-    total: Dict[str, Any]
     max_score: float
+    total: Dict[str, Any]
 
 class ElasticsearchResponse(TypedDict):
-    hits: ElasticsearchHits
     aggregations: NotRequired[Dict[str, Any]]
-    took: int
+    hits: ElasticsearchHits
     timed_out: bool
+    took: int
 
 class EpisodeBucket(TypedDict):
-    key: int
     doc_count: int
     episode_metadata: Dict[str, Any]
+    key: int
 
 class SeasonBucket(TypedDict):
-    key: int
     doc_count: int
+    key: int
     unique_episodes: Dict[str, int]
 
 class ElasticsearchAggregations(TypedDict):
+    buckets: NotRequired[List[Union[SeasonBucket, EpisodeBucket]]]
     seasons: Dict[str, Union[List[SeasonBucket], int]]
     unique_episodes: Dict[str, Union[List[EpisodeBucket], int]]
-    buckets: NotRequired[List[Union[SeasonBucket, EpisodeBucket]]]

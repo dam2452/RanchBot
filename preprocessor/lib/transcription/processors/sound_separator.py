@@ -37,23 +37,8 @@ class SoundEventSeparator(BaseProcessor):
         episodes_info_json = self._args.get('episodes_info_json')
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name, self.logger)
 
-    def _validate_args(self, args: Dict[str, Any]) -> None:
-        ...
-
     def get_output_subdir(self) -> str:
         return settings.output_subdirs.transcriptions
-
-    def _get_processing_items(self) -> List[ProcessingItem]:
-        segmented_files = list(self.transcription_dir.rglob('**/raw/*_segmented.json'))
-        items = []
-        for trans_file in segmented_files:
-            episode_info = self.episode_manager.parse_filename(trans_file)
-            if not episode_info:
-                self.logger.warning(f'Cannot parse episode info from {trans_file.name}')
-                continue
-            episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
-            items.append(ProcessingItem(episode_id=episode_id, input_path=trans_file, metadata={'episode_info': episode_info}))
-        return items
 
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         base_name = item.input_path.stem.replace(FILE_SUFFIXES['segmented'], '')
@@ -78,6 +63,21 @@ class SoundEventSeparator(BaseProcessor):
             OutputSpec(path=clean_srt, required=True),
             OutputSpec(path=sound_srt, required=True),
         ]
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        segmented_files = list(self.transcription_dir.rglob('**/raw/*_segmented.json'))
+        items = []
+        for trans_file in segmented_files:
+            episode_info = self.episode_manager.parse_filename(trans_file)
+            if not episode_info:
+                self.logger.warning(f'Cannot parse episode info from {trans_file.name}')
+                continue
+            episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
+            items.append(ProcessingItem(episode_id=episode_id, input_path=trans_file, metadata={'episode_info': episode_info}))
+        return items
+
+    def _get_progress_description(self) -> str:
+        return 'Separating sound events from dialogues'
 
     def _process_item(  # pylint: disable=too-many-locals
         self, item, missing_outputs: List,
@@ -129,30 +129,42 @@ class SoundEventSeparator(BaseProcessor):
         self.__generate_srt_files(dialogue_segments, sound_event_segments, clean_srt, sound_srt)
         self.logger.info(f'Separated {item.episode_id}: {len(dialogue_segments)} dialogue, {len(sound_event_segments)} sound events')
 
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        ...
 
-    def __split_mixed_segment(self, segment: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        words = segment.get('words', [])
-        dialogue_sequences = []
-        sound_sequences = []
-        current_type = None
-        current_words = []
-        for word in words:
-            if word.get(WordKeys.TYPE) == WordTypeValues.SPACING:
-                if current_words:
-                    current_words.append(word)
-                continue
-            is_sound = is_sound_event(word)
-            word_type = 'sound' if is_sound else 'dialogue'
-            if word_type != current_type:
-                if current_words:
-                    self.__finalize_sequence(current_type, current_words, dialogue_sequences, sound_sequences, segment)
-                current_type = word_type
-                current_words = [word]
-            else:
-                current_words.append(word)
-        if current_words:
-            self.__finalize_sequence(current_type, current_words, dialogue_sequences, sound_sequences, segment)
-        return (dialogue_sequences, sound_sequences)
+    @staticmethod
+    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
+        cleaned = segment.copy()
+        if 'text' in cleaned:
+            text = cleaned['text']
+            text = re.sub('\\s+', ' ', text).strip()
+            cleaned['text'] = text
+        if cleaned.get('start') is None or cleaned.get('end') is None:
+            words = cleaned.get('words', [])
+            if words:
+                starts = [w.get('start') or 0 for w in words if w.get('start') is not None]
+                ends = [w.get('end') or 0 for w in words if w.get('end') is not None]
+                if starts:
+                    cleaned['start'] = min(starts)
+                if ends:
+                    cleaned['end'] = max(ends)
+        return cleaned
+
+    @staticmethod
+    def __convert_to_simple_format(segments: List[Dict]) -> List[Dict]:
+        simple_segments = []
+        for seg in segments:
+            simple_seg = {'id': seg.get('id'), 'text': seg.get('text', ''), 'start': seg.get('start') or 0.0, 'end': seg.get('end') or 0.0}
+            if 'sound_type' in seg:
+                simple_seg['sound_type'] = seg['sound_type']
+            simple_segments.append(simple_seg)
+        return simple_segments
+
+    @staticmethod
+    def __enrich_sound_event(segment: Dict[str, Any]) -> Dict[str, Any]:
+        enriched = segment.copy()
+        enriched['sound_type'] = 'sound'
+        return enriched
 
     @staticmethod
     def __finalize_sequence(
@@ -179,61 +191,6 @@ class SoundEventSeparator(BaseProcessor):
             dialogue_sequences.append(new_segment)
         else:
             sound_sequences.append(new_segment)
-
-    @staticmethod
-    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
-        cleaned = segment.copy()
-        if 'text' in cleaned:
-            text = cleaned['text']
-            text = re.sub('\\s+', ' ', text).strip()
-            cleaned['text'] = text
-        if cleaned.get('start') is None or cleaned.get('end') is None:
-            words = cleaned.get('words', [])
-            if words:
-                starts = [w.get('start') or 0 for w in words if w.get('start') is not None]
-                ends = [w.get('end') or 0 for w in words if w.get('end') is not None]
-                if starts:
-                    cleaned['start'] = min(starts)
-                if ends:
-                    cleaned['end'] = max(ends)
-        return cleaned
-
-    @staticmethod
-    def __enrich_sound_event(segment: Dict[str, Any]) -> Dict[str, Any]:
-        enriched = segment.copy()
-        enriched['sound_type'] = 'sound'
-        return enriched
-
-    @staticmethod
-    def __renumber_segments(segments: List[Dict]) -> List[Dict]:
-        for i, segment in enumerate(segments):
-            segment['id'] = i
-        return segments
-
-    @staticmethod
-    def __convert_to_simple_format(segments: List[Dict]) -> List[Dict]:
-        simple_segments = []
-        for seg in segments:
-            simple_seg = {'id': seg.get('id'), 'text': seg.get('text', ''), 'start': seg.get('start') or 0.0, 'end': seg.get('end') or 0.0}
-            if 'sound_type' in seg:
-                simple_seg['sound_type'] = seg['sound_type']
-            simple_segments.append(simple_seg)
-        return simple_segments
-
-    def __generate_txt_files(self, original_txt: Path, clean_txt: Path, sound_txt: Path) -> None:
-        if not original_txt.exists():
-            self.logger.warning(f'Original TXT file not found: {original_txt}')
-            return
-        with open(original_txt, 'r', encoding='utf-8') as f:
-            original_content = f.read()
-        clean_content = re.sub('\\([^)]*\\)', '', original_content)
-        clean_content = re.sub('\\s+', ' ', clean_content).strip()
-        sound_matches = re.findall('\\([^)]*\\)', original_content)
-        sound_content = ' '.join(sound_matches)
-        with open(clean_txt, 'w', encoding='utf-8') as f:
-            f.write(clean_content)
-        with open(sound_txt, 'w', encoding='utf-8') as f:
-            f.write(sound_content)
 
     @staticmethod
     def __generate_srt_files(dialogue_segments: List[Dict], sound_segments: List[Dict], clean_srt: Path, sound_srt: Path) -> None:
@@ -263,5 +220,48 @@ class SoundEventSeparator(BaseProcessor):
         __write_srt(dialogue_segments, clean_srt)
         __write_srt(sound_segments, sound_srt)
 
-    def _get_progress_description(self) -> str:
-        return 'Separating sound events from dialogues'
+    def __generate_txt_files(self, original_txt: Path, clean_txt: Path, sound_txt: Path) -> None:
+        if not original_txt.exists():
+            self.logger.warning(f'Original TXT file not found: {original_txt}')
+            return
+        with open(original_txt, 'r', encoding='utf-8') as f:
+            original_content = f.read()
+        clean_content = re.sub('\\([^)]*\\)', '', original_content)
+        clean_content = re.sub('\\s+', ' ', clean_content).strip()
+        sound_matches = re.findall('\\([^)]*\\)', original_content)
+        sound_content = ' '.join(sound_matches)
+        with open(clean_txt, 'w', encoding='utf-8') as f:
+            f.write(clean_content)
+        with open(sound_txt, 'w', encoding='utf-8') as f:
+            f.write(sound_content)
+
+    @staticmethod
+    def __renumber_segments(segments: List[Dict]) -> List[Dict]:
+        for i, segment in enumerate(segments):
+            segment['id'] = i
+        return segments
+
+
+    def __split_mixed_segment(self, segment: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        words = segment.get('words', [])
+        dialogue_sequences = []
+        sound_sequences = []
+        current_type = None
+        current_words = []
+        for word in words:
+            if word.get(WordKeys.TYPE) == WordTypeValues.SPACING:
+                if current_words:
+                    current_words.append(word)
+                continue
+            is_sound = is_sound_event(word)
+            word_type = 'sound' if is_sound else 'dialogue'
+            if word_type != current_type:
+                if current_words:
+                    self.__finalize_sequence(current_type, current_words, dialogue_sequences, sound_sequences, segment)
+                current_type = word_type
+                current_words = [word]
+            else:
+                current_words.append(word)
+        if current_words:
+            self.__finalize_sequence(current_type, current_words, dialogue_sequences, sound_sequences, segment)
+        return (dialogue_sequences, sound_sequences)

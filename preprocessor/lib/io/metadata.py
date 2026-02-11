@@ -12,8 +12,22 @@ from preprocessor.core.artifacts import EmbeddingCollection
 class MetadataBuilder:
 
     @staticmethod
-    def __create_minimal_episode_info(episode_info) -> Dict[str, Any]:
-        return {'season': episode_info.season, 'episode_number': episode_info.relative_episode}
+    def create_embedding_collection(
+        episode_id: str,
+        episode_info: Any,
+        path: Path,
+        model_name: str,
+        embedding_count: int,
+        embedding_type: str,
+    ) -> EmbeddingCollection:
+        return EmbeddingCollection(
+            episode_id=episode_id,
+            episode_info=episode_info,
+            path=path,
+            model_name=model_name,
+            embedding_count=embedding_count,
+            embedding_type=embedding_type,
+        )
 
     @staticmethod
     def create_processing_metadata(
@@ -32,19 +46,5 @@ class MetadataBuilder:
         }
 
     @staticmethod
-    def create_embedding_collection(
-        episode_id: str,
-        episode_info: Any,
-        path: Path,
-        model_name: str,
-        embedding_count: int,
-        embedding_type: str,
-    ) -> EmbeddingCollection:
-        return EmbeddingCollection(
-            episode_id=episode_id,
-            episode_info=episode_info,
-            path=path,
-            model_name=model_name,
-            embedding_count=embedding_count,
-            embedding_type=embedding_type,
-        )
+    def __create_minimal_episode_info(episode_info) -> Dict[str, Any]:
+        return {'season': episode_info.season, 'episode_number': episode_info.relative_episode}

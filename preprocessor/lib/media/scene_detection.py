@@ -18,10 +18,13 @@ class TransNetWrapper:
     def __init__(self):
         self.model: Optional[TransNetV2] = None
 
-    def load_model(self) -> None:
-        if not torch.cuda.is_available():
-            raise RuntimeError('CUDA not available')
-        self.model = TransNetV2().cuda()
+    def cleanup(self) -> None:
+        if self.model is not None:
+            del self.model
+            self.model = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     def detect_scenes(
         self,
@@ -45,13 +48,10 @@ class TransNetWrapper:
         except (RuntimeError, ValueError, OSError) as e:
             raise RuntimeError(f'TransNetV2 detection failed: {e}') from e
 
-    def cleanup(self) -> None:
-        if self.model is not None:
-            del self.model
-            self.model = None
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    def load_model(self) -> None:
+        if not torch.cuda.is_available():
+            raise RuntimeError('CUDA not available')
+        self.model = TransNetV2().cuda()
 
     def __build_scenes_from_predictions(
         self,
@@ -98,6 +98,15 @@ class TransNetWrapper:
         }
 
     @staticmethod
+    def __frame_to_timecode(frame: int, fps: float) -> str:
+        seconds = frame / fps
+        hours = int(seconds // 3600)
+        minutes = int(seconds % 3600 // 60)
+        secs = int(seconds % 60)
+        frames = int(seconds % 1 * fps)
+        return f'{hours:02d}:{minutes:02d}:{secs:02d}:{frames:02d}'
+
+    @staticmethod
     def __get_video_info(video_file: Path) -> Optional[Dict[str, Any]]:
         try:
             vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
@@ -107,12 +116,3 @@ class TransNetWrapper:
             return {'fps': fps, 'duration': duration, 'total_frames': total_frames}
         except (RuntimeError, ValueError, OSError):
             return None
-
-    @staticmethod
-    def __frame_to_timecode(frame: int, fps: float) -> str:
-        seconds = frame / fps
-        hours = int(seconds // 3600)
-        minutes = int(seconds % 3600 // 60)
-        secs = int(seconds % 60)
-        frames = int(seconds % 1 * fps)
-        return f'{hours:02d}:{minutes:02d}:{secs:02d}:{frames:02d}'

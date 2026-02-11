@@ -12,9 +12,9 @@ from typing import (
 class TranscriptionEngine(ABC):
 
     @abstractmethod
-    def transcribe(self, audio_path: Path) -> Dict[str, Any]:
+    def get_name(self) -> str:
         ...
 
     @abstractmethod
-    def get_name(self) -> str:
+    def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         ...

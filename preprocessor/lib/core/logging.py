@@ -30,34 +30,12 @@ class ErrorHandlingLogger:
                     self.__logger.error(f'- {error}')
             raise LoggerNotFinalizedException
 
-    def __setup_logger(self, level: int) -> None:
-        logging.basicConfig(
-            level=level,
-            format='%(message)s',
-            handlers=[
-                RichHandler(
-                    console=console,
-                    rich_tracebacks=True,
-                    show_time=True,
-                    show_path=False,
-                ),
-            ],
-            force=True,
-        )
-        self.__logger: logging.Logger = logging.getLogger(self.__class_name)
-
-    def info(self, message: str) -> None:
-        self.__logger.info(message)
+    def debug(self, message: str) -> None:
+        self.__logger.debug(message)
 
     def error(self, message: str) -> None:
         self.__logger.error(message)
         self.__errors.append(message)
-
-    def warning(self, message: str) -> None:
-        self.__logger.warning(message)
-
-    def debug(self, message: str) -> None:
-        self.__logger.debug(message)
 
     def finalize(self) -> int:
         self.__is_finalized = True
@@ -80,3 +58,25 @@ class ErrorHandlingLogger:
             ),
         )
         return 0
+
+    def info(self, message: str) -> None:
+        self.__logger.info(message)
+
+    def warning(self, message: str) -> None:
+        self.__logger.warning(message)
+
+    def __setup_logger(self, level: int) -> None:
+        logging.basicConfig(
+            level=level,
+            format='%(message)s',
+            handlers=[
+                RichHandler(
+                    console=console,
+                    rich_tracebacks=True,
+                    show_time=True,
+                    show_path=False,
+                ),
+            ],
+            force=True,
+        )
+        self.__logger: logging.Logger = logging.getLogger(self.__class_name)

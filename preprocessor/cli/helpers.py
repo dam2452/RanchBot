@@ -12,37 +12,13 @@ from preprocessor.lib.episodes.episode_manager import EpisodeManager
 
 @dataclass
 class PipelineSetup:
+    context: ExecutionContext
     logger: ErrorHandlingLogger
     state_manager: StateManager
-    context: ExecutionContext
     episode_manager: Optional[EpisodeManager] = None
 
 
 class PipelineContextFactory:
-    @staticmethod
-    def __create_logger(command_name: str, loglevel: int = logging.INFO) -> ErrorHandlingLogger:
-        return ErrorHandlingLogger(class_name=command_name, loglevel=loglevel, error_exit_code=1)
-
-    @staticmethod
-    def __create_state_manager(series_name: str, working_dir: Path) -> StateManager:
-        state_manager = StateManager(series_name=series_name, working_dir=working_dir)
-        state_manager.load_or_create_state()
-        return state_manager
-
-    @staticmethod
-    def __create_episode_manager(
-        series: str, input_base: Path, logger: ErrorHandlingLogger,
-    ) -> Optional[EpisodeManager]:
-        episodes_json: Optional[Path] = input_base / series / 'episodes.json'
-        if not episodes_json.exists():
-            episodes_json = None
-        return EpisodeManager(episodes_json, series, logger)
-
-    @staticmethod
-    def __ensure_output_dir(base_dir: Path, series: str) -> Path:
-        series_output_dir = base_dir / series
-        series_output_dir.mkdir(parents=True, exist_ok=True)
-        return series_output_dir
 
     @staticmethod
     def build(
@@ -78,6 +54,30 @@ class PipelineContextFactory:
             context=context,
             episode_manager=episode_manager,
         )
+
+    @staticmethod
+    def __create_episode_manager(
+        series: str, input_base: Path, logger: ErrorHandlingLogger,
+    ) -> Optional[EpisodeManager]:
+        episodes_json: Optional[Path] = input_base / series / 'episodes.json'
+        if not episodes_json.exists():
+            episodes_json = None
+        return EpisodeManager(episodes_json, series, logger)
+    @staticmethod
+    def __create_logger(command_name: str, loglevel: int = logging.INFO) -> ErrorHandlingLogger:
+        return ErrorHandlingLogger(class_name=command_name, loglevel=loglevel, error_exit_code=1)
+
+    @staticmethod
+    def __create_state_manager(series_name: str, working_dir: Path) -> StateManager:
+        state_manager = StateManager(series_name=series_name, working_dir=working_dir)
+        state_manager.load_or_create_state()
+        return state_manager
+
+    @staticmethod
+    def __ensure_output_dir(base_dir: Path, series: str) -> Path:
+        series_output_dir = base_dir / series
+        series_output_dir.mkdir(parents=True, exist_ok=True)
+        return series_output_dir
 
 
 def setup_pipeline_context(

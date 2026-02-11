@@ -17,10 +17,6 @@ from preprocessor.lib.io.files import load_json
 
 class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGenerationConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'document_generation'
-
     def execute(self, input_data: Artifact, context: ExecutionContext) -> ElasticDocuments:
         if not hasattr(input_data, 'episode_info'):
             raise ValueError('Input artifact must have episode_info')
@@ -41,6 +37,14 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
             total_docs += count
         context.mark_step_completed(self.name, episode_id)
         return ElasticDocuments(episode_id=episode_id, episode_info=episode_info, path=output_dir, document_count=total_docs)
+
+    @property
+    def name(self) -> str:
+        return 'document_generation'
+
+    @staticmethod
+    def __build_episode_metadata(episode_info: Any, context: ExecutionContext) -> Dict[str, Any]:
+        return {'season': episode_info.season, 'episode_number': episode_info.relative_episode, 'series_name': context.series_name}
 
     @staticmethod
     def __gather_input_data(episode_info: Any, context: ExecutionContext) -> Dict[str, Any]:
@@ -82,7 +86,3 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
                 f.write(json.dumps(doc, ensure_ascii=False) + '\n')
                 count += 1
         return (output_path, count)
-
-    @staticmethod
-    def __build_episode_metadata(episode_info: Any, context: ExecutionContext) -> Dict[str, Any]:
-        return {'season': episode_info.season, 'episode_number': episode_info.relative_episode, 'series_name': context.series_name}

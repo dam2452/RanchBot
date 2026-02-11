@@ -10,12 +10,6 @@ from preprocessor.lib.transcription.generators.base_generator import BaseTranscr
 
 class SrtGenerator(BaseTranscriptionGenerator):
 
-    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
-        ...
-
-    def _get_output_filename(self, json_file: Path) -> str:
-        return json_file.name.replace(FILE_EXTENSIONS['json'], FILE_EXTENSIONS['srt'])
-
     def convert_to_srt_format(self, data: Dict[str, Any]) -> str:
         segments = data.get('segments', [])
         srt_lines = []
@@ -34,6 +28,12 @@ class SrtGenerator(BaseTranscriptionGenerator):
             srt_lines.append('')
             index += 1
         return '\n'.join(srt_lines)
+
+    def _get_output_filename(self, json_file: Path) -> str:
+        return json_file.name.replace(FILE_EXTENSIONS['json'], FILE_EXTENSIONS['srt'])
+
+    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
+        ...
 
     @staticmethod
     def __format_timestamp(seconds: float) -> str:

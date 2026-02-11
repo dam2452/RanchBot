@@ -31,21 +31,11 @@ class EpisodeScraper(BaseScraper):
         console.print(f'[green]✓ Saved to: {self.output_file}[/green]')
         self.__validate_and_report_coverage(total_episodes)
 
-    def __validate_and_report_coverage(self, scraped_episodes_count: int) -> None:
-        expected_count = self.__get_expected_episodes_count()
-        if expected_count is None:
-            self.__print_no_validation_warning(scraped_episodes_count)
-            return
-        status, message = self.__get_coverage_status(scraped_episodes_count, expected_count)
-        self.__print_coverage_report(scraped_episodes_count, expected_count, status, message)
-
-    @staticmethod
-    def __print_no_validation_warning(scraped_count: int) -> None:
-        console.print('\n[yellow]⚠ Coverage validation:[/yellow]')
-        console.print(f'  [cyan]Scraped episodes: {scraped_count}[/cyan]')
-        console.print('  [yellow]No video directory provided - unable to validate coverage[/yellow]')
-        console.print('  [dim]Make sure the scraped episodes cover all your video files[/dim]')
-        console.print('  [dim]You can add more --scrape-urls if needed[/dim]\n')
+    def __count_video_files(self, directory: Path) -> int:
+        count = 0
+        for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
+            count += len(list(directory.rglob(f'*{ext}')))
+        return count
 
     @staticmethod
     def __get_coverage_status(scraped: int, expected: int) -> Tuple[str, str]:
@@ -54,6 +44,13 @@ class EpisodeScraper(BaseScraper):
         if scraped > expected:
             return ('extra', f'Scraped {scraped - expected} more episodes than video files')
         return ('perfect', 'Perfect coverage')
+
+    def __get_expected_episodes_count(self) -> Optional[int]:
+        if self.expected_episodes_count is not None:
+            return self.expected_episodes_count
+        if self.videos_dir and self.videos_dir.exists():
+            return self.__count_video_files(self.videos_dir)
+        return None
 
     @staticmethod
     def __print_coverage_report(scraped: int, expected: int, status: str, message: str) -> None:
@@ -72,15 +69,18 @@ class EpisodeScraper(BaseScraper):
         else:
             console.print('\n[green]✓ Perfect coverage - all video files have metadata![/green]\n')
 
-    def __get_expected_episodes_count(self) -> Optional[int]:
-        if self.expected_episodes_count is not None:
-            return self.expected_episodes_count
-        if self.videos_dir and self.videos_dir.exists():
-            return self.__count_video_files(self.videos_dir)
-        return None
+    @staticmethod
+    def __print_no_validation_warning(scraped_count: int) -> None:
+        console.print('\n[yellow]⚠ Coverage validation:[/yellow]')
+        console.print(f'  [cyan]Scraped episodes: {scraped_count}[/cyan]')
+        console.print('  [yellow]No video directory provided - unable to validate coverage[/yellow]')
+        console.print('  [dim]Make sure the scraped episodes cover all your video files[/dim]')
+        console.print('  [dim]You can add more --scrape-urls if needed[/dim]\n')
 
-    def __count_video_files(self, directory: Path) -> int:
-        count = 0
-        for ext in self.SUPPORTED_VIDEO_EXTENSIONS:
-            count += len(list(directory.rglob(f'*{ext}')))
-        return count
+    def __validate_and_report_coverage(self, scraped_episodes_count: int) -> None:
+        expected_count = self.__get_expected_episodes_count()
+        if expected_count is None:
+            self.__print_no_validation_warning(scraped_episodes_count)
+            return
+        status, message = self.__get_coverage_status(scraped_episodes_count, expected_count)
+        self.__print_coverage_report(scraped_episodes_count, expected_count, status, message)

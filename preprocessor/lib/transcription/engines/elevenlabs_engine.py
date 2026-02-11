@@ -46,6 +46,9 @@ class ElevenLabsEngine(TranscriptionEngine):
         ]
         self._logger: ErrorHandlingLogger = logger
 
+    def get_name(self) -> str:
+        return 'ElevenLabs'
+
     def transcribe(self, audio_path: Path) -> Dict[str, Any]:
         console.print(f'[cyan]Transcribing with 11labs: {audio_path.name}[/cyan]')
         if not audio_path.exists():
@@ -54,46 +57,6 @@ class ElevenLabsEngine(TranscriptionEngine):
         result = self.__poll_for_results(transcription_id)
         console.print(f'[green]Transcription completed: {audio_path.name}[/green]')
         return self.__convert_to_unified_format(result)
-
-    def __submit_job(self, audio_path: Path) -> str:
-        try:
-            with open(audio_path, 'rb') as audio_file:
-                audio_data = audio_file.read()
-            submit_response = self.client.speech_to_text.convert(
-                file=audio_data,
-                model_id=self.model_id,
-                language_code=self.language_code,
-                tag_audio_events=True,
-                timestamps_granularity='character',
-                diarize=self.diarize,
-                use_multi_channel=False,
-                additional_formats=self.additional_formats,
-                webhook=True,
-            )
-            self._logger.info(f'Job submitted. ID: {submit_response.transcription_id}')
-            return submit_response.transcription_id
-        except ApiError as e:
-            self._logger.error(f'API error during job submission: {e.body}')
-            raise
-
-    def __poll_for_results(self, transcription_id: str):
-        self._logger.info(f'Polling for results (ID: {transcription_id})...')
-        max_attempts = settings.elevenlabs.max_attempts
-        attempt = 0
-        while attempt < max_attempts:
-            try:
-                result = self.client.speech_to_text.transcripts.get(transcription_id=transcription_id)
-                self._logger.info('Transcription complete!')
-                return result
-            except ApiError as e:
-                if e.status_code == 404:
-                    self._logger.info('   ...Processing. Waiting...')
-                    time.sleep(self.polling_interval)
-                    attempt += 1
-                else:
-                    self._logger.error(f'API error during polling: {e.body}')
-                    raise
-        raise TimeoutError(f'Transcription timeout after {max_attempts} attempts')
 
     @staticmethod
     def __convert_to_unified_format(result) -> Dict[str, Any]:
@@ -118,5 +81,42 @@ class ElevenLabsEngine(TranscriptionEngine):
                     break
         return unified_data
 
-    def get_name(self) -> str:
-        return 'ElevenLabs'
+    def __poll_for_results(self, transcription_id: str):
+        self._logger.info(f'Polling for results (ID: {transcription_id})...')
+        max_attempts = settings.elevenlabs.max_attempts
+        attempt = 0
+        while attempt < max_attempts:
+            try:
+                result = self.client.speech_to_text.transcripts.get(transcription_id=transcription_id)
+                self._logger.info('Transcription complete!')
+                return result
+            except ApiError as e:
+                if e.status_code == 404:
+                    self._logger.info('   ...Processing. Waiting...')
+                    time.sleep(self.polling_interval)
+                    attempt += 1
+                else:
+                    self._logger.error(f'API error during polling: {e.body}')
+                    raise
+        raise TimeoutError(f'Transcription timeout after {max_attempts} attempts')
+
+    def __submit_job(self, audio_path: Path) -> str:
+        try:
+            with open(audio_path, 'rb') as audio_file:
+                audio_data = audio_file.read()
+            submit_response = self.client.speech_to_text.convert(
+                file=audio_data,
+                model_id=self.model_id,
+                language_code=self.language_code,
+                tag_audio_events=True,
+                timestamps_granularity='character',
+                diarize=self.diarize,
+                use_multi_channel=False,
+                additional_formats=self.additional_formats,
+                webhook=True,
+            )
+            self._logger.info(f'Job submitted. ID: {submit_response.transcription_id}')
+            return submit_response.transcription_id
+        except ApiError as e:
+            self._logger.error(f'API error during job submission: {e.body}')
+            raise

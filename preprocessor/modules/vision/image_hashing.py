@@ -30,9 +30,9 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         super().__init__(config)
         self._hasher: Optional[PerceptualHasher] = None
 
-    @property
-    def name(self) -> str:
-        return 'image_hashing'
+    def cleanup(self) -> None:
+        self._hasher = None
+        self.__cleanup_memory()
 
     def execute(  # pylint: disable=too-many-locals
         self, input_data: FrameCollection, context: ExecutionContext,
@@ -102,9 +102,9 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
             hash_count=len(hash_results),
         )
 
-    def cleanup(self) -> None:
-        self._hasher = None
-        self.__cleanup_memory()
+    @property
+    def name(self) -> str:
+        return 'image_hashing'
 
     @staticmethod
     def __cleanup_memory() -> None:

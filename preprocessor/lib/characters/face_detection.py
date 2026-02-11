@@ -22,6 +22,44 @@ warnings.filterwarnings('ignore', message='.*estimate.*is deprecated.*', categor
 class FaceDetector:
 
     @staticmethod
+    def detect_characters_in_frame(
+        frame_path: Path,
+        face_app: FaceAnalysis,
+        character_vectors: Dict[str, np.ndarray],
+        threshold: float,
+    ) -> List[Dict[str, Any]]:
+        img = cv2.imread(str(frame_path))
+        if img is None:
+            return []
+        faces = face_app.get(img)
+        if not faces:
+            return []
+        detected = []
+        for face in faces:
+            face_embedding = face.normed_embedding
+            bbox = face.bbox.astype(int)
+            best_match = None
+            best_similarity = threshold
+            for char_name, char_vector in character_vectors.items():
+                similarity = np.dot(face_embedding, char_vector)
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = char_name
+            if best_match is not None:
+                detected.append({
+                    'name': best_match,
+                    'confidence': float(best_similarity),
+                    'bbox': {
+                        'x1': int(bbox[0]),
+                        'y1': int(bbox[1]),
+                        'x2': int(bbox[2]),
+                        'y2': int(bbox[3]),
+                    },
+                })
+        detected.sort(key=lambda x: x['confidence'], reverse=True)
+        return detected
+
+    @staticmethod
     def init() -> FaceAnalysis:
         model_root = os.getenv('INSIGHTFACE_HOME', os.path.expanduser('~/.insightface'))
         available_providers = ort.get_available_providers()
@@ -103,41 +141,3 @@ class FaceDetector:
             return None
         faces.sort(key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]), reverse=True)
         return faces[0].normed_embedding
-
-    @staticmethod
-    def detect_characters_in_frame(
-        frame_path: Path,
-        face_app: FaceAnalysis,
-        character_vectors: Dict[str, np.ndarray],
-        threshold: float,
-    ) -> List[Dict[str, Any]]:
-        img = cv2.imread(str(frame_path))
-        if img is None:
-            return []
-        faces = face_app.get(img)
-        if not faces:
-            return []
-        detected = []
-        for face in faces:
-            face_embedding = face.normed_embedding
-            bbox = face.bbox.astype(int)
-            best_match = None
-            best_similarity = threshold
-            for char_name, char_vector in character_vectors.items():
-                similarity = np.dot(face_embedding, char_vector)
-                if similarity > best_similarity:
-                    best_similarity = similarity
-                    best_match = char_name
-            if best_match is not None:
-                detected.append({
-                    'name': best_match,
-                    'confidence': float(best_similarity),
-                    'bbox': {
-                        'x1': int(bbox[0]),
-                        'y1': int(bbox[1]),
-                        'x2': int(bbox[2]),
-                        'y2': int(bbox[3]),
-                    },
-                })
-        detected.sort(key=lambda x: x['confidence'], reverse=True)
-        return detected

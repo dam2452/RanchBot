@@ -21,30 +21,30 @@ from preprocessor.lib.text.language_config import (
 @dataclass
 class TextStatistics:  # pylint: disable=too-many-instance-attributes
     text: str
+    avg_sentence_length: float = 0.0
+    avg_word_length: float = 0.0
+    bigrams: List[Dict[str, Any]] = field(default_factory=list)
+    chars_without_spaces: int = 0
+    consonants: int = 0
+    digits: int = 0
+    empty_lines: int = 0
     language: str = 'pl'
-    sentences: int = 0
+    letter_frequency: Dict[str, int] = field(default_factory=dict)
+    letters: int = 0
     lines: int = 0
     paragraphs: int = 0
-    empty_lines: int = 0
-    words: int = 0
-    letters: int = 0
-    digits: int = 0
-    symbols: int = 0
     punctuation_marks: int = 0
-    special_characters: int = 0
-    chars_without_spaces: int = 0
+    sentences: int = 0
     spaces: int = 0
+    special_characters: int = 0
+    symbols: int = 0
     total_chars: int = 0
-    vowels: int = 0
-    consonants: int = 0
-    unique_words: int = 0
-    avg_word_length: float = 0.0
-    avg_sentence_length: float = 0.0
-    type_token_ratio: float = 0.0
-    letter_frequency: Dict[str, int] = field(default_factory=dict)
-    word_frequency: List[Dict[str, Any]] = field(default_factory=list)
-    bigrams: List[Dict[str, Any]] = field(default_factory=list)
     trigrams: List[Dict[str, Any]] = field(default_factory=list)
+    type_token_ratio: float = 0.0
+    unique_words: int = 0
+    vowels: int = 0
+    word_frequency: List[Dict[str, Any]] = field(default_factory=list)
+    words: int = 0
 
     @classmethod
     def from_file(cls, file_path: Path, language: str='pl') -> 'TextStatistics':
@@ -54,11 +54,36 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
         stats.__calculate()
         return stats
 
-    @classmethod
-    def __from_text(cls, text: str, language: str='pl') -> 'TextStatistics': # pylint: disable=unused-private-member
-        stats = cls(text=text, language=language)
-        stats.__calculate()
-        return stats
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'basic_statistics': {
+                'sentences': self.sentences,
+                'lines': self.lines,
+                'paragraphs': self.paragraphs,
+                'empty_lines': self.empty_lines,
+                'words': self.words,
+                'letters': self.letters,
+                'digits': self.digits,
+                'symbols': self.symbols,
+                'punctuation_marks': self.punctuation_marks,
+                'special_characters': self.special_characters,
+                'chars_without_spaces': self.chars_without_spaces,
+                'spaces': self.spaces,
+                'total_chars': self.total_chars,
+                'vowels': self.vowels,
+                'consonants': self.consonants,
+            },
+            'advanced_statistics': {
+                'unique_words': self.unique_words,
+                'avg_word_length': self.avg_word_length,
+                'avg_sentence_length': self.avg_sentence_length,
+                'type_token_ratio': self.type_token_ratio,
+            },
+            'letter_frequency': self.letter_frequency,
+            'word_frequency': self.word_frequency,
+            'bigrams': self.bigrams,
+            'trigrams': self.trigrams,
+        }
 
     def __calculate(self) -> None: # pylint: disable=unused-private-member
         self.__calculate_basic_stats()
@@ -66,11 +91,16 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
         self.__calculate_word_stats()
         self.__calculate_advanced_stats()
 
-    def __get_config(self) -> LanguageConfig:
-        return POLISH_CONFIG if self.language == 'pl' else ENGLISH_CONFIG
-
-    def __get_words(self) -> List[str]:
-        return re.findall('\\b\\w+\\b', self.text.lower())
+    def __calculate_advanced_stats(self) -> None:
+        if self.sentences > 0:
+            self.avg_sentence_length = round(self.words / self.sentences, 2)
+        words = self.__get_words()
+        if len(words) >= 2:
+            bigram_counter = Counter(zip(words[:-1], words[1:]))
+            self.bigrams = [{'bigram': f'{w1} {w2}', 'count': count} for (w1, w2), count in bigram_counter.most_common(25)]
+        if len(words) >= 3:
+            trigram_counter = Counter(zip(words[:-2], words[1:-1], words[2:]))
+            self.trigrams = [{'trigram': f'{w1} {w2} {w3}', 'count': count} for (w1, w2, w3), count in trigram_counter.most_common(25)]
 
     def __calculate_basic_stats(self) -> None:
         lines = self.text.split('\n')
@@ -116,44 +146,14 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
             self.avg_word_length = round(sum(word_lengths) / len(word_lengths), 2) if word_lengths else 0.0
             self.word_frequency = [{'word': word, 'count': count} for word, count in word_counter.most_common(50)]
 
-    def __calculate_advanced_stats(self) -> None:
-        if self.sentences > 0:
-            self.avg_sentence_length = round(self.words / self.sentences, 2)
-        words = self.__get_words()
-        if len(words) >= 2:
-            bigram_counter = Counter(zip(words[:-1], words[1:]))
-            self.bigrams = [{'bigram': f'{w1} {w2}', 'count': count} for (w1, w2), count in bigram_counter.most_common(25)]
-        if len(words) >= 3:
-            trigram_counter = Counter(zip(words[:-2], words[1:-1], words[2:]))
-            self.trigrams = [{'trigram': f'{w1} {w2} {w3}', 'count': count} for (w1, w2, w3), count in trigram_counter.most_common(25)]
+    @classmethod
+    def __from_text(cls, text: str, language: str='pl') -> 'TextStatistics': # pylint: disable=unused-private-member
+        stats = cls(text=text, language=language)
+        stats.__calculate()
+        return stats
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'basic_statistics': {
-                'sentences': self.sentences,
-                'lines': self.lines,
-                'paragraphs': self.paragraphs,
-                'empty_lines': self.empty_lines,
-                'words': self.words,
-                'letters': self.letters,
-                'digits': self.digits,
-                'symbols': self.symbols,
-                'punctuation_marks': self.punctuation_marks,
-                'special_characters': self.special_characters,
-                'chars_without_spaces': self.chars_without_spaces,
-                'spaces': self.spaces,
-                'total_chars': self.total_chars,
-                'vowels': self.vowels,
-                'consonants': self.consonants,
-            },
-            'advanced_statistics': {
-                'unique_words': self.unique_words,
-                'avg_word_length': self.avg_word_length,
-                'avg_sentence_length': self.avg_sentence_length,
-                'type_token_ratio': self.type_token_ratio,
-            },
-            'letter_frequency': self.letter_frequency,
-            'word_frequency': self.word_frequency,
-            'bigrams': self.bigrams,
-            'trigrams': self.trigrams,
-        }
+    def __get_config(self) -> LanguageConfig:
+        return POLISH_CONFIG if self.language == 'pl' else ENGLISH_CONFIG
+
+    def __get_words(self) -> List[str]:
+        return re.findall('\\b\\w+\\b', self.text.lower())

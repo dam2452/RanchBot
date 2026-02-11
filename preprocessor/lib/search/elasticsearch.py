@@ -18,29 +18,6 @@ class ElasticsearchWrapper:
         self.dry_run: bool = dry_run
         self._client: Optional[AsyncElasticsearch] = None
 
-    async def _get_client(self) -> AsyncElasticsearch:
-        if self._client is None:
-            self._client = AsyncElasticsearch([self.host], verify_certs=False, ssl_show_warn=False)
-        return self._client
-
-    async def index_exists(self) -> bool:
-        if self.dry_run:
-            return False
-        client = await self._get_client()
-        return await client.indices.exists(index=self.index_name)
-
-    async def create_index(self, mapping: Dict[str, Any]) -> None:
-        if self.dry_run:
-            return
-        client = await self._get_client()
-        await client.indices.create(index=self.index_name, body=mapping)
-
-    async def delete_index(self) -> None:
-        if self.dry_run:
-            return
-        client = await self._get_client()
-        await client.indices.delete(index=self.index_name, ignore=[404])
-
     async def bulk_index(self, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
         if self.dry_run:
             return {'indexed': len(documents), 'errors': []}
@@ -59,3 +36,26 @@ class ElasticsearchWrapper:
         if self._client is not None:
             await self._client.close()
             self._client = None
+
+    async def create_index(self, mapping: Dict[str, Any]) -> None:
+        if self.dry_run:
+            return
+        client = await self._get_client()
+        await client.indices.create(index=self.index_name, body=mapping)
+
+    async def delete_index(self) -> None:
+        if self.dry_run:
+            return
+        client = await self._get_client()
+        await client.indices.delete(index=self.index_name, ignore=[404])
+
+    async def index_exists(self) -> bool:
+        if self.dry_run:
+            return False
+        client = await self._get_client()
+        return await client.indices.exists(index=self.index_name)
+
+    async def _get_client(self) -> AsyncElasticsearch:
+        if self._client is None:
+            self._client = AsyncElasticsearch([self.host], verify_certs=False, ssl_show_warn=False)
+        return self._client

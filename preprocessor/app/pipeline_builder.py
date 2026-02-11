@@ -24,6 +24,55 @@ class PipelineExecutor:
         self.steps.append(step)
         return self
 
+    def cleanup(self) -> None:
+        for step in self.steps:
+            if hasattr(step, "cleanup"):
+                try:
+                    step.cleanup()
+                except Exception as e:
+                    self.context.logger.error(f"Cleanup failed for step {step.name}: {e}")
+
+    def execute_step(
+        self,
+        pipeline: "PipelineDefinition",
+        step_id: str,
+        source_path: Path,
+        episode_manager: EpisodeManager,
+    ) -> None:
+        step = pipeline.get_step(step_id)
+        self.context.logger.info(f"🔧 Step: {step_id}")
+        self.context.logger.info(f"📝 {step.description}")
+
+        StepClass = step.load_class()
+        instance = StepClass(step.config)
+
+        runner = PipelineExecutor(self.context)
+        runner.add_step(instance)
+        runner.__run_for_episodes(source_path, episode_manager)
+
+        self.context.logger.info(f"✅ Step '{step_id}' completed")
+
+    def execute_steps(
+        self,
+        pipeline: "PipelineDefinition",
+        step_ids: List[str],
+        source_path: Path,
+        episode_manager: EpisodeManager,
+    ) -> None:
+        for step_id in step_ids:
+            self.context.logger.info(f"{'=' * 80}")
+            self.execute_step(pipeline, step_id, source_path, episode_manager)
+
+    def __mark_step_completed(self, step_name: str, episode_id: str) -> None:
+        if self.context.state_manager is None:
+            return
+        self.context.state_manager.mark_step_completed(step_name, episode_id)
+
+    def __mark_step_in_progress(self, step_name: str, episode_id: str) -> None:
+        if self.context.state_manager is None:
+            return
+        self.context.state_manager.mark_step_started(step_name, episode_id)
+
     def __run_for_episodes(  # pylint: disable=unused-private-member
         self, source_path: Path, episode_manager: EpisodeManager,
     ) -> None:
@@ -87,52 +136,3 @@ class PipelineExecutor:
             return False
 
         return self.context.state_manager.is_step_completed(step_name, episode_id)
-
-    def __mark_step_in_progress(self, step_name: str, episode_id: str) -> None:
-        if self.context.state_manager is None:
-            return
-        self.context.state_manager.mark_step_started(step_name, episode_id)
-
-    def __mark_step_completed(self, step_name: str, episode_id: str) -> None:
-        if self.context.state_manager is None:
-            return
-        self.context.state_manager.mark_step_completed(step_name, episode_id)
-
-    def cleanup(self) -> None:
-        for step in self.steps:
-            if hasattr(step, "cleanup"):
-                try:
-                    step.cleanup()
-                except Exception as e:
-                    self.context.logger.error(f"Cleanup failed for step {step.name}: {e}")
-
-    def execute_step(
-        self,
-        pipeline: "PipelineDefinition",
-        step_id: str,
-        source_path: Path,
-        episode_manager: EpisodeManager,
-    ) -> None:
-        step = pipeline.get_step(step_id)
-        self.context.logger.info(f"🔧 Step: {step_id}")
-        self.context.logger.info(f"📝 {step.description}")
-
-        StepClass = step.load_class()
-        instance = StepClass(step.config)
-
-        runner = PipelineExecutor(self.context)
-        runner.add_step(instance)
-        runner.__run_for_episodes(source_path, episode_manager)
-
-        self.context.logger.info(f"✅ Step '{step_id}' completed")
-
-    def execute_steps(
-        self,
-        pipeline: "PipelineDefinition",
-        step_ids: List[str],
-        source_path: Path,
-        episode_manager: EpisodeManager,
-    ) -> None:
-        for step_id in step_ids:
-            self.context.logger.info(f"{'=' * 80}")
-            self.execute_step(pipeline, step_id, source_path, episode_manager)

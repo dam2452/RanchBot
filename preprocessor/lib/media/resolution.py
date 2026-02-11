@@ -8,15 +8,15 @@ from typing import (
 T = TypeVar('T', bound='Resolution')
 
 class Resolution(Enum):
-    R4320P = (7680, 4320)
-    R2160P = (3840, 2160)
-    R1440P = (2560, 1440)
     R1080P = (1920, 1080)
-    R720P = (1280, 720)
-    R480P = (854, 480)
-    R360P = (640, 360)
-    R240P = (426, 240)
+    R1440P = (2560, 1440)
     R144P = (256, 144)
+    R2160P = (3840, 2160)
+    R240P = (426, 240)
+    R360P = (640, 360)
+    R4320P = (7680, 4320)
+    R480P = (854, 480)
+    R720P = (1280, 720)
 
     def __init__(self, width: int, height: int):
         self.width = width

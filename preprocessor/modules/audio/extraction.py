@@ -13,10 +13,6 @@ from preprocessor.core.context import ExecutionContext
 
 class AudioExtractionStep(PipelineStep[SourceVideo, AudioArtifact, AudioExtractionConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'audio_extraction'
-
     def execute(self, input_data: SourceVideo, context: ExecutionContext) -> AudioArtifact:
         episode_code = input_data.episode_info.episode_code()
         output_filename: str = (
@@ -61,3 +57,7 @@ class AudioExtractionStep(PipelineStep[SourceVideo, AudioArtifact, AudioExtracti
             path=output_path,
             format=self.config.format,
         )
+
+    @property
+    def name(self) -> str:
+        return 'audio_extraction'

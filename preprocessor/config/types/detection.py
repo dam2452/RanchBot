@@ -6,20 +6,20 @@ from typing import (
 
 
 class CharacterDetectionInFrame(TypedDict):
-    name: str
-    confidence: float
     bbox: List[int]
+    confidence: float
     embedding: NotRequired[List[float]]
+    name: str
 
 class ObjectDetectionInFrame(TypedDict):
-    class_name: str
-    class_id: int
-    confidence: float
     bbox: List[int]
+    class_id: int
+    class_name: str
+    confidence: float
 
 class Detection(TypedDict):
     bbox: List[int]
-    confidence: float
     class_id: NotRequired[int]
     class_name: NotRequired[str]
+    confidence: float
     name: NotRequired[str]

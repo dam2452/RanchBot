@@ -11,11 +11,11 @@ import zipfile
 
 from PIL import Image
 
-from preprocessor.config.constants import ValidationMetadataKeys
 from preprocessor.config.types.keys import (
     FfprobeFormatKeys,
     FfprobeKeys,
     FfprobeStreamKeys,
+    ValidationMetadataKeys,
 )
 
 
@@ -28,10 +28,27 @@ class ValidationResult:
 class FileValidator:
 
     @staticmethod
-    def __check_file_exists(path: Path) -> Optional[ValidationResult]:
-        if not path.exists():
-            return ValidationResult(is_valid=False, error_message=f'File does not exist: {path}')
-        return None
+    def validate_image_file(path: Path) -> ValidationResult:
+        if (error := FileValidator.__check_file_exists(path)):
+            return error
+        try:
+            with Image.open(path) as img:
+                img.verify()
+            with Image.open(path) as img:
+                width, height = img.size
+                format_type = img.format
+                size_mb = path.stat().st_size / (1024 * 1024)
+            return ValidationResult(
+                is_valid=True,
+                metadata={
+                    ValidationMetadataKeys.WIDTH: width,
+                    ValidationMetadataKeys.HEIGHT: height,
+                    ValidationMetadataKeys.FORMAT: format_type,
+                    ValidationMetadataKeys.SIZE_MB: round(size_mb, 2),
+                },
+            )
+        except Exception as e:
+            return ValidationResult(is_valid=False, error_message=f'Invalid image: {e}')
 
     @staticmethod
     def validate_json_file(path: Path) -> ValidationResult:
@@ -79,29 +96,6 @@ class FileValidator:
             return ValidationResult(is_valid=False, error_message=f'Error reading file: {e}')
 
     @staticmethod
-    def validate_image_file(path: Path) -> ValidationResult:
-        if (error := FileValidator.__check_file_exists(path)):
-            return error
-        try:
-            with Image.open(path) as img:
-                img.verify()
-            with Image.open(path) as img:
-                width, height = img.size
-                format_type = img.format
-                size_mb = path.stat().st_size / (1024 * 1024)
-            return ValidationResult(
-                is_valid=True,
-                metadata={
-                    ValidationMetadataKeys.WIDTH: width,
-                    ValidationMetadataKeys.HEIGHT: height,
-                    ValidationMetadataKeys.FORMAT: format_type,
-                    ValidationMetadataKeys.SIZE_MB: round(size_mb, 2),
-                },
-            )
-        except Exception as e:
-            return ValidationResult(is_valid=False, error_message=f'Invalid image: {e}')
-
-    @staticmethod
     def validate_video_file(path: Path) -> ValidationResult:
         if (error := FileValidator.__check_file_exists(path)):
             return error
@@ -139,6 +133,12 @@ class FileValidator:
             return ValidationResult(is_valid=False, error_message=f'ffprobe error: {e.stderr}')
         except Exception as e:
             return ValidationResult(is_valid=False, error_message=f'Error validating video: {e}')
+
+    @staticmethod
+    def __check_file_exists(path: Path) -> Optional[ValidationResult]:
+        if not path.exists():
+            return ValidationResult(is_valid=False, error_message=f'File does not exist: {path}')
+        return None
 
     @staticmethod
     def __validate_archive_file(path: Path) -> ValidationResult: # pylint: disable=unused-private-member

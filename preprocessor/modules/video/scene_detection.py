@@ -19,9 +19,10 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
         self.transnet = TransNetWrapper()
         self._model_loaded = False
 
-    @property
-    def name(self) -> str:
-        return 'scene_detection'
+    def cleanup(self) -> None:
+        if self._model_loaded:
+            self.transnet.cleanup()
+            self._model_loaded = False
 
     def execute(self, input_data: TranscodedVideo, context: ExecutionContext) -> SceneCollection:
         output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_scenes.json'
@@ -73,7 +74,6 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
             min_scene_len=self.config.min_scene_len,
         )
 
-    def cleanup(self) -> None:
-        if self._model_loaded:
-            self.transnet.cleanup()
-            self._model_loaded = False
+    @property
+    def name(self) -> str:
+        return 'scene_detection'

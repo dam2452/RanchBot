@@ -28,20 +28,8 @@ class ExecutionContext:
         self._logger: ErrorHandlingLogger = logger
 
     @property
-    def series_name(self) -> str:
-        return self._series_name
-
-    @property
     def force_rerun(self) -> bool:
         return self._force_rerun
-
-    @property
-    def logger(self) -> ErrorHandlingLogger:
-        return self._logger
-
-    @property
-    def state_manager(self) -> Optional['StateManager']:
-        return self._state_manager
 
     def get_output_path(
         self, episode_info: 'EpisodeInfo', subdir: str, filename: str,
@@ -67,6 +55,10 @@ class ExecutionContext:
             return False
         return self._state_manager.is_step_completed(step_name, episode_id)
 
+    @property
+    def logger(self) -> ErrorHandlingLogger:
+        return self._logger
+
     def mark_step_completed(self, step_name: str, episode_id: str) -> None:
         if self._state_manager:
             self._state_manager.mark_step_completed(step_name, episode_id)
@@ -76,3 +68,11 @@ class ExecutionContext:
     ) -> None:
         if self._state_manager:
             self._state_manager.mark_step_started(step_name, episode_id, temp_files)
+
+    @property
+    def series_name(self) -> str:
+        return self._series_name
+
+    @property
+    def state_manager(self) -> Optional['StateManager']:
+        return self._state_manager

@@ -53,6 +53,12 @@ class SimpleProgress:
             self.__print_progress(task_id)
             task['last_print'] = current_time
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
     def __print_progress(self, task_id: int):
         task = self.tasks[task_id]
         completed = task['completed']
@@ -81,12 +87,6 @@ class SimpleProgress:
             f"[dim]ETA: {eta}[/dim]",
             highlight=False,
         )
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
 
 def create_progress() -> SimpleProgress:
     return SimpleProgress()

@@ -22,6 +22,13 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     def __init__(self, config: ConfigT) -> None:
         self._config: ConfigT = config
 
+    def cleanup(self) -> None:
+        pass
+
+    @property
+    def config(self) -> ConfigT:
+        return self._config
+
     @abstractmethod
     def execute(self, input_data: InputT, context: "ExecutionContext") -> OutputT:
         pass
@@ -29,11 +36,4 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     @property
     @abstractmethod
     def name(self) -> str:
-        pass
-
-    @property
-    def config(self) -> ConfigT:
-        return self._config
-
-    def cleanup(self) -> None:
         pass

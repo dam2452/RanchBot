@@ -19,15 +19,6 @@ class JsonGenerator(BaseTranscriptionGenerator):
         super().__init__(*args, **kwargs)
         self.format_type = format_type
 
-    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
-        ...
-
-    def _get_output_filename(self, json_file: Path) -> str:
-        if self.format_type == 'full':
-            return json_file.name
-        suffix = FILE_SUFFIXES[self.format_type]
-        return json_file.name.replace(FILE_EXTENSIONS['json'], f"{suffix}{FILE_EXTENSIONS['json']}")
-
     def convert(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.format_type == 'full':
             return self.convert_to_full_format(data)
@@ -51,6 +42,16 @@ class JsonGenerator(BaseTranscriptionGenerator):
         return {'language_code': language_code, 'language_probability': 1.0, 'text': full_text, 'words': words}
 
     @staticmethod
+    def convert_to_segmented_format(data: Dict[str, Any]) -> Dict[str, Any]:
+        segments = data.get('segments', [])
+        result_segments = []
+        for seg in segments:
+            text = seg.get('text', '').strip()
+            seg_words = seg.get('words', [])
+            result_segments.append({'text': text, 'words': TranscriptionUtils.convert_words_list(seg_words)})
+        return {'segments': result_segments}
+
+    @staticmethod
     def convert_to_simple_format(data: Dict[str, Any]) -> Dict[str, Any]:
         segments = data.get('segments', [])
         result_segments = []
@@ -63,12 +64,11 @@ class JsonGenerator(BaseTranscriptionGenerator):
             result_segments.append({'speaker': speaker, 'text': text})
         return {'segments': result_segments}
 
-    @staticmethod
-    def convert_to_segmented_format(data: Dict[str, Any]) -> Dict[str, Any]:
-        segments = data.get('segments', [])
-        result_segments = []
-        for seg in segments:
-            text = seg.get('text', '').strip()
-            seg_words = seg.get('words', [])
-            result_segments.append({'text': text, 'words': TranscriptionUtils.convert_words_list(seg_words)})
-        return {'segments': result_segments}
+    def _get_output_filename(self, json_file: Path) -> str:
+        if self.format_type == 'full':
+            return json_file.name
+        suffix = FILE_SUFFIXES[self.format_type]
+        return json_file.name.replace(FILE_EXTENSIONS['json'], f"{suffix}{FILE_EXTENSIONS['json']}")
+
+    def _process_file(self, json_file: Path, data: Dict[str, Any]) -> None:
+        ...

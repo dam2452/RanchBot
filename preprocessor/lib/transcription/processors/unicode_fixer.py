@@ -31,11 +31,11 @@ class TranscriptionUnicodeFixer(BaseProcessor):
         episodes_info_json = self._args.get('episodes_info_json')
         self.episode_manager = EpisodeManager(episodes_info_json, self.series_name, self.logger)
 
-    def _validate_args(self, args: Dict[str, Any]) -> None:
-        ...
-
     def get_output_subdir(self) -> str:
         return settings.output_subdirs.transcriptions
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        return [OutputSpec(path=item.input_path, required=True)]
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         transcription_files = list(self.transcription_jsons.rglob('*.json'))
@@ -48,9 +48,6 @@ class TranscriptionUnicodeFixer(BaseProcessor):
             for i, trans_file in enumerate(transcription_files)
         ]
 
-    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
-        return [OutputSpec(path=item.input_path, required=True)]
-
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
         trans_file = item.metadata['file']
         try:
@@ -61,3 +58,6 @@ class TranscriptionUnicodeFixer(BaseProcessor):
                 self.logger.debug(f'No unicode escapes found in: {trans_file.name}')
         except Exception as e:
             self.logger.error(f'Error fixing unicode in {trans_file.name}: {e}')
+
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        ...

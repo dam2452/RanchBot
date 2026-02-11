@@ -38,13 +38,8 @@ from preprocessor.lib.ui.console import console
 
 
 class LLMProvider:
-    __instance: Optional['LLMProvider'] = None
     __client: Optional[BaseLLMClient] = None
-
-    def __new__(cls, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None) -> 'LLMProvider':
-        if cls.__instance is None:
-            cls.__instance = super().__new__(cls)
-        return cls.__instance
+    __instance: Optional['LLMProvider'] = None
 
     def __init__(self, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None) -> None:
         self._parser_mode = parser_mode or ParserMode.NORMAL
@@ -54,52 +49,6 @@ class LLMProvider:
                 self.__client = GeminiClient()
             else:
                 self.__client = VLLMClient(model_name=model_name)
-
-    def __extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
- # pylint: disable=unused-private-member
-        return self.__process_llm_request(
-            system_prompt=extract_season_system.get(),
-            user_prompt=extract_season_user.get().format(url=url, page_text=page_text),
-            response_model=SeasonMetadata,
-            error_context=f'extraction failed for {url}',
-        )
-
-    def __extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
- # pylint: disable=unused-private-member
-        return self.__process_llm_request(
-            system_prompt=extract_episode_metadata_system.get(),
-            user_prompt=extract_episode_metadata_user.get().format(url=url, page_text=page_text),
-            response_model=EpisodeMetadata,
-            error_context=f'extraction failed for {url}',
-        )
-
-    def __merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
- # pylint: disable=unused-private-member
-        if not metadata_list:
-            raise ValueError('No metadata to merge')
-        if len(metadata_list) == 1:
-            return metadata_list[0]
-
-        combined_text = '\n\n---\n\n'.join([
-            f'Source {i + 1}:\n'
-            f'Title: {m.title}\n'
-            f'Description: {m.description}\n'
-            f'Summary: {m.summary}\n'
-            f'Season: {m.season}\n'
-            f'Episode: {m.episode_number}'
-            for i, m in enumerate(metadata_list)
-        ])
-
-        result = self.__process_llm_request(
-            system_prompt=merge_episode_data_system.get(),
-            user_prompt=merge_episode_data_user.get().format(
-                num_sources=len(metadata_list),
-                combined_text=combined_text,
-            ),
-            response_model=EpisodeMetadata,
-            error_context='merge failed',
-        )
-        return result if result else metadata_list[0]
 
     def extract_all_seasons(self, scraped_pages: List[Dict[str, Any]]) -> Optional[List[SeasonMetadata]]:
         combined_content = ''
@@ -142,6 +91,76 @@ class LLMProvider:
         )
         return result.characters if result else None
 
+    def __new__(cls, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None) -> 'LLMProvider':
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+        return cls.__instance
+
+    def __extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
+ # pylint: disable=unused-private-member
+        return self.__process_llm_request(
+            system_prompt=extract_episode_metadata_system.get(),
+            user_prompt=extract_episode_metadata_user.get().format(url=url, page_text=page_text),
+            response_model=EpisodeMetadata,
+            error_context=f'extraction failed for {url}',
+        )
+
+    @staticmethod
+    def __extract_json(content: str) -> Dict[str, Any]:
+        try:
+            if '```json' in content:
+                start = content.find('```json') + 7
+                end = content.find('```', start)
+                json_str = content[start:end].strip()
+            elif '```' in content:
+                start = content.find('```') + 3
+                end = content.find('```', start)
+                json_str = content[start:end].strip()
+            else:
+                json_str = content.strip()
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            console.print(f'[red]JSON parse error: {e}[/red]')
+            console.print(f'[yellow]Raw content:\n{content}[/yellow]')
+            raise
+
+    def __extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
+ # pylint: disable=unused-private-member
+        return self.__process_llm_request(
+            system_prompt=extract_season_system.get(),
+            user_prompt=extract_season_user.get().format(url=url, page_text=page_text),
+            response_model=SeasonMetadata,
+            error_context=f'extraction failed for {url}',
+        )
+
+    def __merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
+ # pylint: disable=unused-private-member
+        if not metadata_list:
+            raise ValueError('No metadata to merge')
+        if len(metadata_list) == 1:
+            return metadata_list[0]
+
+        combined_text = '\n\n---\n\n'.join([
+            f'Source {i + 1}:\n'
+            f'Title: {m.title}\n'
+            f'Description: {m.description}\n'
+            f'Summary: {m.summary}\n'
+            f'Season: {m.season}\n'
+            f'Episode: {m.episode_number}'
+            for i, m in enumerate(metadata_list)
+        ])
+
+        result = self.__process_llm_request(
+            system_prompt=merge_episode_data_system.get(),
+            user_prompt=merge_episode_data_user.get().format(
+                num_sources=len(metadata_list),
+                combined_text=combined_text,
+            ),
+            response_model=EpisodeMetadata,
+            error_context='merge failed',
+        )
+        return result if result else metadata_list[0]
+
     def __process_llm_request(
         self,
         system_prompt: str,
@@ -163,22 +182,3 @@ class LLMProvider:
         except Exception as e:
             console.print(f'[red]LLM {error_context}: {e}[/red]')
             return None
-
-    @staticmethod
-    def __extract_json(content: str) -> Dict[str, Any]:
-        try:
-            if '```json' in content:
-                start = content.find('```json') + 7
-                end = content.find('```', start)
-                json_str = content[start:end].strip()
-            elif '```' in content:
-                start = content.find('```') + 3
-                end = content.find('```', start)
-                json_str = content[start:end].strip()
-            else:
-                json_str = content.strip()
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            console.print(f'[red]JSON parse error: {e}[/red]')
-            console.print(f'[yellow]Raw content:\n{content}[/yellow]')
-            raise

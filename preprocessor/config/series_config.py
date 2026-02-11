@@ -22,53 +22,53 @@ def __deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, An
 
 @dataclass
 class EpisodeScrapingConfig:
-    urls: List[str]
     parser_mode: str
+    urls: List[str]
 
 
 @dataclass
 class CharacterScrapingConfig:
-    urls: List[str]
     parser_mode: str
+    urls: List[str]
 
 
 @dataclass
 class CharacterReferencesConfig:
-    search_engine: str
     images_per_character: int
+    search_engine: str
 
 
 @dataclass
 class ScrapingConfig:
-    episodes: EpisodeScrapingConfig
-    characters: CharacterScrapingConfig
     character_references: CharacterReferencesConfig
+    characters: CharacterScrapingConfig
+    episodes: EpisodeScrapingConfig
 
 
 @dataclass
 class TranscriptionProcessingConfig:
+    device: str
+    language: str
     mode: str
     model: str
-    language: str
-    device: str
 
 
 @dataclass
 class TranscodeProcessingConfig:
+    bufsize_mbps: float
     codec: str
+    force_deinterlace: bool
+    gop_size: float
+    maxrate_mbps: float
+    minrate_mbps: float
     resolution: str
     video_bitrate_mbps: float
-    minrate_mbps: float
-    maxrate_mbps: float
-    bufsize_mbps: float
-    gop_size: float
-    force_deinterlace: bool
 
 
 @dataclass
 class SceneDetectionProcessingConfig:
-    threshold: float
     min_scene_len: int
+    threshold: float
 
 
 @dataclass
@@ -78,18 +78,18 @@ class FrameExportProcessingConfig:
 
 @dataclass
 class ProcessingConfig:
-    transcription: TranscriptionProcessingConfig
-    transcode: TranscodeProcessingConfig
-    scene_detection: SceneDetectionProcessingConfig
     frame_export: FrameExportProcessingConfig
+    scene_detection: SceneDetectionProcessingConfig
+    transcode: TranscodeProcessingConfig
+    transcription: TranscriptionProcessingConfig
 
 
 @dataclass
 class ElasticsearchIndexingConfig:
-    index_name: str
-    host: str
-    dry_run: bool
     append: bool
+    dry_run: bool
+    host: str
+    index_name: str
 
 
 @dataclass
@@ -99,13 +99,29 @@ class IndexingConfig:
 
 @dataclass
 class SeriesConfig:
-    series_name: str
     display_name: str
-    pipeline_mode: str
-    skip_steps: List[str]
-    scraping: ScrapingConfig
-    processing: ProcessingConfig
     indexing: IndexingConfig
+    pipeline_mode: str
+    processing: ProcessingConfig
+    scraping: ScrapingConfig
+    series_name: str
+    skip_steps: List[str]
+
+    @staticmethod
+    def load(series_name: str) -> 'SeriesConfig':
+        config_dir: Path = Path('preprocessor/series_configs')
+        config_path: Path = config_dir / f'{series_name}.json'
+
+        return SeriesConfig.__load_from_file(config_path)
+
+    @staticmethod
+    def __load_defaults() -> Dict[str, Any]:
+        defaults_path: Path = Path('preprocessor/series_configs/defaults.json')
+        if not defaults_path.exists():
+            return {}
+        with open(defaults_path, 'r', encoding='utf-8') as f:
+            data: Dict[str, Any] = json.load(f)
+        return {k: v for k, v in data.items() if not k.startswith('_')}
 
     @staticmethod
     def __load_from_dict(data: Dict[str, Any]) -> 'SeriesConfig':
@@ -164,15 +180,6 @@ class SeriesConfig:
         )
 
     @staticmethod
-    def __load_defaults() -> Dict[str, Any]:
-        defaults_path: Path = Path('preprocessor/series_configs/defaults.json')
-        if not defaults_path.exists():
-            return {}
-        with open(defaults_path, 'r', encoding='utf-8') as f:
-            data: Dict[str, Any] = json.load(f)
-        return {k: v for k, v in data.items() if not k.startswith('_')}
-
-    @staticmethod
     def __load_from_file(config_path: Path) -> 'SeriesConfig':
         if not config_path.exists():
             raise FileNotFoundError(
@@ -193,10 +200,3 @@ class SeriesConfig:
         merged_config: Dict[str, Any] = __deep_merge(defaults, series_filtered)
 
         return SeriesConfig.__load_from_dict(merged_config)
-
-    @staticmethod
-    def load(series_name: str) -> 'SeriesConfig':
-        config_dir: Path = Path('preprocessor/series_configs')
-        config_path: Path = config_dir / f'{series_name}.json'
-
-        return SeriesConfig.__load_from_file(config_path)

@@ -13,8 +13,8 @@ from pydantic import (
 class EpisodeInfo(BaseModel):
     episode_in_season: int
     overall_episode_number: int
-    title: str
     premiere_date: Optional[str] = None
+    title: str
     viewership: Optional[str] = None
 
     @field_validator('viewership', mode='before')
@@ -30,8 +30,8 @@ class EpisodeInfo(BaseModel):
 
 
 class SeasonMetadata(BaseModel):
-    season_number: int
     episodes: List[EpisodeInfo]
+    season_number: int
 
     @model_validator(mode='before')
     @classmethod
@@ -52,11 +52,11 @@ class AllSeasonsMetadata(BaseModel):
 
 
 class EpisodeMetadata(BaseModel):
-    title: str
     description: str
-    summary: str
-    season: Optional[int] = None
     episode_number: Optional[int] = None
+    season: Optional[int] = None
+    summary: str
+    title: str
 
 
 class CharacterInfo(BaseModel):

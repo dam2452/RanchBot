@@ -16,6 +16,13 @@ class PerceptualHasher:
         if torch.cuda.is_available():
             self.model = self.model.cuda()
 
+    def cleanup(self) -> None:
+        if self.model is not None:
+            del self.model
+            self.model = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
     def __compute_hash(self, image_tensor: torch.Tensor) -> int: # pylint: disable=unused-private-member
         if self.model is None:
             raise RuntimeError('Model not initialized or already cleaned up')
@@ -26,11 +33,4 @@ class PerceptualHasher:
             hash_bits = (features > features.median()).int()
             hash_val = int(''.join([str(bit) for bit in hash_bits.tolist()[:64]]), 2)
             return hash_val
-
-    def cleanup(self) -> None:
-        if self.model is not None:
-            del self.model
-            self.model = None
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 __all__ = ['PerceptualHasher']

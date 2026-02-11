@@ -34,11 +34,8 @@ class BaseScraper(BaseProcessor):
         self.parser_mode = ParserMode(parser_mode_str)
         self.llm: Optional[LLMProvider] = None
 
-    def _validate_args(self, args: Dict[str, Any]) -> None:
-        if 'urls' not in args or not args['urls']:
-            raise ValueError('At least one URL is required')
-        if 'output_file' not in args:
-            raise ValueError('output_file is required')
+    def get_output_subdir(self) -> str:
+        return ""
 
     def _execute(self) -> None:
         self.llm = LLMProvider(parser_mode=self.parser_mode)
@@ -52,6 +49,21 @@ class BaseScraper(BaseProcessor):
             self._process_scraped_pages(scraped_pages)
         except Exception as e:
             self.logger.error(f'LLM processing failed: {e}')
+
+    @abstractmethod
+    def _process_scraped_pages(self, scraped_pages: List[Dict[str, Any]]) -> None:
+        pass
+
+    def _save_result(self, result: Dict[str, Any]) -> None:
+        self.output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.output_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if 'urls' not in args or not args['urls']:
+            raise ValueError('At least one URL is required')
+        if 'output_file' not in args:
+            raise ValueError('output_file is required')
 
     def __scrape_all_urls(self) -> List[Dict[str, Any]]:
         scraped_pages = []
@@ -80,15 +92,3 @@ class BaseScraper(BaseProcessor):
             return ScraperCrawl4AI.scrape(url, save_markdown=True, output_dir=settings.scraper.get_output_dir(self.series_name), logger=self.logger)
         self.logger.error(f'Unknown scraper method: {self.scraper_method}')
         return None
-
-    def _save_result(self, result: Dict[str, Any]) -> None:
-        self.output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_file, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-
-    def get_output_subdir(self) -> str:
-        return ""
-
-    @abstractmethod
-    def _process_scraped_pages(self, scraped_pages: List[Dict[str, Any]]) -> None:
-        pass

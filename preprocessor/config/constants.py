@@ -41,26 +41,16 @@ OUTPUT_FILE_PATTERNS = {
 }
 
 class EpisodesDataKeys:
+    EPISODES = 'episodes'
     SEASONS = 'seasons'
     SEASON_NUMBER = 'season'
-    EPISODES = 'episodes'
 
 class EpisodeMetadataKeys:
     EPISODE_NUMBER = 'episode_number'
-    TITLE = 'title'
     PREMIERE_DATE = 'premiere_date'
+    TITLE = 'title'
     VIEWERSHIP = 'viewership'
 
 class FfprobeKeys:
+    FORMAT = 'format'
     STREAMS = 'streams'
-    FORMAT = 'format'
-
-class ValidationMetadataKeys:
-    SIZE_BYTES = 'size_bytes'
-    SIZE_MB = 'size_mb'
-    LINE_COUNT = 'line_count'
-    WIDTH = 'width'
-    HEIGHT = 'height'
-    FORMAT = 'format'
-    CODEC = 'codec'
-    DURATION = 'duration'

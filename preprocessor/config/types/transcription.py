@@ -8,37 +8,37 @@ from .episode import EpisodeMetadata
 
 
 class BaseSegment(TypedDict):
-    id: int
-    text: str
-    start: float
     end: float
+    id: int
+    start: float
+    text: str
 
 class SegmentWithTimes(TypedDict):
-    segment_id: int
-    text: str
-    start_time: float
     end_time: float
     episode_metadata: EpisodeMetadata
+    segment_id: int
+    start_time: float
+    text: str
     video_path: NotRequired[str]
 
 class SegmentWithScore(SegmentWithTimes):
     _score: float
 
 class ElasticsearchSegment(TypedDict):
-    segment_id: NotRequired[int]
-    id: NotRequired[int]
-    text: str
-    start_time: NotRequired[float]
-    start: NotRequired[float]
-    end_time: NotRequired[float]
-    end: NotRequired[float]
-    episode_metadata: NotRequired[EpisodeMetadata]
-    episode_info: NotRequired[EpisodeMetadata]
-    video_path: NotRequired[str]
     _score: NotRequired[float]
+    end: NotRequired[float]
+    end_time: NotRequired[float]
+    episode_info: NotRequired[EpisodeMetadata]
+    episode_metadata: NotRequired[EpisodeMetadata]
+    id: NotRequired[int]
+    segment_id: NotRequired[int]
+    start: NotRequired[float]
+    start_time: NotRequired[float]
+    text: str
+    video_path: NotRequired[str]
 
 class TranscriptionContext(TypedDict):
-    target: ElasticsearchSegment
     context: List[BaseSegment]
-    overall_start_time: float
     overall_end_time: float
+    overall_start_time: float
+    target: ElasticsearchSegment

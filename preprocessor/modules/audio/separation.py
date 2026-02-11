@@ -29,10 +29,6 @@ from preprocessor.lib.transcription.sound_classification import (
 
 class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, SoundSeparationConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'sound_separation'
-
     def execute(  # pylint: disable=too-many-locals
         self,
         input_data: TranscriptionData,
@@ -117,9 +113,95 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             format='json',
         )
 
+    @property
+    def name(self) -> str:
+        return 'sound_separation'
+
+    @staticmethod
+    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
+        cleaned = segment.copy()
+        text = cleaned.get('text', '')
+        text = re.sub('\\s+', ' ', text)
+        cleaned['text'] = text.strip()
+        words = cleaned.get(WordKeys.WORDS, [])
+        if words:
+            non_spacing = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
+            if non_spacing:
+                cleaned[WordKeys.START] = min((w.get(WordKeys.START, 0) for w in non_spacing))
+                cleaned[WordKeys.END] = max((w.get(WordKeys.END, 0) for w in non_spacing))
+        return cleaned
+
+    @staticmethod
+    def __finalize_sequence(
+        seq_type: str,
+        words: List[Dict[str, Any]],
+        start: float,
+        dialogue_parts: List[Dict[str, Any]],
+        sound_parts: List[Dict[str, Any]],
+    ) -> None:
+        non_spacing = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
+        if not non_spacing:
+            return
+        text = ''.join((w.get(WordKeys.TEXT, '') for w in words))
+        end = words[-1].get(WordKeys.END, start)
+        new_segment = {
+            'id': 0,
+            'text': text,
+            WordKeys.START: start,
+            WordKeys.END: end,
+            WordKeys.WORDS: words,
+        }
+        if seq_type == 'sound':
+            new_segment['sound_type'] = 'sound'
+            sound_parts.append(new_segment)
+        else:
+            dialogue_parts.append(new_segment)
+
+    @staticmethod
+    def __format_srt_time(seconds: float) -> str:
+        hours = int(seconds // 3600)
+        minutes = int(seconds % 3600 // 60)
+        secs = int(seconds % 60)
+        millis = int(seconds % 1 * 1000)
+        return f'{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}'
+
+    @staticmethod
+    def __generate_srt_file(segments: List[Dict[str, Any]], srt_path: Path) -> None:
+        with open(srt_path, 'w', encoding='utf-8') as f:
+            for idx, seg in enumerate(segments, 1):
+                start = seg.get('start', 0)
+                end = seg.get('end', 0)
+                text = seg.get('text', '').strip()
+                start_time = SoundSeparationStep.__format_srt_time(start)
+                end_time = SoundSeparationStep.__format_srt_time(end)
+                f.write(f'{idx}\n')
+                f.write(f'{start_time} --> {end_time}\n')
+                f.write(f'{text}\n\n')
+
+    @staticmethod
+    def __generate_txt_file(json_path: Path, txt_path: Path) -> None:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        segments = data.get('segments', [])
+        text_lines = []
+        for seg in segments:
+            text = seg.get('text', '').strip()
+            text = re.sub('\\([^)]*\\)', '', text)
+            text = re.sub('\\s+', ' ', text).strip()
+            if text:
+                text_lines.append(text)
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(' '.join(text_lines))
+
     @staticmethod
     def __is_sound_event_text(text: str) -> bool: # pylint: disable=unused-private-member
         return bool(re.match(r'^\(.*\)$', text.strip()))
+
+    @staticmethod
+    def __renumber_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        for i, seg in enumerate(segments):
+            seg['id'] = i
+        return segments
 
     def __split_mixed_segment(
         self,
@@ -160,85 +242,3 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
                 sound_parts,
             )
         return (dialogue_parts, sound_parts)
-
-    @staticmethod
-    def __finalize_sequence(
-        seq_type: str,
-        words: List[Dict[str, Any]],
-        start: float,
-        dialogue_parts: List[Dict[str, Any]],
-        sound_parts: List[Dict[str, Any]],
-    ) -> None:
-        non_spacing = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
-        if not non_spacing:
-            return
-        text = ''.join((w.get(WordKeys.TEXT, '') for w in words))
-        end = words[-1].get(WordKeys.END, start)
-        new_segment = {
-            'id': 0,
-            'text': text,
-            WordKeys.START: start,
-            WordKeys.END: end,
-            WordKeys.WORDS: words,
-        }
-        if seq_type == 'sound':
-            new_segment['sound_type'] = 'sound'
-            sound_parts.append(new_segment)
-        else:
-            dialogue_parts.append(new_segment)
-
-    @staticmethod
-    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
-        cleaned = segment.copy()
-        text = cleaned.get('text', '')
-        text = re.sub('\\s+', ' ', text)
-        cleaned['text'] = text.strip()
-        words = cleaned.get(WordKeys.WORDS, [])
-        if words:
-            non_spacing = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
-            if non_spacing:
-                cleaned[WordKeys.START] = min((w.get(WordKeys.START, 0) for w in non_spacing))
-                cleaned[WordKeys.END] = max((w.get(WordKeys.END, 0) for w in non_spacing))
-        return cleaned
-
-    @staticmethod
-    def __renumber_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        for i, seg in enumerate(segments):
-            seg['id'] = i
-        return segments
-
-    @staticmethod
-    def __generate_txt_file(json_path: Path, txt_path: Path) -> None:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        segments = data.get('segments', [])
-        text_lines = []
-        for seg in segments:
-            text = seg.get('text', '').strip()
-            text = re.sub('\\([^)]*\\)', '', text)
-            text = re.sub('\\s+', ' ', text).strip()
-            if text:
-                text_lines.append(text)
-        with open(txt_path, 'w', encoding='utf-8') as f:
-            f.write(' '.join(text_lines))
-
-    @staticmethod
-    def __generate_srt_file(segments: List[Dict[str, Any]], srt_path: Path) -> None:
-        with open(srt_path, 'w', encoding='utf-8') as f:
-            for idx, seg in enumerate(segments, 1):
-                start = seg.get('start', 0)
-                end = seg.get('end', 0)
-                text = seg.get('text', '').strip()
-                start_time = SoundSeparationStep.__format_srt_time(start)
-                end_time = SoundSeparationStep.__format_srt_time(end)
-                f.write(f'{idx}\n')
-                f.write(f'{start_time} --> {end_time}\n')
-                f.write(f'{text}\n\n')
-
-    @staticmethod
-    def __format_srt_time(seconds: float) -> str:
-        hours = int(seconds // 3600)
-        minutes = int(seconds % 3600 // 60)
-        secs = int(seconds % 60)
-        millis = int(seconds % 1 * 1000)
-        return f'{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}'

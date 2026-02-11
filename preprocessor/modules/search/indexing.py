@@ -24,12 +24,17 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
         super().__init__(config)
         self._es: Optional[ElasticsearchWrapper] = None
 
-    @property
-    def name(self) -> str:
-        return 'elasticsearch_indexing'
+    def cleanup(self) -> None:
+        if self._es:
+            asyncio.run(self._es.close())
+            self._es = None
 
     def execute(self, input_data: List[ElasticDocuments], context: ExecutionContext) -> IndexingResult:
         return asyncio.run(self._execute_async(input_data, context))
+
+    @property
+    def name(self) -> str:
+        return 'elasticsearch_indexing'
 
     async def _execute_async(
         self,
@@ -107,8 +112,3 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
         doc_type: str,  # pylint: disable=unused-argument
     ) -> Optional[Dict[str, Any]]:
         return None
-
-    def cleanup(self) -> None:
-        if self._es:
-            asyncio.run(self._es.close())
-            self._es = None

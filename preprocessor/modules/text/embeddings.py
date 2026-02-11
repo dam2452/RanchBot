@@ -28,24 +28,9 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         super().__init__(config)
         self._model: Optional[EmbeddingModelWrapper] = None
 
-    @property
-    def name(self) -> str:
-        return 'text_embedding'
-
-    def _create_embedding_collection(  # pylint: disable=duplicate-code
-        self,
-        input_data: TranscriptionData,
-        output_path: Path,
-        embedding_count: int,
-    ) -> EmbeddingCollection:
-        return MetadataBuilder.create_embedding_collection(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            model_name=self.config.model_name,
-            embedding_count=embedding_count,
-            embedding_type='text',
-        )
+    def cleanup(self) -> None:
+        if self._model:
+            self._model = None
 
     def execute(  # pylint: disable=too-many-locals
         self,
@@ -122,6 +107,35 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         context.mark_step_completed(self.name, input_data.episode_id)
         return self._create_embedding_collection(input_data, output_path, len(results))
 
+    @property
+    def name(self) -> str:
+        return 'text_embedding'
+
+    def _create_embedding_collection(  # pylint: disable=duplicate-code
+        self,
+        input_data: TranscriptionData,
+        output_path: Path,
+        embedding_count: int,
+    ) -> EmbeddingCollection:
+        return MetadataBuilder.create_embedding_collection(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=output_path,
+            model_name=self.config.model_name,
+            embedding_count=embedding_count,
+            embedding_type='text',
+        )
+
+    @staticmethod
+    def __find_segment_at_position(segments: List[Dict[str, Any]], char_pos: int) -> int:
+        cumulative_length: int = 0
+        for idx, seg in enumerate(segments):
+            seg_length: int = len(seg.get('text', '')) + 1
+            if cumulative_length <= char_pos < cumulative_length + seg_length:
+                return idx
+            cumulative_length += seg_length
+        return len(segments) - 1 if segments else 0
+
     @staticmethod
     def __load_clean_transcription(
         input_data: TranscriptionData,
@@ -148,17 +162,3 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         if len(sentences) % 2 == 1 and sentences[-1].strip():
             result.append(sentences[-1].strip())
         return result
-
-    @staticmethod
-    def __find_segment_at_position(segments: List[Dict[str, Any]], char_pos: int) -> int:
-        cumulative_length: int = 0
-        for idx, seg in enumerate(segments):
-            seg_length: int = len(seg.get('text', '')) + 1
-            if cumulative_length <= char_pos < cumulative_length + seg_length:
-                return idx
-            cumulative_length += seg_length
-        return len(segments) - 1 if segments else 0
-
-    def cleanup(self) -> None:
-        if self._model:
-            self._model = None

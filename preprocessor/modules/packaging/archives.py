@@ -11,10 +11,6 @@ from preprocessor.core.context import ExecutionContext
 
 class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, ArchiveConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'archive_generation'
-
     def execute(self, input_data: ProcessedEpisode, context: ExecutionContext) -> ArchiveArtifact:
         output_filename: str = f'{context.series_name}_{input_data.episode_info.episode_code()}_archive.zip'
         output_path: Path = context.get_output_path(input_data.episode_info, 'archives', output_filename)
@@ -26,3 +22,7 @@ class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, Arch
         context.mark_step_started(self.name, input_data.episode_id)
         context.mark_step_completed(self.name, input_data.episode_id)
         return ArchiveArtifact(episode_id=input_data.episode_id, episode_info=input_data.episode_info, path=output_path)
+
+    @property
+    def name(self) -> str:
+        return 'archive_generation'

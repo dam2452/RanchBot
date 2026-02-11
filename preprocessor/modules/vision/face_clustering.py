@@ -11,10 +11,6 @@ from preprocessor.core.context import ExecutionContext
 
 class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteringConfig]):
 
-    @property
-    def name(self) -> str:
-        return 'face_clustering'
-
     def execute(self, input_data: FrameCollection, context: ExecutionContext) -> ClusterData:
         output_filename: str = f'{context.series_name}_{input_data.episode_info.episode_code()}_clusters.json'
         output_path: Path = context.get_output_path(input_data.episode_info, 'face_clusters', output_filename)
@@ -26,3 +22,7 @@ class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteri
         context.mark_step_started(self.name, input_data.episode_id)
         context.mark_step_completed(self.name, input_data.episode_id)
         return ClusterData(episode_id=input_data.episode_id, episode_info=input_data.episode_info, path=output_path)
+
+    @property
+    def name(self) -> str:
+        return 'face_clustering'
