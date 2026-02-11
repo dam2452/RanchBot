@@ -20,7 +20,7 @@ from preprocessor.config.step_configs import (
 )
 
 
-def get_default_step_configs(series_name: str) -> Dict[str, object]:
+def __get_default_step_configs(series_name: str) -> Dict[str, object]:
     return {
         'transcode': TranscodeConfig(
             video_bitrate_mbps=2.5,

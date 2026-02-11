@@ -24,7 +24,7 @@ class PipelineExecutor:
         self.steps.append(step)
         return self
 
-    def run_for_episodes(
+    def __run_for_episodes(  # pylint: disable=unused-private-member
         self, source_path: Path, episode_manager: EpisodeManager,
     ) -> None:
         video_files = VideoDiscovery.discover(source_path)
@@ -122,7 +122,7 @@ class PipelineExecutor:
 
         runner = PipelineExecutor(self.context)
         runner.add_step(instance)
-        runner.run_for_episodes(source_path, episode_manager)
+        runner.__run_for_episodes(source_path, episode_manager)
 
         self.context.logger.info(f"✅ Step '{step_id}' completed")
 

@@ -16,7 +16,7 @@ EMOTION_LABELS = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral'
 class EmotionDetector:
 
     @staticmethod
-    def init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer:
+    def __init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer: # pylint: disable=unused-private-member
         model_name = settings.emotion_detection.model_name
         if logger:
             logger.info(f'Loading HSEmotion model: {model_name}...')
@@ -29,7 +29,7 @@ class EmotionDetector:
             raise RuntimeError(f'Failed to load HSEmotion model {model_name}: {e}') from e
 
     @staticmethod
-    def _process_emotion_result(
+    def __process_emotion_result(
         emotion: str,
         scores: np.ndarray,
     ) -> Tuple[str, float, Dict[str, float]]:
@@ -48,12 +48,12 @@ class EmotionDetector:
     ) -> Tuple[str, float, Dict[str, float]]:
         try:
             emotion, scores = model.predict_emotions(face_image, logits=False)
-            return EmotionDetector._process_emotion_result(emotion, scores)
+            return EmotionDetector.__process_emotion_result(emotion, scores)
         except Exception as e:
             raise RuntimeError(f'Emotion detection failed: {e}') from e
 
     @staticmethod
-    def _clip_bbox(
+    def __clip_bbox(
         x1: int,
         y1: int,
         x2: int,
@@ -68,11 +68,11 @@ class EmotionDetector:
         return (x1, y1, x2, y2)
 
     @staticmethod
-    def crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]:
+    def __crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]: # pylint: disable=unused-private-member
         try:
             x1, y1, x2, y2 = (bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'])
             height, width = frame.shape[:2]
-            x1, y1, x2, y2 = EmotionDetector._clip_bbox(x1, y1, x2, y2, width, height)
+            x1, y1, x2, y2 = EmotionDetector.__clip_bbox(x1, y1, x2, y2, width, height)
             if x2 <= x1 or y2 <= y1:
                 return None
             face_crop = frame[y1:y2, x1:x2]
@@ -81,7 +81,7 @@ class EmotionDetector:
             return None
 
     @staticmethod
-    def detect_batch(
+    def __detect_batch( # pylint: disable=unused-private-member
         face_images: List[np.ndarray],
         model: HSEmotionRecognizer,
         batch_size: int = 32,
@@ -101,12 +101,12 @@ class EmotionDetector:
             try:
                 batch_results = model.predict_multi_emotions(batch, logits=False)
                 for emotion, scores in batch_results:
-                    results.append(EmotionDetector._process_emotion_result(emotion, scores))
+                    results.append(EmotionDetector.__process_emotion_result(emotion, scores))
             except Exception:
                 for face_img in batch:
                     try:
                         emotion, scores = model.predict_emotions(face_img, logits=False)
-                        results.append(EmotionDetector._process_emotion_result(emotion, scores))
+                        results.append(EmotionDetector.__process_emotion_result(emotion, scores))
                     except Exception:
                         results.append(None)
         return results

@@ -68,7 +68,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         if not frame_requests:
             context.logger.warning(f'No frames for embedding in {input_data.episode_id}')
             return self._create_embedding_collection(input_data, output_path, 0)
-        image_hashes: Dict[int, str] = self._load_image_hashes(input_data, context)
+        image_hashes: Dict[int, str] = self.__load_image_hashes(input_data, context)
         if self._model is None:
             self._model = EmbeddingModelWrapper(self.config.model_name, self.config.device)
             self._model.load_model()  # pylint: disable=no-member
@@ -107,7 +107,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         return self._create_embedding_collection(input_data, output_path, len(results))
 
     @staticmethod
-    def _load_image_hashes(
+    def __load_image_hashes(
         input_data: FrameCollection, context: ExecutionContext,
     ) -> Dict[int, str]:
         filename_base = f'{context.series_name}_{input_data.episode_info.episode_code()}'

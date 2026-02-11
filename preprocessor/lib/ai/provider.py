@@ -55,7 +55,8 @@ class LLMProvider:
             else:
                 self.__client = VLLMClient(model_name=model_name)
 
-    def extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
+    def __extract_season_episodes(self, page_text: str, url: str) -> Optional[SeasonMetadata]:
+ # pylint: disable=unused-private-member
         return self.__process_llm_request(
             system_prompt=extract_season_system.get(),
             user_prompt=extract_season_user.get().format(url=url, page_text=page_text),
@@ -63,7 +64,8 @@ class LLMProvider:
             error_context=f'extraction failed for {url}',
         )
 
-    def extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
+    def __extract_episode_metadata(self, page_text: str, url: str) -> Optional[EpisodeMetadata]:
+ # pylint: disable=unused-private-member
         return self.__process_llm_request(
             system_prompt=extract_episode_metadata_system.get(),
             user_prompt=extract_episode_metadata_user.get().format(url=url, page_text=page_text),
@@ -71,7 +73,8 @@ class LLMProvider:
             error_context=f'extraction failed for {url}',
         )
 
-    def merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
+    def __merge_episode_data(self, metadata_list: List[EpisodeMetadata]) -> EpisodeMetadata:
+ # pylint: disable=unused-private-member
         if not metadata_list:
             raise ValueError('No metadata to merge')
         if len(metadata_list) == 1:

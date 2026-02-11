@@ -3,7 +3,6 @@ from dataclasses import (
     field,
 )
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import (
     Any,
@@ -27,13 +26,6 @@ class StepMetadata:
     def start(self):
         self.start_time = datetime.now()
         self.status = 'running'
-
-    def finish(self, exit_code: int):
-        self.end_time = datetime.now()
-        self.exit_code = exit_code
-        if self.start_time:
-            self.duration_seconds = (self.end_time - self.start_time).total_seconds()
-        self.status = 'success' if exit_code == 0 else 'failed'
 
     def skip(self):
         self.status = 'skipped'
@@ -82,15 +74,6 @@ class ProcessingMetadata:
         self.steps.append(step)
         return step
 
-    def finish_processing(
-        self, final_exit_code: int, additional_stats: Optional[Dict[str, Any]] = None,
-    ):
-        self.end_time = datetime.now()
-        self.total_duration_seconds = (self.end_time - self.start_time).total_seconds()
-        self.final_status = 'success' if final_exit_code == 0 else 'failed'
-        if additional_stats:
-            self.params['additional_statistics'] = additional_stats
-
     def __get_statistics(self) -> Dict[str, Any]:
         completed_steps = [s for s in self.steps if s.status == 'success']
         failed_steps = [s for s in self.steps if s.status == 'failed']
@@ -125,8 +108,3 @@ class ProcessingMetadata:
             'steps': [step.to_dict() for step in self.steps],
             'statistics': self.__get_statistics(),
         }
-
-    def save_to_file(self, output_path: Path):
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)

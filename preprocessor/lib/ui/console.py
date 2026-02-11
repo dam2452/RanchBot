@@ -8,7 +8,7 @@ from preprocessor.lib.core.time import TimeFormatter
 
 _console_instance = None
 
-def _get_console() -> Console:
+def __get_console() -> Console:
     global _console_instance  # pylint: disable=global-statement
     if _console_instance is None:
         in_docker = (
@@ -91,4 +91,4 @@ class SimpleProgress:
 def create_progress() -> SimpleProgress:
     return SimpleProgress()
 
-console = _get_console()
+console = __get_console()

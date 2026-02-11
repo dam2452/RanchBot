@@ -14,10 +14,7 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.config.constants import (
-    FILE_SUFFIXES,
-    SUPPORTED_VIDEO_EXTENSIONS,
-)
+from preprocessor.config.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.core.path_manager import PathManager
 from preprocessor.core.state_manager import StateManager
 from preprocessor.lib.core.logging import ErrorHandlingLogger
@@ -55,10 +52,6 @@ class BaseProcessor(ABC):
         self.path_manager: PathManager = args.get('path_manager', PathManager(self.series_name))
         self.progress = args.get('progress_tracker', ProgressTracker())
 
-    @classmethod
-    def get_video_glob_patterns(cls) -> List[str]:
-        return [f'*{ext}' for ext in cls.SUPPORTED_VIDEO_EXTENSIONS]
-
     @abstractmethod
     def _validate_args(self, args: Dict[str, Any]) -> None:
         pass
@@ -82,33 +75,8 @@ class BaseProcessor(ABC):
     def _load_resources(self) -> bool:
         return True
 
-    def _get_processing_info(self) -> List[str]:
+    def __get_processing_info(self) -> List[str]:
         return []
-
-    @staticmethod
-    def _get_episode_processing_items_from_metadata(
-        metadata_pattern: str,
-        base_dir: Path,
-        episode_manager: 'EpisodeManager',
-    ) -> List[ProcessingItem]:
-        all_metadata_files = list(base_dir.glob(metadata_pattern))
-        items = []
-        for metadata_file in all_metadata_files:
-            episode_info = episode_manager.parse_filename(metadata_file)
-            if not episode_info:
-                continue
-            episode_id = episode_manager.get_episode_id_for_state(episode_info)
-            items.append(
-                ProcessingItem(
-                    episode_id=episode_id,
-                    input_path=metadata_file,
-                    metadata={
-                        'episode_info': episode_info,
-                        'series_name': episode_manager.series_name,
-                    },
-                ),
-            )
-        return items
 
     def _get_processing_items(self) -> List[ProcessingItem]:
         raise NotImplementedError(
@@ -145,7 +113,7 @@ class BaseProcessor(ABC):
         name = re.sub('(.)([A-Z][a-z]+)', '\\1_\\2', name)
         return re.sub('([a-z0-9])([A-Z])', '\\1_\\2', name).lower()
 
-    def _should_skip_item(
+    def __should_skip_item(
         self, item: ProcessingItem,
     ) -> Tuple[bool, List[OutputSpec], str]:
         expected_outputs = self._get_expected_outputs(item)
@@ -187,7 +155,7 @@ class BaseProcessor(ABC):
         skipped_count = 0
         skip_messages = []
         for item in all_items:
-            should_skip, missing_outputs, skip_message = self._should_skip_item(item)
+            should_skip, missing_outputs, skip_message = self.__should_skip_item(item)
             if should_skip:
                 if skip_message:
                     skip_messages.append(skip_message)
@@ -213,7 +181,7 @@ class BaseProcessor(ABC):
         if not items:
             console.print('[yellow]No items to process, skipping resource loading[/yellow]')
             return
-        for info_line in self._get_processing_info():
+        for info_line in self.__get_processing_info():
             console.print(info_line)
         if not self._load_resources():
             return
@@ -224,7 +192,7 @@ class BaseProcessor(ABC):
                 for item in items:
                     try:
                         if self.state_manager:
-                            temp_files = self._get_temp_files(item)
+                            temp_files = self.__get_temp_files(item)
                             self.state_manager.mark_step_started(step_name, item.episode_id, temp_files)
                         missing_outputs = item.metadata.get('missing_outputs', [])
                         self._process_item(item, missing_outputs)
@@ -238,127 +206,8 @@ class BaseProcessor(ABC):
             console.print('\n[yellow]Processing interrupted[/yellow]')
             raise
 
-    def _get_temp_files(self, item: ProcessingItem) -> List[str]:  # pylint: disable=unused-argument
+    def __get_temp_files(self, item: ProcessingItem) -> List[str]:  # pylint: disable=unused-argument
         return []
 
     def _get_progress_description(self) -> str:
         return f'Processing {self.__class__.__name__}'
-
-    def _create_video_processing_items(
-        self,
-        source_path: Path,
-        extensions: List[str],
-        episode_manager: 'EpisodeManager',
-        skip_unparseable: bool = True,
-        subdirectory_filter: Optional[str] = None,
-    ) -> List[ProcessingItem]:
-        series_name = self.series_name
-        if not source_path.is_file():
-            if source_path.name != series_name:
-                source_path = source_path / series_name
-            if not source_path.exists():
-                raise FileNotFoundError(
-                    f'Input directory does not exist: {source_path}\n'
-                    f'Expected structure: /input_data/{series_name}/S01/, '
-                    f'/input_data/{series_name}/S02/, etc.\n\n'
-                    f'Migration guide:\n'
-                    f'  mkdir -p /input_data/{series_name}\n'
-                    f'  mv /input_data/S* /input_data/{series_name}/',
-                )
-        video_files = []
-        if source_path.is_file():
-            video_files = [source_path]
-        else:
-            for ext in extensions:
-                if subdirectory_filter:
-                    pattern = f'**/{subdirectory_filter}/{ext}'
-                else:
-                    pattern = f'**/{ext}'
-                video_files.extend(source_path.glob(pattern))
-        items = []
-        for video_file in sorted(video_files):
-            episode_info = episode_manager.parse_filename(video_file)
-            if not episode_info:
-                if skip_unparseable:
-                    self.logger.error(
-                        f'Cannot parse episode info from {video_file.name}',
-                    )
-                    continue
-                episode_id = video_file.stem
-            else:
-                from preprocessor.lib.episodes import EpisodeManager  # pylint: disable=import-outside-toplevel
-                episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
-            items.append(
-                ProcessingItem(
-                    episode_id=episode_id,
-                    input_path=video_file,
-                    metadata={'episode_info': episode_info},
-                ),
-            )
-        return items
-
-    def _create_transcription_processing_item(
-        self, transcription_file: Path,
-    ) -> ProcessingItem:
-        base_name = (
-            transcription_file.stem
-            .replace(FILE_SUFFIXES['segmented'], '')
-            .replace(FILE_SUFFIXES['simple'], '')
-        )
-        episode_info = (
-            self.episode_manager.parse_filename(transcription_file)
-            if hasattr(self, 'episode_manager')
-            else None
-        )
-        if episode_info:
-            from preprocessor.lib.episodes import EpisodeManager  # pylint: disable=import-outside-toplevel
-            episode_id = EpisodeManager.get_episode_id_for_state(episode_info)
-        else:
-            episode_id = base_name
-        return ProcessingItem(
-            episode_id=episode_id,
-            input_path=transcription_file,
-            metadata={'base_name': base_name},
-        )
-
-    def _build_output_path(
-        self, episode_info, filename: str, subdir: Optional[str] = None,
-    ) -> Path:
-        target_subdir = subdir if subdir is not None else self.get_output_subdir()
-        return self.path_manager.build_path(episode_info, target_subdir, filename)
-
-    def _build_output_paths(
-        self, episode_info, filenames: List[str], subdir: Optional[str] = None,
-    ) -> List[Path]:
-        return [
-            self._build_output_path(episode_info, filename, subdir)
-            for filename in filenames
-        ]
-
-    def _build_season_path(
-        self, episode_info, filename: str, subdir: Optional[str] = None,
-    ) -> Path:
-        target_subdir = subdir if subdir is not None else self.get_output_subdir()
-        return self.path_manager.build_season_path(episode_info, target_subdir, filename)
-
-    def _build_filename(
-        self, episode_info, extension: str = 'json', suffix: Optional[str] = None,
-    ) -> str:
-        return self.path_manager.build_filename(
-            episode_info, extension=extension, suffix=suffix,
-        )
-
-    def _build_single_output(
-        self,
-        item: ProcessingItem,
-        suffix: str,
-        extension: str = 'json',
-        subdir: Optional[str] = None,
-        required: bool = True,
-    ) -> List[OutputSpec]:
-        episode_info = item.metadata.get('episode_info')
-        if not episode_info:
-            return []
-        filename = self._build_filename(episode_info, extension=extension, suffix=suffix)
-        path = self._build_output_path(episode_info, filename, subdir=subdir)
-        return [OutputSpec(path=path, required=required)]

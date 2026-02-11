@@ -15,7 +15,7 @@ from preprocessor.lib.io.metadata import MetadataBuilder
 class HashStorage:
 
     @staticmethod
-    def save_image_hashes_to_json(
+    def __save_image_hashes_to_json( # pylint: disable=unused-private-member
         episode_info: EpisodeInfo,
         hash_results: List[Dict[str, Any]],
         series_name: str,

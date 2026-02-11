@@ -73,18 +73,18 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         for segment in segments:
             classification = classify_segment(segment)
             if classification == 'dialogue':
-                cleaned = self._clean_segment_text(segment)
+                cleaned = self.__clean_segment_text(segment)
                 dialogue_segments.append(cleaned)
             elif classification == 'sound_event':
-                cleaned = self._clean_segment_text(segment)
+                cleaned = self.__clean_segment_text(segment)
                 cleaned['sound_type'] = 'sound'
                 sound_segments.append(cleaned)
             elif classification == 'mixed':
-                dialogue_parts, sound_parts = self._split_mixed_segment(segment)
+                dialogue_parts, sound_parts = self.__split_mixed_segment(segment)
                 dialogue_segments.extend(dialogue_parts)
                 sound_segments.extend(sound_parts)
-        dialogue_segments = self._renumber_segments(dialogue_segments)
-        sound_segments = self._renumber_segments(sound_segments)
+        dialogue_segments = self.__renumber_segments(dialogue_segments)
+        sound_segments = self.__renumber_segments(sound_segments)
         clean_data = {'episode_info': episode_info_dict, 'segments': dialogue_segments}
         sound_data = {'episode_info': episode_info_dict, 'segments': sound_segments}
         atomic_write_json(clean_json, clean_data)
@@ -103,10 +103,10 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         sound_txt = sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['txt']}"
         clean_srt = clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['srt']}"
         sound_srt = sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['srt']}"
-        self._generate_txt_file(clean_json, clean_txt)
-        self._generate_txt_file(sound_json, sound_txt)
-        self._generate_srt_file(dialogue_segments, clean_srt)
-        self._generate_srt_file(sound_segments, sound_srt)
+        self.__generate_txt_file(clean_json, clean_txt)
+        self.__generate_txt_file(sound_json, sound_txt)
+        self.__generate_srt_file(dialogue_segments, clean_srt)
+        self.__generate_srt_file(sound_segments, sound_srt)
         context.mark_step_completed(self.name, input_data.episode_id)
         return TranscriptionData(
             path=clean_json,
@@ -118,10 +118,10 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         )
 
     @staticmethod
-    def _is_sound_event_text(text: str) -> bool:
+    def __is_sound_event_text(text: str) -> bool: # pylint: disable=unused-private-member
         return bool(re.match(r'^\(.*\)$', text.strip()))
 
-    def _split_mixed_segment(
+    def __split_mixed_segment(
         self,
         segment: Dict[str, Any],
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -139,7 +139,7 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
                 continue
             if word_type != current_type:
                 if current_words and current_type:
-                    self._finalize_sequence(
+                    self.__finalize_sequence(
                         current_type,
                         current_words,
                         current_start,
@@ -152,7 +152,7 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             else:
                 current_words.append(word)
         if current_words and current_type:
-            self._finalize_sequence(
+            self.__finalize_sequence(
                 current_type,
                 current_words,
                 current_start,
@@ -162,7 +162,7 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         return (dialogue_parts, sound_parts)
 
     @staticmethod
-    def _finalize_sequence(
+    def __finalize_sequence(
         seq_type: str,
         words: List[Dict[str, Any]],
         start: float,
@@ -188,7 +188,7 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             dialogue_parts.append(new_segment)
 
     @staticmethod
-    def _clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
+    def __clean_segment_text(segment: Dict[str, Any]) -> Dict[str, Any]:
         cleaned = segment.copy()
         text = cleaned.get('text', '')
         text = re.sub('\\s+', ' ', text)
@@ -202,13 +202,13 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         return cleaned
 
     @staticmethod
-    def _renumber_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def __renumber_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for i, seg in enumerate(segments):
             seg['id'] = i
         return segments
 
     @staticmethod
-    def _generate_txt_file(json_path: Path, txt_path: Path) -> None:
+    def __generate_txt_file(json_path: Path, txt_path: Path) -> None:
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         segments = data.get('segments', [])
@@ -223,20 +223,20 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             f.write(' '.join(text_lines))
 
     @staticmethod
-    def _generate_srt_file(segments: List[Dict[str, Any]], srt_path: Path) -> None:
+    def __generate_srt_file(segments: List[Dict[str, Any]], srt_path: Path) -> None:
         with open(srt_path, 'w', encoding='utf-8') as f:
             for idx, seg in enumerate(segments, 1):
                 start = seg.get('start', 0)
                 end = seg.get('end', 0)
                 text = seg.get('text', '').strip()
-                start_time = SoundSeparationStep._format_srt_time(start)
-                end_time = SoundSeparationStep._format_srt_time(end)
+                start_time = SoundSeparationStep.__format_srt_time(start)
+                end_time = SoundSeparationStep.__format_srt_time(end)
                 f.write(f'{idx}\n')
                 f.write(f'{start_time} --> {end_time}\n')
                 f.write(f'{text}\n\n')
 
     @staticmethod
-    def _format_srt_time(seconds: float) -> str:
+    def __format_srt_time(seconds: float) -> str:
         hours = int(seconds // 3600)
         minutes = int(seconds % 3600 // 60)
         secs = int(seconds % 60)

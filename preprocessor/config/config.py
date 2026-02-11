@@ -84,20 +84,11 @@ class TranscodeSettings:
     def get_output_dir(series_name: str) -> Path:
         return get_base_output_dir(series_name) / 'transcoded_videos'
 
-    def calculate_video_bitrate_mbps(self) -> float:
+    def __calculate_video_bitrate_mbps(self) -> float: # pylint: disable=unused-private-member
         total_bitrate_mbps = self.target_file_size_mb * 8 / self.target_duration_seconds
         audio_bitrate_mbps = self.audio_bitrate_kbps / 1000.0
         video_bitrate_mbps = total_bitrate_mbps - audio_bitrate_mbps
         return round(video_bitrate_mbps, 2)
-
-    def calculate_minrate_mbps(self, percent: float=0.5) -> float:
-        return round(self.calculate_video_bitrate_mbps() * percent, 2)
-
-    def calculate_maxrate_mbps(self, percent: float=1.75) -> float:
-        return round(self.calculate_video_bitrate_mbps() * percent, 2)
-
-    def calculate_bufsize_mbps(self, multiplier: float=2.0) -> float:
-        return round(self.calculate_video_bitrate_mbps() * multiplier, 2)
 
 @dataclass
 class SceneDetectionSettings:
@@ -140,7 +131,7 @@ class WhisperSettings:
     model: str = 'large-v3-turbo'
 
     @classmethod
-    def _from_env(cls) -> 'WhisperSettings':
+    def __from_env(cls) -> 'WhisperSettings':  # pylint: disable=unused-private-member
         return cls(model=os.getenv('WHISPER_MODEL', 'large-v3-turbo'))
 
 @dataclass
@@ -158,7 +149,7 @@ class ElevenLabsSettings(BaseAPISettings):
     max_attempts: int = 60
 
     @classmethod
-    def _from_env(cls) -> 'ElevenLabsSettings':
+    def __from_env(cls) -> 'ElevenLabsSettings':  # pylint: disable=unused-private-member
         api_key = None
         if os.getenv('ELEVEN_API_KEY'):
             api_key = SecretStr(os.getenv('ELEVEN_API_KEY', ''))
@@ -209,7 +200,7 @@ class EmotionDetectionSettings:
     model_name: str = 'enet_b2_8'
 
     @classmethod
-    def _from_env(cls) -> 'EmotionDetectionSettings':
+    def __from_env(cls) -> 'EmotionDetectionSettings':  # pylint: disable=unused-private-member
         model_name = os.getenv('EMOTION_MODEL_NAME', 'enet_b2_8')
         return cls(model_name=model_name)
 
@@ -225,18 +216,6 @@ class CharacterSettings:
     def get_output_dir(series_name: str) -> Path:
         return get_base_output_dir(series_name) / 'characters'
 
-    @staticmethod
-    def get_characters_list_file(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'characters.json'
-
-    @staticmethod
-    def get_detections_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'character_detections'
-
-    @staticmethod
-    def get_processed_references_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'character_references_processed'
-
 @dataclass
 class ObjectDetectionSettings:
     model_name: str = 'ustc-community/dfine-xlarge-obj2coco'
@@ -245,10 +224,6 @@ class ObjectDetectionSettings:
     @staticmethod
     def get_output_dir(series_name: str) -> Path:
         return get_base_output_dir(series_name) / 'object_detections'
-
-    @staticmethod
-    def get_visualized_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'object_detections' / 'visualizations'
 
 @dataclass
 class ImageHashSettings:
@@ -269,7 +244,7 @@ class ImageScraperSettings(BaseAPISettings):
     page_navigation_timeout: int = 30000
 
     @classmethod
-    def _from_env(cls) -> 'ImageScraperSettings':
+    def __from_env(cls) -> 'ImageScraperSettings':  # pylint: disable=unused-private-member
         api_key = None
         if os.getenv('SERPAPI_API_KEY'):
             api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
@@ -293,14 +268,14 @@ class ElasticsearchSettings:
     password: str = ''
 
     @classmethod
-    def _from_env(cls) -> 'ElasticsearchSettings':
+    def __from_env(cls) -> 'ElasticsearchSettings':  # pylint: disable=unused-private-member
         return cls(host=os.getenv('ES_HOST', ''), user=os.getenv('ES_USER', ''), password=os.getenv('ES_PASS', ''))
 
 @dataclass
 class GeminiSettings(BaseAPISettings):
 
     @classmethod
-    def _from_env(cls) -> 'GeminiSettings':
+    def __from_env(cls) -> 'GeminiSettings':  # pylint: disable=unused-private-member
         api_key = None
         if os.getenv('GEMINI_API_KEY'):
             api_key = SecretStr(os.getenv('GEMINI_API_KEY', ''))
@@ -331,10 +306,10 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     transcription: TranscriptionSettings
 
     @classmethod
-    def _from_env(cls) -> 'Settings':
+    def __from_env(cls) -> 'Settings':  # pylint: disable=unused-private-member
         return cls(
             output_subdirs=OutputSubdirs(),
-            whisper=WhisperSettings._from_env(),
+            whisper=WhisperSettings.__from_env(),
             text_chunking=TextChunkingSettings(),
             embedding_model=EmbeddingModelSettings(),
             embedding=EmbeddingSettings(),
@@ -347,11 +322,11 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings(),
             face_clustering=FaceClusteringSettings(),
-            emotion_detection=EmotionDetectionSettings._from_env(),
-            image_scraper=ImageScraperSettings._from_env(),
-            elevenlabs=ElevenLabsSettings._from_env(),
-            elasticsearch=ElasticsearchSettings._from_env(),
-            gemini=GeminiSettings._from_env(),
+            emotion_detection=EmotionDetectionSettings.__from_env(),
+            image_scraper=ImageScraperSettings.__from_env(),
+            elevenlabs=ElevenLabsSettings.__from_env(),
+            elasticsearch=ElasticsearchSettings.__from_env(),
+            gemini=GeminiSettings.__from_env(),
             transcode=TranscodeSettings(),
             transcription=TranscriptionSettings(),
         )
@@ -417,4 +392,4 @@ class IndexConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         return {'name': self.name, 'transcription_jsons': str(self.transcription_jsons), 'dry_run': self.dry_run, 'append': self.append}
-settings = Settings._from_env()
+settings = Settings.__from_env()

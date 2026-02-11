@@ -12,7 +12,7 @@ from PIL import Image
 class FrameLoader:
 
     @staticmethod
-    def _load_single(frames_dir: Path, request: Dict[str, Any], convert_rgb: bool) -> Image.Image:
+    def __load_single(frames_dir: Path, request: Dict[str, Any], convert_rgb: bool) -> Image.Image:
         if 'frame_path' in request:
             frame_path = frames_dir / request['frame_path']
         else:
@@ -28,5 +28,5 @@ class FrameLoader:
     @staticmethod
     def load_from_requests(frames_dir: Path, frame_requests: List[Dict[str, Any]], convert_rgb: bool=False, num_workers: int=4) -> List[Image.Image]:
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            images = list(executor.map(lambda req: FrameLoader._load_single(frames_dir, req, convert_rgb), frame_requests))
+            images = list(executor.map(lambda req: FrameLoader.__load_single(frames_dir, req, convert_rgb), frame_requests))
         return images

@@ -13,7 +13,7 @@ class ProgressTracker:
         self.start_time: Optional[float] = None
 
     @contextmanager
-    def track_operation(self, operation_name: str, total: int):
+    def __track_operation(self, operation_name: str, total: int): # pylint: disable=unused-private-member
         self.current_operation = operation_name
         self.start_time = time.time()
         console.print(f'  [cyan]{operation_name} (total: {total})...[/cyan]')

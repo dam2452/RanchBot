@@ -90,7 +90,7 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             'statistics': {
                 'total_frames_processed': len(frame_files),
                 'frames_with_detections': len(results),
-                'character_counts': self._count_characters(results),
+                'character_counts': self.__count_characters(results),
             },
             'detections': results,
         }
@@ -105,7 +105,7 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         )
 
     @staticmethod
-    def _count_characters(results: List[Dict[str, Any]]) -> Dict[str, int]:
+    def __count_characters(results: List[Dict[str, Any]]) -> Dict[str, int]:
         counts: Dict[str, int] = {}
         for res in results:
             for face in res.get('faces', []):

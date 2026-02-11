@@ -26,7 +26,7 @@ class Resolution(Enum):
         return f'{self.height}p'
 
     @classmethod
-    def from_str(cls: Type[T], init: str) -> T:
+    def __from_str(cls: Type[T], init: str) -> T: # pylint: disable=unused-private-member
         init = init.strip()
         if not init[0].isalpha():
             init = 'R' + init.upper()
@@ -35,5 +35,5 @@ class Resolution(Enum):
         return cls[init]
 
     @classmethod
-    def get_all_choices(cls) -> List[str]:
+    def __get_all_choices(cls) -> List[str]: # pylint: disable=unused-private-member
         return [str(r) for r in cls]

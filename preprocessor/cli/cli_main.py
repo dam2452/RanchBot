@@ -25,7 +25,7 @@ def cli() -> None:
 
 @cli.command(name="visualize")
 @click.option("--series", default="ranczo", help="Series name (e.g., ranczo)")
-def visualize_command(series: str) -> None:
+def __visualize_command(series: str) -> None:
     visualize(series)
 
 
@@ -37,10 +37,10 @@ def visualize_command(series: str) -> None:
     multiple=True,
     help="Step IDs to skip (e.g., --skip transcode --skip detect_scenes)",
 )
-def run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
+def __run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
     series_config = SeriesConfig.load(series)
     pipeline = build_pipeline(series)
-    setup = setup_pipeline_context(series, "run_all", force_rerun, with_episode_manager=True)
+    setup = setup_pipeline_context(series, "__run_all", force_rerun, with_episode_manager=True)
 
     try:
         skip_list = SkipListBuilder.build(skip, series_config, setup.logger)
@@ -68,11 +68,11 @@ def run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
         setup.logger.finalize()
 
 
-def _create_step_command(step_id: str, step_description: str) -> Callable:
+def __create_step_command(step_id: str, step_description: str) -> Callable:
     @click.command(name=step_id.replace("_", "-"), help=f"{step_description}")
     @click.option("--series", required=True, help="Series name (e.g., ranczo)")
     @click.option("--force-rerun", is_flag=True, help="Force rerun even if cached")
-    def step_command(series: str, force_rerun: bool, _step_id: str = step_id) -> None:
+    def __step_command(series: str, force_rerun: bool, _step_id: str = step_id) -> None:
         pipeline = build_pipeline(series)
         setup = setup_pipeline_context(series, _step_id, force_rerun, with_episode_manager=True)
 
@@ -106,7 +106,7 @@ def _create_step_command(step_id: str, step_description: str) -> Callable:
         finally:
             setup.logger.finalize()
 
-    return step_command
+    return __step_command
 
 
 @cli.command(name="search")
@@ -312,7 +312,7 @@ _CLI_TEMPLATE_SERIES = "ranczo"
 _cli_pipeline = build_pipeline(_CLI_TEMPLATE_SERIES)
 
 for _step_id, _step in _cli_pipeline.get_all_steps().items():
-    command_func = _create_step_command(_step_id, _step.description)
+    command_func = __create_step_command(_step_id, _step.description)
     cli.add_command(command_func)
 
 

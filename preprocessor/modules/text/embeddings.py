@@ -70,7 +70,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
                     output_path,
                     len(emb_data.get('results', [])),
                 )
-        transcription: Dict[str, Any] = self._load_clean_transcription(input_data, context)
+        transcription: Dict[str, Any] = self.__load_clean_transcription(input_data, context)
         segments: List[Dict[str, Any]] = transcription.get('segments', [])
         if not segments:
             context.logger.warning(f'No text segments for embedding in {input_data.episode_id}')
@@ -84,7 +84,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         context.logger.info(f'Generating text embeddings for {input_data.episode_id}')
         context.mark_step_started(self.name, input_data.episode_id)
         full_text: str = ' '.join([seg.get('text', '') for seg in segments])
-        sentences: List[str] = self._split_into_sentences(full_text)
+        sentences: List[str] = self.__split_into_sentences(full_text)
         text_chunks: List[str] = []
         chunk_metadata: List[Dict[str, Any]] = []
         step: int = self.config.text_sentences_per_chunk - self.config.text_chunk_overlap
@@ -97,8 +97,8 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
                 continue
             char_start: int = sum((len(s) + 1 for s in sentences[:i]))
             char_end: int = char_start + len(chunk_text)
-            start_seg_id: int = self._find_segment_at_position(segments, char_start)
-            end_seg_id: int = self._find_segment_at_position(segments, char_end)
+            start_seg_id: int = self.__find_segment_at_position(segments, char_start)
+            end_seg_id: int = self.__find_segment_at_position(segments, char_end)
             text_chunks.append(chunk_text)
             chunk_metadata.append({'segment_range': [start_seg_id, end_seg_id], 'text': chunk_text})
         results: List[Dict[str, Any]] = []
@@ -123,7 +123,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         return self._create_embedding_collection(input_data, output_path, len(results))
 
     @staticmethod
-    def _load_clean_transcription(
+    def __load_clean_transcription(
         input_data: TranscriptionData,
         context: ExecutionContext,  # pylint: disable=unused-argument
     ) -> Dict[str, Any]:
@@ -137,7 +137,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         return load_json(raw_path)
 
     @staticmethod
-    def _split_into_sentences(text: str) -> List[str]:
+    def __split_into_sentences(text: str) -> List[str]:
         normalized_text: str = re.sub('\\.{2,}', '.', text)
         sentences: List[str] = re.split('([.!?]+(?:\\s+|$))', normalized_text)
         result: List[str] = []
@@ -150,7 +150,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         return result
 
     @staticmethod
-    def _find_segment_at_position(segments: List[Dict[str, Any]], char_pos: int) -> int:
+    def __find_segment_at_position(segments: List[Dict[str, Any]], char_pos: int) -> int:
         cumulative_length: int = 0
         for idx, seg in enumerate(segments):
             seg_length: int = len(seg.get('text', '')) + 1

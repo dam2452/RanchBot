@@ -27,7 +27,7 @@ class TranscodeConfig(BaseModel):
         arbitrary_types_allowed = True
 
     @model_validator(mode='after')
-    def maxrate_must_be_greater_than_bitrate(self) -> Self:
+    def __maxrate_must_be_greater_than_bitrate(self) -> Self:  # pylint: disable=unused-private-member
         if self.maxrate_mbps < self.video_bitrate_mbps:
             raise ValueError('maxrate must be >= video_bitrate')
         return self

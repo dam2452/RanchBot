@@ -10,7 +10,7 @@ from typing import (
 class TranscriptionUtils:
 
     @staticmethod
-    def fix_unicode(file_path: Path) -> None:
+    def __fix_unicode(file_path: Path) -> None: # pylint: disable=unused-private-member
         if not file_path.exists():
             return
         with open(file_path, 'r', encoding='utf-8') as f:

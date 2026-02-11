@@ -19,5 +19,5 @@ class EmbeddingModelWrapper:
             return self._service.get_text_embedding(text)
         return [self._service.get_text_embedding(t) for t in text]
 
-    def encode_image(self, image_path: str) -> List[float]:
+    def __encode_image(self, image_path: str) -> List[float]: # pylint: disable=unused-private-member
         return self._service.get_image_embedding(image_path)

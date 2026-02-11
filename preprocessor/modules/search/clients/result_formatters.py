@@ -22,7 +22,7 @@ class ResultFormatter:
         return f'{minutes}m {secs:.1f}s'
 
     @staticmethod
-    def _format_scene_context(scene_info: Optional[Dict[str, Any]]) -> str:
+    def __format_scene_context(scene_info: Optional[Dict[str, Any]]) -> str:
         if not scene_info:
             return ''
         start = ResultFormatter.format_timestamp(scene_info.get('scene_start_time', 0))
@@ -81,7 +81,7 @@ class ResultFormatter:
             source = hit[ElasticsearchKeys.SOURCE]
             score = hit[ElasticsearchKeys.SCORE]
             meta = source[EpisodeMetadataKeys.EPISODE_METADATA]
-            scene_ctx = ResultFormatter._format_scene_context(source.get('scene_info'))
+            scene_ctx = ResultFormatter.__format_scene_context(source.get('scene_info'))
             click.echo(f'\n[{i}] Score: {score:.2f}')
             season_code = 'S00' if meta['season'] == 0 else f"S{meta['season']:02d}"
             click.echo(f"Episode: {season_code}E{meta['episode_number']:02d} - {meta.get('title', 'N/A')}")

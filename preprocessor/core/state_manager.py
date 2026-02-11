@@ -6,8 +6,6 @@ from dataclasses import (
 from datetime import datetime
 import json
 from pathlib import Path
-import signal
-import sys
 from typing import (
     Any,
     Dict,
@@ -49,7 +47,7 @@ class ProcessingState:
         }
 
     @classmethod
-    def _from_dict(cls, data: Dict[str, Any]) -> 'ProcessingState':
+    def __from_dict(cls, data: Dict[str, Any]) -> 'ProcessingState':  # pylint: disable=unused-private-member
         completed_steps = [
             StepCheckpoint(**step) for step in data.get('completed_steps', [])
         ]
@@ -73,15 +71,13 @@ class StateManager:
         state_filename: str = self.STATE_FILE_TEMPLATE.format(series=series_name)
         self.__state_file: Path = working_dir / state_filename
         self.__state: Optional[ProcessingState] = None
-        self.__cleanup_registered: bool = False
-        self.__interrupted: bool = False
 
     def load_or_create_state(self) -> ProcessingState:
         if self.__state_file.exists():
             console.print(f'[yellow]Found existing state file: {self.__state_file}[/yellow]')
             with open(self.__state_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                self.__state = ProcessingState._from_dict(data)
+                self.__state = ProcessingState.__from_dict(data)
                 console.print(f'[green]Loaded state for series: {self.__state.series_name}[/green]')
                 console.print(f'[green]Completed steps: {len(self.__state.completed_steps)}[/green]')
                 return self.__state
@@ -138,7 +134,7 @@ class StateManager:
             for s in self.__state.completed_steps
         )
 
-    def __rollback_in_progress(self) -> None:
+    def __rollback_in_progress(self) -> None: # pylint: disable=unused-private-member
         if self.__state is None or self.__state.in_progress is None:
             return
         console.print(
@@ -160,32 +156,3 @@ class StateManager:
         if self.__state_file.exists():
             console.print(f'[blue]Cleaning up state file: {self.__state_file}[/blue]')
             self.__state_file.unlink()
-
-    def register_interrupt_handler(self) -> None:
-        if self.__cleanup_registered:
-            return
-
-        def _signal_handler(_sig: int, _frame: Any) -> None:
-            if self.__interrupted:
-                console.print('\n[red]Force quit! Not cleaning up.[/red]')
-                sys.exit(1)
-            self.__interrupted = True
-            console.print('\n[yellow]Interrupt received (Ctrl+C)...[/yellow]')
-            console.print('[yellow]Rolling back incomplete work...[/yellow]')
-            self.__rollback_in_progress()
-            console.print('[green]Cleanup complete. You can resume later.[/green]')
-            console.print('[blue]To resume: run the same command again[/blue]')
-            sys.exit(0)
-        signal.signal(signal.SIGINT, _signal_handler)
-        signal.signal(signal.SIGTERM, _signal_handler)
-        self.__cleanup_registered = True
-        console.print('[blue]Interrupt handler registered (Ctrl+C to safely stop)[/blue]')
-
-    def get_resume_info(self) -> Optional[str]:
-        if self.__state is None or not self.__state.completed_steps:
-            return None
-        last_step = self.__state.completed_steps[-1]
-        return (
-            f'Resuming from: {last_step.step} ({last_step.episode}) '
-            f'at {last_step.completed_at}'
-        )

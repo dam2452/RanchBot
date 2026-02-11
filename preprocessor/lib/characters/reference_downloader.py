@@ -118,7 +118,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         return len(faces)
 
     @staticmethod
-    def _validate_and_decode_image(
+    def __validate_and_decode_image(
         img_bytes: bytes, img_url: str, logger,
     ) -> np.ndarray | None:
         if not img_bytes:
@@ -148,7 +148,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             if 'image' not in content_type:
                 return None
             img_bytes = response.body()
-            return self._validate_and_decode_image(img_bytes, img_url, self.logger)
+            return self.__validate_and_decode_image(img_bytes, img_url, self.logger)
         except TimeoutError:
             self.logger.debug(f'Timeout downloading image {img_url}')
             return None

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 import json
 import logging
@@ -7,6 +8,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 import warnings
 
@@ -59,8 +61,8 @@ class CharacterReferenceProcessor(BaseProcessor):
         if img.shape[0] == 0 or img.shape[1] == 0:
             return None
         try:
-            return cv2.resize(img, target_size)
-        except cv2.error as e:
+            return cv2.resize(img, target_size)  # pylint: disable=no-member
+        except cv2.error as e:  # pylint: disable=catching-non-exception
             logging.error(f'OpenCV resize error: {e}')
             return None
 
@@ -104,7 +106,7 @@ class CharacterReferenceProcessor(BaseProcessor):
     def __detect_faces_in_references(self, image_paths: List[Path]) -> List[List[FaceData]]:
         all_faces = []
         for idx, img_path in enumerate(image_paths):
-            img = cv2.imread(str(img_path))
+            img = cv2.imread(str(img_path))  # pylint: disable=no-member
             if img is None:
                 console.print(f'[yellow]Warning: Could not read {img_path}[/yellow]')
                 all_faces.append([])
@@ -299,8 +301,10 @@ class CharacterReferenceProcessor(BaseProcessor):
             for col_idx in range(num_refs):
                 label = f'Ref {col_idx + 1}'
                 x = padding + col_idx * (face_size + padding)
-                cv2.putText(                    grid, label, (x + 10, 20),
-                    cv2.FONT_HERSHEY_SIMPLEX,                    0.5, (0, 0, 0), 1,
+                cv2.putText(  # pylint: disable=no-member
+                    grid, label, (x + 10, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
+                    0.5, (0, 0, 0), 1,
                 )
             for cand_idx, candidate in enumerate(candidates):
                 y_base = label_height + padding + cand_idx * (face_size + label_height + padding)
@@ -311,8 +315,10 @@ class CharacterReferenceProcessor(BaseProcessor):
                     if face_resized is not None:
                         grid[y:y + face_size, x:x + face_size] = face_resized
                 label = f'Candidate {cand_idx + 1}'
-                cv2.putText(                    grid, label, (5, y_base + face_size // 2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1,                )
+                cv2.putText(  # pylint: disable=no-member
+                    grid, label, (5, y_base + face_size // 2),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1,  # pylint: disable=no-member
+                )
         else:
             faces_data = data
             num_faces = len(faces_data)
@@ -332,11 +338,11 @@ class CharacterReferenceProcessor(BaseProcessor):
                 if face_resized is not None:
                     grid[y:y + face_size, x:x + face_size] = face_resized
                 label = str(idx + 1)
-                cv2.putText(
+                cv2.putText(  # pylint: disable=no-member
                     grid,
                     label,
                     (x + 5, y + 20),
-                    cv2.FONT_HERSHEY_SIMPLEX,
+                    cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
                     0.7,
                     (0, 0, 255),
                     2,
@@ -344,7 +350,7 @@ class CharacterReferenceProcessor(BaseProcessor):
         selection_grids_dir = self.output_dir.parent / 'character_selection_grids'
         selection_grids_dir.mkdir(parents=True, exist_ok=True)
         output_path = selection_grids_dir / f"{char_name.replace(' ', '_').lower()}_selection.jpg"
-        cv2.imwrite(str(output_path), grid)
+        cv2.imwrite(str(output_path), grid)  # pylint: disable=no-member
         return output_path
 
     def __save_processed_references(  # pylint: disable=too-many-locals
@@ -362,7 +368,7 @@ class CharacterReferenceProcessor(BaseProcessor):
                 self.logger.warning(f'Skipping face {idx} for {char_name}: failed to resize (invalid dimensions)')
                 continue
             face_output_path = char_output_dir / f'face_{idx:02d}.jpg'
-            cv2.imwrite(str(face_output_path), face_normalized)
+            cv2.imwrite(str(face_output_path), face_normalized)  # pylint: disable=no-member
             face_vectors.append(face_data.face_vector)
         mean_vector = np.mean(face_vectors, axis=0)
         vector_path = char_output_dir / 'face_vector.npy'
@@ -400,224 +406,326 @@ class CharacterReferenceProcessor(BaseProcessor):
     def _get_progress_description(self) -> str:
         return 'Processing character references'
 
-    def generate_validation_grid(self) -> None:  # pylint: disable=too-many-locals,too-many-statements
-        output_path = self.output_dir / 'validation_grid.png'
-        if output_path.exists():
-            console.print(f'[dim]⊘ Skipping validation grid (already exists): {output_path}[/dim]')
-            return
-        console.print('\n[blue]Generating validation grid...[/blue]')
-        if not self.output_dir.exists():
-            console.print('[yellow]No processed references found, skipping validation grid[/yellow]')
-            return
-        processed_chars = sorted([d for d in self.output_dir.iterdir() if d.is_dir()])
-        if not processed_chars:
-            console.print('[yellow]No processed characters found, skipping validation grid[/yellow]')
-            return
-        face_size = 280
-        padding = 15
-        row_height = face_size + padding * 2
-        header_height = 180
-        footer_height = 80
-        label_col_width = 350
-        stats_col_width = 200
-        face_col_width = face_size + padding
-        faces_per_char = 3
-        grid_width = label_col_width + stats_col_width + faces_per_char * face_col_width + padding * 2
-        grid_height = header_height + len(processed_chars) * row_height + footer_height
-        bg_color = (250, 252, 255)
-        grid = np.full((grid_height, grid_width, 3), bg_color, dtype=np.uint8)
-        header_bg_color = (45, 55, 72)
-        cv2.rectangle(grid, (0, 0), (grid_width, header_height), header_bg_color, -1)
-        title_text = 'FACIAL REFERENCE VALIDATION REPORT'
-        cv2.putText(
-            grid,
-            title_text,
-            (padding * 3, 50),
-            cv2.FONT_HERSHEY_DUPLEX,
-            1.1,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-        subtitle = 'InsightFace Buffalo-L Model | Face Vector Extraction & Similarity Analysis'
-        cv2.putText(
-            grid,
-            subtitle,
-            (padding * 3, 85),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (200, 210, 220),
-            1,
-            cv2.LINE_AA,
-        )
+    def _execute(self) -> None:
+        super()._execute()
+        self.generate_validation_grid()
+
+    @dataclass
+    class _GridDimensions:
+        face_size: int = 280
+        padding: int = 15
+        header_height: int = 180
+        footer_height: int = 80
+        label_col_width: int = 350
+        stats_col_width: int = 200
+        header_row_height: int = 40
+        faces_per_char: int = 3
+
+        @property
+        def row_height(self) -> int:
+            return self.face_size + self.padding * 2
+
+        @property
+        def face_col_width(self) -> int:
+            return self.face_size + self.padding
+
+        def total_width(self) -> int:
+            return (
+                self.label_col_width
+                + self.stats_col_width
+                + self.faces_per_char * self.face_col_width
+                + self.padding * 2
+            )
+
+        def total_height(self, num_chars: int) -> int:
+            return self.header_height + num_chars * self.row_height + self.footer_height
+
+    @staticmethod
+    def __load_all_metadata(processed_chars: List[Path]) -> List[Dict[str, Any]]:
         metadata_all = []
         for char_dir in processed_chars:
             metadata_file = char_dir / 'metadata.json'
             if metadata_file.exists():
                 with open(metadata_file, 'r', encoding='utf-8') as f:
                     metadata_all.append(json.load(f))
-        total_chars = len(processed_chars)
-        avg_similarity = np.mean([m.get('average_similarity', 0) for m in metadata_all]) if metadata_all else 0
-        threshold = self.similarity_threshold
+        return metadata_all
+
+    @staticmethod
+    def __render_header(
+        grid: np.ndarray,
+        dims: _GridDimensions,
+        total_chars: int,
+        avg_similarity: float,
+        threshold: float,
+    ) -> None:
+        header_bg_color = (45, 55, 72)
+        cv2.rectangle(grid, (0, 0), (dims.total_width(), dims.header_height), header_bg_color, -1)  # pylint: disable=no-member
+
+        title_text = 'FACIAL REFERENCE VALIDATION REPORT'
+        cv2.putText(  # pylint: disable=no-member
+            grid,
+            title_text,
+            (dims.padding * 3, 50),
+            cv2.FONT_HERSHEY_DUPLEX,  # pylint: disable=no-member
+            1.1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,  # pylint: disable=no-member
+        )
+
+        subtitle = 'InsightFace Buffalo-L Model | Face Vector Extraction & Similarity Analysis'
+        cv2.putText(  # pylint: disable=no-member
+            grid,
+            subtitle,
+            (dims.padding * 3, 85),
+            cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
+            0.55,
+            (200, 210, 220),
+            1,
+            cv2.LINE_AA,  # pylint: disable=no-member
+        )
+
         stats_y = 115
-        stats_items = [f'Total Subjects: {total_chars}', f'Avg Similarity: {avg_similarity:.4f}', f'Threshold: {threshold:.2f}']
+        stats_items = [
+            f'Total Subjects: {total_chars}',
+            f'Avg Similarity: {avg_similarity:.4f}',
+            f'Threshold: {threshold:.2f}',
+        ]
         for idx, stat in enumerate(stats_items):
-            x_pos = padding * 3 + idx * 280
-            cv2.putText(
+            x_pos = dims.padding * 3 + idx * 280
+            cv2.putText(  # pylint: disable=no-member
                 grid,
                 stat,
                 (x_pos, stats_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
                 0.5,
                 (180, 200, 220),
                 1,
-                cv2.LINE_AA,
+                cv2.LINE_AA,  # pylint: disable=no-member
             )
-        table_header_y = header_height + 1
-        cv2.line(grid, (0, table_header_y), (grid_width, table_header_y), (180, 190, 200), 2)
+
+    @staticmethod
+    def __render_table_headers(grid: np.ndarray, dims: _GridDimensions) -> None:
+        table_header_y = dims.header_height + 1
+        cv2.line(grid, (0, table_header_y), (dims.total_width(), table_header_y), (180, 190, 200), 2)  # pylint: disable=no-member
+
         col_headers = [
-            ('CHARACTER NAME', label_col_width // 2, 0),
-            ('STATISTICS', label_col_width + stats_col_width // 2, 0),
-            ('REFERENCE IMAGE 1', label_col_width + stats_col_width + face_col_width // 2, 0),
-            ('REFERENCE IMAGE 2', label_col_width + stats_col_width + face_col_width * 3 // 2, 0),
-            ('REFERENCE IMAGE 3', label_col_width + stats_col_width + face_col_width * 5 // 2, 0),
+            ('CHARACTER NAME', dims.label_col_width // 2, 0),
+            ('STATISTICS', dims.label_col_width + dims.stats_col_width // 2, 0),
+            ('REFERENCE IMAGE 1', dims.label_col_width + dims.stats_col_width + dims.face_col_width // 2, 0),
+            ('REFERENCE IMAGE 2', dims.label_col_width + dims.stats_col_width + dims.face_col_width * 3 // 2, 0),
+            ('REFERENCE IMAGE 3', dims.label_col_width + dims.stats_col_width + dims.face_col_width * 5 // 2, 0),
         ]
-        header_row_height = 40
+
         for text, x_center, _ in col_headers:
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)[0]
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)[0]  # pylint: disable=no-member
             text_x = x_center - text_size[0] // 2
-            cv2.putText(
+            cv2.putText(  # pylint: disable=no-member
                 grid,
                 text,
                 (text_x, table_header_y + 25),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
                 0.42,
                 (60, 70, 85),
                 1,
-                cv2.LINE_AA,
+                cv2.LINE_AA,  # pylint: disable=no-member
             )
-        cv2.line(
+
+        cv2.line(  # pylint: disable=no-member
             grid,
-            (0, table_header_y + header_row_height),
-            (grid_width, table_header_y + header_row_height),
+            (0, table_header_y + dims.header_row_height),
+            (dims.total_width(), table_header_y + dims.header_row_height),
             (200, 210, 220),
             1,
         )
-        y_offset = header_height + header_row_height + padding
-        for idx, char_dir in enumerate(processed_chars):
-            char_name = char_dir.name.replace('_', ' ').title()
-            metadata_file = char_dir / 'metadata.json'
-            if idx % 2 == 0:
-                row_bg = (245, 248, 252)
-            else:
-                row_bg = bg_color
-            cv2.rectangle(                grid, (0, y_offset - padding),
-                (grid_width, y_offset + face_size + padding), row_bg, -1,
+
+    def __render_character_row(  # pylint: disable=too-many-locals
+        self,
+        grid: np.ndarray,
+        dims: _GridDimensions,
+        char_dir: Path,
+        row_idx: int,
+        y_offset: int,
+        bg_color: Tuple[int, int, int],
+    ) -> None:
+        char_name = char_dir.name.replace('_', ' ').title()
+        metadata_file = char_dir / 'metadata.json'
+
+        row_bg = (245, 248, 252) if row_idx % 2 == 0 else bg_color
+        cv2.rectangle(  # pylint: disable=no-member
+            grid,
+            (0, y_offset - dims.padding),
+            (dims.total_width(), y_offset + dims.face_size + dims.padding),
+            row_bg,
+            -1,
+        )
+
+        cv2.putText(  # pylint: disable=no-member
+            grid,
+            char_name,
+            (dims.padding * 2, y_offset + dims.face_size // 2),
+            cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
+            0.55,
+            (30, 40, 50),
+            1,
+            cv2.LINE_AA,  # pylint: disable=no-member
+        )
+
+        if metadata_file.exists():
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+
+            similarity = metadata.get('average_similarity', 0.0)
+            method = metadata.get('detection_stats', {}).get('selection_method', 'unknown')
+            faces_detected = metadata.get('detection_stats', {}).get('total_faces_detected', [])
+
+            stats_x = dims.label_col_width + dims.padding
+            stats_y_base = y_offset + dims.face_size // 2 - 30
+
+            sim_color = (0, 150, 0) if similarity >= self.similarity_threshold else (180, 100, 0)
+            cv2.putText(  # pylint: disable=no-member
+                grid,
+                f'Similarity: {similarity:.4f}',
+                (stats_x, stats_y_base),
+                cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
+                0.45,
+                sim_color,
+                1,
+                cv2.LINE_AA,  # pylint: disable=no-member
             )
-            cv2.putText(                grid, char_name, (padding * 2, y_offset + face_size // 2),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.55, (30, 40, 50), 1, cv2.LINE_AA,            )
-            if metadata_file.exists():
-                with open(metadata_file, 'r', encoding='utf-8') as f:
-                    metadata = json.load(f)
-                similarity = metadata.get('average_similarity', 0.0)
-                method = metadata.get('detection_stats', {}).get('selection_method', 'unknown')
-                faces_detected = metadata.get('detection_stats', {}).get('total_faces_detected', [])
-                stats_x = label_col_width + padding
-                stats_y_base = y_offset + face_size // 2 - 30
-                sim_color = (0, 150, 0) if similarity >= threshold else (180, 100, 0)
-                cv2.putText(
-                    grid,
-                    f'Similarity: {similarity:.4f}',
-                    (stats_x, stats_y_base),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.45,
-                    sim_color,
-                    1,
-                    cv2.LINE_AA,
-                )
-                method_color = (50, 120, 200) if method == 'automatic' else (180, 100, 50)
-                cv2.putText(
-                    grid,
-                    f'Method: {method}',
-                    (stats_x, stats_y_base + 25),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.42,
-                    method_color,
-                    1,
-                    cv2.LINE_AA,
-                )
-                faces_str = str(faces_detected) if len(str(faces_detected)) < 20 else f'[{len(faces_detected)} imgs]'
-                cv2.putText(
-                    grid,
-                    f'Detected: {faces_str}',
-                    (stats_x, stats_y_base + 50),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.38,
-                    (100, 110, 120),
-                    1,
-                    cv2.LINE_AA,
-                )
-            face_files = sorted(char_dir.glob('face_*.jpg'))
-            for face_idx, face_file in enumerate(face_files[:faces_per_char]):
-                face_img = cv2.imread(str(face_file))
-                if face_img is None:
-                    continue
-                face_resized = CharacterReferenceProcessor.__safe_resize(face_img, (face_size, face_size))
-                if face_resized is None:
-                    continue
-                x = label_col_width + stats_col_width + face_idx * face_col_width + padding
-                y = y_offset
-                grid[y:y + face_size, x:x + face_size] = face_resized
-                border_color = (180, 190, 200)
-                cv2.rectangle(
-                    grid,
-                    (x - 1, y - 1),
-                    (x + face_size + 1, y + face_size + 1),
-                    border_color,
-                    1,
-                )
-            y_offset += row_height
-        footer_y = grid_height - footer_height + 20
-        cv2.line(grid, (0, footer_y - 20), (grid_width, footer_y - 20), (200, 210, 220), 1)
+
+            method_color = (50, 120, 200) if method == 'automatic' else (180, 100, 50)
+            cv2.putText(  # pylint: disable=no-member
+                grid,
+                f'Method: {method}',
+                (stats_x, stats_y_base + 25),
+                cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
+                0.42,
+                method_color,
+                1,
+                cv2.LINE_AA,  # pylint: disable=no-member
+            )
+
+            faces_str = str(faces_detected) if len(str(faces_detected)) < 20 else f'[{len(faces_detected)} imgs]'
+            cv2.putText(  # pylint: disable=no-member
+                grid,
+                f'Detected: {faces_str}',
+                (stats_x, stats_y_base + 50),
+                cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
+                0.38,
+                (100, 110, 120),
+                1,
+                cv2.LINE_AA,  # pylint: disable=no-member
+            )
+
+        face_files = sorted(char_dir.glob('face_*.jpg'))
+        for face_idx, face_file in enumerate(face_files[:dims.faces_per_char]):
+            face_img = cv2.imread(str(face_file))  # pylint: disable=no-member
+            if face_img is None:
+                continue
+
+            face_resized = self.__safe_resize(face_img, (dims.face_size, dims.face_size))
+            if face_resized is None:
+                continue
+
+            x = dims.label_col_width + dims.stats_col_width + face_idx * dims.face_col_width + dims.padding
+            y = y_offset
+            grid[y:y + dims.face_size, x:x + dims.face_size] = face_resized
+
+            border_color = (180, 190, 200)
+            cv2.rectangle(  # pylint: disable=no-member
+                grid,
+                (x - 1, y - 1),
+                (x + dims.face_size + 1, y + dims.face_size + 1),
+                border_color,
+                1,
+            )
+
+    @staticmethod
+    def __render_footer(grid: np.ndarray, dims: _GridDimensions, grid_height: int) -> None:
+        footer_y = grid_height - dims.footer_height + 20
+        cv2.line(grid, (0, footer_y - 20), (dims.total_width(), footer_y - 20), (200, 210, 220), 1)  # pylint: disable=no-member
+
         footer_text = (
             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
             f"Model: {settings.face_recognition.model_name} | "
             f"Normalized Size: {settings.character.normalized_face_size[0]}x"
             f"{settings.character.normalized_face_size[1]}px"
         )
-        cv2.putText(
+        cv2.putText(  # pylint: disable=no-member
             grid,
             footer_text,
-            (padding * 3, footer_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            (dims.padding * 3, footer_y),
+            cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
             0.4,
             (120, 130, 140),
             1,
-            cv2.LINE_AA,
+            cv2.LINE_AA,  # pylint: disable=no-member
         )
+
         legend_y = footer_y + 30
         legend_items = [
             ('Automatic: Face found on all references', (50, 120, 200)),
             ('Manual: User-selected reference', (180, 100, 50)),
         ]
         for idx, (text, color) in enumerate(legend_items):
-            x_pos = padding * 3 + idx * 380
-            cv2.circle(grid, (x_pos, legend_y - 3), 5, color, -1)
-            cv2.putText(
+            x_pos = dims.padding * 3 + idx * 380
+            cv2.circle(grid, (x_pos, legend_y - 3), 5, color, -1)  # pylint: disable=no-member
+            cv2.putText(  # pylint: disable=no-member
                 grid,
                 text,
                 (x_pos + 15, legend_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_SIMPLEX,  # pylint: disable=no-member
                 0.38,
                 (100, 110, 120),
                 1,
-                cv2.LINE_AA,
+                cv2.LINE_AA,  # pylint: disable=no-member
             )
-        cv2.imwrite(
+
+    def generate_validation_grid(self) -> None:
+        output_path = self.output_dir / 'validation_grid.png'
+        if output_path.exists():
+            console.print(f'[dim]⊘ Skipping validation grid (already exists): {output_path}[/dim]')
+            return
+
+        console.print('\n[blue]Generating validation grid...[/blue]')
+
+        if not self.output_dir.exists():
+            console.print('[yellow]No processed references found, skipping validation grid[/yellow]')
+            return
+
+        processed_chars = sorted([d for d in self.output_dir.iterdir() if d.is_dir()])
+        if not processed_chars:
+            console.print('[yellow]No processed characters found, skipping validation grid[/yellow]')
+            return
+
+        dims = self._GridDimensions()
+        grid_width = dims.total_width()
+        grid_height = dims.total_height(len(processed_chars))
+        bg_color = (250, 252, 255)
+        grid = np.full((grid_height, grid_width, 3), bg_color, dtype=np.uint8)
+
+        metadata_all = self.__load_all_metadata(processed_chars)
+        avg_similarity = (
+            np.mean([m.get('average_similarity', 0) for m in metadata_all]) if metadata_all else 0
+        )
+
+        self.__render_header(grid, dims, len(processed_chars), avg_similarity, self.similarity_threshold)
+        self.__render_table_headers(grid, dims)
+
+        y_offset = dims.header_height + dims.header_row_height + dims.padding
+        for idx, char_dir in enumerate(processed_chars):
+            self.__render_character_row(grid, dims, char_dir, idx, y_offset, bg_color)
+            y_offset += dims.row_height
+
+        self.__render_footer(grid, dims, grid_height)
+
+        cv2.imwrite(  # pylint: disable=no-member
             str(output_path),
             grid,
-            [cv2.IMWRITE_PNG_COMPRESSION, 6],
+            [cv2.IMWRITE_PNG_COMPRESSION, 6],  # pylint: disable=no-member
         )
+
         console.print(f'[green]✓ Validation grid saved to: {output_path}[/green]')
         console.print(f'[green]  Grid size: {grid_width}x{grid_height}px[/green]')
         console.print(f'[green]  Characters: {len(processed_chars)}[/green]')

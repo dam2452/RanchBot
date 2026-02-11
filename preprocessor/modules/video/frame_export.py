@@ -72,8 +72,8 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         context.logger.info(f'Extracting {len(frame_requests)} keyframes from {video_path.name}')
         context.mark_step_started(self.name, input_data.episode_id)
         try:
-            self._extract_frames(video_path, frame_requests, episode_dir, input_data.episode_info, context)
-            self._write_metadata(frame_requests, input_data.episode_info, video_path, context, metadata_file)
+            self.__extract_frames(video_path, frame_requests, episode_dir, input_data.episode_info, context)
+            self.__write_metadata(frame_requests, input_data.episode_info, video_path, context, metadata_file)
         except Exception as e:
             context.logger.error(f'Failed to extract frames from {video_path}: {e}')
             shutil.rmtree(episode_dir, ignore_errors=True)
@@ -87,7 +87,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             metadata_path=metadata_file,
         )
 
-    def _extract_frames(
+    def __extract_frames(
         self,
         video_file: Path,
         frame_requests: List[FrameRequest],
@@ -95,15 +95,15 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         episode_info,
         context: ExecutionContext,
     ) -> None:
-        video_metadata = self._get_video_metadata(video_file)
-        dar = self._calculate_display_aspect_ratio(video_metadata)
+        video_metadata = self.__get_video_metadata(video_file)
+        dar = self.__calculate_display_aspect_ratio(video_metadata)
         vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
         for req in frame_requests:
             frame_num = req['frame_number']
-            self._extract_and_save_frame(vr, frame_num, episode_dir, episode_info, dar, context.series_name)
+            self.__extract_and_save_frame(vr, frame_num, episode_dir, episode_info, dar, context.series_name)
         del vr
 
-    def _extract_and_save_frame(
+    def __extract_and_save_frame(
         self,
         vr,
         frame_num: int,
@@ -114,13 +114,13 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     ) -> None:
         frame_np = vr[frame_num].asnumpy()
         frame_pil = Image.fromarray(frame_np)
-        resized = self._resize_frame(frame_pil, dar)
+        resized = self.__resize_frame(frame_pil, dar)
         base_filename = f'{series_name}_{episode_info.episode_code()}'
         filename = f'{base_filename}_frame_{frame_num:06d}.jpg'
         resized.save(episode_dir / filename, quality=90)
 
     @staticmethod
-    def _get_video_metadata(video_path: Path) -> Dict[str, Any]:
+    def __get_video_metadata(video_path: Path) -> Dict[str, Any]:
         cmd = [
             'ffprobe', '-v', 'error', '-select_streams', 'v:0',
             '-show_entries', 'stream=width,height,sample_aspect_ratio,display_aspect_ratio',
@@ -134,7 +134,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         return streams[0]
 
     @staticmethod
-    def _calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
+    def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
         width = metadata.get('width', 0)
         height = metadata.get('height', 0)
         if width == 0 or height == 0:
@@ -149,7 +149,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             sar = 1.0
         return width / height * sar
 
-    def _resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
+    def __resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
         target_width = self.config.resolution.width
         target_height = self.config.resolution.height
         target_aspect = target_width / target_height
@@ -170,7 +170,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         result.paste(resized, (0, y_offset))
         return result
 
-    def _write_metadata(
+    def __write_metadata(
         self,
         frame_requests: List[FrameRequest],
         episode_info,

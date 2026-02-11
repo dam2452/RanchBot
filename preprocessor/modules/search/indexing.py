@@ -69,7 +69,7 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
                 if not self.config.append:
                     await self._es.delete_index()
 
-                mapping: Optional[Dict[str, Any]] = self._get_mapping_for_type(doc_type)
+                mapping: Optional[Dict[str, Any]] = self.__get_mapping_for_type(doc_type)
                 if mapping:
                     await self._es.create_index(mapping)
 
@@ -103,7 +103,7 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
         )
 
     @staticmethod
-    def _get_mapping_for_type(
+    def __get_mapping_for_type(
         doc_type: str,  # pylint: disable=unused-argument
     ) -> Optional[Dict[str, Any]]:
         return None

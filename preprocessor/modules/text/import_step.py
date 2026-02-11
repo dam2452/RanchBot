@@ -32,7 +32,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
     def execute(self, input_data: None, context: ExecutionContext) -> List[TranscriptionData]:
         if self._episode_manager is None:
             self._episode_manager = EpisodeManager(None, context.series_name, context.logger)
-        json_files: List[Path] = self._find_transcription_files()
+        json_files: List[Path] = self.__find_transcription_files()
         if not json_files:
             context.logger.warning(f'No transcription files found in {self.config.source_dir}')
             return []
@@ -40,24 +40,24 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         results: List[TranscriptionData] = []
         for json_file in json_files:
             try:
-                artifact: Optional[TranscriptionData] = self._import_single_file(json_file, context)
+                artifact: Optional[TranscriptionData] = self.__import_single_file(json_file, context)
                 if artifact:
                     results.append(artifact)
             except Exception as e:
                 context.logger.error(f'Failed to import {json_file.name}: {e}')
         return results
 
-    def _find_transcription_files(self) -> List[Path]:
+    def __find_transcription_files(self) -> List[Path]:
         pattern: str = '*.json'
         if self.config.format_type == '11labs_segmented':
             pattern = '*_segmented.json'
         files: List[Path] = sorted(self.config.source_dir.rglob(pattern))
         return [f for f in files if not f.name.startswith('.')]
 
-    def _import_single_file(self, json_file: Path, context: ExecutionContext) -> Optional[TranscriptionData]:
+    def __import_single_file(self, json_file: Path, context: ExecutionContext) -> Optional[TranscriptionData]:
         episode_info: Optional['EpisodeInfo'] = self._episode_manager.parse_filename(json_file)
         if not episode_info:
-            season_num, episode_num = self._extract_season_episode_fallback(json_file)
+            season_num, episode_num = self.__extract_season_episode_fallback(json_file)
             episode_info = self._episode_manager.get_episode_by_season_and_relative(season_num, episode_num)
         if not episode_info:
             context.logger.warning(f'Could not determine episode for {json_file}')
@@ -75,9 +75,9 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         with open(json_file, 'r', encoding='utf-8') as f:
             source_data: Dict[str, Any] = json.load(f)
         if self.config.format_type == '11labs_segmented':
-            converted_data: Dict[str, Any] = self._convert_11labs_segmented(source_data, json_file)
+            converted_data: Dict[str, Any] = self.__convert_11labs_segmented(source_data, json_file)
         elif self.config.format_type == '11labs':
-            converted_data = self._convert_11labs_full(source_data, json_file)
+            converted_data = self.__convert_11labs_full(source_data, json_file)
         else:
             raise ValueError(f'Unknown format type: {self.config.format_type}')
         converted_data['episode_info'] = EpisodeManager.get_metadata(episode_info)
@@ -95,7 +95,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         )
 
     @staticmethod
-    def _convert_11labs_segmented(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
+    def __convert_11labs_segmented(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
         segments: List[Dict[str, Any]] = []
         for i, segment in enumerate(data.get('segments', [])):
             converted_segment: Dict[str, Any] = {
@@ -113,7 +113,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         }
 
     @staticmethod
-    def _convert_11labs_full(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
+    def __convert_11labs_full(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:
         segments: List[Dict[str, Any]] = []
         words: List[Dict[str, Any]] = data.get('words', [])
         current_segment: Dict[str, Any] = {'words': [], 'start': None, 'end': None, 'text': '', 'speaker': 'unknown'}
@@ -142,7 +142,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         }
 
     @staticmethod
-    def _extract_season_episode_fallback(file_path: Path) -> Tuple[int, int]:
+    def __extract_season_episode_fallback(file_path: Path) -> Tuple[int, int]:
         match: Optional[re.Match] = re.search('S(\\d+)E(\\d+)', file_path.name, re.IGNORECASE)
         if match:
             return (int(match.group(1)), int(match.group(2)))

@@ -16,7 +16,7 @@ class HashService:
     def __init__(self) -> None:
         self._hasher: Optional[PerceptualHasher] = None
 
-    def _load_hasher(self) -> PerceptualHasher:
+    def __load_hasher(self) -> PerceptualHasher:
         if self._hasher is not None:
             return self._hasher
         click.echo('Loading perceptual hasher...', err=True)
@@ -27,7 +27,7 @@ class HashService:
         return self._hasher
 
     def get_perceptual_hash(self, image_path: Union[str, Path]) -> Optional[str]:
-        hasher = self._load_hasher()
+        hasher = self.__load_hasher()
         image = Image.open(image_path).convert('RGB')
         hashes = hasher.compute_phash_batch([image])  # pylint: disable=no-member
         return hashes[0] if hashes else None

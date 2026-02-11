@@ -10,7 +10,7 @@ from typing import (
 class FileOperations:
 
     @staticmethod
-    def _atomic_write(path: Path, write_func: Callable[[Any], None]) -> None:
+    def __atomic_write(path: Path, write_func: Callable[[Any], None]) -> None:
         temp_path = path.with_suffix(path.suffix + '.tmp')
         try:
             write_func(temp_path)
@@ -26,7 +26,7 @@ class FileOperations:
         def __write(temp: Path) -> None:
             with open(temp, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=indent)
-        FileOperations._atomic_write(path, __write)
+        FileOperations.__atomic_write(path, __write)
 
     @staticmethod
     def load_json(path: Path) -> Dict[str, Any]:
@@ -34,12 +34,12 @@ class FileOperations:
             return json.load(f)
 
     @staticmethod
-    def atomic_write_text(path: Path, content: str) -> None:
+    def __atomic_write_text(path: Path, content: str) -> None: # pylint: disable=unused-private-member
 
         def __write(temp: Path) -> None:
             with open(temp, 'w', encoding='utf-8') as f:
                 f.write(content)
-        FileOperations._atomic_write(path, __write)
+        FileOperations.__atomic_write(path, __write)
 
 def atomic_write_json(path: Path, data: Dict[str, Any], indent: int=2) -> None:
     FileOperations.atomic_write_json(path, data, indent)

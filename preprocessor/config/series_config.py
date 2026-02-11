@@ -8,13 +8,13 @@ from typing import (
 )
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def __deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = base.copy()
     for key, value in override.items():
         if key.startswith('_'):
             continue
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
+            result[key] = __deep_merge(result[key], value)
         else:
             result[key] = value
     return result
@@ -173,7 +173,7 @@ class SeriesConfig:
         return {k: v for k, v in data.items() if not k.startswith('_')}
 
     @staticmethod
-    def _load_from_file(config_path: Path) -> 'SeriesConfig':
+    def __load_from_file(config_path: Path) -> 'SeriesConfig':
         if not config_path.exists():
             raise FileNotFoundError(
                 f"Series config not found: {config_path}\n"
@@ -190,7 +190,7 @@ class SeriesConfig:
             if not k.startswith('_')
         }
 
-        merged_config: Dict[str, Any] = _deep_merge(defaults, series_filtered)
+        merged_config: Dict[str, Any] = __deep_merge(defaults, series_filtered)
 
         return SeriesConfig.__load_from_dict(merged_config)
 
@@ -199,4 +199,4 @@ class SeriesConfig:
         config_dir: Path = Path('preprocessor/series_configs')
         config_path: Path = config_dir / f'{series_name}.json'
 
-        return SeriesConfig._load_from_file(config_path)
+        return SeriesConfig.__load_from_file(config_path)

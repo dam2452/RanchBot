@@ -12,7 +12,7 @@ from preprocessor.core.artifacts import EmbeddingCollection
 class MetadataBuilder:
 
     @staticmethod
-    def create_minimal_episode_info(episode_info) -> Dict[str, Any]:
+    def __create_minimal_episode_info(episode_info) -> Dict[str, Any]:
         return {'season': episode_info.season, 'episode_number': episode_info.relative_episode}
 
     @staticmethod
@@ -25,7 +25,7 @@ class MetadataBuilder:
     ) -> Dict[str, Any]:
         return {
             'generated_at': datetime.now().isoformat(),
-            'episode_info': MetadataBuilder.create_minimal_episode_info(episode_info),
+            'episode_info': MetadataBuilder.__create_minimal_episode_info(episode_info),
             'processing_parameters': processing_params,
             'statistics': statistics,
             results_key: results_data,

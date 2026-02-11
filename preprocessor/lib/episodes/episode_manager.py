@@ -37,7 +37,7 @@ class EpisodeInfo:
     def episode_num(self) -> str:
         return f'E{self.relative_episode:02d}'
 
-    def is_special(self) -> bool:
+    def __is_special(self) -> bool: # pylint: disable=unused-private-member
         return self.season == 0
 
 class EpisodeManager:
@@ -51,7 +51,7 @@ class EpisodeManager:
             with open(episodes_info_json, 'r', encoding='utf-8') as f:
                 self.episodes_data = json.load(f)
 
-    def _create_episode_info(
+    def __create_episode_info(
         self,
         season: int,
         relative_episode: int,
@@ -86,13 +86,13 @@ class EpisodeManager:
 
     def get_episode_by_season_and_relative(self, season: int, relative_episode: int) -> EpisodeInfo:
         if not self.episodes_data:
-            return self._create_episode_info(season, relative_episode)
+            return self.__create_episode_info(season, relative_episode)
         for season_data in self.episodes_data.get(EpisodesDataKeys.SEASONS, []):
             if season_data.get(EpisodesDataKeys.SEASON_NUMBER) == season:
                 episodes = sorted(season_data.get(EpisodesDataKeys.EPISODES, []), key=lambda ep: ep.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0))
                 if 0 < relative_episode <= len(episodes):
                     ep_data = episodes[relative_episode - 1]
-                    return self._create_episode_info(
+                    return self.__create_episode_info(
                         season=season,
                         relative_episode=relative_episode,
                         title=ep_data.get(EpisodeMetadataKeys.TITLE),
@@ -105,10 +105,10 @@ class EpisodeManager:
                 f'Processing S{season:02d}E{relative_episode:02d} with filename-only metadata. '
                 f'Scrape episode info for season {season} to get title, premiere date, etc.',
             )
-        return self._create_episode_info(season, relative_episode)
+        return self.__create_episode_info(season, relative_episode)
 
     @staticmethod
-    def find_video_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
+    def __find_video_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]: # pylint: disable=unused-private-member
         if not search_dir.exists():
             return None
         if search_dir.is_file():
@@ -125,7 +125,7 @@ class EpisodeManager:
                         return video_file
         return None
 
-    def find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool=True) -> Optional[Path]:
+    def __find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool=True) -> Optional[Path]: # pylint: disable=unused-private-member
         if not search_dir.exists():
             return None
         season_dir_name = episode_info.season_code()
@@ -142,7 +142,7 @@ class EpisodeManager:
         return None
 
     @staticmethod
-    def find_scene_timestamps_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
+    def __find_scene_timestamps_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
         if not search_dir.exists():
             return None
         episode_code = episode_info.episode_code()
@@ -152,14 +152,14 @@ class EpisodeManager:
         return None
 
     @staticmethod
-    def load_scene_timestamps(
+    def __load_scene_timestamps( # pylint: disable=unused-private-member
         episode_info: EpisodeInfo,
         search_dir: Optional[Path],
         _logger: Optional[ErrorHandlingLogger]=None,
     ) -> Optional[List[Dict[str, Any]]]:
         if not search_dir:
             return None
-        scene_file = EpisodeManager.find_scene_timestamps_file(episode_info, search_dir)
+        scene_file = EpisodeManager.__find_scene_timestamps_file(episode_info, search_dir)
         if not scene_file:
             return None
         try:
@@ -184,7 +184,7 @@ class EpisodeManager:
     def get_episode_id_for_state(episode_info: EpisodeInfo) -> str:
         return episode_info.episode_code()
 
-    def list_all_episodes(self) -> List[EpisodeInfo]:
+    def __list_all_episodes(self) -> List[EpisodeInfo]: # pylint: disable=unused-private-member
         episodes: List[EpisodeInfo] = []
         if not self.episodes_data:
             return episodes
@@ -193,7 +193,7 @@ class EpisodeManager:
             season_episodes = sorted(season_data.get(EpisodesDataKeys.EPISODES, []), key=lambda ep: ep.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0))
             for idx, ep_data in enumerate(season_episodes):
                 episodes.append(
-                    self._create_episode_info(
+                    self.__create_episode_info(
                         season=season_num,
                         relative_episode=idx + 1,
                         title=ep_data.get(EpisodeMetadataKeys.TITLE),

@@ -51,16 +51,16 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
         stats = cls(text=text, language=language)
-        stats.calculate()
+        stats.__calculate()
         return stats
 
     @classmethod
-    def from_text(cls, text: str, language: str='pl') -> 'TextStatistics':
+    def __from_text(cls, text: str, language: str='pl') -> 'TextStatistics': # pylint: disable=unused-private-member
         stats = cls(text=text, language=language)
-        stats.calculate()
+        stats.__calculate()
         return stats
 
-    def calculate(self) -> None:
+    def __calculate(self) -> None: # pylint: disable=unused-private-member
         self.__calculate_basic_stats()
         self.__calculate_character_stats()
         self.__calculate_word_stats()

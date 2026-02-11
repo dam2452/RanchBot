@@ -38,11 +38,11 @@ class PipelineDefinition:
         for step_id, step in self._steps.items():
             for dep_id in step.dependency_ids:
                 if dep_id not in self._steps:
-                    self._raise_missing_dependency_error(step_id, dep_id)
+                    self.__raise_missing_dependency_error(step_id, dep_id)
                 self._graph.add_edge(dep_id, step_id)
 
         if not nx.is_directed_acyclic_graph(self._graph):
-            self._raise_cycle_error()
+            self.__raise_cycle_error()
 
         message = (
             f"✅ Pipeline '{self.name}' validated successfully:\n"
@@ -56,7 +56,7 @@ class PipelineDefinition:
         else:
             print(message)
 
-    def _raise_missing_dependency_error(
+    def __raise_missing_dependency_error(
         self, step_id: str, missing_dep_id: str,
     ) -> None:
         raise ValueError(
@@ -73,7 +73,7 @@ class PipelineDefinition:
             f"\n{'=' * 80}\n",
         )
 
-    def _raise_cycle_error(self) -> None:
+    def __raise_cycle_error(self) -> None:
         cycles: List[List[str]] = list(nx.simple_cycles(self._graph))
         cycle_path: str = " → ".join(cycles[0]) + f" → {cycles[0][0]}"
 

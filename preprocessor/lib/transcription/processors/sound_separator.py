@@ -245,7 +245,7 @@ class SoundEventSeparator(BaseProcessor):
             millis = int(seconds % 1 * 1000)
             return f'{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}'
 
-        def _write_srt(segments: List[Dict], output_path: Path) -> None:
+        def __write_srt(segments: List[Dict], output_path: Path) -> None:
             with open(output_path, 'w', encoding='utf-8') as f:
                 for idx, seg in enumerate(segments, start=1):
                     words = seg.get('words', [])
@@ -260,8 +260,8 @@ class SoundEventSeparator(BaseProcessor):
                     f.write(f'{idx}\n')
                     f.write(f'{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n')
                     f.write(f'{text}\n\n')
-        _write_srt(dialogue_segments, clean_srt)
-        _write_srt(sound_segments, sound_srt)
+        __write_srt(dialogue_segments, clean_srt)
+        __write_srt(sound_segments, sound_srt)
 
     def _get_progress_description(self) -> str:
         return 'Separating sound events from dialogues'

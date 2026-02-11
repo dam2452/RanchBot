@@ -103,7 +103,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         self.__extract_transcription_stats(raw_transcription)
 
     def __extract_transcription_stats(self, raw_transcription: Path):
-        data = self._load_json_safely(raw_transcription)
+        data = self.__load_json_safely(raw_transcription)
         if not data:
             self.errors.append(f'Error reading transcription: {raw_transcription}')
             return
@@ -196,7 +196,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not result.is_valid:
             self.errors.append(f'Invalid scenes JSON: {result.error_message}')
             return
-        data = self._load_json_safely(scenes_file)
+        data = self.__load_json_safely(scenes_file)
         if not data:
             self.errors.append(f'Error reading scenes: {scenes_file}')
             return
@@ -215,7 +215,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         check_anomalies: bool = True,
     ):
         dir_path = PathManager(self.series_name).get_episode_dir(self.episode_info, subdir)
-        count, sizes, errors = self._validate_json_files_in_directory(dir_path, exclude_pattern)
+        count, sizes, errors = self.__validate_json_files_in_directory(dir_path, exclude_pattern)
         if not dir_path.exists():
             self.warnings.append(f'Missing {subdir} directory')
             return
@@ -233,7 +233,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
 
     def __validate_visualizations(self, subdir: str, count_attr: str, context_name: str):
         viz_dir = PathManager(self.series_name).get_episode_dir(self.episode_info, subdir)
-        total_count, invalid_count, errors = self._validate_images_in_directory(viz_dir)
+        total_count, invalid_count, errors = self.__validate_images_in_directory(viz_dir)
         if total_count == 0 and viz_dir.exists():
             self.warnings.append(f'No visualization images in {subdir}/')
             return
@@ -259,7 +259,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         if not result.is_valid:
             self.errors.append(f'Invalid face clustering metadata: {result.error_message}')
             return
-        data = self._load_json_safely(metadata_file)
+        data = self.__load_json_safely(metadata_file)
         if not data:
             self.errors.append(f'Error reading face clustering metadata: {metadata_file}')
             return
@@ -420,7 +420,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         }
 
     @staticmethod
-    def _validate_images_in_directory(
+    def __validate_images_in_directory(
         directory: Path,
         extensions: Tuple[str, ...] = ('*.jpg', '*.png'),
     ) -> Tuple[int, int, List[str]]:
@@ -441,7 +441,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         return (len(image_files), invalid_count, errors)
 
     @staticmethod
-    def _validate_json_files_in_directory(
+    def __validate_json_files_in_directory(
         directory: Path, exclude_pattern: Optional[str] = None,
     ) -> Tuple[int, List[int], List[str]]:
         if not directory.exists():
@@ -463,7 +463,7 @@ class EpisodeStats(ValidationStatusMixin):  # pylint: disable=too-many-instance-
         return (len(json_files), sizes, errors)
 
     @staticmethod
-    def _load_json_safely(file_path: Path) -> Optional[Dict[str, Any]]:
+    def __load_json_safely(file_path: Path) -> Optional[Dict[str, Any]]:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)

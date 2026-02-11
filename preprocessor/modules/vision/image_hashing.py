@@ -81,7 +81,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
                 hash_results.append(result)
             del pil_images
             if i % (batch_size * 5) == 0:
-                self._cleanup_memory()
+                self.__cleanup_memory()
         output_data: Dict[str, Any] = {
             'episode_id': input_data.episode_id,
             'series_name': context.series_name,
@@ -94,7 +94,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         }
         atomic_write_json(output_path, output_data)
         context.mark_step_completed(self.name, input_data.episode_id)
-        self._cleanup_memory()
+        self.__cleanup_memory()
         return ImageHashCollection(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
@@ -104,10 +104,10 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
     def cleanup(self) -> None:
         self._hasher = None
-        self._cleanup_memory()
+        self.__cleanup_memory()
 
     @staticmethod
-    def _cleanup_memory() -> None:
+    def __cleanup_memory() -> None:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()

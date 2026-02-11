@@ -320,6 +320,6 @@ def visualize(series_name: str = "ranczo") -> None:
     print(pipeline.to_ascii_art())
 
 
-def get_step_configs(series_name: str) -> Dict[str, object]:
+def __get_step_configs(series_name: str) -> Dict[str, object]:
     pipeline = build_pipeline(series_name)
     return {step_id: step.config for step_id, step in pipeline.get_all_steps().items()}
