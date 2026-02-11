@@ -20,6 +20,7 @@
     "transcode": {
       "bufsize_mbps": 5.0,
       "codec": "h264_nvenc",
+      "force_deinterlace": false,
       "gop_size": 2.0,
       "maxrate_mbps": 3.5,
       "minrate_mbps": 1.5,

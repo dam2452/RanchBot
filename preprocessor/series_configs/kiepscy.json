@@ -6,6 +6,11 @@
       "index_name": "kiepscy_clips"
     }
   },
+  "processing": {
+    "transcode": {
+      "force_deinterlace": true
+    }
+  },
   "scraping": {
     "character_references": {
       "search_engine": "google"

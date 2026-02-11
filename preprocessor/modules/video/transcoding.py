@@ -71,25 +71,36 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 f'Adjusted to {audio_bitrate} kbps to avoid quality loss.'
             )
             context.logger.info(msg)
-        has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(input_data.path)
-        if has_interlacing and idet_stats:
+        if self.config.force_deinterlace:
             context.logger.info(
-                f"Interlacing detected for {input_data.episode_id} "
-                f"({idet_stats['ratio']*100:.1f}% interlaced frames: "
-                f"TFF={idet_stats['tff']}, BFF={idet_stats['bff']}) - "
-                f"applying bwdif deinterlacing filter",
+                f"Force deinterlacing enabled for {input_data.episode_id} - "
+                f"skipping interlace detection and applying bwdif filter unconditionally",
             )
-        elif idet_stats:
-            context.logger.info(
-                f"Progressive content detected for {input_data.episode_id} "
-                f"({idet_stats['progressive']}/{idet_stats['progressive'] + idet_stats['tff'] + idet_stats['bff']} frames) - "
-                f"no deinterlacing needed",
-            )
+            deinterlace = True
         else:
-            context.logger.warning(
-                f"Could not detect interlacing for {input_data.episode_id} - "
-                f"proceeding without deinterlacing",
-            )
+            context.logger.info(f"Detecting interlacing for {input_data.episode_id}...")
+            has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(input_data.path)
+            if has_interlacing and idet_stats:
+                context.logger.info(
+                    f"Interlacing detected for {input_data.episode_id} "
+                    f"({idet_stats['ratio']*100:.1f}% interlaced frames: "
+                    f"TFF={idet_stats['tff']}, BFF={idet_stats['bff']}) - "
+                    f"applying bwdif deinterlacing filter",
+                )
+            elif idet_stats:
+                context.logger.info(
+                    f"Progressive content detected for {input_data.episode_id} "
+                    f"({idet_stats['progressive']}/{idet_stats['progressive'] + idet_stats['tff'] + idet_stats['bff']} frames) - "
+                    f"no deinterlacing needed",
+                )
+            else:
+                context.logger.error(
+                    f"Failed to detect interlacing for {input_data.episode_id} - "
+                    f"idet filter did not return valid statistics. "
+                    f"This may indicate an ffmpeg error or incompatible video format. "
+                    f"Proceeding without deinterlacing.",
+                )
+            deinterlace = has_interlacing
         context.logger.info(f'Transcoding {input_data.episode_id}')
         temp_path = output_path.with_suffix('.mp4.tmp')
         context.mark_step_started(self.name, input_data.episode_id, [str(temp_path)])
@@ -107,10 +118,10 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 audio_bitrate=f'{audio_bitrate}k',
                 gop_size=int(target_fps * self.config.gop_size),
                 target_fps=target_fps if target_fps < input_fps else None,
-                deinterlace=has_interlacing,
+                deinterlace=deinterlace,
             )
             temp_path.replace(output_path)
-        except Exception:
+        except BaseException:
             if temp_path.exists():
                 temp_path.unlink()
             raise

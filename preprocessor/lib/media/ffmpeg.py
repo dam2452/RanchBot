@@ -165,19 +165,23 @@ class FFmpegWrapper:
     @staticmethod
     def detect_interlacing(
         video_path: Path,
-        analysis_time: int = 30,
+        analysis_time: Optional[int] = None,
         threshold: float = 0.15,
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         cmd = [
             'ffmpeg',
-            '-hide_banner',
-            '-nostats',
             '-i', str(video_path),
-            '-t', str(analysis_time),
+        ]
+
+        if analysis_time:
+            cmd.extend(['-t', str(analysis_time)])
+
+        cmd.extend([
             '-vf', 'idet',
+            '-an',
             '-f', 'null',
             '-',
-        ]
+        ])
 
         result = subprocess.run(
             cmd,
@@ -188,6 +192,9 @@ class FFmpegWrapper:
             errors='ignore',
             check=False,
         )
+
+        if result.returncode != 0:
+            return (False, None)
 
         stats = FFmpegWrapper.__parse_idet_output(result.stderr)
         if stats is None:
@@ -206,15 +213,18 @@ class FFmpegWrapper:
 
     @staticmethod
     def __parse_idet_output(stderr: str) -> Optional[Dict[str, int]]:
-        tff_match = re.search(r'TFF:\s*(\d+)', stderr)
-        bff_match = re.search(r'BFF:\s*(\d+)', stderr)
-        prog_match = re.search(r'Progressive:\s*(\d+)', stderr)
+        matches = re.findall(
+            r'Multi frame detection:\s+TFF:\s*(\d+)\s+BFF:\s*(\d+)\s+Progressive:\s*(\d+)',
+            stderr,
+        )
 
-        if not (tff_match and bff_match and prog_match):
+        if not matches:
             return None
 
+        tff, bff, progressive = matches[-1]
+
         return {
-            'tff': int(tff_match.group(1)),
-            'bff': int(bff_match.group(1)),
-            'progressive': int(prog_match.group(1)),
+            'tff': int(tff),
+            'bff': int(bff),
+            'progressive': int(progressive),
         }

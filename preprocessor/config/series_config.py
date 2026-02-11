@@ -62,6 +62,7 @@ class TranscodeProcessingConfig:
     maxrate_mbps: float
     bufsize_mbps: float
     gop_size: float
+    force_deinterlace: bool
 
 
 @dataclass
@@ -142,6 +143,7 @@ class SeriesConfig:
                     maxrate_mbps=data['processing']['transcode']['maxrate_mbps'],
                     bufsize_mbps=data['processing']['transcode']['bufsize_mbps'],
                     gop_size=data['processing']['transcode']['gop_size'],
+                    force_deinterlace=data['processing']['transcode']['force_deinterlace'],
                 ),
                 scene_detection=SceneDetectionProcessingConfig(
                     threshold=data['processing']['scene_detection']['threshold'],

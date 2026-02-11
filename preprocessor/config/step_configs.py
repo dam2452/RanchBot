@@ -21,6 +21,7 @@ class TranscodeConfig(BaseModel):
     bufsize_mbps: float = Field(gt=0)
     audio_bitrate_kbps: int = 128
     gop_size: float = Field(gt=0)
+    force_deinterlace: bool = False
 
     class Config:
         arbitrary_types_allowed = True

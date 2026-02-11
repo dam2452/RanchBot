@@ -19,9 +19,9 @@ class Pipeline:
     def register(self, step: StepBuilder) -> None:
         if step.id in self._steps:
             raise ValueError(
-                f"❌ DUPLIKAT KROKU:\n"
-                f"  Krok '{step.id}' jest już zarejestrowany w pipeline!\n"
-                f"  Sprawdź build_pipeline() w pipeline_factory.py",
+                f"❌ DUPLICATE STEP:\n"
+                f"  Step '{step.id}' is already registered in the pipeline!\n"
+                f"  Check build_pipeline() in pipeline_factory.py",
             )
         self._steps[step.id] = step
 
@@ -52,15 +52,15 @@ class Pipeline:
     ) -> None:
         raise ValueError(
             f"\n{'=' * 80}\n"
-            f"❌ BŁĄD ZALEŻNOŚCI W PIPELINE\n"
+            f"❌ PIPELINE DEPENDENCY ERROR\n"
             f"{'=' * 80}\n\n"
-            f"Krok:           '{step_id}'\n"
-            f"Potrzebuje:     '{missing_dep_id}'\n"
-            f"Problem:        Krok '{missing_dep_id}' nie jest zarejestrowany!\n\n"
-            f"Rozwiązanie:\n"
-            f"  1. Sprawdź build_pipeline() w preprocessor/app/pipeline_factory.py\n"
-            f"  2. Upewnij się że '{missing_dep_id}' jest dodany przez pipeline.register()\n"
-            f"  3. Lub usuń '{missing_dep_id}' z needs=[...] w definicji '{step_id}'\n"
+            f"Step:           '{step_id}'\n"
+            f"Needs:          '{missing_dep_id}'\n"
+            f"Issue:          Step '{missing_dep_id}' is not registered!\n\n"
+            f"Solution:\n"
+            f"  1. Check build_pipeline() in preprocessor/app/pipeline_factory.py\n"
+            f"  2. Ensure '{missing_dep_id}' is added via pipeline.register()\n"
+            f"  3. Or remove '{missing_dep_id}' from needs=[...] in definition of '{step_id}'\n"
             f"\n{'=' * 80}\n",
         )
 
@@ -70,13 +70,13 @@ class Pipeline:
 
         raise ValueError(
             f"\n{'=' * 80}\n"
-            f"❌ CYKL W ZALEŻNOŚCIACH PIPELINE\n"
+            f"❌ PIPELINE DEPENDENCY CYCLE DETECTED\n"
             f"{'=' * 80}\n\n"
-            f"Wykryto cykliczną zależność:\n"
+            f"Cyclic dependency detected:\n"
             f"  {cycle_path}\n\n"
-            f"Kroki w cyklu: {', '.join(cycles[0])}\n\n"
-            f"Pipeline musi być DAG (Directed Acyclic Graph).\n"
-            f"Usuń jedną z zależności aby przerwać cykl.\n"
+            f"Steps in cycle: {', '.join(cycles[0])}\n\n"
+            f"Pipeline must be a DAG (Directed Acyclic Graph).\n"
+            f"Remove one of the dependencies to break the cycle.\n"
             f"\n{'=' * 80}\n",
         )
 

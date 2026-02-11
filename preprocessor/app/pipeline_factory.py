@@ -98,6 +98,7 @@ def build_pipeline(series_name: str) -> Pipeline:  # pylint: disable=too-many-lo
             maxrate_mbps=series_config.processing.transcode.maxrate_mbps,
             bufsize_mbps=series_config.processing.transcode.bufsize_mbps,
             gop_size=series_config.processing.transcode.gop_size,
+            force_deinterlace=series_config.processing.transcode.force_deinterlace,
         ),
     )
 
