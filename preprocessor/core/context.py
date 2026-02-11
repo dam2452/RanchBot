@@ -5,11 +5,11 @@ from typing import (
     Optional,
 )
 
-from preprocessor.lib.core.logging import ErrorHandlingLogger
+from preprocessor.services.core.logging import ErrorHandlingLogger
 
 if TYPE_CHECKING:
     from preprocessor.core.state_manager import StateManager
-    from preprocessor.lib.episodes.episode_manager import EpisodeInfo
+    from preprocessor.services.episodes.episode_manager import EpisodeInfo
 
 class ExecutionContext:
 

@@ -4,7 +4,7 @@ from typing import (
 )
 
 from preprocessor.config.series_config import SeriesConfig
-from preprocessor.lib.core.logging import ErrorHandlingLogger
+from preprocessor.services.core.logging import ErrorHandlingLogger
 
 
 class SkipListBuilder:

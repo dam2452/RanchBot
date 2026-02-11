@@ -25,6 +25,7 @@ from preprocessor.config.step_configs import (
     TextAnalysisConfig,
     TextEmbeddingConfig,
     TranscodeConfig,
+    ValidationConfig,
     VideoEmbeddingConfig,
     WhisperTranscriptionConfig,
 )
@@ -32,6 +33,7 @@ from preprocessor.config.step_configs import (
 SCRAPING = Phase("SCRAPING", color="blue")
 PROCESSING = Phase("PROCESSING", color="green")
 INDEXING = Phase("INDEXING", color="yellow")
+VALIDATION = Phase("VALIDATION", color="magenta")
 
 
 def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals
@@ -40,7 +42,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     episodes_metadata = StepBuilder(
         id="scrape_episodes",
         phase=SCRAPING,
-        module="preprocessor.modules.scraping.episode_scraper_step:EpisodeScraperStep",
+        module="preprocessor.steps.scraping.episode_scraper_step:EpisodeScraperStep",
         description="Scrapes episode metadata from wiki",
         produces=["episodes.json"],
         needs=[],
@@ -57,7 +59,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     characters_metadata = StepBuilder(
         id="scrape_characters",
         phase=SCRAPING,
-        module="preprocessor.modules.scraping.character_scraper_step:CharacterScraperStep",
+        module="preprocessor.steps.scraping.character_scraper_step:CharacterScraperStep",
         description="Scrapes character data from wiki",
         produces=["characters.json"],
         needs=[],
@@ -73,7 +75,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     character_references = StepBuilder(
         id="process_references",
         phase=SCRAPING,
-        module="preprocessor.modules.scraping.reference_processor_step:CharacterReferenceStep",
+        module="preprocessor.steps.scraping.reference_processor_step:CharacterReferenceStep",
         description="Downloads and processes character reference images",
         produces=["character_faces/{character}/*.jpg"],
         needs=[characters_metadata],
@@ -88,7 +90,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     transcoded_videos = StepBuilder(
         id="transcode",
         phase=PROCESSING,
-        module="preprocessor.modules.video.transcoding:VideoTranscoderStep",
+        module="preprocessor.steps.video.transcoding:VideoTranscoderStep",
         description=f"Conversion to {series_config.processing.transcode.codec} {series_config.processing.transcode.resolution} with adaptive bitrate",
         produces=["transcoded_videos/{season}/{episode}.mp4"],
         needs=[],
@@ -105,7 +107,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     scene_data = StepBuilder(
         id="detect_scenes",
         phase=PROCESSING,
-        module="preprocessor.modules.video.scene_detection:SceneDetectorStep",
+        module="preprocessor.steps.video.scene_detection:SceneDetectorStep",
         description="Detects scene changes using TransNetV2",
         produces=["scene_detections/{season}/{episode}.json"],
         needs=[transcoded_videos],
@@ -118,7 +120,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     exported_frames = StepBuilder(
         id="export_frames",
         phase=PROCESSING,
-        module="preprocessor.modules.video.frame_export:FrameExporterStep",
+        module="preprocessor.steps.video.frame_export:FrameExporterStep",
         description="Exports frames (PNG) at scene boundaries",
         produces=["frames/{season}/{episode}/*.png"],
         needs=[scene_data],
@@ -128,7 +130,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     transcription_data = StepBuilder(
         id="transcribe",
         phase=PROCESSING,
-        module="preprocessor.modules.text.transcription:TranscriptionStep",
+        module="preprocessor.steps.text.transcription:TranscriptionStep",
         description=f"Audio transcription using {series_config.processing.transcription.mode}",
         produces=["transcriptions/{season}/{episode}.json"],
         needs=[transcoded_videos],
@@ -144,7 +146,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     separated_audio = StepBuilder(
         id="separate_sounds",
         phase=PROCESSING,
-        module="preprocessor.modules.audio.separation:SoundSeparationStep",
+        module="preprocessor.steps.audio.separation:SoundSeparationStep",
         description="Separates dialogue from sound effects",
         produces=["separated_audio/{season}/{episode}/"],
         needs=[transcription_data],
@@ -154,7 +156,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     text_stats = StepBuilder(
         id="analyze_text",
         phase=PROCESSING,
-        module="preprocessor.modules.text.analysis:TextAnalysisStep",
+        module="preprocessor.steps.text.analysis:TextAnalysisStep",
         description="Analyzes text statistics (word frequency, sentiment)",
         produces=["text_analysis/{season}/{episode}.json"],
         needs=[transcription_data],
@@ -164,7 +166,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     text_embeddings = StepBuilder(
         id="text_embeddings",
         phase=PROCESSING,
-        module="preprocessor.modules.text.embeddings:TextEmbeddingStep",
+        module="preprocessor.steps.text.embeddings:TextEmbeddingStep",
         description="Generates text embeddings using Qwen3-VL-Embedding",
         produces=["embeddings/text/{season}/{episode}.npy"],
         needs=[text_stats],
@@ -180,7 +182,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     image_hashes = StepBuilder(
         id="image_hashing",
         phase=PROCESSING,
-        module="preprocessor.modules.vision.image_hashing:ImageHashStep",
+        module="preprocessor.steps.vision.image_hashing:ImageHashStep",
         description="Perceptual frame hashing (phash, dhash, wavelet)",
         produces=["hashes/{season}/{episode}.json"],
         needs=[exported_frames],
@@ -190,7 +192,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     video_embeddings = StepBuilder(
         id="video_embeddings",
         phase=PROCESSING,
-        module="preprocessor.modules.vision.embeddings:VideoEmbeddingStep",
+        module="preprocessor.steps.vision.embeddings:VideoEmbeddingStep",
         description="Visual embeddings using Qwen3-VL-Embedding",
         produces=["embeddings/vision/{season}/{episode}.npy"],
         needs=[exported_frames, image_hashes],
@@ -204,7 +206,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     character_detections = StepBuilder(
         id="detect_characters",
         phase=PROCESSING,
-        module="preprocessor.modules.vision.character_detection:CharacterDetectorStep",
+        module="preprocessor.steps.vision.character_detection:CharacterDetectorStep",
         description="Recognizes characters in frames using InsightFace",
         produces=["detections/characters/{season}/{episode}.json"],
         needs=[exported_frames],
@@ -214,7 +216,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     emotion_data = StepBuilder(
         id="detect_emotions",
         phase=PROCESSING,
-        module="preprocessor.modules.vision.emotion_detection:EmotionDetectionStep",
+        module="preprocessor.steps.vision.emotion_detection:EmotionDetectionStep",
         description="Detects emotions on faces using EmoNet",
         produces=["detections/emotions/{season}/{episode}.json"],
         needs=[exported_frames],
@@ -224,7 +226,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     face_clusters = StepBuilder(
         id="cluster_faces",
         phase=PROCESSING,
-        module="preprocessor.modules.vision.face_clustering:FaceClusteringStep",
+        module="preprocessor.steps.vision.face_clustering:FaceClusteringStep",
         description="Face clustering using HDBSCAN",
         produces=["clusters/faces/{season}/{episode}.json"],
         needs=[exported_frames],
@@ -234,7 +236,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     object_detections = StepBuilder(
         id="detect_objects",
         phase=PROCESSING,
-        module="preprocessor.modules.vision.object_detection:ObjectDetectionStep",
+        module="preprocessor.steps.vision.object_detection:ObjectDetectionStep",
         description="General object detection using D-FINE",
         produces=["detections/objects/{season}/{episode}.json"],
         needs=[exported_frames],
@@ -244,7 +246,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     elastic_documents = StepBuilder(
         id="generate_elastic_docs",
         phase=INDEXING,
-        module="preprocessor.modules.search.document_generation:DocumentGeneratorStep",
+        module="preprocessor.steps.search.document_generation:DocumentGeneratorStep",
         description="Combines all data into Elasticsearch documents",
         produces=["elastic_documents/{season}/{episode}.ndjson"],
         needs=[
@@ -261,7 +263,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     episode_archives = StepBuilder(
         id="generate_archives",
         phase=INDEXING,
-        module="preprocessor.modules.packaging.archives:ArchiveGenerationStep",
+        module="preprocessor.steps.packaging.archives:ArchiveGenerationStep",
         description="Creates ZIP archives per episode (all artifacts)",
         produces=["archives/{season}/{episode}.zip"],
         needs=[elastic_documents],
@@ -271,7 +273,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     indexed_data = StepBuilder(
         id="index_to_elasticsearch",
         phase=INDEXING,
-        module="preprocessor.modules.search.indexing:ElasticsearchIndexerStep",
+        module="preprocessor.steps.search.indexing:ElasticsearchIndexerStep",
         description="Indexes documents into Elasticsearch",
         produces=["<elasticsearch_index>"],
         needs=[elastic_documents],
@@ -281,6 +283,16 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
             dry_run=series_config.indexing.elasticsearch.dry_run,
             append=series_config.indexing.elasticsearch.append,
         ),
+    )
+
+    validation = StepBuilder(
+        id="validate",
+        phase=VALIDATION,
+        module="preprocessor.steps.validation.validator_step:ValidationStep",
+        description="Validates all processed data and generates reports",
+        produces=["validation_reports/{season}/"],
+        needs=[indexed_data, episode_archives],
+        config=ValidationConfig(),
     )
 
     pipeline = PipelineDefinition(name=f"{series_name}_processing")
@@ -309,6 +321,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(elastic_documents)
     pipeline.register(episode_archives)
     pipeline.register(indexed_data)
+    pipeline.register(validation)
 
     pipeline.validate()
 

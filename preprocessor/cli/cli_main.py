@@ -14,7 +14,7 @@ from preprocessor.app.pipeline_factory import (
 from preprocessor.cli.helpers import setup_pipeline_context
 from preprocessor.cli.skip_list_builder import SkipListBuilder
 from preprocessor.config.series_config import SeriesConfig
-from preprocessor.lib.io.path_resolver import PathResolver
+from preprocessor.services.io.path_resolver import PathResolver
 
 
 @click.group()
@@ -156,10 +156,10 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     from elasticsearch import AsyncElasticsearch  # pylint: disable=import-outside-toplevel
 
-    from preprocessor.lib.search.clients.elasticsearch_queries import ElasticsearchQueries  # pylint: disable=import-outside-toplevel
-    from preprocessor.lib.search.clients.embedding_service import EmbeddingService  # pylint: disable=import-outside-toplevel
-    from preprocessor.lib.search.clients.hash_service import HashService  # pylint: disable=import-outside-toplevel
-    from preprocessor.lib.search.clients.result_formatters import ResultFormatter  # pylint: disable=import-outside-toplevel
+    from preprocessor.services.search.clients.elasticsearch_queries import ElasticsearchQueries  # pylint: disable=import-outside-toplevel
+    from preprocessor.services.search.clients.embedding_service import EmbeddingService  # pylint: disable=import-outside-toplevel
+    from preprocessor.services.search.clients.hash_service import HashService  # pylint: disable=import-outside-toplevel
+    from preprocessor.services.search.clients.result_formatters import ResultFormatter  # pylint: disable=import-outside-toplevel
 
     if not any([
         text, text_semantic, text_to_video, image, phash, character, emotion,

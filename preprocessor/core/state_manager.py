@@ -13,7 +13,7 @@ from typing import (
     Optional,
 )
 
-from preprocessor.lib.ui.console import console
+from preprocessor.services.ui.console import console
 
 
 @dataclass

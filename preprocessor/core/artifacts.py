@@ -107,4 +107,9 @@ class ObjectDetectionData(EpisodeArtifact):
 class ArchiveArtifact(EpisodeArtifact):
     path: Path
 
+@dataclass(frozen=True)
+class ValidationResult(Artifact):
+    season: str
+    validation_report_dir: Path
+
 ProcessedEpisode = ElasticDocuments

@@ -14,7 +14,7 @@ from typing import (
 
 from pydantic import SecretStr
 
-from preprocessor.lib.media.resolution import Resolution
+from preprocessor.services.media.resolution import Resolution
 
 is_docker = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
 BASE_OUTPUT_DIR = Path('/app/output_data') if is_docker else Path('preprocessor/output_data')

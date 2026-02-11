@@ -5,9 +5,9 @@ from typing import Optional
 
 from preprocessor.core.context import ExecutionContext
 from preprocessor.core.state_manager import StateManager
-from preprocessor.lib.core.logging import ErrorHandlingLogger
-from preprocessor.lib.episodes.episode_manager import EpisodeManager
-from preprocessor.lib.io.path_resolver import PathResolver
+from preprocessor.services.core.logging import ErrorHandlingLogger
+from preprocessor.services.episodes.episode_manager import EpisodeManager
+from preprocessor.services.io.path_resolver import PathResolver
 
 
 @dataclass

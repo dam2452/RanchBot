@@ -2,7 +2,7 @@ import logging
 import sys
 
 from preprocessor.cli import cli
-from preprocessor.lib.ui.console import console
+from preprocessor.services.ui.console import console
 
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)

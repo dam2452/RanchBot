@@ -1,4 +1,8 @@
-from typing import List
+from pathlib import Path
+from typing import (
+    List,
+    Optional,
+)
 
 from pydantic import (
     BaseModel,
@@ -8,7 +12,7 @@ from pydantic import (
 from typing_extensions import Self
 
 from preprocessor.config.enums import KeyframeStrategy
-from preprocessor.lib.media.resolution import Resolution
+from preprocessor.services.media.resolution import Resolution
 
 
 class TranscodeConfig(BaseModel):
@@ -109,7 +113,8 @@ class ArchiveConfig(BaseModel):
     pass
 
 class ValidationConfig(BaseModel):
-    pass
+    anomaly_threshold: float = 20.0
+    episodes_info_json: Optional[Path] = None
 
 
 class EpisodeScraperConfig(BaseModel):

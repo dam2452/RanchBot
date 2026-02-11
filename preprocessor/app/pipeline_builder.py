@@ -8,8 +8,8 @@ from typing import (
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.lib.episodes.episode_manager import EpisodeManager
-from preprocessor.lib.video.discovery import VideoDiscovery
+from preprocessor.services.episodes.episode_manager import EpisodeManager
+from preprocessor.services.video.discovery import VideoDiscovery
 
 if TYPE_CHECKING:
     from preprocessor.app.pipeline import PipelineDefinition

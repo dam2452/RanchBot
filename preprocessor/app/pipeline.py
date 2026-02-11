@@ -11,7 +11,7 @@ import networkx as nx
 from preprocessor.app.step_builder import StepBuilder
 
 if TYPE_CHECKING:
-    from preprocessor.lib.core.logging import ErrorHandlingLogger
+    from preprocessor.services.core.logging import ErrorHandlingLogger
 
 
 class PipelineDefinition:
