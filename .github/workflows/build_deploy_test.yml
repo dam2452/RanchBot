@@ -110,7 +110,7 @@ jobs:
 
       - name: Read version
         id: version
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to registry
         uses: docker/login-action@v3
