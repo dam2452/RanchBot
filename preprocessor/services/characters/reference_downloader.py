@@ -22,7 +22,7 @@ from patchright.sync_api import (
     sync_playwright,
 )
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.characters.face_detection import FaceDetector
 from preprocessor.services.characters.image_search import (
     BaseImageSearch,

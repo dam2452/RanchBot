@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from preprocessor.config.config import settings
 from preprocessor.config.constants import OUTPUT_FILE_NAMES
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.config.settings_instance import settings
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.file_validators import FileValidator
 from preprocessor.services.validation.validators.base_validator import BaseValidator
 
@@ -23,27 +23,29 @@ class ElasticValidator(BaseValidator):
         self.__validate_text_statistics(stats)
 
     def __validate_character_detections(self, stats: 'EpisodeStats') -> None:
-        char_detections_dir = PathManager(stats.series_name).get_episode_dir(
+        char_detections_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.character_detections,
         )
         detections_file = char_detections_dir / OUTPUT_FILE_NAMES['detections']
 
-        if detections_file.exists():
-            result = FileValidator.validate_json_file(detections_file)
-            if not result.is_valid:
-                self._add_error(stats, f"Invalid {OUTPUT_FILE_NAMES['detections']}: {result.error_message}")
+        self._validate_json_if_exists(
+            stats,
+            detections_file,
+            error_msg_prefix=f"Invalid {OUTPUT_FILE_NAMES['detections']}",
+        )
 
     def __validate_embeddings(self, stats: 'EpisodeStats') -> None:
-        embeddings_dir = PathManager(stats.series_name).get_episode_dir(
+        embeddings_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.embeddings,
         )
 
         if embeddings_dir.exists():
             embeddings_file = embeddings_dir / OUTPUT_FILE_NAMES['embeddings_text']
-            if embeddings_file.exists():
-                result = FileValidator.validate_json_file(embeddings_file)
-                if not result.is_valid:
-                    self._add_error(stats, f"Invalid {OUTPUT_FILE_NAMES['embeddings_text']}: {result.error_message}")
+            self._validate_json_if_exists(
+                stats,
+                embeddings_file,
+                error_msg_prefix=f"Invalid {OUTPUT_FILE_NAMES['embeddings_text']}",
+            )
 
     def __validate_elastic_documents(self, stats: 'EpisodeStats') -> None:
         elastic_subdirs = [
@@ -60,7 +62,7 @@ class ElasticValidator(BaseValidator):
         found_elastic_docs = False
         for subdir in elastic_subdirs:
             elastic_base = settings.output_subdirs.elastic_documents
-            elastic_docs_dir = PathManager(stats.series_name).get_episode_dir(
+            elastic_docs_dir = PathService(stats.series_name).get_episode_dir(
                 stats.episode_info, f'{elastic_base}/{subdir}',
             )
 
@@ -77,7 +79,7 @@ class ElasticValidator(BaseValidator):
             self._add_warning(stats, f'Missing {settings.output_subdirs.elastic_documents} directory')
 
     def __validate_text_statistics(self, stats: 'EpisodeStats') -> None:
-        transcriptions_dir = PathManager(stats.series_name).get_episode_dir(
+        transcriptions_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.transcriptions,
         )
 

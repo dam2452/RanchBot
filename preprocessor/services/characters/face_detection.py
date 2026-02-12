@@ -14,7 +14,7 @@ import numpy as np
 from numpy.linalg import norm
 import onnxruntime as ort
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.ui.console import console
 
 warnings.filterwarnings('ignore', message='.*estimate.*is deprecated.*', category=FutureWarning, module='insightface')

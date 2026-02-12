@@ -14,10 +14,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import (
-    atomic_write_json,
-    load_json,
-)
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.io.metadata import MetadataBuilder
 from preprocessor.services.search.embedding_model import EmbeddingModelWrapper
 
@@ -84,7 +81,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         output_path: Path,
         input_data: TranscriptionData,
     ) -> EmbeddingCollection:
-        emb_data: Dict[str, Any] = load_json(output_path)
+        emb_data: Dict[str, Any] = FileOperations.load_json(output_path)
         return self._create_embedding_collection(
             input_data,
             output_path,
@@ -159,8 +156,8 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
             batch_meta: List[Dict[str, Any]] = chunk_metadata[i:i + self.config.batch_size]
             batch_embeddings: List[List[float]] = self._model.encode_text(batch_texts)
 
-            for meta, emb in zip(batch_meta, batch_embeddings):
-                results.append({**meta, 'embedding': emb})
+            for meta, embedding in zip(batch_meta, batch_embeddings):
+                results.append({**meta, 'embedding': embedding})
 
         return results
 
@@ -180,7 +177,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
             results_key='text_embeddings',
             results_data=results,
         )
-        atomic_write_json(output_path, output_data)
+        FileOperations.atomic_write_json(output_path, output_data)
 
     def _create_embedding_collection(  # pylint: disable=duplicate-code
         self,
@@ -218,8 +215,8 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
             raw_path.name.replace('.json', '_clean_transcription.json')
         )
         if clean_path.exists():
-            return load_json(clean_path)
-        return load_json(raw_path)
+            return FileOperations.load_json(clean_path)
+        return FileOperations.load_json(raw_path)
 
     @staticmethod
     def __split_into_sentences(text: str) -> List[str]:

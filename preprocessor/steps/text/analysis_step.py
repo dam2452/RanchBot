@@ -12,10 +12,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import (
-    atomic_write_json,
-    load_json,
-)
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.text.text_statistics import TextStatistics
 
 
@@ -34,7 +31,7 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
         stats = self._analyze_text_statistics(txt_path)
         result_data = self._build_result_data(stats, txt_path, input_data)
 
-        atomic_write_json(output_path, result_data)
+        FileOperations.atomic_write_json(output_path, result_data)
         context.mark_step_completed(self.name, input_data.episode_id)
 
         return TextAnalysisResults(
@@ -56,7 +53,7 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
 
     @staticmethod
     def _load_cached_result(output_path: Path, input_data: TranscriptionData) -> TextAnalysisResults:
-        stats_data = load_json(output_path)
+        stats_data = FileOperations.load_json(output_path)
         return TextAnalysisResults(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,

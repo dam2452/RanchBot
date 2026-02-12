@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import (
     Any,
+    ClassVar,
     Dict,
     List,
     Optional,
@@ -14,19 +15,9 @@ from typing import (
 
 from pydantic import SecretStr
 
+from preprocessor.config.mixins import OutputDirMixin
 from preprocessor.services.media.resolution import Resolution
 
-is_docker = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
-BASE_OUTPUT_DIR = Path('/app/output_data') if is_docker else Path('preprocessor/output_data')
-
-def get_base_output_dir(series_name: Optional[str]=None) -> Path:
-    base = Path('/app/output_data') if is_docker else Path('preprocessor/output_data')
-    if series_name:
-        return base / series_name.lower()
-    return base
-
-def get_output_path(relative_path: str, series_name: Optional[str]=None) -> Path:
-    return get_base_output_dir(series_name) / relative_path
 
 @dataclass
 class ElasticDocumentSubdirs:
@@ -73,25 +64,21 @@ class BaseAPISettings:
         return self._api_key.get_secret_value() if self._api_key else None
 
 @dataclass
-class TranscodeSettings:
+class TranscodeSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'transcoded_videos'
+
     audio_bitrate_kbps: int = 128
     codec: str = 'h264_nvenc'
     gop_size: float = 0.5
     target_duration_seconds: float = 100.0
     target_file_size_mb: float = 50.0
 
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'transcoded_videos'
-
 @dataclass
-class SceneDetectionSettings:
+class SceneDetectionSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'scene_timestamps'
+
     min_scene_len: int = 10
     threshold: float = 0.5
-
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'scene_timestamps'
 
 @dataclass
 class SceneChangesSettings:
@@ -103,22 +90,18 @@ class KeyframeExtractionSettings:
     strategy: str = 'scene_changes'
 
 @dataclass
-class FrameExportSettings:
+class FrameExportSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'exported_frames'
+
     resolution: Resolution = Resolution.R1080P
 
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'exported_frames'
-
 @dataclass
-class TranscriptionSettings:
+class TranscriptionSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'transcriptions'
+
     device: str = 'cuda'
     language: str = 'Polish'
     model: str = 'large-v3-turbo'
-
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'transcriptions'
 
 @dataclass
 class WhisperSettings:
@@ -163,16 +146,14 @@ class EmbeddingModelSettings:
     tensor_parallel_size: int = 1
 
 @dataclass
-class EmbeddingSettings:
+class EmbeddingSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'embeddings'
+
     batch_size: int = 32
     generate_full_episode_embedding: bool = True
     prefetch_chunks: int = 2
     progress_sub_batch_size: int = 100
     text_batch_size: int = 64
-
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'embeddings'
 
 @dataclass
 class FaceRecognitionSettings:
@@ -180,14 +161,12 @@ class FaceRecognitionSettings:
     model_name: str = 'buffalo_l'
 
 @dataclass
-class FaceClusteringSettings:
+class FaceClusteringSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'face_clusters'
+
     min_cluster_size: int = 5
     min_samples: int = 3
     save_noise: bool = True
-
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'face_clusters'
 
 @dataclass
 class EmotionDetectionSettings:
@@ -199,32 +178,25 @@ class EmotionDetectionSettings:
         return cls(model_name=model_name)
 
 @dataclass
-class CharacterSettings:
+class CharacterSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'characters'
+
     face_detection_threshold: float = 0.2
     frame_detection_threshold: float = 0.55
     normalized_face_size: Tuple[int, int] = (112, 112)
     reference_images_per_character: int = 3
     reference_matching_threshold: float = 0.5
 
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'characters'
-
 @dataclass
-class ObjectDetectionSettings:
+class ObjectDetectionSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'object_detections'
+
     conf_threshold: float = 0.3
     model_name: str = 'ustc-community/dfine-xlarge-obj2coco'
 
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'object_detections'
-
 @dataclass
-class ImageHashSettings:
-
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'image_hashes'
+class ImageHashSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'image_hashes'
 
 @dataclass
 class ImageScraperSettings(BaseAPISettings):
@@ -249,11 +221,8 @@ class ImageScraperSettings(BaseAPISettings):
         return cls(_api_key=api_key)
 
 @dataclass
-class ScraperSettings:
-
-    @staticmethod
-    def get_output_dir(series_name: str) -> Path:
-        return get_base_output_dir(series_name) / 'scraped_pages'
+class ScraperSettings(OutputDirMixin):
+    OUTPUT_SUBDIR: ClassVar[str] = 'scraped_pages'
 
 @dataclass
 class ElasticsearchSettings:
@@ -386,4 +355,3 @@ class IndexConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         return {'name': self.name, 'transcription_jsons': str(self.transcription_jsons), 'dry_run': self.dry_run, 'append': self.append}
-settings = Settings._from_env()

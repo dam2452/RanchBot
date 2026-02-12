@@ -7,9 +7,9 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.config import settings
 from preprocessor.config.constants import OUTPUT_FILE_PATTERNS
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.config.settings_instance import settings
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.file_validators import FileValidator
 from preprocessor.services.validation.validators.base_validator import BaseValidator
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class SceneValidator(BaseValidator):
 
     def validate(self, stats: 'EpisodeStats') -> None:
-        scenes_dir = PathManager(stats.series_name).get_episode_dir(
+        scenes_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.scenes,
         )
         scenes_file = scenes_dir / f"{stats.series_name}_{stats.episode_info.episode_code()}{OUTPUT_FILE_PATTERNS['scenes_suffix']}"

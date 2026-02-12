@@ -16,7 +16,7 @@ from typing import (
 from preprocessor.config.constants import SUPPORTED_VIDEO_EXTENSIONS
 from preprocessor.core.state_manager import StateManager
 from preprocessor.services.core.logging import ErrorHandlingLogger
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.ui.console import (
     SimpleProgress,
     console,
@@ -58,7 +58,7 @@ class BaseProcessor(ABC):
         self.logger = ErrorHandlingLogger(class_name=class_name, loglevel=loglevel, error_exit_code=error_exit_code)
         self.state_manager: Optional[StateManager] = args.get('state_manager')
         self.series_name: str = args.get('series_name', 'unknown')
-        self.path_manager: PathManager = args.get('path_manager', PathManager(self.series_name))
+        self.path_manager: PathService = args.get('path_manager', PathService(self.series_name))
         self.progress = args.get('progress_tracker', ProgressTracker())
 
     def cleanup(self) -> None:

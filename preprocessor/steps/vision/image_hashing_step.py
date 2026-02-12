@@ -1,3 +1,4 @@
+# pylint: disable=cyclic-import  # False positive - config uses import-outside-toplevel
 import gc
 from pathlib import Path
 from typing import (
@@ -16,10 +17,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import (
-    atomic_write_json,
-    load_json,
-)
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.video.frame_utils import FrameLoader
 from preprocessor.services.video.image_hasher import PerceptualHasher
 
@@ -78,7 +76,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
     @staticmethod
     def _load_cached_result(output_path: Path, input_data: FrameCollection) -> ImageHashCollection:
-        hash_data: Dict[str, Any] = load_json(output_path)
+        hash_data: Dict[str, Any] = FileOperations.load_json(output_path)
         return ImageHashCollection(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
@@ -91,7 +89,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         input_data: FrameCollection,
         context: ExecutionContext,
     ) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
-        frame_metadata: Dict[str, Any] = load_json(input_data.metadata_path)
+        frame_metadata: Dict[str, Any] = FileOperations.load_json(input_data.metadata_path)
         frame_requests: List[Dict[str, Any]] = frame_metadata.get('frames', [])
         if not frame_requests:
             context.logger.warning(f'No frames to hash for {input_data.episode_id}')
@@ -156,7 +154,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
             },
             'hashes': hash_results,
         }
-        atomic_write_json(output_path, output_data)
+        FileOperations.atomic_write_json(output_path, output_data)
 
     @staticmethod
     def __cleanup_memory() -> None:

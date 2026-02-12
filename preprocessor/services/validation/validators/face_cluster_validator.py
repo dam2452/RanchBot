@@ -7,8 +7,8 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.config import settings
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.config.settings_instance import settings
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.file_validators import FileValidator
 from preprocessor.services.validation.validators.base_validator import BaseValidator
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class FaceClusterValidator(BaseValidator):
 
     def validate(self, stats: 'EpisodeStats') -> None:
-        clusters_dir = PathManager(stats.series_name).get_episode_dir(
+        clusters_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.face_clusters,
         )
 

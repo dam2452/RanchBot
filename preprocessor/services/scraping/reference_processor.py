@@ -7,6 +7,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 import warnings
 
@@ -14,7 +15,7 @@ import cv2
 from insightface.app import FaceAnalysis
 import numpy as np
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.characters.face_detection import FaceDetector
 from preprocessor.services.characters.models import (
     CandidateFace,
@@ -291,51 +292,90 @@ class CharacterReferenceProcessor(BaseProcessor):
     ) -> Optional[List[FaceData]]:
         first_image_faces = all_faces[0]
         remaining_images = all_faces[1:]
-        candidates = []
+
+        candidates = self.__find_all_face_candidates(first_image_faces, remaining_images, all_faces)
+        return self.__select_final_candidate(
+            candidates, first_image_faces, all_faces, char_name, reference_images,
+        )
+
+    def __find_all_face_candidates(
+        self,
+        first_image_faces: List[FaceData],
+        remaining_images: List[List[FaceData]],
+        all_faces: List[List[FaceData]],
+    ) -> List[CandidateFace]:
+        candidates: List[CandidateFace] = []
         for first_face in first_image_faces:
             matched_faces = [first_face]
-            similarities = []
+            similarities: List[float] = []
+
             for other_image_faces in remaining_images:
                 if not other_image_faces:
                     break
-                best_match = None
-                best_similarity: float = -1.0
-                for other_face in other_image_faces:
-                    similarity: float = float(
-                        np.dot(
-                            first_face.face_vector,
-                            other_face.face_vector,
-                        ),
-                    )
-                    if similarity > best_similarity:
-                        best_similarity = similarity
-                        best_match = other_face
+
+                best_match, best_similarity = self.__find_best_matching_face(
+                    first_face, other_image_faces,
+                )
+
                 if best_match:
                     matched_faces.append(best_match)
                     similarities.append(best_similarity)
-                    if best_similarity < self.similarity_threshold:
-                        console.print(
-                            f'[yellow]Warning: Low similarity {best_similarity:.2f} < '
-                            f'{self.similarity_threshold:.2f}[/yellow]',
-                        )
+                    self.__warn_if_low_similarity(best_similarity)
                 else:
                     break
+
             if len(matched_faces) == len(all_faces):
-                avg_similarity = np.mean(similarities) if similarities else 1.0
+                avg_similarity = float(np.mean(similarities)) if similarities else 1.0
                 candidates.append(CandidateFace(faces=matched_faces, avg_similarity=avg_similarity))
+
+        return candidates
+
+    def __find_best_matching_face(
+        self,
+        reference_face: FaceData,
+        candidate_faces: List[FaceData],
+    ) -> Tuple[Optional[FaceData], float]:
+        best_match: Optional[FaceData] = None
+        best_similarity: float = -1.0
+
+        for candidate_face in candidate_faces:
+            similarity: float = float(
+                np.dot(reference_face.face_vector, candidate_face.face_vector),
+            )
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = candidate_face
+
+        return best_match, best_similarity
+
+    def __warn_if_low_similarity(self, similarity: float) -> None:
+        if similarity < self.similarity_threshold:
+            console.print(
+                f'[yellow]Warning: Low similarity {similarity:.2f} < '
+                f'{self.similarity_threshold:.2f}[/yellow]',
+            )
+
+    def __select_final_candidate(
+        self,
+        candidates: List[CandidateFace],
+        first_image_faces: List[FaceData],
+        all_faces: List[List[FaceData]],
+        char_name: str,
+        reference_images: List[Path],
+    ) -> Optional[List[FaceData]]:
         if len(candidates) == 0:
             if self.interactive:
                 return self.__ask_user_to_select_initial_face(
-                    first_image_faces,
-                    all_faces,
-                    char_name,
-                    reference_images,
+                    first_image_faces, all_faces, char_name, reference_images,
                 )
             return None
+
         if len(candidates) == 1:
             return candidates[0].faces
+
         if self.interactive:
             return self.__ask_user_to_select_candidate(candidates, char_name)
+
         candidates.sort(key=lambda c: c.avg_similarity, reverse=True)
         return candidates[0].faces
 

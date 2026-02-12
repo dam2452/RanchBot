@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.validation.validators.base_validator import BaseValidator
 from preprocessor.services.validation.validators.validation_helpers import JsonDirectoryValidationHelper
 

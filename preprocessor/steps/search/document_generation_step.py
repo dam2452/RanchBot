@@ -12,7 +12,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import load_json
+from preprocessor.services.io.files import FileOperations
 
 
 class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGenerationConfig]):
@@ -82,15 +82,15 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
         clean_filename = f'{context.series_name}_{episode_info.episode_code()}_clean_transcription.json'
         clean_path = context.get_output_path(episode_info, 'transcriptions/clean', clean_filename)
         if clean_path.exists():
-            data['transcription'] = load_json(clean_path)
+            data['transcription'] = FileOperations.load_json(clean_path)
         text_emb_filename = f'{context.series_name}_{episode_info.episode_code()}_embeddings_text.json'
         text_emb_path = context.get_output_path(episode_info, 'embeddings', text_emb_filename)
         if text_emb_path.exists():
-            data['text_embeddings'] = load_json(text_emb_path)
+            data['text_embeddings'] = FileOperations.load_json(text_emb_path)
         scene_filename = f'{context.series_name}_{episode_info.episode_code()}_scenes.json'
         scene_path = context.get_output_path(episode_info, 'scene_timestamps', scene_filename)
         if scene_path.exists():
-            data['scenes'] = load_json(scene_path)
+            data['scenes'] = FileOperations.load_json(scene_path)
         return data
 
     def __generate_segments_jsonl(self, data: Dict[str, Any], episode_info: Any, context: ExecutionContext) -> tuple[Path, int]:

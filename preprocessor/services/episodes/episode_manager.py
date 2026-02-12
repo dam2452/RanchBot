@@ -5,17 +5,15 @@ import re
 from typing import (
     Any,
     Dict,
-    List,
     Optional,
 )
 
 from preprocessor.config.constants import (
-    SUPPORTED_VIDEO_EXTENSIONS,
     EpisodeMetadataKeys,
     EpisodesDataKeys,
 )
 from preprocessor.services.core.logging import ErrorHandlingLogger
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.services.io.path_service import PathService
 
 
 @dataclass
@@ -45,7 +43,7 @@ class EpisodeManager:
     def __init__(self, episodes_info_json: Optional[Path], series_name: str, logger: Optional[ErrorHandlingLogger]=None) -> None:
         self.series_name = series_name.lower()
         self.episodes_data: Optional[Dict[str, Any]] = None
-        self.path_manager = PathManager(self.series_name)
+        self.path_manager = PathService(self.series_name)
         self._logger: Optional[ErrorHandlingLogger] = logger
         if episodes_info_json and episodes_info_json.exists():
             with open(episodes_info_json, 'r', encoding='utf-8') as f:
@@ -120,85 +118,3 @@ class EpisodeManager:
             premiere_date=premiere_date,
             viewership=viewership,
         )
-
-    @staticmethod
-    def __find_scene_timestamps_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:
-        if not search_dir.exists():
-            return None
-        episode_code = episode_info.episode_code()
-        pattern = f'**/*{episode_code}*_scenes.json'
-        for scene_file in search_dir.glob(pattern):
-            return scene_file
-        return None
-
-    def __find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool=True) -> Optional[Path]:  # pylint: disable=unused-private-member
-        if not search_dir.exists():
-            return None
-        season_dir_name = episode_info.season_code()
-        season_dir = search_dir / season_dir_name
-        if not season_dir.exists():
-            return None
-        if prefer_segmented:
-            segmented = season_dir / self.path_manager.build_filename(episode_info, extension='json', suffix='segmented')
-            if segmented.exists():
-                return segmented
-        regular = season_dir / self.path_manager.build_filename(episode_info, extension='json')
-        if regular.exists():
-            return regular
-        return None
-
-    @staticmethod
-    def __find_video_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:  # pylint: disable=unused-private-member
-        if not search_dir.exists():
-            return None
-        if search_dir.is_file():
-            return search_dir
-        episode_code = episode_info.episode_code()
-        season_dir_name = episode_info.season_code()
-        search_dirs = [search_dir / season_dir_name, search_dir]
-        for dir_path in search_dirs:
-            if not dir_path.exists():
-                continue
-            for ext in SUPPORTED_VIDEO_EXTENSIONS:
-                for video_file in dir_path.glob(f'*{ext}'):
-                    if re.search(episode_code, video_file.name, re.IGNORECASE):
-                        return video_file
-        return None
-
-    def __list_all_episodes(self) -> List[EpisodeInfo]:  # pylint: disable=unused-private-member
-        episodes: List[EpisodeInfo] = []
-        if not self.episodes_data:
-            return episodes
-        for season_data in self.episodes_data.get(EpisodesDataKeys.SEASONS, []):
-            season_num = season_data.get(EpisodesDataKeys.SEASON_NUMBER, 1)
-            season_episodes = sorted(season_data.get(EpisodesDataKeys.EPISODES, []), key=lambda ep: ep.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0))
-            for idx, ep_data in enumerate(season_episodes):
-                episodes.append(
-                    self.__create_episode_info(
-                        season=season_num,
-                        relative_episode=idx + 1,
-                        title=ep_data.get(EpisodeMetadataKeys.TITLE),
-                        premiere_date=ep_data.get(EpisodeMetadataKeys.PREMIERE_DATE),
-                        viewership=ep_data.get(EpisodeMetadataKeys.VIEWERSHIP),
-                    ),
-                )
-        return episodes
-
-    @staticmethod
-    def __load_scene_timestamps(  # pylint: disable=unused-private-member
-        episode_info: EpisodeInfo,
-        search_dir: Optional[Path],
-        _logger: Optional[ErrorHandlingLogger]=None,
-    ) -> Optional[List[Dict[str, Any]]]:
-        if not search_dir:
-            return None
-        scene_file = EpisodeManager.__find_scene_timestamps_file(episode_info, search_dir)
-        if not scene_file:
-            return None
-        try:
-            with open(scene_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            if _logger:
-                _logger.error(f'Failed to load scene timestamps: {e}')
-            return None

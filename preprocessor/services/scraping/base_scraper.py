@@ -9,11 +9,11 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.config import settings
 from preprocessor.config.enums import (
     ParserMode,
     ScraperMethod,
 )
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.ai import LLMProvider
 from preprocessor.services.core.base_processor import BaseProcessor
 from preprocessor.services.scraping.clipboard import ScraperClipboard

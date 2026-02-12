@@ -5,6 +5,8 @@ from typing import (
     Optional,
 )
 
+from preprocessor.config.config import Settings
+from preprocessor.config.settings_factory import SettingsFactory
 from preprocessor.services.core.logging import ErrorHandlingLogger
 
 if TYPE_CHECKING:
@@ -20,12 +22,14 @@ class ExecutionContext:
         logger: ErrorHandlingLogger,
         state_manager: Optional['StateManager'] = None,
         force_rerun: bool = False,
+        settings: Optional[Settings] = None,
     ) -> None:
         self._series_name: str = series_name
         self._base_output_dir: Path = base_output_dir / series_name
         self._state_manager: Optional['StateManager'] = state_manager
         self._force_rerun: bool = force_rerun
         self._logger: ErrorHandlingLogger = logger
+        self._settings: Settings = settings or SettingsFactory.get_settings()
 
     @property
     def force_rerun(self) -> bool:
@@ -72,6 +76,15 @@ class ExecutionContext:
     @property
     def series_name(self) -> str:
         return self._series_name
+
+    @property
+    def settings(self) -> Settings:
+        """Get settings instance.
+
+        Returns:
+            The active Settings instance for this context.
+        """
+        return self._settings
 
     @property
     def state_manager(self) -> Optional['StateManager']:

@@ -1,2 +1,0 @@
-class HashStorage:
-    pass

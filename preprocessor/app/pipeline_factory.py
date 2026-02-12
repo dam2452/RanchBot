@@ -5,7 +5,7 @@ from preprocessor.app.step_builder import (
     Phase,
     StepBuilder,
 )
-from preprocessor.config.config import get_base_output_dir
+from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.config.series_config import SeriesConfig
 from preprocessor.config.step_configs import (
     ArchiveConfig,

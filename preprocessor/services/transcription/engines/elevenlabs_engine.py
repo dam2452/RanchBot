@@ -10,7 +10,7 @@ from typing import (
 from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.core.logging import ErrorHandlingLogger
 from preprocessor.services.transcription.engines.base_engine import TranscriptionEngine
 from preprocessor.services.ui.console import console

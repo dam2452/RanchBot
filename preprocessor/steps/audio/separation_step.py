@@ -20,7 +20,7 @@ from preprocessor.config.types import (
 from preprocessor.core.artifacts import TranscriptionData
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import atomic_write_json
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.transcription.sound_classification import (
     classify_segment,
     is_sound_event,
@@ -130,10 +130,10 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         clean_data = {'episode_info': episode_info_dict, 'segments': dialogue_segments}
         sound_data = {'episode_info': episode_info_dict, 'segments': sound_segments}
 
-        atomic_write_json(output_paths['clean_json'], clean_data)
-        atomic_write_json(output_paths['sound_json'], sound_data)
-        atomic_write_json(output_paths['clean_segmented'], clean_data)
-        atomic_write_json(output_paths['sound_segmented'], sound_data)
+        FileOperations.atomic_write_json(output_paths['clean_json'], clean_data)
+        FileOperations.atomic_write_json(output_paths['sound_json'], sound_data)
+        FileOperations.atomic_write_json(output_paths['clean_segmented'], clean_data)
+        FileOperations.atomic_write_json(output_paths['sound_segmented'], sound_data)
 
     def _generate_additional_formats(
         self,

@@ -12,10 +12,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import (
-    atomic_write_json,
-    load_json,
-)
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.media.scene_detection import TransNetWrapper
 
 
@@ -57,7 +54,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
         return context.get_output_path(input_data.episode_info, 'scene_timestamps', output_filename)
 
     def _load_cached_result(self, output_path: Path, input_data: TranscodedVideo) -> SceneCollection:
-        scenes_data = load_json(output_path)
+        scenes_data = FileOperations.load_json(output_path)
         return SceneCollection(
             path=output_path,
             video_path=input_data.path,
@@ -93,7 +90,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
             },
             'scenes': scenes,
         }
-        atomic_write_json(output_path, output_data)
+        FileOperations.atomic_write_json(output_path, output_data)
 
     def _create_scene_collection(
         self,

@@ -6,7 +6,7 @@ from typing import (
     Tuple,
 )
 
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.file_validators import FileValidator
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class JsonDirectoryValidationHelper:
         exclude_pattern: Optional[str] = None,
         check_anomalies: bool = True,
     ) -> None:
-        dir_path = PathManager(stats.series_name).get_episode_dir(stats.episode_info, subdir)
+        dir_path = PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)
         count, sizes, errors = JsonDirectoryValidationHelper._validate_json_files_in_directory(
             dir_path, exclude_pattern,
         )
@@ -98,7 +98,7 @@ class VisualizationValidationHelper:
     def validate_visualizations(
         stats: 'EpisodeStats', subdir: str, count_attr: str, context_name: str,
     ) -> None:
-        viz_dir = PathManager(stats.series_name).get_episode_dir(stats.episode_info, subdir)
+        viz_dir = PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)
         total_count, invalid_count, errors = VisualizationValidationHelper._validate_images_in_directory(viz_dir)
 
         if total_count == 0 and viz_dir.exists():

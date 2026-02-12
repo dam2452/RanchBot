@@ -13,7 +13,7 @@ from typing import (
 import cv2
 import numpy as np
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 
 
 @dataclass

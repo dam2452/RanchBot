@@ -1,8 +1,8 @@
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from preprocessor.config.config import get_base_output_dir
+from preprocessor.config.output_paths import get_base_output_dir
+from preprocessor.services.core.environment import Environment
 
 if TYPE_CHECKING:
     from preprocessor.services.episodes.episode_manager import EpisodeInfo
@@ -26,11 +26,8 @@ class PathService:
 
     @staticmethod
     def get_input_base() -> Path:
-        return Path('/input_data') if PathService._is_docker() else Path('preprocessor/input_data')
+        return Path('/input_data') if Environment.is_docker() else Path('preprocessor/input_data')
 
     @staticmethod
     def get_output_base() -> Path:
-        return Path('/app/output_data') if PathService._is_docker() else Path('preprocessor/output_data')
-    @staticmethod
-    def _is_docker() -> bool:
-        return os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
+        return Path('/app/output_data') if Environment.is_docker() else Path('preprocessor/output_data')

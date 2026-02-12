@@ -8,10 +8,10 @@ from typing import (
 from rich.console import Console
 from rich.progress import track
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.episodes import EpisodeManager
 from preprocessor.services.io.files import FileOperations
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.episode_stats import EpisodeStats
 from preprocessor.services.validation.report_generator import ReportGenerator
 from preprocessor.services.validation.season_comparator import SeasonComparison
@@ -83,7 +83,7 @@ class Validator:
                 'warnings': stats.warnings,
                 'stats': stats.to_dict()['stats'],
             }
-            path_manager = PathManager(self.series_name)
+            path_manager = PathService(self.series_name)
             report_filename = path_manager.build_filename(stats.episode_info, extension='json')
             report_path = self.validation_reports_dir / report_filename
             FileOperations.atomic_write_json(report_path, episode_report)

@@ -15,11 +15,7 @@ from preprocessor.core.artifacts import (
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.services.characters import FaceDetector
-from preprocessor.services.io.detection_io import process_frames_for_detection
-from preprocessor.services.io.files import (
-    atomic_write_json,
-    load_json,
-)
+from preprocessor.services.io.files import FileOperations
 
 
 class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, CharacterDetectionConfig]):
@@ -76,13 +72,13 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
 
     @staticmethod
     def _load_cached_result(output_path: Path, input_data: FrameCollection) -> DetectionResults:
-        det_data: Dict[str, Any] = load_json(output_path)
+        detection_data: Dict[str, Any] = FileOperations.load_json(output_path)
         return DetectionResults(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
             path=output_path,
             detection_type='character',
-            detection_count=len(det_data.get('detections', [])),
+            detection_count=len(detection_data.get('detections', [])),
         )
 
     def _ensure_model_loaded(self, context: ExecutionContext) -> None:
@@ -127,9 +123,17 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         )
 
     def _detect_characters(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
-        return process_frames_for_detection(
-            frame_files, self._face_app, self._character_vectors, self.config.threshold,
-        )
+        results: List[Dict[str, Any]] = []
+        for frame_path in frame_files:
+            detections: List[Dict[str, Any]] = FaceDetector.detect_characters_in_frame(
+                frame_path,
+                self._face_app,
+                self._character_vectors,
+                self.config.threshold,
+            )
+            if detections:
+                results.append({'frame': frame_path.name, 'faces': detections})
+        return results
 
     def _save_results(
         self,
@@ -150,7 +154,7 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             },
             'detections': results,
         }
-        atomic_write_json(output_path, output_data)
+        FileOperations.atomic_write_json(output_path, output_data)
 
     @staticmethod
     def __count_characters(results: List[Dict[str, Any]]) -> Dict[str, int]:

@@ -8,7 +8,7 @@ from typing import (
 from hsemotion_onnx.facial_emotions import HSEmotionRecognizer
 import numpy as np
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.core.logging import ErrorHandlingLogger
 
 EMOTION_LABELS = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral', 'sadness', 'surprise']
@@ -42,7 +42,7 @@ class EmotionDetector:
         return x1, y1, x2, y2
 
     @staticmethod
-    def __crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]:  # pylint: disable=unused-private-member
+    def _crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]:
         try:
             x1, y1, x2, y2 = (bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'])
             height, width = frame.shape[:2]
@@ -55,13 +55,13 @@ class EmotionDetector:
             return None
 
     @staticmethod
-    def __detect_batch(  # pylint: disable=unused-private-member
+    def _detect_batch(
         face_images: List[np.ndarray],
         model: HSEmotionRecognizer,
         batch_size: int = 32,
         logger: Optional[ErrorHandlingLogger] = None,
-    ) -> List[Tuple[str, float, Dict[str, float]]]:
-        results = []
+    ) -> List[Optional[Tuple[str, float, Dict[str, float]]]]:
+        results: List[Optional[Tuple[str, float, Dict[str, float]]]] = []
         total = len(face_images)
         for batch_start in range(0, total, batch_size):
             batch_end = min(batch_start + batch_size, total)
@@ -86,7 +86,7 @@ class EmotionDetector:
         return results
 
     @staticmethod
-    def __init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer:  # pylint: disable=unused-private-member
+    def _init_model(logger: Optional[ErrorHandlingLogger] = None) -> HSEmotionRecognizer:
         model_name = settings.emotion_detection.model_name
         if logger:
             logger.info(f'Loading HSEmotion model: {model_name}...')

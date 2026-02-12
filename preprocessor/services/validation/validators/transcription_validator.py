@@ -1,14 +1,11 @@
-import json
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
-    Any,
     Dict,
-    Optional,
 )
 
-from preprocessor.config.config import settings
-from preprocessor.services.io.path_manager import PathManager
+from preprocessor.config.settings_instance import settings
+from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.file_validators import FileValidator
 from preprocessor.services.validation.validators.base_validator import BaseValidator
 
@@ -19,7 +16,7 @@ if TYPE_CHECKING:
 class TranscriptionValidator(BaseValidator):
 
     def validate(self, stats: 'EpisodeStats') -> None:
-        transcriptions_dir = PathManager(stats.series_name).get_episode_dir(
+        transcriptions_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.transcriptions,
         )
         base_name = f'{stats.series_name}_{stats.episode_info.episode_code()}'
@@ -69,7 +66,7 @@ class TranscriptionValidator(BaseValidator):
         self.__extract_transcription_stats(stats, raw_transcription)
 
     def __extract_transcription_stats(self, stats: 'EpisodeStats', raw_transcription: Path) -> None:
-        data = self.__load_json_safely(raw_transcription)
+        data = self._load_json_safely(raw_transcription)
         if not data:
             self._add_error(stats, f'Error reading transcription: {raw_transcription}')
             return
@@ -91,34 +88,23 @@ class TranscriptionValidator(BaseValidator):
             if segments and segments[-1].get('end'):
                 stats.transcription_duration = segments[-1].get('end', 0.0)
 
-    @staticmethod
-    def __load_json_safely(file_path: Path) -> Optional[Dict[str, Any]]:
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return None
 
     def __validate_clean_transcription(self, stats: 'EpisodeStats', clean_transcription_file: Path) -> None:
-        if not clean_transcription_file.exists():
-            self._add_warning(
-                stats, f'Missing clean transcription file: {clean_transcription_file.name}',
-            )
-            return
-
-        result = FileValidator.validate_json_file(clean_transcription_file)
-        if not result.is_valid:
-            self._add_warning(stats, f'Invalid clean transcription JSON: {result.error_message}')
+        self._validate_json_with_warning(
+            stats,
+            clean_transcription_file,
+            missing_msg=f'Missing clean transcription file: {clean_transcription_file.name}',
+            invalid_msg_prefix='Invalid clean transcription JSON',
+        )
 
     def __validate_clean_txt(self, stats: 'EpisodeStats', clean_txt_file: Path) -> None:
         if not clean_txt_file.exists():
             self._add_warning(stats, f'Missing clean transcription txt: {clean_txt_file.name}')
 
     def __validate_sound_events(self, stats: 'EpisodeStats', sound_events_file: Path) -> None:
-        if not sound_events_file.exists():
-            self._add_warning(stats, f'Missing sound events file: {sound_events_file.name}')
-            return
-
-        result = FileValidator.validate_json_file(sound_events_file)
-        if not result.is_valid:
-            self._add_warning(stats, f'Invalid sound events JSON: {result.error_message}')
+        self._validate_json_with_warning(
+            stats,
+            sound_events_file,
+            missing_msg=f'Missing sound events file: {sound_events_file.name}',
+            invalid_msg_prefix='Invalid sound events JSON',
+        )

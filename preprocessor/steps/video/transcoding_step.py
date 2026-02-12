@@ -12,6 +12,7 @@ from preprocessor.core.artifacts import (
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.services.media.ffmpeg import FFmpegWrapper
+from preprocessor.services.media.transcode_params import TranscodeParams
 
 
 class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeConfig]):
@@ -312,21 +313,23 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 context.logger.info('=' * 80)
 
             FFmpegWrapper.transcode(
-                input_path=input_path,
-                output_path=temp_path,
-                codec=self.config.codec,
-                preset=self.config.preset,
-                resolution=f'{self.config.resolution.width}:{self.config.resolution.height}',
-                video_bitrate=f'{video_bitrate}M',
-                minrate=f'{minrate}M',
-                maxrate=f'{maxrate}M',
-                bufsize=f'{bufsize}M',
-                audio_bitrate=f'{audio_bitrate}k',
-                gop_size=int(target_fps * 0.5),
-                target_fps=target_fps,
-                deinterlace=deinterlace,
-                is_upscaling=is_upscaling,
-                log_command=log_command,
+                TranscodeParams(
+                    input_path=input_path,
+                    output_path=temp_path,
+                    codec=self.config.codec,
+                    preset=self.config.preset,
+                    resolution=f'{self.config.resolution.width}:{self.config.resolution.height}',
+                    video_bitrate=f'{video_bitrate}M',
+                    minrate=f'{minrate}M',
+                    maxrate=f'{maxrate}M',
+                    bufsize=f'{bufsize}M',
+                    audio_bitrate=f'{audio_bitrate}k',
+                    gop_size=int(target_fps * 0.5),
+                    target_fps=target_fps,
+                    deinterlace=deinterlace,
+                    is_upscaling=is_upscaling,
+                    log_command=log_command,
+                ),
             )
             temp_path.replace(output_path)
         except BaseException:

@@ -10,13 +10,15 @@ from typing import (
     Tuple,
 )
 
+from preprocessor.services.media.transcode_params import TranscodeParams
+
 
 class FFmpegWrapper:
-    __AQ_STRENGTH = '15'
+    __ADAPTIVE_QUANTIZATION_STRENGTH = '15'
     __AUDIO_CHANNELS = '2'
     __AUDIO_SAMPLE_RATE = '48000'
-    __BF = '2'
-    __B_ADAPT = '1'
+    __B_FRAMES = '2'
+    __B_ADAPT_MODE = '1'
     __LEVEL = '4.1'
     __PIX_FMT = 'yuv420p'
     __PROFILE = 'high'
@@ -140,38 +142,36 @@ class FFmpegWrapper:
         return json.loads(result.stdout)
 
     @staticmethod
-    def transcode(  # pylint: disable=too-many-arguments,too-many-locals
-        input_path: Path,
-        output_path: Path,
-        codec: str,
-        preset: str,
-        resolution: str,
-        video_bitrate: str,
-        minrate: str,
-        maxrate: str,
-        bufsize: str,
-        audio_bitrate: str,
-        gop_size: int,
-        target_fps: Optional[float] = None,
-        deinterlace: bool = False,
-        is_upscaling: bool = False,
-        log_command: bool = False,
-    ) -> None:
-        width, height = [int(x) for x in resolution.split(':')]
-        vf_filter = FFmpegWrapper.__build_video_filter(width, height, deinterlace, is_upscaling)
-        command = FFmpegWrapper.__build_base_command(input_path, codec, preset, target_fps)
+    def transcode(params: TranscodeParams) -> None:
+        """Transcode video with parameter object.
+
+        Args:
+            params: Transcoding parameters.
+        """
+        width, height = params.get_resolution_tuple()
+        vf_filter = FFmpegWrapper.__build_video_filter(
+            width, height, params.deinterlace, params.is_upscaling,
+        )
+        command = FFmpegWrapper.__build_base_command(
+            params.input_path, params.codec, params.preset, params.target_fps,
+        )
         command.extend(
             FFmpegWrapper.__build_encoding_params(
-                video_bitrate, minrate, maxrate, bufsize, gop_size, is_upscaling,
+                params.video_bitrate,
+                params.minrate,
+                params.maxrate,
+                params.bufsize,
+                params.gop_size,
+                params.is_upscaling,
             ),
         )
         command.extend(
             FFmpegWrapper.__build_audio_and_output_params(
-                audio_bitrate, vf_filter, output_path,
+                params.audio_bitrate, vf_filter, params.output_path,
             ),
         )
 
-        if log_command:
+        if params.log_command:
             print('ffmpeg \\')
             for i, arg in enumerate(command[1:], 1):
                 if i == len(command) - 1:
@@ -235,8 +235,8 @@ class FFmpegWrapper:
             '-minrate', minrate,
             '-maxrate', maxrate,
             '-bufsize', bufsize,
-            '-bf', FFmpegWrapper.__BF,
-            '-b_adapt', FFmpegWrapper.__B_ADAPT,
+            '-bf', FFmpegWrapper.__B_FRAMES,
+            '-b_adapt', FFmpegWrapper.__B_ADAPT_MODE,
             '-2pass', FFmpegWrapper.__TWO_PASS,
             '-multipass', 'fullres',
             '-g', str(gop_size),
@@ -253,7 +253,7 @@ class FFmpegWrapper:
         else:
             params.extend([
                 '-rc-lookahead', FFmpegWrapper.__RC_LOOKAHEAD,
-                '-aq-strength', FFmpegWrapper.__AQ_STRENGTH,
+                '-aq-strength', FFmpegWrapper.__ADAPTIVE_QUANTIZATION_STRENGTH,
             ])
 
         params.extend([
@@ -274,7 +274,7 @@ class FFmpegWrapper:
             filters.append('bwdif=mode=0:parity=-1:deint=1')
             filters.append('setfield=prog')
 
-        scaler_flags = 'spline36+accurate_rnd+full_chroma_int' if is_upscaling else 'bicubic'
+        scaler_flags = 'lanczos' if is_upscaling else 'bicubic'
 
         filters.append(
             f"scale='iw*sar:ih',scale={width}:{height}:"

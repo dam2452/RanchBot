@@ -13,7 +13,7 @@ from preprocessor.core.artifacts import (
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.services.episodes.episode_manager import EpisodeManager
-from preprocessor.services.io.files import atomic_write_json
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.transcription.whisper import Whisper
 
 
@@ -89,7 +89,7 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
         try:
             result: Dict[str, Any] = self._whisper.transcribe(input_data.path)
             result['episode_info'] = EpisodeManager.get_metadata(input_data.episode_info)
-            atomic_write_json(output_path, result)
+            FileOperations.atomic_write_json(output_path, result)
             return result
         except Exception as e:
             context.logger.error(

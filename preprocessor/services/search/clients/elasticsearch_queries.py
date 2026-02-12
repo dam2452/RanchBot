@@ -131,81 +131,19 @@ class ElasticsearchQueries:
         self,
         es_client: AsyncElasticsearch,
         object_query: str,
-        season: Optional[int]=None,
-        episode: Optional[int]=None,
-        limit: int=20,
+        season: Optional[int] = None,
+        episode: Optional[int] = None,
+        limit: int = 20,
     ) -> Dict[str, Any]:
         filter_clauses = self.__build_episode_filters(season, episode)
-        must_clauses: List[Dict[str, Any]] = []
-        if ':' in object_query:
-            object_class, count_filter = object_query.split(':', 1)
-            object_class = object_class.strip()
-            if count_filter.endswith('+'):
-                min_count = int(count_filter[:-1])
-                must_clauses.append({
-                    'nested': {
-                        'path': 'detected_objects',
-                        'query': {
-                            'bool': {
-                                'must': [
-                                    {'term': {'detected_objects.class': object_class}},
-                                    {'range': {'detected_objects.count': {'gte': min_count}}},
-                                ],
-                            },
-                        },
-                    },
-                })
-            elif '-' in count_filter:
-                min_c, max_c = count_filter.split('-')
-                must_clauses.append({
-                    'nested': {
-                        'path': 'detected_objects',
-                        'query': {
-                            'bool': {
-                                'must': [
-                                    {'term': {'detected_objects.class': object_class}},
-                                    {'range': {'detected_objects.count': {'gte': int(min_c), 'lte': int(max_c)}}},
-                                ],
-                            },
-                        },
-                    },
-                })
-            else:
-                exact_count = int(count_filter)
-                must_clauses.append({
-                    'nested': {
-                        'path': 'detected_objects',
-                        'query': {
-                            'bool': {
-                                'must': [
-                                    {'term': {'detected_objects.class': object_class}},
-                                    {'term': {'detected_objects.count': exact_count}},
-                                ],
-                            },
-                        },
-                    },
-                })
-        else:
-            must_clauses.append({
-                'nested': {
-                    'path': 'detected_objects',
-                    'query': {'term': {'detected_objects.class': object_query.strip()}},
-                },
-            })
+        object_class, count_filter = self.__parse_object_query(object_query)
+        must_clauses = [self.__build_object_nested_query(object_class, count_filter)]
         query_body = {'bool': {'must': must_clauses, 'filter': filter_clauses}}
-        object_class = object_query.split(':')[0].strip() if ':' in object_query else object_query.strip()
+
         return await es_client.search(
             index=self.__video_frames_index,
             query=query_body,
-            sort=[{
-                'detected_objects.count': {
-                    'order': 'desc',
-                    'nested': {
-                        'path': 'detected_objects',
-                        'filter': {'term': {'detected_objects.class': object_class}},
-                    },
-                },
-            }],
+            sort=[self.__build_object_sort(object_class)],
             track_scores=True,
             size=limit,
             _source=[
@@ -213,6 +151,82 @@ class ElasticsearchQueries:
                 'video_path', 'episode_metadata', 'scene_info',
             ],
         )
+
+    @staticmethod
+    def __parse_object_query(object_query: str) -> Tuple[str, Optional[str]]:
+        if ':' not in object_query:
+            return object_query.strip(), None
+        object_class, count_filter = object_query.split(':', 1)
+        return object_class.strip(), count_filter
+
+    @staticmethod
+    def __build_object_nested_query(object_class: str, count_filter: Optional[str]) -> Dict[str, Any]:
+        if count_filter is None:
+            return {
+                'nested': {
+                    'path': 'detected_objects',
+                    'query': {'term': {'detected_objects.class': object_class}},
+                },
+            }
+
+        if count_filter.endswith('+'):
+            min_count = int(count_filter[:-1])
+            return {
+                'nested': {
+                    'path': 'detected_objects',
+                    'query': {
+                        'bool': {
+                            'must': [
+                                {'term': {'detected_objects.class': object_class}},
+                                {'range': {'detected_objects.count': {'gte': min_count}}},
+                            ],
+                        },
+                    },
+                },
+            }
+
+        if '-' in count_filter:
+            min_count, max_count = count_filter.split('-')
+            return {
+                'nested': {
+                    'path': 'detected_objects',
+                    'query': {
+                        'bool': {
+                            'must': [
+                                {'term': {'detected_objects.class': object_class}},
+                                {'range': {'detected_objects.count': {'gte': int(min_count), 'lte': int(max_count)}}},
+                            ],
+                        },
+                    },
+                },
+            }
+
+        exact_count = int(count_filter)
+        return {
+            'nested': {
+                'path': 'detected_objects',
+                'query': {
+                    'bool': {
+                        'must': [
+                            {'term': {'detected_objects.class': object_class}},
+                            {'term': {'detected_objects.count': exact_count}},
+                        ],
+                    },
+                },
+            },
+        }
+
+    @staticmethod
+    def __build_object_sort(object_class: str) -> Dict[str, Any]:
+        return {
+            'detected_objects.count': {
+                'order': 'desc',
+                'nested': {
+                    'path': 'detected_objects',
+                    'filter': {'term': {'detected_objects.class': object_class}},
+                },
+            },
+        }
 
     async def search_episode_name(
         self,

@@ -14,7 +14,7 @@ from transformers import (
     AutoProcessor,
 )
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 
 
 class EmbeddingService:

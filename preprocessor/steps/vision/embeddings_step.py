@@ -15,10 +15,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.io.files import (
-    atomic_write_json,
-    load_json,
-)
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.io.metadata import MetadataBuilder
 from preprocessor.services.search.embedding_model import EmbeddingModelWrapper
 
@@ -87,7 +84,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         output_path: Path,
         input_data: FrameCollection,
     ) -> EmbeddingCollection:
-        emb_data: Dict[str, Any] = load_json(output_path)
+        emb_data: Dict[str, Any] = FileOperations.load_json(output_path)
         return self._create_embedding_collection(
             input_data,
             output_path,
@@ -99,7 +96,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         input_data: FrameCollection,
         context: ExecutionContext,
     ) -> List[Dict[str, Any]]:
-        frame_metadata: Dict[str, Any] = load_json(input_data.metadata_path)
+        frame_metadata: Dict[str, Any] = FileOperations.load_json(input_data.metadata_path)
         frame_requests: List[Dict[str, Any]] = frame_metadata.get('frames', [])
         if not frame_requests:
             context.logger.warning(f'No frames for embedding in {input_data.episode_id}')
@@ -124,8 +121,8 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
             image_paths: List[str] = [str(input_data.directory / f['frame_path']) for f in batch]
             batch_embeddings: List[np.ndarray] = self._model.encode_images(image_paths)  # pylint: disable=no-member
 
-            for request, emb in zip(batch, batch_embeddings):
-                res: Dict[str, Any] = {**request, 'embedding': emb.tolist()}
+            for request, embedding in zip(batch, batch_embeddings):
+                res: Dict[str, Any] = {**request, 'embedding': embedding.tolist()}
                 frame_num: int = request.get('frame_number', -1)
                 if frame_num in image_hashes:
                     res['perceptual_hash'] = image_hashes[frame_num]
@@ -152,7 +149,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
             results_key='video_embeddings',
             results_data=results,
         )
-        atomic_write_json(output_path, output_data)
+        FileOperations.atomic_write_json(output_path, output_data)
 
     def _create_embedding_collection(  # pylint: disable=duplicate-code
         self,
@@ -179,7 +176,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         if not hash_path.exists():
             return {}
         try:
-            data: Dict[str, Any] = load_json(hash_path)
+            data: Dict[str, Any] = FileOperations.load_json(hash_path)
             return {h['frame_number']: h['perceptual_hash'] for h in data.get('hashes', [])}
         except Exception as e:
             context.logger.warning(f'Could not load image hashes from {hash_path}: {e}')

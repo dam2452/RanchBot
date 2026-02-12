@@ -1,6 +1,9 @@
+import json
 from pathlib import Path
 from typing import (
     Any,
+    Awaitable,
+    Callable,
     Dict,
     List,
     Optional,
@@ -44,9 +47,30 @@ class SearchCommandHandler:
         self._queries = queries
         self._json_output = json_output
 
-    async def handle_stats(self) -> str:
-        import json  # pylint: disable=import-outside-toplevel
+    async def _execute_search(
+        self,
+        search_func: Callable[..., Awaitable[Dict[str, Any]]],
+        result_type: str,
+        result_key: str = "hits",
+    ) -> str:
+        """Generic search executor - reduces duplication.
 
+        Args:
+            search_func: Async function that executes the search query.
+            result_type: Type of result for console formatting.
+            result_key: Key to extract from result for JSON output (default: "hits").
+
+        Returns:
+            Formatted search results (JSON or console output).
+        """
+        result = await search_func()
+
+        if self._json_output:
+            return json.dumps(result.get(result_key, result), indent=2)
+
+        return self._format_console_output(result, result_type)
+
+    async def handle_stats(self) -> str:
         result = await self._queries.get_stats(self._es)
         if self._json_output:
             return json.dumps(result, indent=2)
@@ -59,8 +83,6 @@ class SearchCommandHandler:
         return "\n".join(output)
 
     async def handle_list_characters(self) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
         chars = await self._queries.list_characters(self._es)
         if self._json_output:
             return json.dumps(chars, indent=2)
@@ -71,8 +93,6 @@ class SearchCommandHandler:
         return "\n".join(output)
 
     async def handle_list_objects(self) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
         objects = await self._queries.list_objects(self._es)
         if self._json_output:
             return json.dumps(objects, indent=2)
@@ -83,112 +103,82 @@ class SearchCommandHandler:
         return "\n".join(output)
 
     async def handle_text_search(self, query: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_text_query(
-            self._es, query, filters.season, filters.episode, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_text_query(
+                self._es, query, filters.season, filters.episode, filters.limit,
+            ),
+            result_type="text",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "text")
 
     async def handle_text_semantic_search(self, query: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_text_semantic(
-            self._es, query, filters.season, filters.episode, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_text_semantic(
+                self._es, query, filters.season, filters.episode, filters.limit,
+            ),
+            result_type="text_semantic",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "text_semantic")
 
     async def handle_text_to_video_search(self, query: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_text_to_video(
-            self._es, query, filters.season, filters.episode, filters.character, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_text_to_video(
+                self._es, query, filters.season, filters.episode, filters.character, filters.limit,
+            ),
+            result_type="video",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "video")
 
     async def handle_image_search(self, image_path: Path, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_video_semantic(
-            self._es, str(image_path), filters.season, filters.episode, filters.character, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_video_semantic(
+                self._es, str(image_path), filters.season, filters.episode, filters.character, filters.limit,
+            ),
+            result_type="video",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "video")
 
     async def handle_emotion_search(self, emotion: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_by_emotion(
-            self._es, emotion, filters.season, filters.episode, filters.character, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_by_emotion(
+                self._es, emotion, filters.season, filters.episode, filters.character, filters.limit,
+            ),
+            result_type="video",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "video")
 
     async def handle_character_search(self, character: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_by_character(
-            self._es, character, filters.season, filters.episode, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_by_character(
+                self._es, character, filters.season, filters.episode, filters.limit,
+            ),
+            result_type="video",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "video")
 
     async def handle_object_search(self, object_query: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_by_object(
-            self._es, object_query, filters.season, filters.episode, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_by_object(
+                self._es, object_query, filters.season, filters.episode, filters.limit,
+            ),
+            result_type="video",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "video")
 
     async def handle_hash_search(self, hash_value: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_perceptual_hash(self._es, hash_value, filters.limit)
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "video")
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_perceptual_hash(self._es, hash_value, filters.limit),
+            result_type="video",
+        )
 
     async def handle_episode_name_search(self, episode_name: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_episode_name(
-            self._es, episode_name, filters.season, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_episode_name(
+                self._es, episode_name, filters.season, filters.limit,
+            ),
+            result_type="episode_name",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "episode_name")
 
     async def handle_episode_name_semantic_search(self, episode_name: str, filters: SearchFilters) -> str:
-        import json  # pylint: disable=import-outside-toplevel
-
-        result = await self._queries.search_episode_name_semantic(
-            self._es, episode_name, filters.season, filters.limit,
+        return await self._execute_search(
+            search_func=lambda: self._queries.search_episode_name_semantic(
+                self._es, episode_name, filters.season, filters.limit,
+            ),
+            result_type="episode_name",
         )
-        if self._json_output:
-            return json.dumps(result["hits"], indent=2)
-
-        return self._format_console_output(result, "episode_name")
 
     @staticmethod
     def compute_perceptual_hash(phash_input: str) -> Optional[str]:

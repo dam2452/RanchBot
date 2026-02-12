@@ -19,6 +19,11 @@ from preprocessor.cli.search_handler import (
     SearchCommandHandler,
     SearchFilters,
 )
+from preprocessor.cli.search_params import (
+    SearchActionParams,
+    SearchConfig,
+    SearchQueryParams,
+)
 from preprocessor.cli.skip_list_builder import SkipListBuilder
 from preprocessor.config.series_config import SeriesConfig
 from preprocessor.services.io.path_service import PathService
@@ -136,6 +141,78 @@ def __analyze_resolution(series: str) -> None:
         setup.logger.finalize()
 
 
+def _execute_search_command(config: SearchConfig) -> None:  # pylint: disable=too-many-statements
+    """Execute search with config object.
+
+    Args:
+        config: Complete search configuration.
+    """
+    series_config = SeriesConfig.load(config.series)
+    index_base = series_config.indexing.elasticsearch.index_name
+
+    hash_value = None
+    if config.query.phash:
+        hash_value = SearchCommandHandler.compute_perceptual_hash(config.query.phash)
+        if hash_value is None:
+            sys.exit(1)
+
+    async def __run() -> None:
+        es_client = AsyncElasticsearch(hosts=[config.host], verify_certs=False)
+
+        try:
+            await es_client.ping()
+        except Exception:
+            click.echo(f"Cannot connect to Elasticsearch at {config.host}", err=True)
+            click.echo("Make sure Elasticsearch is running:", err=True)
+            click.echo("  docker-compose -f docker-compose.test.yml up -d", err=True)
+            sys.exit(1)
+
+        embedding_svc = EmbeddingService()
+        queries = ElasticsearchQueries(embedding_svc, index_base)
+
+        try:
+            handler = SearchCommandHandler(es_client, embedding_svc, queries, config.json_output)
+
+            result = None
+            if config.actions.stats:
+                result = await handler.handle_stats()
+            elif config.actions.list_chars_flag:
+                result = await handler.handle_list_characters()
+            elif config.actions.list_objects_flag:
+                result = await handler.handle_list_objects()
+            elif config.query.text:
+                result = await handler.handle_text_search(config.query.text, config.filters)
+            elif config.query.text_semantic:
+                result = await handler.handle_text_semantic_search(config.query.text_semantic, config.filters)
+            elif config.query.text_to_video:
+                result = await handler.handle_text_to_video_search(config.query.text_to_video, config.filters)
+            elif config.query.image:
+                result = await handler.handle_image_search(config.query.image, config.filters)
+            elif config.query.emotion:
+                result = await handler.handle_emotion_search(config.query.emotion, config.filters)
+            elif config.query.character:
+                result = await handler.handle_character_search(config.query.character, config.filters)
+            elif config.query.object_query:
+                result = await handler.handle_object_search(config.query.object_query, config.filters)
+            elif hash_value:
+                result = await handler.handle_hash_search(hash_value, config.filters)
+            elif config.query.episode_name:
+                result = await handler.handle_episode_name_search(config.query.episode_name, config.filters)
+            elif config.query.episode_name_semantic:
+                result = await handler.handle_episode_name_semantic_search(
+                    config.query.episode_name_semantic, config.filters,
+                )
+
+            if result:
+                click.echo(result)
+
+        finally:
+            embedding_svc.cleanup()
+            await es_client.close()
+
+    asyncio.run(__run())
+
+
 @cli.command(name="search")
 @click.option("--series", required=True, help="Series name (e.g., ranczo, kiepscy)")
 @click.option("--text", type=str, help="Full-text search by transcriptions")
@@ -156,7 +233,7 @@ def __analyze_resolution(series: str) -> None:
 @click.option("--stats", is_flag=True, help="Show index statistics")
 @click.option("--json-output", is_flag=True, help="Output in JSON format")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
-def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+def search(  # pylint: disable=too-many-arguments,too-many-locals
     series: str,
     text: str,
     text_semantic: str,
@@ -177,76 +254,32 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     json_output: bool,
     host: str,
 ) -> None:
-    if not any([
-        text, text_semantic, text_to_video, image, phash, character, emotion,
-        object_query, episode_name, episode_name_semantic, list_chars_flag, list_objects_flag, stats,
-    ]):
+    """Search command entry point - Click requires all parameters."""
+    config = SearchConfig(
+        series=series,
+        query=SearchQueryParams(
+            text=text,
+            text_semantic=text_semantic,
+            text_to_video=text_to_video,
+            image=image,
+            phash=phash,
+            character=character,
+            emotion=emotion,
+            object_query=object_query,
+            episode_name=episode_name,
+            episode_name_semantic=episode_name_semantic,
+        ),
+        filters=SearchFilters(season, episode, character, limit),
+        actions=SearchActionParams(list_chars_flag, list_objects_flag, stats),
+        json_output=json_output,
+        host=host,
+    )
+
+    if not config.has_any_operation():
         click.echo("Provide at least one search option. Use --help", err=True)
         sys.exit(1)
 
-    series_config = SeriesConfig.load(series)
-    index_base = series_config.indexing.elasticsearch.index_name
-
-    hash_value = None
-    if phash:
-        hash_value = SearchCommandHandler.compute_perceptual_hash(phash)
-        if hash_value is None:
-            sys.exit(1)
-
-    async def __run() -> None:
-        es_client = AsyncElasticsearch(hosts=[host], verify_certs=False)
-
-        try:
-            await es_client.ping()
-        except Exception:
-            click.echo(f"Cannot connect to Elasticsearch at {host}", err=True)
-            click.echo("Make sure Elasticsearch is running:", err=True)
-            click.echo("  docker-compose -f docker-compose.test.yml up -d", err=True)
-            sys.exit(1)
-
-        embedding_svc = EmbeddingService()
-        queries = ElasticsearchQueries(embedding_svc, index_base)
-
-        try:
-            handler = SearchCommandHandler(es_client, embedding_svc, queries, json_output)
-            filters = SearchFilters(season, episode, character, limit)
-
-            result = None
-            if stats:
-                result = await handler.handle_stats()
-            elif list_chars_flag:
-                result = await handler.handle_list_characters()
-            elif list_objects_flag:
-                result = await handler.handle_list_objects()
-            elif text:
-                result = await handler.handle_text_search(text, filters)
-            elif text_semantic:
-                result = await handler.handle_text_semantic_search(text_semantic, filters)
-            elif text_to_video:
-                result = await handler.handle_text_to_video_search(text_to_video, filters)
-            elif image:
-                result = await handler.handle_image_search(image, filters)
-            elif emotion:
-                result = await handler.handle_emotion_search(emotion, filters)
-            elif character:
-                result = await handler.handle_character_search(character, filters)
-            elif object_query:
-                result = await handler.handle_object_search(object_query, filters)
-            elif hash_value:
-                result = await handler.handle_hash_search(hash_value, filters)
-            elif episode_name:
-                result = await handler.handle_episode_name_search(episode_name, filters)
-            elif episode_name_semantic:
-                result = await handler.handle_episode_name_semantic_search(episode_name_semantic, filters)
-
-            if result:
-                click.echo(result)
-
-        finally:
-            embedding_svc.cleanup()
-            await es_client.close()
-
-    asyncio.run(__run())
+    _execute_search_command(config)
 
 
 _CLI_TEMPLATE_SERIES = "ranczo"

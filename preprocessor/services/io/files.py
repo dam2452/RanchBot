@@ -32,17 +32,3 @@ class FileOperations:
             if temp_path.exists():
                 temp_path.unlink()
             raise
-
-    @staticmethod
-    def __atomic_write_text(path: Path, content: str) -> None:  # pylint: disable=unused-private-member
-
-        def __write(temp: Path) -> None:
-            with open(temp, 'w', encoding='utf-8') as f:
-                f.write(content)
-        FileOperations.__atomic_write(path, __write)
-
-def atomic_write_json(path: Path, data: Dict[str, Any], indent: int=2) -> None:
-    FileOperations.atomic_write_json(path, data, indent)
-
-def load_json(path: Path) -> Dict[str, Any]:
-    return FileOperations.load_json(path)

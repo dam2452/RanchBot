@@ -14,7 +14,7 @@ from vllm import (
     SamplingParams,
 )
 
-from preprocessor.config.config import settings
+from preprocessor.config.settings_instance import settings
 from preprocessor.services.ui.console import console
 
 
