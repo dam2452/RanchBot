@@ -1,3 +1,3 @@
-from preprocessor.steps.audio.separation import SoundSeparationStep
+from preprocessor.steps.audio.separation_step import SoundSeparationStep
 
 __all__ = ['SoundSeparationStep']
