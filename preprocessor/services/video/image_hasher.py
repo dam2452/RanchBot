@@ -23,7 +23,7 @@ class PerceptualHasher:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def __compute_hash(self, image_tensor: torch.Tensor) -> int: # pylint: disable=unused-private-member
+    def __compute_hash(self, image_tensor: torch.Tensor) -> int:  # pylint: disable=unused-private-member
         if self.model is None:
             raise RuntimeError('Model not initialized or already cleaned up')
         with torch.no_grad():

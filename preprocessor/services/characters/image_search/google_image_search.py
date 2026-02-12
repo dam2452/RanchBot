@@ -10,7 +10,7 @@ from preprocessor.services.characters.image_search.image_search import BaseImage
 
 class GoogleImageSearch(BaseImageSearch):
 
-    def __init__(self, api_key: str, max_results: int=50):
+    def __init__(self, api_key: str, max_results: int=50) -> None:
         super().__init__(max_results)
         if not api_key:
             raise ValueError('SerpAPI key is required for Google Image Search')

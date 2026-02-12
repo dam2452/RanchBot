@@ -14,7 +14,7 @@ class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, Arch
     def execute(self, input_data: ProcessedEpisode, context: ExecutionContext) -> ArchiveArtifact:
         output_path = self._get_output_path(input_data, context)
 
-        if self._should_skip_processing(output_path, context, input_data):
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached archive'):
             return self._create_archive_artifact(input_data, output_path)
 
         context.logger.info(f'Generating archive for {input_data.episode_id}')
@@ -32,17 +32,6 @@ class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, Arch
         output_filename: str = f'{context.series_name}_{input_data.episode_info.episode_code()}_archive.zip'
         return context.get_output_path(input_data.episode_info, 'archives', output_filename)
 
-    def _should_skip_processing(
-        self,
-        output_path: Path,
-        context: ExecutionContext,
-        input_data: ProcessedEpisode,
-    ) -> bool:
-        if output_path.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached archive)')
-                return True
-        return False
 
     @staticmethod
     def _create_archive_artifact(input_data: ProcessedEpisode, output_path: Path) -> ArchiveArtifact:

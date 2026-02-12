@@ -13,7 +13,7 @@ from preprocessor.services.core.logging import ErrorHandlingLogger
 class AudioNormalizer:
     SUPPORTED_VIDEO_EXTENSIONS = BaseProcessor.SUPPORTED_VIDEO_EXTENSIONS
 
-    def __init__(self, input_videos: Path, output_dir: Path, logger: ErrorHandlingLogger, video_files: Optional[List[Path]]=None):
+    def __init__(self, input_videos: Path, output_dir: Path, logger: ErrorHandlingLogger, video_files: Optional[List[Path]]=None) -> None:
         self.__input_videos: Path = input_videos
         self.__output_dir: Path = output_dir
         self.__logger: ErrorHandlingLogger = logger

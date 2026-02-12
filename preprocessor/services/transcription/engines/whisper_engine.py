@@ -24,7 +24,7 @@ class WhisperEngine(TranscriptionEngine):
         compute_type = 'float16'
         console.print(f'[cyan]Loading Whisper model: {model} on {device} with compute_type={compute_type}[/cyan]')
         self.model = WhisperModel(model, device=device, compute_type=compute_type)
-        console.print('[green]✓ Whisper model loaded[/green]')
+        console.print('[green]Whisper model loaded[/green]')
 
     def cleanup(self) -> None:
         console.print('[cyan]Unloading Whisper model and clearing GPU memory...[/cyan]')
@@ -33,7 +33,7 @@ class WhisperEngine(TranscriptionEngine):
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        console.print('[green]✓ Whisper model unloaded, GPU memory cleared[/green]')
+        console.print('[green]Whisper model unloaded, GPU memory cleared[/green]')
 
     def get_name(self) -> str:
         return f'Whisper-{self.model_name}'
@@ -45,5 +45,5 @@ class WhisperEngine(TranscriptionEngine):
         language_code = WhisperUtils.get_language_code(self.language)
         segments, info = self.model.transcribe(str(audio_path), language=language_code, beam_size=10, word_timestamps=True, condition_on_previous_text=False)
         result = WhisperUtils.build_transcription_result(segments, language=info.language)
-        console.print(f'[green]✓ Transcription completed: {audio_path.name}[/green]')
+        console.print(f'[green]Transcription completed: {audio_path.name}[/green]')
         return result

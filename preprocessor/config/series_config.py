@@ -8,13 +8,13 @@ from typing import (
 )
 
 
-def __deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     result: Dict[str, Any] = base.copy()
     for key, value in override.items():
         if key.startswith('_'):
             continue
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = __deep_merge(result[key], value)
+            result[key] = _deep_merge(result[key], value)
         else:
             result[key] = value
     return result
@@ -197,6 +197,6 @@ class SeriesConfig:
             if not k.startswith('_')
         }
 
-        merged_config: Dict[str, Any] = __deep_merge(defaults, series_filtered)
+        merged_config: Dict[str, Any] = _deep_merge(defaults, series_filtered)
 
         return SeriesConfig.__load_from_dict(merged_config)

@@ -61,7 +61,7 @@ class VLLMClient(BaseLLMClient):
                 enforce_eager=True,
                 disable_log_stats=True,
             )
-            console.print('[green]✓ LLM loaded successfully (vLLM)[/green]')
+            console.print('[green]LLM loaded successfully (vLLM)[/green]')
         except Exception as e:
             console.print(f'[red]Failed to load model: {e}[/red]')
             raise
@@ -94,7 +94,7 @@ class GeminiClient(BaseLLMClient):
                 base_url='https://generativelanguage.googleapis.com/v1beta/openai/',
                 api_key=api_key,
             )
-            console.print('[green]✓ Gemini 2.5 Flash initialized[/green]')
+            console.print('[green]Gemini 2.5 Flash initialized[/green]')
         except Exception as e:
             console.print(f'[red]Failed to initialize Gemini client: {e}[/red]')
             raise

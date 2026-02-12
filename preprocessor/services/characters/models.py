@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 
 import numpy as np
 
@@ -15,4 +16,4 @@ class FaceData:
 @dataclass
 class CandidateFace:
     avg_similarity: float
-    faces: list[FaceData]
+    faces: List[FaceData]

@@ -7,6 +7,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Tuple,
 )
 
 from PIL import Image
@@ -26,7 +27,7 @@ from preprocessor.services.video.strategies.strategy_factory import KeyframeStra
 
 class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExportConfig]):
 
-    def __init__(self, config: FrameExportConfig):
+    def __init__(self, config: FrameExportConfig) -> None:
         super().__init__(config)
         decord.bridge.set_bridge('native')
         self.strategy = KeyframeStrategyFactory.create(self.config.keyframe_strategy, self.config.frames_per_scene)
@@ -34,7 +35,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def execute(self, input_data: SceneCollection, context: ExecutionContext) -> FrameCollection:
         episode_dir, metadata_file = self._prepare_output_paths(input_data, context)
 
-        if self._should_skip_processing(metadata_file, context, input_data):
+        if self._check_cache_validity(metadata_file, context, input_data.episode_id, 'cached'):
             return self._load_cached_result(metadata_file, episode_dir, input_data)
 
         self._prepare_episode_directory(episode_dir, context)
@@ -72,23 +73,11 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def _prepare_output_paths(
         input_data: SceneCollection,
         context: ExecutionContext,
-    ) -> tuple[Path, Path]:
+    ) -> Tuple[Path, Path]:
         episode_dir = context.get_output_path(input_data.episode_info, 'exported_frames', '')
         metadata_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_frame_metadata.json'
         metadata_file = episode_dir / metadata_filename
         return episode_dir, metadata_file
-
-    def _should_skip_processing(
-        self,
-        metadata_file: Path,
-        context: ExecutionContext,
-        input_data: SceneCollection,
-    ) -> bool:
-        if metadata_file.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached)')
-                return True
-        return False
 
     @staticmethod
     def _load_cached_result(

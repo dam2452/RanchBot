@@ -39,7 +39,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
     ) -> ImageHashCollection:
         output_path = self._get_output_path(input_data, context)
 
-        if self._should_skip_processing(output_path, context, input_data):
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
             return self._load_cached_result(output_path, input_data)
 
         frame_metadata, frame_requests = self._load_frame_metadata(input_data, context)
@@ -75,17 +75,6 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         output_filename: str = f'{filename_base}_image_hashes.json'
         return context.get_output_path(input_data.episode_info, 'image_hashes', output_filename)
 
-    def _should_skip_processing(
-        self,
-        output_path: Path,
-        context: ExecutionContext,
-        input_data: FrameCollection,
-    ) -> bool:
-        if output_path.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached)')
-                return True
-        return False
 
     @staticmethod
     def _load_cached_result(output_path: Path, input_data: FrameCollection) -> ImageHashCollection:

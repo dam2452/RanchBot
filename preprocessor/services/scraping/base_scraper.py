@@ -23,7 +23,7 @@ from preprocessor.services.ui.console import console
 
 class BaseScraper(BaseProcessor):
 
-    def __init__(self, args: Dict[str, Any], error_exit_code: int=7):
+    def __init__(self, args: Dict[str, Any], error_exit_code: int=7) -> None:
         super().__init__(args=args, class_name=self.__class__.__name__, error_exit_code=error_exit_code, loglevel=logging.DEBUG)
         self.urls: List[str] = self._args['urls']
         self.output_file: Path = self._args['output_file']
@@ -74,7 +74,7 @@ class BaseScraper(BaseProcessor):
                     page_text = self.__scrape_url(url)
                     if page_text:
                         scraped_pages.append({'url': url, 'markdown': page_text})
-                        console.print(f'[green]✓[/green] {url}: {len(page_text)} chars')
+                        console.print(f'[green][/green] {url}: {len(page_text)} chars')
                     else:
                         self.logger.error(f'Failed to scrape {url}')
                 except Exception as e:

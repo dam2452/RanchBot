@@ -19,7 +19,7 @@ from preprocessor.services.transcription.generators.txt_generator import TxtGene
 
 class MultiFormatGenerator:
 
-    def __init__(self, jsons_dir: Path, episodes_info_json: Path, output_base_path: Path, logger: ErrorHandlingLogger, series_name: str=''):
+    def __init__(self, jsons_dir: Path, episodes_info_json: Path, output_base_path: Path, logger: ErrorHandlingLogger, series_name: str='') -> None:
         self.jsons_dir = jsons_dir
         self.output_base_path = output_base_path
         self.logger = logger

@@ -24,7 +24,8 @@ class CharacterReferenceStep(
         characters_path, output_dir = self._get_paths()
         self._validate_characters_file(characters_path)
 
-        if self._should_skip_processing(output_dir, context):
+        if output_dir.exists() and any(output_dir.iterdir()) and not context.force_rerun:
+            context.logger.info(f"Character references already exist in: {output_dir}")
             self._executed = True
             return input_data
 
@@ -50,12 +51,6 @@ class CharacterReferenceStep(
                 f"Run scrape_characters first.",
             )
 
-    @staticmethod
-    def _should_skip_processing(output_dir: Path, context: ExecutionContext) -> bool:
-        if output_dir.exists() and any(output_dir.iterdir()) and not context.force_rerun:
-            context.logger.info(f"Character references already exist in: {output_dir}")
-            return True
-        return False
 
     def _process_character_references(
         self,

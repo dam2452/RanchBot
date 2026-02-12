@@ -47,7 +47,7 @@ class ProcessingState:
         }
 
     @classmethod
-    def __from_dict(cls, data: Dict[str, Any]) -> 'ProcessingState':  # pylint: disable=unused-private-member
+    def _from_dict(cls, data: Dict[str, Any]) -> 'ProcessingState':
         completed_steps = [
             StepCheckpoint(**step) for step in data.get('completed_steps', [])
         ]
@@ -90,7 +90,7 @@ class StateManager:
             console.print(f'[yellow]Found existing state file: {self.__state_file}[/yellow]')
             with open(self.__state_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                self.__state = ProcessingState.__from_dict(data)
+                self.__state = ProcessingState._from_dict(data)
                 console.print(f'[green]Loaded state for series: {self.__state.series_name}[/green]')
                 console.print(f'[green]Completed steps: {len(self.__state.completed_steps)}[/green]')
                 return self.__state
@@ -116,7 +116,7 @@ class StateManager:
         self.__state.completed_steps.append(checkpoint)
         self.__state.in_progress = None
         self.__save_state()
-        console.print(f'[green]✓ Completed: {step} for {episode}[/green]')
+        console.print(f'[green]Completed: {step} for {episode}[/green]')
 
     def mark_step_started(
         self, step: str, episode: str, temp_files: Optional[List[str]] = None,
@@ -131,24 +131,6 @@ class StateManager:
         )
         self.__save_state()
         console.print(f'[cyan]Started: {step} for {episode}[/cyan]')
-
-    def __rollback_in_progress(self) -> None: # pylint: disable=unused-private-member
-        if self.__state is None or self.__state.in_progress is None:
-            return
-        console.print(
-            f'[yellow]Rolling back in-progress step: '
-            f'{self.__state.in_progress.step}[/yellow]',
-        )
-        for temp_file in self.__state.in_progress.temp_files:
-            temp_path = Path(temp_file)
-            if temp_path.exists():
-                try:
-                    temp_path.unlink()
-                    console.print(f'[yellow]Removed temp file: {temp_file}[/yellow]')
-                except OSError as e:
-                    console.print(f'[red]Failed to remove {temp_file}: {e}[/red]')
-        self.__state.in_progress = None
-        self.__save_state()
 
     def __save_state(self) -> None:
         if self.__state is None:

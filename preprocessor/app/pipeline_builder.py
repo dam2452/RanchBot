@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class PipelineExecutor:
-    def __init__(self, context: ExecutionContext):
+    def __init__(self, context: ExecutionContext) -> None:
         self.context = context
         self.steps: List[PipelineStep] = []
 
@@ -40,8 +40,8 @@ class PipelineExecutor:
         episode_manager: EpisodeManager,
     ) -> None:
         step = pipeline.get_step(step_id)
-        self.context.logger.info(f"🔧 Step: {step_id}")
-        self.context.logger.info(f"📝 {step.description}")
+        self.context.logger.info(f"Step: {step_id}")
+        self.context.logger.info(f"{step.description}")
 
         StepClass = step.load_class()
         instance = StepClass(step.config)
@@ -50,7 +50,7 @@ class PipelineExecutor:
         runner.add_step(instance)
         runner.__run_for_episodes(source_path, episode_manager)
 
-        self.context.logger.info(f"✅ Step '{step_id}' completed")
+        self.context.logger.info(f"Step '{step_id}' completed")
 
     def execute_steps(
         self,
@@ -106,7 +106,7 @@ class PipelineExecutor:
 
                 if self.__should_skip_step(step.name, episode_id):
                     self.context.logger.info(
-                        f"⏭️  Skipping {step.name} for {episode_id} (already completed)",
+                        f"Skipping {step.name} for {episode_id} (already completed)",
                     )
                     next_artifacts.append(artifact)
                     continue

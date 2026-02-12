@@ -21,7 +21,7 @@ from preprocessor.services.media.scene_detection import TransNetWrapper
 
 class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDetectionConfig]):
 
-    def __init__(self, config: SceneDetectionConfig):
+    def __init__(self, config: SceneDetectionConfig) -> None:
         super().__init__(config)
         self.transnet = TransNetWrapper()
         self._model_loaded = False
@@ -34,7 +34,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
     def execute(self, input_data: TranscodedVideo, context: ExecutionContext) -> SceneCollection:
         output_path = self._get_output_path(input_data, context)
 
-        if self._should_skip_processing(output_path, context, input_data):
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
             return self._load_cached_result(output_path, input_data)
 
         self._ensure_model_loaded(context)
@@ -55,18 +55,6 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
     def _get_output_path(input_data: TranscodedVideo, context: ExecutionContext) -> Path:
         output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_scenes.json'
         return context.get_output_path(input_data.episode_info, 'scene_timestamps', output_filename)
-
-    def _should_skip_processing(
-        self,
-        output_path: Path,
-        context: ExecutionContext,
-        input_data: TranscodedVideo,
-    ) -> bool:
-        if output_path.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached)')
-                return True
-        return False
 
     def _load_cached_result(self, output_path: Path, input_data: TranscodedVideo) -> SceneCollection:
         scenes_data = load_json(output_path)

@@ -42,7 +42,7 @@ class EmotionDetector:
         return x1, y1, x2, y2
 
     @staticmethod
-    def __crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]: # pylint: disable=unused-private-member
+    def __crop_face(frame: np.ndarray, bbox: Dict[str, int]) -> Optional[np.ndarray]:  # pylint: disable=unused-private-member
         try:
             x1, y1, x2, y2 = (bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'])
             height, width = frame.shape[:2]
@@ -55,7 +55,7 @@ class EmotionDetector:
             return None
 
     @staticmethod
-    def __detect_batch( # pylint: disable=unused-private-member
+    def __detect_batch(  # pylint: disable=unused-private-member
         face_images: List[np.ndarray],
         model: HSEmotionRecognizer,
         batch_size: int = 32,
@@ -86,7 +86,7 @@ class EmotionDetector:
         return results
 
     @staticmethod
-    def __init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer: # pylint: disable=unused-private-member
+    def __init_model(logger: Optional[ErrorHandlingLogger]=None) -> HSEmotionRecognizer:  # pylint: disable=unused-private-member
         model_name = settings.emotion_detection.model_name
         if logger:
             logger.info(f'Loading HSEmotion model: {model_name}...')

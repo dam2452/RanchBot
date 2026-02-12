@@ -65,7 +65,7 @@ class FaceDetector:
         available_providers = ort.get_available_providers()
         console.print(f"[dim]Available ONNX providers: {', '.join(available_providers)}[/dim]")
         if 'CUDAExecutionProvider' not in available_providers:
-            console.print('[red]✗ CUDAExecutionProvider not available in onnxruntime[/red]')
+            console.print('[red]CUDAExecutionProvider not available in onnxruntime[/red]')
             console.print('[red]  Check if onnxruntime-gpu is installed and CUDA libraries are accessible[/red]')
             raise RuntimeError('CUDA provider not available in onnxruntime')
         providers = [(
@@ -86,16 +86,16 @@ class FaceDetector:
                 face_app = FaceAnalysis(name=settings.face_recognition.model_name, root=model_root, providers=providers)
                 face_app.prepare(ctx_id=0, det_size=settings.face_recognition.detection_size, det_thresh=settings.character.face_detection_threshold)
             except Exception as e:
-                console.print('[red]✗ Failed to initialize face detection on GPU[/red]')
+                console.print('[red]Failed to initialize face detection on GPU[/red]')
                 console.print(f'[red]  Error: {e}[/red]')
                 console.print('[red]  Ensure CUDA and onnxruntime-gpu are properly configured[/red]')
                 raise RuntimeError('GPU required but face detection initialization failed') from e
             actual_providers = face_app.models['detection'].session.get_providers()
             if 'CUDAExecutionProvider' not in actual_providers:
-                console.print('[red]✗ CUDA provider not active after initialization[/red]')
+                console.print('[red]CUDA provider not active after initialization[/red]')
                 console.print(f"[red]  Active providers: {', '.join(actual_providers)}[/red]")
                 raise RuntimeError('CUDA required but not available for face detection')
-        console.print(f'[green]✓ Face detection initialized ({settings.face_recognition.model_name})[/green]')
+        console.print(f'[green]Face detection initialized ({settings.face_recognition.model_name})[/green]')
         console.print('[dim]  Device: GPU (CUDA)[/dim]')
         console.print(f'[dim]  Detection size: {settings.face_recognition.detection_size}[/dim]')
         console.print(f'[dim]  Face detection threshold: {settings.character.face_detection_threshold}[/dim]')
@@ -113,7 +113,7 @@ class FaceDetector:
             vector_file = char_dir / 'face_vector.npy'
             if vector_file.exists():
                 character_vectors[char_name] = np.load(vector_file)
-                console.print(f'[dim]  ✓ {char_name}: loaded from face_vector.npy[/dim]')
+                console.print(f'[dim]{char_name}: loaded from face_vector.npy[/dim]')
                 continue
             images = list(char_dir.glob('*.jpg'))
             if not images:
@@ -127,8 +127,8 @@ class FaceDetector:
                 mean_emb = np.mean(embeddings, axis=0)
                 centroid = mean_emb / norm(mean_emb)
                 character_vectors[char_name] = centroid
-                console.print(f'[green]  ✓ {char_name}: {len(embeddings)} reference images[/green]')
-        console.print(f'[green]✓ Loaded {len(character_vectors)} characters[/green]')
+                console.print(f'[green]{char_name}: {len(embeddings)} reference images[/green]')
+        console.print(f'[green]Loaded {len(character_vectors)} characters[/green]')
         return character_vectors
 
     @staticmethod

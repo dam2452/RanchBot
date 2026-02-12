@@ -14,7 +14,7 @@ from preprocessor.services.core.logging import ErrorHandlingLogger
 
 class BaseTranscriptionGenerator(ABC):
 
-    def __init__(self, input_dir: Path, output_dir: Path, logger: ErrorHandlingLogger):
+    def __init__(self, input_dir: Path, output_dir: Path, logger: ErrorHandlingLogger) -> None:
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.logger = logger

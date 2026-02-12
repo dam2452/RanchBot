@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import logging
 from pathlib import Path
 from typing import Optional
 
@@ -7,7 +6,7 @@ from preprocessor.core.context import ExecutionContext
 from preprocessor.core.state_manager import StateManager
 from preprocessor.services.core.logging import ErrorHandlingLogger
 from preprocessor.services.episodes.episode_manager import EpisodeManager
-from preprocessor.services.io.path_resolver import PathResolver
+from preprocessor.services.io.path_service import PathService
 
 
 @dataclass
@@ -28,7 +27,7 @@ class PipelineContextFactory:
         with_episode_manager: bool = True,
     ) -> PipelineSetup:
         logger = PipelineContextFactory.__create_logger(logger_name)
-        base_dir = PathResolver.get_output_base()
+        base_dir = PathService.get_output_base()
         series_output_dir = PipelineContextFactory.__ensure_output_dir(base_dir, series)
 
         state_manager = PipelineContextFactory.__create_state_manager(series, series_output_dir)
@@ -43,7 +42,7 @@ class PipelineContextFactory:
 
         episode_manager = None
         if with_episode_manager:
-            input_base = PathResolver.get_input_base()
+            input_base = PathService.get_input_base()
             episode_manager = PipelineContextFactory.__create_episode_manager(
                 series, input_base, logger,
             )
@@ -64,7 +63,10 @@ class PipelineContextFactory:
             episodes_json = None
         return EpisodeManager(episodes_json, series, logger)
     @staticmethod
-    def __create_logger(command_name: str, loglevel: int = logging.INFO) -> ErrorHandlingLogger:
+    def __create_logger(
+        command_name: str,
+        loglevel: int = ErrorHandlingLogger.INFO,
+    ) -> ErrorHandlingLogger:
         return ErrorHandlingLogger(class_name=command_name, loglevel=loglevel, error_exit_code=1)
 
     @staticmethod
@@ -89,5 +91,5 @@ def setup_pipeline_context(
     return PipelineContextFactory.build(series, logger_name, force_rerun, with_episode_manager)
 
 
-def __create_cli_logger(command_name: str, loglevel: int = logging.INFO) -> ErrorHandlingLogger:
-    return PipelineContextFactory.__create_logger(command_name, loglevel)
+def create_cli_logger(command_name: str, loglevel: int = ErrorHandlingLogger.INFO) -> ErrorHandlingLogger:
+    return ErrorHandlingLogger(class_name=command_name, loglevel=loglevel, error_exit_code=1)

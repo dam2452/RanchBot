@@ -39,7 +39,7 @@ from preprocessor.services.ui.console import console
 
 class CharacterReferenceDownloader(BaseProcessor):
 
-    def __init__(self, args: Dict[str, Any]):
+    def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(args=args, class_name=self.__class__.__name__, error_exit_code=8, loglevel=logging.DEBUG)
         self.characters_json: Path = self._args['characters_json']
         self.series_name: str = self._args['series_name']

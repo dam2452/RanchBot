@@ -1,10 +1,13 @@
+import asyncio
 from pathlib import Path
+import sys
 from typing import (
     Callable,
     Tuple,
 )
 
 import click
+from elasticsearch import AsyncElasticsearch
 
 from preprocessor.app.pipeline_builder import PipelineExecutor
 from preprocessor.app.pipeline_factory import (
@@ -12,9 +15,15 @@ from preprocessor.app.pipeline_factory import (
     visualize,
 )
 from preprocessor.cli.helpers import setup_pipeline_context
+from preprocessor.cli.search_handler import (
+    SearchCommandHandler,
+    SearchFilters,
+)
 from preprocessor.cli.skip_list_builder import SkipListBuilder
 from preprocessor.config.series_config import SeriesConfig
-from preprocessor.services.io.path_resolver import PathResolver
+from preprocessor.services.io.path_service import PathService
+from preprocessor.services.search.clients.elasticsearch_queries import ElasticsearchQueries
+from preprocessor.services.search.clients.embedding_service import EmbeddingService
 
 
 @click.group()
@@ -46,10 +55,10 @@ def __run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
         skip_list = SkipListBuilder.build(skip, series_config, setup.logger)
         plan = pipeline.get_execution_order(skip=skip_list)
 
-        source_path = PathResolver.get_input_base() / series
+        source_path = PathService.get_input_base() / series
 
-        setup.logger.info(f"📋 Execution plan: {' → '.join(plan)}")
-        setup.logger.info(f"📂 Source: {source_path}")
+        setup.logger.info(f"Execution plan: {' -> '.join(plan)}")
+        setup.logger.info(f"Source: {source_path}")
 
         executor = PipelineExecutor(setup.context)
         executor.execute_steps(
@@ -60,9 +69,9 @@ def __run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
         )
 
         setup.logger.info("=" * 80)
-        setup.logger.info("🎉 Pipeline completed successfully!")
+        setup.logger.info("Pipeline completed successfully!")
     except KeyboardInterrupt:
-        setup.logger.info("\n🛑 Interrupted by user")
+        setup.logger.info("\nInterrupted by user")
         raise
     finally:
         setup.logger.finalize()
@@ -81,15 +90,15 @@ def __create_step_command(step_id: str, step_description: str) -> Callable:
 
             deps = step.dependency_ids
             if deps:
-                setup.logger.info(f"📦 Dependencies: {', '.join(deps)}")
+                setup.logger.info(f"Dependencies: {', '.join(deps)}")
                 for dep_id in deps:
                     if not setup.context.state_manager.is_step_completed(dep_id, "*"):
                         setup.logger.warning(
-                            f"⚠️  Dependency '{dep_id}' may not be completed. "
+                            f"Dependency '{dep_id}' may not be completed. "
                             f"Run it first or use --force-rerun.",
                         )
 
-            source_path = PathResolver.get_input_base() / series
+            source_path = PathService.get_input_base() / series
 
             executor = PipelineExecutor(setup.context)
             executor.execute_step(
@@ -99,9 +108,9 @@ def __create_step_command(step_id: str, step_description: str) -> Callable:
                 episode_manager=setup.episode_manager,
             )
 
-            setup.logger.info(f"✅ Step '{_step_id}' completed successfully")
+            setup.logger.info(f"Step '{_step_id}' completed successfully")
         except KeyboardInterrupt:
-            setup.logger.info("\n🛑 Interrupted by user")
+            setup.logger.info("\nInterrupted by user")
             raise
         finally:
             setup.logger.finalize()
@@ -109,25 +118,43 @@ def __create_step_command(step_id: str, step_description: str) -> Callable:
     return __step_command
 
 
+@cli.command(name="analyze-resolution")
+@click.option("--series", required=True, help="Series name (e.g., ranczo, kiepscy)")
+def __analyze_resolution(series: str) -> None:
+    pipeline = build_pipeline(series)
+    setup = setup_pipeline_context(series, "resolution_analysis", False, with_episode_manager=False)
+
+    try:
+        step = pipeline.get_step("resolution_analysis")
+        step.execute(None, setup.context)
+
+        setup.logger.info("Resolution analysis completed")
+    except KeyboardInterrupt:
+        setup.logger.info("\nInterrupted by user")
+        raise
+    finally:
+        setup.logger.finalize()
+
+
 @cli.command(name="search")
 @click.option("--series", required=True, help="Series name (e.g., ranczo, kiepscy)")
-@click.option("--text", type=str, help="Full-text search po transkrypcjach")
-@click.option("--text-semantic", type=str, help="Semantic search po text embeddings")
-@click.option("--text-to-video", type=str, help="Cross-modal search: text query w video embeddings")
-@click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search po video embeddings")
-@click.option("--hash", "phash", type=str, help="Szukaj po perceptual hash (podaj hash string lub sciezke do obrazka)")
-@click.option("--character", type=str, help="Szukaj po postaci")
-@click.option("--emotion", type=str, help="Szukaj po emocji (neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)")
-@click.option("--object", "object_query", type=str, help="Szukaj po wykrytych obiektach (np. 'dog', 'person:5+', 'chair:2-4')")
-@click.option("--episode-name", type=str, help="Fuzzy search po nazwach odcinkow")
-@click.option("--episode-name-semantic", type=str, help="Semantic search po nazwach odcinkow")
-@click.option("--list-characters", "list_chars_flag", is_flag=True, help="Lista wszystkich postaci")
-@click.option("--list-objects", "list_objects_flag", is_flag=True, help="Lista wszystkich klas obiektow")
-@click.option("--season", type=int, help="Filtruj po sezonie")
-@click.option("--episode", type=int, help="Filtruj po odcinku")
-@click.option("--limit", type=int, default=20, help="Limit wynikow")
-@click.option("--stats", is_flag=True, help="Pokaz statystyki indeksow")
-@click.option("--json-output", is_flag=True, help="Output w formacie JSON")
+@click.option("--text", type=str, help="Full-text search by transcriptions")
+@click.option("--text-semantic", type=str, help="Semantic search by text embeddings")
+@click.option("--text-to-video", type=str, help="Cross-modal search: text query in video embeddings")
+@click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search by video embeddings")
+@click.option("--hash", "phash", type=str, help="Search by perceptual hash (provide hash string or image path)")
+@click.option("--character", type=str, help="Search by character")
+@click.option("--emotion", type=str, help="Search by emotion (neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)")
+@click.option("--object", "object_query", type=str, help="Search by detected objects (e.g., 'dog', 'person:5+', 'chair:2-4')")
+@click.option("--episode-name", type=str, help="Fuzzy search by episode names")
+@click.option("--episode-name-semantic", type=str, help="Semantic search by episode names")
+@click.option("--list-characters", "list_chars_flag", is_flag=True, help="List all characters")
+@click.option("--list-objects", "list_objects_flag", is_flag=True, help="List all object classes")
+@click.option("--season", type=int, help="Filter by season")
+@click.option("--episode", type=int, help="Filter by episode")
+@click.option("--limit", type=int, default=20, help="Result limit")
+@click.option("--stats", is_flag=True, help="Show index statistics")
+@click.option("--json-output", is_flag=True, help="Output in JSON format")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
 def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     series: str,
@@ -150,22 +177,11 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     json_output: bool,
     host: str,
 ) -> None:
-    import asyncio  # pylint: disable=import-outside-toplevel
-    import json  # pylint: disable=import-outside-toplevel
-    import sys  # pylint: disable=import-outside-toplevel
-
-    from elasticsearch import AsyncElasticsearch  # pylint: disable=import-outside-toplevel
-
-    from preprocessor.services.search.clients.elasticsearch_queries import ElasticsearchQueries  # pylint: disable=import-outside-toplevel
-    from preprocessor.services.search.clients.embedding_service import EmbeddingService  # pylint: disable=import-outside-toplevel
-    from preprocessor.services.search.clients.hash_service import HashService  # pylint: disable=import-outside-toplevel
-    from preprocessor.services.search.clients.result_formatters import ResultFormatter  # pylint: disable=import-outside-toplevel
-
     if not any([
         text, text_semantic, text_to_video, image, phash, character, emotion,
         object_query, episode_name, episode_name_semantic, list_chars_flag, list_objects_flag, stats,
     ]):
-        click.echo("Podaj przynajmniej jedna opcje wyszukiwania. Uzyj --help", err=True)
+        click.echo("Provide at least one search option. Use --help", err=True)
         sys.exit(1)
 
     series_config = SeriesConfig.load(series)
@@ -173,27 +189,17 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     hash_value = None
     if phash:
-        phash_path = Path(phash)
-        if phash_path.exists() and phash_path.is_file():
-            click.echo(f"Computing perceptual hash from image: {phash}", err=True)
-            hash_svc = HashService()
-            hash_value = hash_svc.get_perceptual_hash(str(phash_path))
-            if hash_value:
-                click.echo(f"Computed hash: {hash_value}", err=True)
-            else:
-                click.echo("Failed to compute hash from image", err=True)
-                sys.exit(1)
-            hash_svc.cleanup()
-        else:
-            hash_value = phash
+        hash_value = SearchCommandHandler.compute_perceptual_hash(phash)
+        if hash_value is None:
+            sys.exit(1)
 
-    async def run() -> None:  # pylint: disable=too-many-branches,too-many-statements
+    async def __run() -> None:
         es_client = AsyncElasticsearch(hosts=[host], verify_certs=False)
 
         try:
             await es_client.ping()
-        except Exception:  # pylint: disable=broad-except
-            click.echo(f"✗ Cannot connect to Elasticsearch at {host}", err=True)
+        except Exception:
+            click.echo(f"Cannot connect to Elasticsearch at {host}", err=True)
             click.echo("Make sure Elasticsearch is running:", err=True)
             click.echo("  docker-compose -f docker-compose.test.yml up -d", err=True)
             sys.exit(1)
@@ -202,110 +208,45 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         queries = ElasticsearchQueries(embedding_svc, index_base)
 
         try:
+            handler = SearchCommandHandler(es_client, embedding_svc, queries, json_output)
+            filters = SearchFilters(season, episode, character, limit)
+
+            result = None
             if stats:
-                result = await queries.get_stats(es_client)
-                if json_output:
-                    click.echo(json.dumps(result, indent=2))
-                else:
-                    click.echo("\nStatystyki:")
-                    click.echo(f"  Segments: {result['segments']:,}")
-                    click.echo(f"  Text Embeddings: {result['text_embeddings']:,}")
-                    click.echo(f"  Video Embeddings: {result['video_embeddings']:,}")
-                    click.echo(f"  Episode Names: {result['episode_names']:,}")
-
+                result = await handler.handle_stats()
             elif list_chars_flag:
-                chars = await queries.list_characters(es_client)
-                if json_output:
-                    click.echo(json.dumps(chars, indent=2))
-                else:
-                    click.echo(f"\nZnaleziono {len(chars)} postaci:")
-                    for char_name, count in sorted(chars, key=lambda x: -x[1]):
-                        click.echo(f"  {char_name}: {count:,} wystapien")
-
+                result = await handler.handle_list_characters()
             elif list_objects_flag:
-                objects = await queries.list_objects(es_client)
-                if json_output:
-                    click.echo(json.dumps(objects, indent=2))
-                else:
-                    click.echo(f"\nZnaleziono {len(objects)} klas obiektow:")
-                    for obj_name, count in sorted(objects, key=lambda x: -x[1]):
-                        click.echo(f"  {obj_name}: {count:,} wystapien")
-
+                result = await handler.handle_list_objects()
             elif text:
-                result = await queries.search_text_query(es_client, text, season, episode, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "text")
-
+                result = await handler.handle_text_search(text, filters)
             elif text_semantic:
-                result = await queries.search_text_semantic(es_client, text_semantic, season, episode, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "text_semantic")
-
+                result = await handler.handle_text_semantic_search(text_semantic, filters)
             elif text_to_video:
-                result = await queries.search_text_to_video(es_client, text_to_video, season, episode, character, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "video")
-
+                result = await handler.handle_text_to_video_search(text_to_video, filters)
             elif image:
-                result = await queries.search_video_semantic(es_client, str(image), season, episode, character, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "video")
-
+                result = await handler.handle_image_search(image, filters)
             elif emotion:
-                result = await queries.search_by_emotion(es_client, emotion, season, episode, character, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "video")
-
+                result = await handler.handle_emotion_search(emotion, filters)
             elif character:
-                result = await queries.search_by_character(es_client, character, season, episode, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "video")
-
+                result = await handler.handle_character_search(character, filters)
             elif object_query:
-                result = await queries.search_by_object(es_client, object_query, season, episode, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "video")
-
+                result = await handler.handle_object_search(object_query, filters)
             elif hash_value:
-                result = await queries.search_perceptual_hash(es_client, hash_value, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "video")
-
+                result = await handler.handle_hash_search(hash_value, filters)
             elif episode_name:
-                result = await queries.search_episode_name(es_client, episode_name, season, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "episode_name")
-
+                result = await handler.handle_episode_name_search(episode_name, filters)
             elif episode_name_semantic:
-                result = await queries.search_episode_name_semantic(es_client, episode_name_semantic, season, limit)
-                if json_output:
-                    click.echo(json.dumps(result["hits"], indent=2))
-                else:
-                    ResultFormatter.print_results(result, "episode_name")
+                result = await handler.handle_episode_name_semantic_search(episode_name_semantic, filters)
+
+            if result:
+                click.echo(result)
 
         finally:
             embedding_svc.cleanup()
             await es_client.close()
 
-    asyncio.run(run())
+    asyncio.run(__run())
 
 
 _CLI_TEMPLATE_SERIES = "ranczo"

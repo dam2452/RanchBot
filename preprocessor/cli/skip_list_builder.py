@@ -16,6 +16,6 @@ class SkipListBuilder:
     ) -> List[str]:
         skip_list = list(cli_skip)
         if series_config.pipeline_mode == "selective" and series_config.skip_steps:
-            logger.info(f"🔧 Selective mode: auto-skipping {', '.join(series_config.skip_steps)}")
+            logger.info(f"Selective mode: auto-skipping {', '.join(series_config.skip_steps)}")
             skip_list.extend(series_config.skip_steps)
         return list(set(skip_list))

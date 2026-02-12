@@ -31,7 +31,7 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
     def execute(self, input_data: AudioArtifact, context: ExecutionContext) -> TranscriptionData:
         output_path = self._get_output_path(input_data, context)
 
-        if self._should_skip_processing(output_path, context, input_data):
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached transcription'):
             return self._create_cached_result(output_path, input_data)
 
         self._ensure_whisper_loaded()
@@ -60,17 +60,6 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
             f'raw/{output_filename}',
         )
 
-    def _should_skip_processing(
-        self,
-        output_path: Path,
-        context: ExecutionContext,
-        input_data: AudioArtifact,
-    ) -> bool:
-        if output_path.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached transcription)')
-                return True
-        return False
 
     def _create_cached_result(self, output_path: Path, input_data: AudioArtifact) -> TranscriptionData:
         return TranscriptionData(

@@ -21,5 +21,5 @@ class CharacterScraper(BaseScraper):
             return
         result = {'sources': [item['url'] for item in scraped_pages], 'characters': [char.model_dump() for char in characters]}
         self._save_result(result)
-        console.print(f'[green]✓ Extracted {len(characters)} characters[/green]')
-        console.print(f'[green]✓ Saved to: {self.output_file}[/green]')
+        console.print(f'[green]Extracted {len(characters)} characters[/green]')
+        console.print(f'[green]Saved to: {self.output_file}[/green]')

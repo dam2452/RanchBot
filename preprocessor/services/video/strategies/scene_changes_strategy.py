@@ -12,7 +12,7 @@ from preprocessor.services.video.strategies.base_strategy import BaseKeyframeStr
 
 class SceneChangesStrategy(BaseKeyframeStrategy):
 
-    def __init__(self, frames_per_scene: int):
+    def __init__(self, frames_per_scene: int) -> None:
         self.frames_per_scene = frames_per_scene
 
     def extract_frame_requests(self, video_path: Path, data: Dict[str, Any]) -> List[Dict[str, Any]]:

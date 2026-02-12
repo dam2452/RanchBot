@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 import time
 from typing import Optional
 
@@ -8,40 +7,27 @@ from preprocessor.services.ui.console import console
 
 class ProgressTracker:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.current_operation: Optional[str] = None
         self.start_time: Optional[float] = None
 
-    @contextmanager
-    def __track_operation(self, operation_name: str, total: int): # pylint: disable=unused-private-member
-        self.current_operation = operation_name
-        self.start_time = time.time()
-        console.print(f'  [cyan]{operation_name} (total: {total})...[/cyan]')
-        tracker = OperationTracker(operation_name=operation_name, total=total, start_time=self.start_time)
-        try:
-            yield tracker
-        finally:
-            if tracker.completed > 0:
-                elapsed = time.time() - self.start_time
-                console.print(f'  [green]✓ {operation_name} completed: {tracker.completed}/{total} in {TimeFormatter.format_human(elapsed)}[/green]')
-
 class OperationTracker:
 
-    def __init__(self, operation_name: str, total: int, start_time: float):
+    def __init__(self, operation_name: str, total: int, start_time: float) -> None:
         self.operation_name = operation_name
         self.total = total
         self.completed = 0
         self.start_time = start_time
         self.last_report = 0
 
-    def update(self, completed: int, interval: int=10):
+    def update(self, completed: int, interval: int=10) -> None:
         self.completed = completed
         should_report = completed % interval == 0 or completed == self.total or completed == 1
         if should_report and completed != self.last_report:
             self.__report_progress()
             self.last_report = completed
 
-    def __report_progress(self):
+    def __report_progress(self) -> None:
         elapsed = time.time() - self.start_time
         percent = self.completed / self.total * 100 if self.total > 0 else 0
         if 0 < self.completed < self.total:

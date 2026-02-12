@@ -10,7 +10,7 @@ class GlobalValidationResult(BaseValidationResult):
 
 class GlobalValidator:
 
-    def __init__(self, series_name: str, base_output_dir: Path):
+    def __init__(self, series_name: str, base_output_dir: Path) -> None:
         self.series_name = series_name
         self.base_output_dir = base_output_dir
         self.result = GlobalValidationResult()
@@ -29,7 +29,7 @@ class GlobalValidator:
             image_files.extend(char_folder.glob(ext))
         return image_files
 
-    def __validate_characters_folder(self):
+    def __validate_characters_folder(self) -> None:
         characters_dir = self.base_output_dir / 'characters'
         if not characters_dir.exists():
             self.result.warnings.append('Missing characters/ directory')
@@ -58,7 +58,7 @@ class GlobalValidator:
         if characters_without_images:
             self.result.warnings.append(f'{len(characters_without_images)} characters without reference images')
 
-    def __validate_json_file(self, file_path: Path, stats_key: str):
+    def __validate_json_file(self, file_path: Path, stats_key: str) -> None:
         if file_path.exists():
             result = FileValidator.validate_json_file(file_path)
             if not result.is_valid:
@@ -68,13 +68,13 @@ class GlobalValidator:
         else:
             self.result.warnings.append(f'Missing {file_path.name}')
 
-    def __validate_main_json_files(self):
+    def __validate_main_json_files(self) -> None:
         episodes_file = self.base_output_dir / f'{self.series_name}_episodes.json'
         self.__validate_json_file(episodes_file, 'episodes_json_valid')
         characters_file = self.base_output_dir / f'{self.series_name}_characters.json'
         self.__validate_json_file(characters_file, 'characters_json_valid')
 
-    def __validate_processing_metadata(self):
+    def __validate_processing_metadata(self) -> None:
         metadata_dir = self.base_output_dir / 'processing_metadata'
         if not metadata_dir.exists():
             self.result.warnings.append('Missing processing_metadata/ directory')

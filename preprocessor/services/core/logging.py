@@ -9,10 +9,15 @@ from preprocessor.services.ui.console import console
 
 class LoggerNotFinalizedException(Exception):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('Logger destroyed without finalize() being called.')
 
 class ErrorHandlingLogger:
+    DEBUG = 10
+    INFO = 20
+    WARNING = 30
+    ERROR = 40
+    CRITICAL = 50
 
     def __init__(self, class_name: str, loglevel: int, error_exit_code: int) -> None:
         self.__class_name: str = class_name

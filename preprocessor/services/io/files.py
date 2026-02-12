@@ -34,7 +34,7 @@ class FileOperations:
             raise
 
     @staticmethod
-    def __atomic_write_text(path: Path, content: str) -> None: # pylint: disable=unused-private-member
+    def __atomic_write_text(path: Path, content: str) -> None:  # pylint: disable=unused-private-member
 
         def __write(temp: Path) -> None:
             with open(temp, 'w', encoding='utf-8') as f:

@@ -18,6 +18,3 @@ class EmbeddingModelWrapper:
         if isinstance(text, str):
             return self._service.get_text_embedding(text)
         return [self._service.get_text_embedding(t) for t in text]
-
-    def __encode_image(self, image_path: str) -> List[float]: # pylint: disable=unused-private-member
-        return self._service.get_image_embedding(image_path)

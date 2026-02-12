@@ -7,6 +7,7 @@ from typing import (
     Any,
     Dict,
     Optional,
+    Type,
     TypeVar,
 )
 
@@ -56,7 +57,7 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
         return input_data
 
     @abstractmethod
-    def _get_scraper_class(self):
+    def _get_scraper_class(self) -> Type:
         pass
 
     @abstractmethod

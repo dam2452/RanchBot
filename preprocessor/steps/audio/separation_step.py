@@ -36,7 +36,8 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
     ) -> TranscriptionData:
         output_paths = self._prepare_output_paths(input_data)
 
-        if self._should_skip_processing(output_paths, context, input_data):
+        clean_json = output_paths['clean_json']
+        if self._check_cache_validity(clean_json, context, input_data.episode_id, 'cached'):
             return self._create_cached_result(output_paths, input_data)
 
         context.mark_step_started(self.name, input_data.episode_id)
@@ -63,7 +64,8 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
     def name(self) -> str:
         return 'sound_separation'
 
-    def _prepare_output_paths(self, input_data: TranscriptionData) -> Dict[str, Path]:
+    @staticmethod
+    def _prepare_output_paths(input_data: TranscriptionData) -> Dict[str, Path]:
         base_name = input_data.path.stem.replace(FILE_SUFFIXES['segmented'], '')
         episode_dir = input_data.path.parent.parent
         clean_dir = episode_dir / 'clean'
@@ -82,19 +84,6 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             'sound_srt': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['srt']}",
         }
 
-    def _should_skip_processing(
-        self,
-        output_paths: Dict[str, Path],
-        context: ExecutionContext,
-        input_data: TranscriptionData,
-    ) -> bool:
-        clean_json = output_paths['clean_json']
-        sound_json = output_paths['sound_json']
-        if clean_json.exists() and sound_json.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, input_data.episode_id):
-                context.logger.info(f'Skipping {input_data.episode_id} (cached)')
-                return True
-        return False
 
     @staticmethod
     def _load_transcription_data(input_data: TranscriptionData) -> Dict[str, Any]:
@@ -262,7 +251,7 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             f.write(' '.join(text_lines))
 
     @staticmethod
-    def __is_sound_event_text(text: str) -> bool: # pylint: disable=unused-private-member
+    def __is_sound_event_text(text: str) -> bool:  # pylint: disable=unused-private-member
         return bool(re.match(r'^\(.*\)$', text.strip()))
 
     @staticmethod

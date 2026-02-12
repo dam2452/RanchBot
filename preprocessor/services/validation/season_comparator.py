@@ -36,7 +36,7 @@ class SeasonComparison:
     anomalies: List[Anomaly] = field(default_factory=list)
     metrics: Dict[str, MetricComparison] = field(default_factory=dict)
 
-    def compare_episodes(self, episodes_stats: Dict[str, EpisodeStats]):
+    def compare_episodes(self, episodes_stats: Dict[str, EpisodeStats]) -> None:
         metric_keys = [
             'transcription_duration',
             'transcription_chars',
@@ -74,7 +74,7 @@ class SeasonComparison:
             ],
         }
 
-    def __compare_metric(self, metric_key: str, episodes_stats: Dict[str, EpisodeStats]):
+    def __compare_metric(self, metric_key: str, episodes_stats: Dict[str, EpisodeStats]) -> None:
         values = []
         episode_values = {}
         for episode_id, stats in episodes_stats.items():

@@ -15,7 +15,7 @@ from transnetv2_pytorch import TransNetV2
 
 class TransNetWrapper:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.model: Optional[TransNetV2] = None
 
     def cleanup(self) -> None:

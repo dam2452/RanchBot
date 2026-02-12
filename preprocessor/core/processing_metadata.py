@@ -23,10 +23,10 @@ class StepMetadata:
     start_time: Optional[datetime] = None
     status: str = 'pending'
 
-    def skip(self):
+    def skip(self) -> None:
         self.status = 'skipped'
 
-    def start(self):
+    def start(self) -> None:
         self.start_time = datetime.now()
         self.status = 'running'
 
@@ -46,7 +46,7 @@ class StepMetadata:
 
 class ProcessingMetadata:
 
-    def __init__(self, series_name: str, params: Dict[str, Any]):
+    def __init__(self, series_name: str, params: Dict[str, Any]) -> None:
         self.series_name = series_name
         self.params = self.__sanitize_params(params)
         self.start_time = datetime.now()

@@ -27,8 +27,8 @@ class EpisodeScraper(BaseScraper):
         result = {'sources': [item['url'] for item in scraped_pages], 'seasons': [season.model_dump() for season in all_seasons]}
         self._save_result(result)
         total_episodes = sum((len(season.episodes) for season in all_seasons))
-        console.print(f'[green]✓ Extracted {len(all_seasons)} seasons, {total_episodes} episodes[/green]')
-        console.print(f'[green]✓ Saved to: {self.output_file}[/green]')
+        console.print(f'[green]Extracted {len(all_seasons)} seasons, {total_episodes} episodes[/green]')
+        console.print(f'[green]Saved to: {self.output_file}[/green]')
         self.__validate_and_report_coverage(total_episodes)
 
     def __count_video_files(self, directory: Path) -> int:
@@ -55,23 +55,23 @@ class EpisodeScraper(BaseScraper):
     @staticmethod
     def __print_coverage_report(scraped: int, expected: int, status: str, message: str) -> None:
         coverage_pct = scraped / expected * 100 if expected > 0 else 0
-        console.print('\n[yellow]⚠ Episode coverage validation:[/yellow]')
+        console.print('\n[yellow]Episode coverage validation:[/yellow]')
         console.print(f'  [cyan]Scraped episodes: {scraped}[/cyan]')
         console.print(f'  [cyan]Video files found: {expected}[/cyan]')
         console.print(f'  [cyan]Coverage: {coverage_pct:.1f}%[/cyan]')
         if status == 'missing':
-            console.print(f'\n[red]✗ WARNING: {message}![/red]')
+            console.print(f'\n[red]WARNING: {message}![/red]')
             console.print('  [yellow]Consider adding more URLs to --scrape-urls[/yellow]')
             console.print('  [dim]Not all video files will have metadata available[/dim]\n')
         elif status == 'extra':
-            console.print(f'\n[yellow]⚠ Note: {message}[/yellow]')
+            console.print(f'\n[yellow]Note: {message}[/yellow]')
             console.print('  [dim]This is OK if you plan to add more videos later[/dim]\n')
         else:
-            console.print('\n[green]✓ Perfect coverage - all video files have metadata![/green]\n')
+            console.print('\n[green]Perfect coverage - all video files have metadata![/green]\n')
 
     @staticmethod
     def __print_no_validation_warning(scraped_count: int) -> None:
-        console.print('\n[yellow]⚠ Coverage validation:[/yellow]')
+        console.print('\n[yellow]Coverage validation:[/yellow]')
         console.print(f'  [cyan]Scraped episodes: {scraped_count}[/cyan]')
         console.print('  [yellow]No video directory provided - unable to validate coverage[/yellow]')
         console.print('  [dim]Make sure the scraped episodes cover all your video files[/dim]')

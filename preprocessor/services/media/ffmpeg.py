@@ -18,7 +18,7 @@ class FFmpegWrapper:
     __B_ADAPT = '1'
     __LEVEL = '4.1'
     __PIX_FMT = 'yuv420p'
-    __PROFILE = 'main'
+    __PROFILE = 'high'
     __RC_LOOKAHEAD = '32'
     __TWO_PASS = '1'
 
@@ -103,6 +103,38 @@ class FFmpegWrapper:
         return round(int(bit_rate) / 1000000, 2)
 
     @staticmethod
+    def get_resolution(probe_data: Dict[str, Any]) -> Tuple[int, int]:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            raise ValueError('No video streams found')
+        width = stream.get('width')
+        height = stream.get('height')
+        if not width or not height:
+            raise ValueError('Resolution not found')
+        return int(width), int(height)
+
+    @staticmethod
+    def get_sample_aspect_ratio(probe_data: Dict[str, Any]) -> Tuple[int, int]:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return (1, 1)
+        sar = stream.get('sample_aspect_ratio', '1:1')
+        if sar == '0:1' or not sar:
+            return (1, 1)
+        try:
+            num, denom = [int(x) for x in sar.split(':')]
+            return (num, denom)
+        except (ValueError, AttributeError):
+            return (1, 1)
+
+    @staticmethod
+    def get_field_order(probe_data: Dict[str, Any]) -> str:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return 'unknown'
+        return stream.get('field_order', 'unknown')
+
+    @staticmethod
     def probe_video(video_path: Path) -> Dict[str, Any]:
         cmd = ['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(video_path)]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -123,13 +155,14 @@ class FFmpegWrapper:
         gop_size: int,
         target_fps: Optional[float] = None,
         deinterlace: bool = False,
+        is_upscaling: bool = False,
     ) -> None:
         width, height = [int(x) for x in resolution.split(':')]
-        vf_filter = FFmpegWrapper.__build_video_filter(width, height, deinterlace)
+        vf_filter = FFmpegWrapper.__build_video_filter(width, height, deinterlace, is_upscaling)
         command = FFmpegWrapper.__build_base_command(input_path, codec, preset, target_fps)
         command.extend(
             FFmpegWrapper.__build_encoding_params(
-                video_bitrate, minrate, maxrate, bufsize, gop_size,
+                video_bitrate, minrate, maxrate, bufsize, gop_size, is_upscaling,
             ),
         )
         command.extend(
@@ -172,9 +205,14 @@ class FFmpegWrapper:
 
     @staticmethod
     def __build_encoding_params(
-        video_bitrate: str, minrate: str, maxrate: str, bufsize: str, gop_size: int,
+        video_bitrate: str,
+        minrate: str,
+        maxrate: str,
+        bufsize: str,
+        gop_size: int,
+        is_upscaling: bool = False,
     ) -> List[str]:
-        return [
+        params = [
             '-rc', 'vbr_hq',
             '-b:v', video_bitrate,
             '-minrate', minrate,
@@ -183,25 +221,41 @@ class FFmpegWrapper:
             '-bf', FFmpegWrapper.__BF,
             '-b_adapt', FFmpegWrapper.__B_ADAPT,
             '-2pass', FFmpegWrapper.__TWO_PASS,
-            '-rc-lookahead', FFmpegWrapper.__RC_LOOKAHEAD,
-            '-aq-strength', FFmpegWrapper.__AQ_STRENGTH,
+            '-multipass', 'fullres',
             '-g', str(gop_size),
             '-spatial-aq', '1',
             '-temporal-aq', '1',
-            '-multipass', 'fullres',
         ]
 
+        if is_upscaling:
+            params.extend([
+                '-rc-lookahead', '60',
+                '-aq-strength', '18',
+                '-b_ref_mode', 'middle',
+            ])
+        else:
+            params.extend([
+                '-rc-lookahead', FFmpegWrapper.__RC_LOOKAHEAD,
+                '-aq-strength', FFmpegWrapper.__AQ_STRENGTH,
+            ])
+
+        return params
+
     @staticmethod
-    def __build_video_filter(width: int, height: int, deinterlace: bool = False) -> str:
+    def __build_video_filter(
+        width: int, height: int, deinterlace: bool = False, is_upscaling: bool = False,
+    ) -> str:
         filters = []
 
         if deinterlace:
             filters.append('bwdif=mode=0')
 
+        scaler_flags = 'lanczos' if is_upscaling else 'bicubic'
+
         filters.append(
             f"scale='iw*sar:ih',scale={width}:{height}:"
-            f"force_original_aspect_ratio=decrease,pad={width}:{height}:"
-            f"(ow-iw)/2:(oh-ih)/2:black,setsar=1",
+            f"force_original_aspect_ratio=decrease:flags={scaler_flags},"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1",
         )
 
         return ','.join(filters)

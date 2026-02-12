@@ -4,11 +4,15 @@ from dataclasses import (
 )
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
     Optional,
 )
+
+if TYPE_CHECKING:
+    from preprocessor.services.episodes.episode_manager import EpisodeInfo
 
 
 @dataclass(frozen=True)
@@ -18,7 +22,7 @@ class Artifact:
 @dataclass(frozen=True)
 class EpisodeArtifact(Artifact):
     episode_id: str
-    episode_info: Any
+    episode_info: 'EpisodeInfo'
 
 @dataclass(frozen=True)
 class SourceVideo(EpisodeArtifact):
@@ -111,5 +115,10 @@ class ArchiveArtifact(EpisodeArtifact):
 class ValidationResult(Artifact):
     season: str
     validation_report_dir: Path
+
+@dataclass(frozen=True)
+class ResolutionAnalysisResult(Artifact):
+    total_files: int
+    upscaling_percentage: float
 
 ProcessedEpisode = ElasticDocuments

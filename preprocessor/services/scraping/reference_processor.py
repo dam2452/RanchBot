@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import datetime
 import json
 import logging
@@ -8,7 +7,6 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
 )
 import warnings
 
@@ -27,54 +25,26 @@ from preprocessor.services.core.base_processor import (
     OutputSpec,
     ProcessingItem,
 )
+from preprocessor.services.scraping.grid_visualizer import CharacterGridVisualizer
 from preprocessor.services.ui.console import console
 
 warnings.filterwarnings('ignore', message='.*estimate.*is deprecated.*', category=FutureWarning, module='insightface')
 
 class CharacterReferenceProcessor(BaseProcessor):
 
-    @dataclass
-    class _GridDimensions:
-        face_size: int = 280
-        faces_per_char: int = 3
-        footer_height: int = 80
-        header_height: int = 180
-        header_row_height: int = 40
-        label_col_width: int = 350
-        padding: int = 15
-        stats_col_width: int = 200
-
-        @property
-        def face_col_width(self) -> int:
-            return self.face_size + self.padding
-
-        @property
-        def row_height(self) -> int:
-            return self.face_size + self.padding * 2
-
-        def total_height(self, num_chars: int) -> int:
-            return self.header_height + num_chars * self.row_height + self.footer_height
-
-        def total_width(self) -> int:
-            return (
-                self.label_col_width
-                + self.stats_col_width
-                + self.faces_per_char * self.face_col_width
-                + self.padding * 2
-            )
-
-    def __init__(self, args: Dict[str, Any]):
+    def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(args=args, class_name='CharacterReferenceProcessor', error_exit_code=20, loglevel=logging.INFO)
         self.characters_dir = args['characters_dir']
         self.output_dir = args['output_dir']
         self.similarity_threshold = args['similarity_threshold']
         self.interactive = args['interactive']
         self.face_app: Optional[FaceAnalysis] = None
+        self._visualizer = CharacterGridVisualizer(similarity_threshold=self.similarity_threshold)
 
     def generate_validation_grid(self) -> None:
         output_path = self.output_dir / 'validation_grid.png'
         if output_path.exists():
-            console.print(f'[dim]⊘ Skipping validation grid (already exists): {output_path}[/dim]')
+            console.print(f'[dim]Skipping validation grid (already exists): {output_path}[/dim]')
             return
 
         console.print('\n[blue]Generating validation grid...[/blue]')
@@ -88,37 +58,15 @@ class CharacterReferenceProcessor(BaseProcessor):
             console.print('[yellow]No processed characters found, skipping validation grid[/yellow]')
             return
 
-        dims = self._GridDimensions()
-        grid_width = dims.total_width()
-        grid_height = dims.total_height(len(processed_chars))
-        bg_color = (250, 252, 255)
-        grid = np.full((grid_height, grid_width, 3), bg_color, dtype=np.uint8)
-
-        metadata_all = self.__load_all_metadata(processed_chars)
-        avg_similarity = (
-            np.mean([m.get('average_similarity', 0) for m in metadata_all]) if metadata_all else 0
+        stats = self._visualizer.generate_grid(
+            processed_chars_dir=self.output_dir,
+            output_path=output_path,
         )
 
-        self.__render_header(grid, dims, len(processed_chars), avg_similarity, self.similarity_threshold)
-        self.__render_table_headers(grid, dims)
-
-        y_offset = dims.header_height + dims.header_row_height + dims.padding
-        for idx, char_dir in enumerate(processed_chars):
-            self.__render_character_row(grid, dims, char_dir, idx, y_offset, bg_color)
-            y_offset += dims.row_height
-
-        self.__render_footer(grid, dims, grid_height)
-
-        cv2.imwrite(
-            str(output_path),
-            grid,
-            [cv2.IMWRITE_PNG_COMPRESSION, 6],
-        )
-
-        console.print(f'[green]✓ Validation grid saved to: {output_path}[/green]')
-        console.print(f'[green]  Grid size: {grid_width}x{grid_height}px[/green]')
-        console.print(f'[green]  Characters: {len(processed_chars)}[/green]')
-        console.print(f'[green]  Average similarity: {avg_similarity:.4f}[/green]')
+        console.print(f'[green]Validation grid saved to: {output_path}[/green]')
+        console.print(f'[green]  Grid size: {stats["width"]}x{stats["height"]}px[/green]')
+        console.print(f'[green]  Characters: {stats["num_chars"]}[/green]')
+        console.print(f'[green]  Average similarity: {stats["avg_similarity"]:.4f}[/green]')
 
     def get_output_subdir(self) -> str:
         return 'character_references'
@@ -169,7 +117,7 @@ class CharacterReferenceProcessor(BaseProcessor):
             console.print(f'[yellow]Skipping {char_name}: could not identify common face[/yellow]')
             return
         self.__save_processed_references(char_name, selected_faces, reference_images)
-        console.print(f'[green]✓ Processed {char_name}[/green]')
+        console.print(f'[green]Processed {char_name}[/green]')
 
     def _validate_args(self, args: Dict[str, Any]) -> None:
         required = ['characters_dir', 'output_dir', 'similarity_threshold', 'interactive']
@@ -253,7 +201,8 @@ class CharacterReferenceProcessor(BaseProcessor):
         cv2.imwrite(str(output_path), grid)
         return output_path
 
-    def __create_candidates_grid(self, candidates: List[CandidateFace]) -> np.ndarray:
+    @staticmethod
+    def __create_candidates_grid(candidates: List[CandidateFace]) -> np.ndarray:
         num_refs = len(candidates[0].faces)
         num_candidates = len(candidates)
         face_size = 150
@@ -272,7 +221,7 @@ class CharacterReferenceProcessor(BaseProcessor):
             y_base = label_height + padding + cand_idx * (face_size + label_height + padding)
             for face_idx, face_data in enumerate(candidate.faces):
                 x = padding + face_idx * (face_size + padding)
-                face_resized = self.__safe_resize(face_data.face_img, (face_size, face_size))
+                face_resized = CharacterGridVisualizer._safe_resize(face_data.face_img, (face_size, face_size))
                 if face_resized is not None:
                     grid[y_base:y_base + face_size, x:x + face_size] = face_resized
 
@@ -281,7 +230,8 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         return grid
 
-    def __create_manual_selection_grid(self, faces_data: List[FaceData]) -> np.ndarray:
+    @staticmethod
+    def __create_manual_selection_grid(faces_data: List[FaceData]) -> np.ndarray:
         num_faces = len(faces_data)
         cols = min(3, num_faces)
         rows = (num_faces + cols - 1) // cols
@@ -296,7 +246,7 @@ class CharacterReferenceProcessor(BaseProcessor):
             col = idx % cols
             x = padding + col * (face_size + padding)
             y = padding + row * (face_size + padding)
-            face_resized = self.__safe_resize(face_data.face_img, (face_size, face_size))
+            face_resized = CharacterGridVisualizer._safe_resize(face_data.face_img, (face_size, face_size))
             if face_resized is not None:
                 grid[y:y + face_size, x:x + face_size] = face_resized
 
@@ -425,248 +375,7 @@ class CharacterReferenceProcessor(BaseProcessor):
                 return None
         return matched_faces
 
-    @staticmethod
-    def __load_all_metadata(processed_chars: List[Path]) -> List[Dict[str, Any]]:
-        metadata_all = []
-        for char_dir in processed_chars:
-            metadata_file = char_dir / 'metadata.json'
-            if metadata_file.exists():
-                with open(metadata_file, 'r', encoding='utf-8') as f:
-                    metadata_all.append(json.load(f))
-        return metadata_all
 
-    def __render_character_row(
-        self,
-        grid: np.ndarray,
-        dims: _GridDimensions,
-        char_dir: Path,
-        row_idx: int,
-        y_offset: int,
-        bg_color: Tuple[int, int, int],
-    ) -> None:
-        char_name = char_dir.name.replace('_', ' ').title()
-        row_bg = (245, 248, 252) if row_idx % 2 == 0 else bg_color
-
-        cv2.rectangle(
-            grid,
-            (0, y_offset - dims.padding),
-            (dims.total_width(), y_offset + dims.face_size + dims.padding),
-            row_bg,
-            -1,
-        )
-
-        cv2.putText(
-            grid,
-            char_name,
-            (dims.padding * 2, y_offset + dims.face_size // 2),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (30, 40, 50),
-            1,
-            cv2.LINE_AA,
-        )
-
-        self.__render_character_stats(grid, dims, char_dir, y_offset)
-        self.__render_character_faces(grid, dims, char_dir, y_offset)
-
-    def __render_character_stats(
-        self, grid: np.ndarray, dims: _GridDimensions, char_dir: Path, y_offset: int,
-    ) -> None:
-        metadata_file = char_dir / 'metadata.json'
-        if not metadata_file.exists():
-            return
-
-        with open(metadata_file, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-
-        similarity = metadata.get('average_similarity', 0.0)
-        method = metadata.get('detection_stats', {}).get('selection_method', 'unknown')
-        faces_detected = metadata.get('detection_stats', {}).get('total_faces_detected', [])
-
-        stats_x = dims.label_col_width + dims.padding
-        stats_y_base = y_offset + dims.face_size // 2 - 30
-
-        sim_color = (0, 150, 0) if similarity >= self.similarity_threshold else (180, 100, 0)
-        cv2.putText(
-            grid, f'Similarity: {similarity:.4f}', (stats_x, stats_y_base),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.45, sim_color, 1, cv2.LINE_AA,
-        )
-
-        method_color = (50, 120, 200) if method == 'automatic' else (180, 100, 50)
-        cv2.putText(
-            grid, f'Method: {method}', (stats_x, stats_y_base + 25),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.42, method_color, 1, cv2.LINE_AA,
-        )
-
-        faces_str = str(faces_detected) if len(str(faces_detected)) < 20 else f'[{len(faces_detected)} imgs]'
-        cv2.putText(
-            grid, f'Detected: {faces_str}', (stats_x, stats_y_base + 50),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (100, 110, 120), 1, cv2.LINE_AA,
-        )
-
-    def __render_character_faces(
-        self, grid: np.ndarray, dims: _GridDimensions, char_dir: Path, y_offset: int,
-    ) -> None:
-        face_files = sorted(char_dir.glob('face_*.jpg'))
-        for face_idx, face_file in enumerate(face_files[:dims.faces_per_char]):
-            face_img = cv2.imread(str(face_file))
-            if face_img is None:
-                continue
-
-            face_resized = self.__safe_resize(face_img, (dims.face_size, dims.face_size))
-            if face_resized is None:
-                continue
-
-            x = dims.label_col_width + dims.stats_col_width + face_idx * dims.face_col_width + dims.padding
-            grid[y_offset:y_offset + dims.face_size, x:x + dims.face_size] = face_resized
-
-            cv2.rectangle(
-                grid, (x - 1, y_offset - 1),
-                (x + dims.face_size + 1, y_offset + dims.face_size + 1),
-                (180, 190, 200), 1,
-            )
-
-    @staticmethod
-    def __render_footer(grid: np.ndarray, dims: _GridDimensions, grid_height: int) -> None:
-        footer_y = grid_height - dims.footer_height + 20
-        cv2.line(grid, (0, footer_y - 20), (dims.total_width(), footer_y - 20), (200, 210, 220), 1)
-
-        footer_text = (
-            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
-            f"Model: {settings.face_recognition.model_name} | "
-            f"Normalized Size: {settings.character.normalized_face_size[0]}x"
-            f"{settings.character.normalized_face_size[1]}px"
-        )
-        cv2.putText(
-            grid,
-            footer_text,
-            (dims.padding * 3, footer_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
-            (120, 130, 140),
-            1,
-            cv2.LINE_AA,
-        )
-
-        legend_y = footer_y + 30
-        legend_items = [
-            ('Automatic: Face found on all references', (50, 120, 200)),
-            ('Manual: User-selected reference', (180, 100, 50)),
-        ]
-        for idx, (text, color) in enumerate(legend_items):
-            x_pos = dims.padding * 3 + idx * 380
-            cv2.circle(grid, (x_pos, legend_y - 3), 5, color, -1)
-            cv2.putText(
-                grid,
-                text,
-                (x_pos + 15, legend_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.38,
-                (100, 110, 120),
-                1,
-                cv2.LINE_AA,
-            )
-
-    @staticmethod
-    def __render_header(
-        grid: np.ndarray,
-        dims: _GridDimensions,
-        total_chars: int,
-        avg_similarity: float,
-        threshold: float,
-    ) -> None:
-        header_bg_color = (45, 55, 72)
-        cv2.rectangle(grid, (0, 0), (dims.total_width(), dims.header_height), header_bg_color, -1)
-
-        title_text = 'FACIAL REFERENCE VALIDATION REPORT'
-        cv2.putText(
-            grid,
-            title_text,
-            (dims.padding * 3, 50),
-            cv2.FONT_HERSHEY_DUPLEX,
-            1.1,
-            (255, 255, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-        subtitle = 'InsightFace Buffalo-L Model | Face Vector Extraction & Similarity Analysis'
-        cv2.putText(
-            grid,
-            subtitle,
-            (dims.padding * 3, 85),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (200, 210, 220),
-            1,
-            cv2.LINE_AA,
-        )
-
-        stats_y = 115
-        stats_items = [
-            f'Total Subjects: {total_chars}',
-            f'Avg Similarity: {avg_similarity:.4f}',
-            f'Threshold: {threshold:.2f}',
-        ]
-        for idx, stat in enumerate(stats_items):
-            x_pos = dims.padding * 3 + idx * 280
-            cv2.putText(
-                grid,
-                stat,
-                (x_pos, stats_y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (180, 200, 220),
-                1,
-                cv2.LINE_AA,
-            )
-
-    @staticmethod
-    def __render_table_headers(grid: np.ndarray, dims: _GridDimensions) -> None:
-        table_header_y = dims.header_height + 1
-        cv2.line(grid, (0, table_header_y), (dims.total_width(), table_header_y), (180, 190, 200), 2)
-
-        col_headers = [
-            ('CHARACTER NAME', dims.label_col_width // 2, 0),
-            ('STATISTICS', dims.label_col_width + dims.stats_col_width // 2, 0),
-            ('REFERENCE IMAGE 1', dims.label_col_width + dims.stats_col_width + dims.face_col_width // 2, 0),
-            ('REFERENCE IMAGE 2', dims.label_col_width + dims.stats_col_width + dims.face_col_width * 3 // 2, 0),
-            ('REFERENCE IMAGE 3', dims.label_col_width + dims.stats_col_width + dims.face_col_width * 5 // 2, 0),
-        ]
-
-        for text, x_center, _ in col_headers:
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)[0]
-            text_x = x_center - text_size[0] // 2
-            cv2.putText(
-                grid,
-                text,
-                (text_x, table_header_y + 25),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.42,
-                (60, 70, 85),
-                1,
-                cv2.LINE_AA,
-            )
-
-        cv2.line(
-            grid,
-            (0, table_header_y + dims.header_row_height),
-            (dims.total_width(), table_header_y + dims.header_row_height),
-            (200, 210, 220),
-            1,
-        )
-
-    @staticmethod
-    def __safe_resize(img: np.ndarray, target_size: tuple) -> Optional[np.ndarray]:
-        if img is None or img.size == 0:
-            return None
-        if img.shape[0] == 0 or img.shape[1] == 0:
-            return None
-        try:
-            return cv2.resize(img, target_size)
-        except cv2.error as e:
-            logging.error(f'OpenCV resize error: {e}')
-            return None
 
     def __save_processed_references(
         self,
@@ -679,7 +388,10 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         face_vectors = []
         for idx, face_data in enumerate(selected_faces):
-            face_normalized = self.__safe_resize(face_data.face_img, settings.character.normalized_face_size)
+            face_normalized = CharacterGridVisualizer._safe_resize(
+                face_data.face_img,
+                settings.character.normalized_face_size,
+            )
             if face_normalized is None:
                 self.logger.warning(f'Skipping face {idx} for {char_name}: failed to resize (invalid dimensions)')
                 continue

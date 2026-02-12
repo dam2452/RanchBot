@@ -35,6 +35,16 @@ class OutputSpec:
     path: Path
     required: bool = True
 
+
+@dataclass
+class _FilterResult:
+    """Result of filtering processing items."""
+    items_to_process: List[ProcessingItem]
+    skipped_count: int
+    skip_messages: List[str]
+    total_items: int
+
+
 class BaseProcessor(ABC):
     DESCRIPTION: str = ''
     PRIORITY: int = 100
@@ -75,15 +85,39 @@ class BaseProcessor(ABC):
         return self.logger.finalize()
 
     def _execute(self) -> None:
+        """Main execution flow - orchestration only."""
         all_items = self._get_processing_items()
         if not all_items:
             console.print('[yellow]No items to process[/yellow]')
             return
-        items_to_process = []
+
+        filter_result = self.__filter_skipped_items(all_items)
+
+        if not filter_result.items_to_process:
+            console.print(
+                f'[yellow]All items already processed '
+                f'({filter_result.total_items} total, {filter_result.skipped_count} skipped)[/yellow]',
+            )
+            return
+
+        self.__display_processing_summary(filter_result)
+        self.__execute_processing(filter_result.items_to_process)
+        self._finalize()
+
+    def __filter_skipped_items(self, all_items: List[ProcessingItem]) -> _FilterResult:
+        """
+        Filters out items that should be skipped (cached).
+
+        Returns:
+            FilterResult with items to process and skip information
+        """
+        items_to_process: List[ProcessingItem] = []
         skipped_count = 0
-        skip_messages = []
+        skip_messages: List[str] = []
+
         for item in all_items:
             should_skip, missing_outputs, skip_message = self.__should_skip_item(item)
+
             if should_skip:
                 if skip_message:
                     skip_messages.append(skip_message)
@@ -91,20 +125,24 @@ class BaseProcessor(ABC):
             else:
                 item.metadata['missing_outputs'] = missing_outputs
                 items_to_process.append(item)
-        if not items_to_process:
-            console.print(
-                f'[yellow]All items already processed '
-                f'({len(all_items)} total, {skipped_count} skipped)[/yellow]',
-            )
-            return
-        for skip_message in skip_messages:
-            console.print(skip_message)
-        console.print(
-            f'[blue]Processing {len(items_to_process)} items '
-            f'(of {len(all_items)} total, {skipped_count} skipped)[/blue]',
+
+        return _FilterResult(
+            items_to_process=items_to_process,
+            skipped_count=skipped_count,
+            skip_messages=skip_messages,
+            total_items=len(all_items),
         )
-        self.__execute_processing(items_to_process)
-        self._finalize()
+
+    @staticmethod
+    def __display_processing_summary(result: _FilterResult) -> None:
+        """Displays summary of what will be processed and what was skipped."""
+        for skip_message in result.skip_messages:
+            console.print(skip_message)
+
+        console.print(
+            f'[blue]Processing {len(result.items_to_process)} items '
+            f'(of {result.total_items} total, {result.skipped_count} skipped)[/blue]',
+        )
 
     @abstractmethod
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:

@@ -18,15 +18,15 @@ class Resolution(Enum):
     R480P = (854, 480)
     R720P = (1280, 720)
 
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.height}p'
 
     @classmethod
-    def __from_str(cls: Type[T], init: str) -> T: # pylint: disable=unused-private-member
+    def from_string(cls: Type[T], init: str) -> T:
         init = init.strip()
         if not init[0].isalpha():
             init = 'R' + init.upper()
@@ -35,5 +35,9 @@ class Resolution(Enum):
         return cls[init]
 
     @classmethod
-    def __get_all_choices(cls) -> List[str]: # pylint: disable=unused-private-member
+    def __from_str(cls: Type[T], init: str) -> T:  # pylint: disable=unused-private-member
+        return cls.from_string(init)
+
+    @classmethod
+    def __get_all_choices(cls) -> List[str]:  # pylint: disable=unused-private-member
         return [str(r) for r in cls]

@@ -25,12 +25,12 @@ def __get_console() -> Console:
 
 class SimpleProgress:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tasks = {}
         self.task_counter = 0
         self.console = console
 
-    def add_task(self, description: str, total: int):
+    def add_task(self, description: str, total: int) -> int:
         task_id = self.task_counter
         self.task_counter += 1
         self.tasks[task_id] = {
@@ -43,7 +43,7 @@ class SimpleProgress:
         self.__print_progress(task_id)
         return task_id
 
-    def advance(self, task_id: int, advance: int=1):
+    def advance(self, task_id: int, advance: int=1) -> None:
         if task_id not in self.tasks:
             return
         task = self.tasks[task_id]
@@ -53,13 +53,13 @@ class SimpleProgress:
             self.__print_progress(task_id)
             task['last_print'] = current_time
 
-    def __enter__(self):
+    def __enter__(self) -> 'SimpleProgress':
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         pass
 
-    def __print_progress(self, task_id: int):
+    def __print_progress(self, task_id: int) -> None:
         task = self.tasks[task_id]
         completed = task['completed']
         total = task['total']
@@ -75,9 +75,9 @@ class SimpleProgress:
         bar_width = 30
         filled = int(bar_width * completed / total) if total > 0 else 0
         if filled < bar_width:
-            progress_bar = '━' * filled + '╸' + '─' * (bar_width - filled - 1)
+            progress_bar = '=' * filled + '>' + '-' * (bar_width - filled - 1)
         else:
-            progress_bar = '━' * bar_width
+            progress_bar = '=' * bar_width
 
         console.print(
             f"[bold blue]{task['description']}[/bold blue] "

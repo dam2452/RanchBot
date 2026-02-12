@@ -85,7 +85,7 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
             'trigrams': self.trigrams,
         }
 
-    def __calculate(self) -> None: # pylint: disable=unused-private-member
+    def __calculate(self) -> None:  # pylint: disable=unused-private-member
         self.__calculate_basic_stats()
         self.__calculate_character_stats()
         self.__calculate_word_stats()
@@ -145,12 +145,6 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
             word_lengths = [len(w) for w in words]
             self.avg_word_length = round(sum(word_lengths) / len(word_lengths), 2) if word_lengths else 0.0
             self.word_frequency = [{'word': word, 'count': count} for word, count in word_counter.most_common(50)]
-
-    @classmethod
-    def __from_text(cls, text: str, language: str='pl') -> 'TextStatistics': # pylint: disable=unused-private-member
-        stats = cls(text=text, language=language)
-        stats.__calculate()
-        return stats
 
     def __get_config(self) -> LanguageConfig:
         return POLISH_CONFIG if self.language == 'pl' else ENGLISH_CONFIG

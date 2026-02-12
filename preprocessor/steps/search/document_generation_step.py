@@ -21,7 +21,7 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
         episode_info, episode_id = self._extract_episode_info(input_data)
         output_dir = context.get_output_path(episode_info, 'elastic_documents', '')
 
-        if self._should_skip_processing(output_dir, context, episode_id):
+        if self._check_cache_validity(output_dir, context, episode_id, 'cached'):
             return self._create_empty_result(episode_id, episode_info, output_dir)
 
         context.logger.info(f'Generating Elasticsearch documents for {episode_id}')
@@ -50,16 +50,6 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
         episode_id = getattr(input_data, 'episode_id')
         return episode_info, episode_id
 
-    def _should_skip_processing(
-        self,
-        output_dir: Path,
-        context: ExecutionContext,
-        episode_id: str,
-    ) -> bool:
-        if output_dir.exists() and (not context.force_rerun):
-            if context.is_step_completed(self.name, episode_id):
-                return True
-        return False
 
     @staticmethod
     def _create_empty_result(episode_id: str, episode_info: Any, output_dir: Path) -> ElasticDocuments:

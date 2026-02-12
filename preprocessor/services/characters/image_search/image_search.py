@@ -10,7 +10,7 @@ from typing import (
 
 class BaseImageSearch(ABC):
 
-    def __init__(self, max_results: int=50):
+    def __init__(self, max_results: int=50) -> None:
         self.max_results = max_results
 
     @property

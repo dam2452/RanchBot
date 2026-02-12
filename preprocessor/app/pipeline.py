@@ -57,7 +57,7 @@ class PipelineDefinition:
     def register(self, step: StepBuilder) -> None:
         if step.id in self._steps:
             raise ValueError(
-                f"❌ DUPLICATE STEP:\n"
+                f"DUPLICATE STEP:\n"
                 f"  Step '{step.id}' is already registered in the pipeline!\n"
                 f"  Check build_pipeline() in pipeline_factory.py",
             )
@@ -91,11 +91,11 @@ class PipelineDefinition:
             for step in phases[phase_name]:
                 deps_str: str = ""
                 if step.dependency_ids:
-                    deps_str = f" ← needs: {', '.join(step.dependency_ids)}"
+                    deps_str = f" <- needs: {', '.join(step.dependency_ids)}"
 
                 lines.append(f"  {step.id}{deps_str}")
-                lines.append(f"    → produces: {', '.join(step.produces)}")
-                lines.append(f"    → {step.description}")
+                lines.append(f"    -> produces: {', '.join(step.produces)}")
+                lines.append(f"    -> {step.description}")
                 lines.append("")
 
         lines.append("=" * 80)
@@ -117,7 +117,7 @@ class PipelineDefinition:
             self.__raise_cycle_error()
 
         message = (
-            f"✅ Pipeline '{self.name}' validated successfully:\n"
+            f"Pipeline '{self.name}' validated successfully:\n"
             f"   - {len(self._steps)} steps registered\n"
             f"   - DAG structure confirmed\n"
             f"   - No cyclic dependencies"
@@ -133,11 +133,11 @@ class PipelineDefinition:
 
     def __raise_cycle_error(self) -> None:
         cycles: List[List[str]] = list(nx.simple_cycles(self._graph))
-        cycle_path: str = " → ".join(cycles[0]) + f" → {cycles[0][0]}"
+        cycle_path: str = " -> ".join(cycles[0]) + f" -> {cycles[0][0]}"
 
         raise ValueError(
             f"\n{'=' * 80}\n"
-            f"❌ PIPELINE DEPENDENCY CYCLE DETECTED\n"
+            f"PIPELINE DEPENDENCY CYCLE DETECTED\n"
             f"{'=' * 80}\n\n"
             f"Cyclic dependency detected:\n"
             f"  {cycle_path}\n\n"
@@ -152,7 +152,7 @@ class PipelineDefinition:
     ) -> None:
         raise ValueError(
             f"\n{'=' * 80}\n"
-            f"❌ PIPELINE DEPENDENCY ERROR\n"
+            f"PIPELINE DEPENDENCY ERROR\n"
             f"{'=' * 80}\n\n"
             f"Step:           '{step_id}'\n"
             f"Needs:          '{missing_dep_id}'\n"

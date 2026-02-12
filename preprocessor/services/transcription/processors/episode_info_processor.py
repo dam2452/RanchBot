@@ -12,7 +12,7 @@ from preprocessor.services.episodes import EpisodeManager
 
 class EpisodeInfoProcessor:
 
-    def __init__(self, jsons_dir: Path, episodes_info_json: Path, output_path: Path, logger: ErrorHandlingLogger, series_name: str=''):
+    def __init__(self, jsons_dir: Path, episodes_info_json: Path, output_path: Path, logger: ErrorHandlingLogger, series_name: str='') -> None:
         self.__jsons_dir: Path = jsons_dir
         self.__output_path: Path = output_path
         self.__logger: ErrorHandlingLogger = logger

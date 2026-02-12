@@ -29,6 +29,7 @@ from preprocessor.config.step_configs import (
     VideoEmbeddingConfig,
     WhisperTranscriptionConfig,
 )
+from preprocessor.services.media.resolution import Resolution
 
 SCRAPING = Phase("SCRAPING", color="blue")
 PROCESSING = Phase("PROCESSING", color="green")
@@ -87,13 +88,31 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         ),
     )
 
+    resolution_analysis = StepBuilder(
+        id="resolution_analysis",
+        phase=PROCESSING,
+        module="preprocessor.steps.analysis.resolution_analysis_step:ResolutionAnalysisStep",
+        description="Analyze source video resolutions and warn if upscaling required",
+        produces=[],
+        needs=[],
+        config=TranscodeConfig(
+            video_bitrate_mbps=series_config.processing.transcode.video_bitrate_mbps,
+            minrate_mbps=series_config.processing.transcode.minrate_mbps,
+            maxrate_mbps=series_config.processing.transcode.maxrate_mbps,
+            bufsize_mbps=series_config.processing.transcode.bufsize_mbps,
+            gop_size=series_config.processing.transcode.gop_size,
+            force_deinterlace=series_config.processing.transcode.force_deinterlace,
+            resolution=Resolution.from_string(series_config.processing.transcode.resolution),
+        ),
+    )
+
     transcoded_videos = StepBuilder(
         id="transcode",
         phase=PROCESSING,
         module="preprocessor.steps.video.transcoding:VideoTranscoderStep",
         description=f"Conversion to {series_config.processing.transcode.codec} {series_config.processing.transcode.resolution} with adaptive bitrate",
         produces=["transcoded_videos/{season}/{episode}.mp4"],
-        needs=[],
+        needs=[resolution_analysis],
         config=TranscodeConfig(
             video_bitrate_mbps=series_config.processing.transcode.video_bitrate_mbps,
             minrate_mbps=series_config.processing.transcode.minrate_mbps,
@@ -301,6 +320,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(characters_metadata)
     pipeline.register(character_references)
 
+    pipeline.register(resolution_analysis)
     pipeline.register(transcoded_videos)
     pipeline.register(scene_data)
     pipeline.register(exported_frames)

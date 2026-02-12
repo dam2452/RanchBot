@@ -10,7 +10,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from preprocessor.core.base_step import PipelineStep
+    pass
 
 
 @dataclass

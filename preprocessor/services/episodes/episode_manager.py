@@ -37,12 +37,12 @@ class EpisodeInfo:
     def season_code(self) -> str:
         return f'S{self.season:02d}'
 
-    def __is_special(self) -> bool: # pylint: disable=unused-private-member
+    def __is_special(self) -> bool:  # pylint: disable=unused-private-member
         return self.season == 0
 
 class EpisodeManager:
 
-    def __init__(self, episodes_info_json: Optional[Path], series_name: str, logger: Optional[ErrorHandlingLogger]=None):
+    def __init__(self, episodes_info_json: Optional[Path], series_name: str, logger: Optional[ErrorHandlingLogger]=None) -> None:
         self.series_name = series_name.lower()
         self.episodes_data: Optional[Dict[str, Any]] = None
         self.path_manager = PathManager(self.series_name)
@@ -131,7 +131,7 @@ class EpisodeManager:
             return scene_file
         return None
 
-    def __find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool=True) -> Optional[Path]: # pylint: disable=unused-private-member
+    def __find_transcription_file(self, episode_info: EpisodeInfo, search_dir: Path, prefer_segmented: bool=True) -> Optional[Path]:  # pylint: disable=unused-private-member
         if not search_dir.exists():
             return None
         season_dir_name = episode_info.season_code()
@@ -148,7 +148,7 @@ class EpisodeManager:
         return None
 
     @staticmethod
-    def __find_video_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]: # pylint: disable=unused-private-member
+    def __find_video_file(episode_info: EpisodeInfo, search_dir: Path) -> Optional[Path]:  # pylint: disable=unused-private-member
         if not search_dir.exists():
             return None
         if search_dir.is_file():
@@ -165,7 +165,7 @@ class EpisodeManager:
                         return video_file
         return None
 
-    def __list_all_episodes(self) -> List[EpisodeInfo]: # pylint: disable=unused-private-member
+    def __list_all_episodes(self) -> List[EpisodeInfo]:  # pylint: disable=unused-private-member
         episodes: List[EpisodeInfo] = []
         if not self.episodes_data:
             return episodes
@@ -185,7 +185,7 @@ class EpisodeManager:
         return episodes
 
     @staticmethod
-    def __load_scene_timestamps( # pylint: disable=unused-private-member
+    def __load_scene_timestamps(  # pylint: disable=unused-private-member
         episode_info: EpisodeInfo,
         search_dir: Optional[Path],
         _logger: Optional[ErrorHandlingLogger]=None,

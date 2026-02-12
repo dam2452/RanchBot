@@ -26,6 +26,9 @@ docker compose build
 ./run-preprocessor.sh transcode --series ranczo
 ./run-preprocessor.sh detect-scenes --series ranczo
 
+# Analiza rozdzielczości (sprawdź przed uruchomieniem pipeline!)
+./run-preprocessor.sh analyze-resolution --series kiepscy
+
 # Search
 ./run-preprocessor.sh search --series ranczo --text "Lucy Wilska"
 ./run-preprocessor.sh search --series kiepscy --stats
@@ -93,27 +96,29 @@ series_configs/
 
 ---
 
-## Pipeline (20 kroków)
+## Pipeline (21 kroków)
 
 ```
-SCRAPING                  PROCESSING                              INDEXING                 VALIDATION
-──────────────────────────────────────────────────────────────────────────────────────────────────────
-[1] scrape_episodes  ──┬─→ [4] transcode ─→ [5] transcribe ─→ [6] separate_sounds
-[2] scrape_characters  │   [7] analyze_text                                        ────┐
-[3] process_references─┘   [8] detect_scenes ─→ [9] export_frames                     │
-                           [10] text_embeddings                                         │
-                           [11] video_embeddings                                        ├─→ [20] validate
-                           [12] image_hashing                                           │
-                           [13] detect_characters                                       │
-                           [14] detect_emotions                                         │
-                           [15] cluster_faces                                           │
-                           [16] detect_objects                                          │
-                           [17] generate_elastic_docs ─→ [18] generate_archives ─→ [19] index_to_elasticsearch ─┘
+SCRAPING                  PROCESSING                                      INDEXING                 VALIDATION
+────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1] scrape_episodes  ──┬─→ [4] resolution_analysis ─→ [5] transcode ─→ [6] transcribe ─→ [7] separate_sounds
+[2] scrape_characters  │   [8] analyze_text                                                                    ────┐
+[3] process_references─┘   [9] detect_scenes ─→ [10] export_frames                                                │
+                           [11] text_embeddings                                                                     │
+                           [12] video_embeddings                                                                    ├─→ [21] validate
+                           [13] image_hashing                                                                       │
+                           [14] detect_characters                                                                   │
+                           [15] detect_emotions                                                                     │
+                           [16] cluster_faces                                                                       │
+                           [17] detect_objects                                                                      │
+                           [18] generate_elastic_docs ─→ [19] generate_archives ─→ [20] index_to_elasticsearch ─────┘
 ```
 
 **Kroki są automatycznie wykonywane w poprawnej kolejności** - pipeline rozwiązuje zależności i tworzy plan wykonania.
 
-**Validation (krok 20)** - uruchamiany na końcu, weryfikuje poprawność wszystkich poprzednich kroków pipeline.
+**Resolution analysis (krok 4)** - analizuje rozdzielczości materiałów źródłowych przed transkodowaniem, ostrzega jeśli >50% wymaga upscalingu.
+
+**Validation (krok 21)** - uruchamiany na końcu, weryfikuje poprawność wszystkich poprzednich kroków pipeline.
 
 ---
 
@@ -168,8 +173,9 @@ SCRAPING                  PROCESSING                              INDEXING      
 ./run-preprocessor.sh search --series NAZWA --list-characters
 
 # Utilities
-./run-preprocessor.sh visualize --series NAZWA  # Wizualizacja grafu zależności
-./run-preprocessor.sh bash                       # Shell w kontenerze
+./run-preprocessor.sh analyze-resolution --series NAZWA  # Analiza rozdzielczości i rekomendacje
+./run-preprocessor.sh visualize --series NAZWA            # Wizualizacja grafu zależności
+./run-preprocessor.sh bash                                 # Shell w kontenerze
 ```
 
 **Parametry:**
@@ -180,7 +186,7 @@ SCRAPING                  PROCESSING                              INDEXING      
 **Step IDs do --skip:**
 ```
 scrape_episodes, scrape_characters, process_references,
-transcode, transcribe, separate_sounds, analyze_text,
+resolution_analysis, transcode, transcribe, separate_sounds, analyze_text,
 detect_scenes, export_frames, text_embeddings, video_embeddings,
 image_hashing, detect_characters, detect_emotions, cluster_faces, detect_objects,
 generate_elastic_docs, generate_archives, index_to_elasticsearch,

@@ -141,7 +141,7 @@ class FileValidator:
         return None
 
     @staticmethod
-    def __validate_archive_file(path: Path) -> ValidationResult: # pylint: disable=unused-private-member
+    def __validate_archive_file(path: Path) -> ValidationResult:  # pylint: disable=unused-private-member
         if error := FileValidator.__check_file_exists(path):
             return error
         try:

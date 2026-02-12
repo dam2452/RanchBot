@@ -72,7 +72,7 @@ class Validator:
             episodes_stats[episode_id] = stats
         return episodes_stats
 
-    def __generate_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]):
+    def __generate_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]) -> None:
         for stats in episodes_stats.values():
             episode_report = {
                 'validation_timestamp': datetime.now().isoformat(),
@@ -88,7 +88,7 @@ class Validator:
             report_path = self.validation_reports_dir / report_filename
             FileOperations.atomic_write_json(report_path, episode_report)
 
-    def __print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison):
+    def __print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison) -> None:
         console.print(f'\n[bold]Validation Summary for {self.season}[/bold]')
         console.print(f'Total episodes: {len(episodes_stats)}')
         pass_count = sum((1 for stats in episodes_stats.values() if stats.status == 'PASS'))
