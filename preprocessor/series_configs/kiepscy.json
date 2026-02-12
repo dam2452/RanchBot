@@ -3,7 +3,7 @@
   "display_name": "\u015awiat wed\u0142ug Kiepskich",
   "indexing": {
     "elasticsearch": {
-      "index_name": "kiepscy_clips"
+      "index_name": "kiepscy"
     }
   },
   "processing": {
