@@ -39,6 +39,10 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
     def name(self) -> str:
         return 'resolution_analysis'
 
+    @property
+    def is_global(self) -> bool:
+        return True
+
     @staticmethod
     def _find_video_files(context: ExecutionContext) -> List[Path]:
         input_base = PathService.get_input_base()

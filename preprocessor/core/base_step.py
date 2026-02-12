@@ -39,6 +39,10 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     def name(self) -> str:
         pass
 
+    @property
+    def is_global(self) -> bool:
+        return False
+
     def _check_cache_validity(
         self,
         output_path: Path,

@@ -22,21 +22,13 @@ ConfigT = TypeVar("ConfigT", bound=BaseModel)
 
 class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
 
-    def __init__(self, config: ConfigT) -> None:
-        super().__init__(config)
-        self._executed = False
-
     def execute(
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> Optional[SourceVideo]:
-        if self._executed:
-            return input_data
-
         output_path = Path(self.config.output_file)  # type: ignore[attr-defined]
 
         if output_path.exists() and not context.force_rerun:
             context.logger.info(f"{self._get_metadata_type_name()} metadata already exists: {output_path}")
-            self._executed = True
             return input_data
 
         urls = self.config.urls  # type: ignore[attr-defined]
@@ -53,7 +45,6 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
 
         context.logger.info(f"{self._get_metadata_type_name()} metadata saved to: {output_path}")
 
-        self._executed = True
         return input_data
 
     @abstractmethod
@@ -63,6 +54,10 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
     @abstractmethod
     def _get_metadata_type_name(self) -> str:
         pass
+
+    @property
+    def is_global(self) -> bool:
+        return True
 
     def _build_scraper_args(self, output_path: Path, context: ExecutionContext) -> Dict[str, Any]:
         base_args: Dict[str, Any] = {

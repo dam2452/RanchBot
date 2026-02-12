@@ -98,35 +98,58 @@ class PipelineExecutor:
             )
 
         for step in self.steps:
-            self.context.logger.info(f"=== Running Step: {step.name} ===")
-            next_artifacts = []
+            if step.is_global:
+                self.__run_global_step(step)
+            else:
+                current_artifacts = self.__run_episode_step(step, current_artifacts)
 
-            for artifact in current_artifacts:
-                episode_id = artifact.episode_id
+    def __run_global_step(self, step: PipelineStep) -> None:
+        self.context.logger.info(f"=== Running Global Step: {step.name} ===")
 
-                if self.__should_skip_step(step.name, episode_id):
-                    self.context.logger.info(
-                        f"Skipping {step.name} for {episode_id} (already completed)",
-                    )
+        if self.__should_skip_step(step.name, 'all'):
+            self.context.logger.info(f"Skipping {step.name} (already completed)")
+            return
+
+        try:
+            self.__mark_step_in_progress(step.name, 'all')
+            step.execute(None, self.context)
+            self.__mark_step_completed(step.name, 'all')
+        except Exception as e:
+            self.context.logger.error(f"Global step {step.name} failed: {e}")
+            raise
+
+    def __run_episode_step(
+        self, step: PipelineStep, current_artifacts: List[Any],
+    ) -> List[Any]:
+        self.context.logger.info(f"=== Running Step: {step.name} ===")
+        next_artifacts = []
+
+        for artifact in current_artifacts:
+            episode_id = artifact.episode_id
+
+            if self.__should_skip_step(step.name, episode_id):
+                self.context.logger.info(
+                    f"Skipping {step.name} for {episode_id} (already completed)",
+                )
+                next_artifacts.append(artifact)
+                continue
+
+            try:
+                self.__mark_step_in_progress(step.name, episode_id)
+                result = step.execute(artifact, self.context)
+                self.__mark_step_completed(step.name, episode_id)
+
+                if result:
+                    next_artifacts.append(result)
+                else:
                     next_artifacts.append(artifact)
-                    continue
+            except Exception as e:
+                self.context.logger.error(
+                    f"Step {step.name} failed for {artifact.episode_id}: {e}",
+                )
+                raise
 
-                try:
-                    self.__mark_step_in_progress(step.name, episode_id)
-                    result = step.execute(artifact, self.context)
-                    self.__mark_step_completed(step.name, episode_id)
-
-                    if result:
-                        next_artifacts.append(result)
-                    else:
-                        next_artifacts.append(artifact)
-                except Exception as e:
-                    self.context.logger.error(
-                        f"Step {step.name} failed for {artifact.episode_id}: {e}",
-                    )
-                    raise
-
-            current_artifacts = next_artifacts
+        return next_artifacts
 
     def __should_skip_step(self, step_name: str, episode_id: str) -> bool:
         if self.context.force_rerun:

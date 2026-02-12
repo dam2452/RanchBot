@@ -11,32 +11,27 @@ from preprocessor.services.scraping.reference_processor import CharacterReferenc
 class CharacterReferenceStep(
     PipelineStep[SourceVideo, SourceVideo, CharacterReferenceConfig],
 ):
-    def __init__(self, config: CharacterReferenceConfig) -> None:
-        super().__init__(config)
-        self._executed = False
-
     def execute(
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> Optional[SourceVideo]:
-        if self._executed:
-            return input_data
-
         characters_path, output_dir = self._get_paths()
         self._validate_characters_file(characters_path)
 
         if output_dir.exists() and any(output_dir.iterdir()) and not context.force_rerun:
             context.logger.info(f"Character references already exist in: {output_dir}")
-            self._executed = True
             return input_data
 
         self._process_character_references(characters_path, output_dir, context)
-        self._executed = True
 
         return input_data
 
     @property
     def name(self) -> str:
         return "process_character_references"
+
+    @property
+    def is_global(self) -> bool:
+        return True
 
     def _get_paths(self) -> tuple[Path, Path]:
         characters_path = Path(self.config.characters_file)
