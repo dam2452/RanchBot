@@ -14,6 +14,7 @@ from typing import (
 class FFmpegWrapper:
     __AQ_STRENGTH = '15'
     __AUDIO_CHANNELS = '2'
+    __AUDIO_SAMPLE_RATE = '48000'
     __BF = '2'
     __B_ADAPT = '1'
     __LEVEL = '4.1'
@@ -25,18 +26,16 @@ class FFmpegWrapper:
     @staticmethod
     def detect_interlacing(
         video_path: Path,
-        analysis_time: Optional[int] = None,
+        analysis_time: Optional[int] = 60,
         threshold: float = 0.15,
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
-        cmd = [
-            'ffmpeg',
-            '-i', str(video_path),
-        ]
+        cmd = ['ffmpeg']
 
-        if analysis_time:
+        if analysis_time is not None:
             cmd.extend(['-t', str(analysis_time)])
 
         cmd.extend([
+            '-i', str(video_path),
             '-vf', 'idet',
             '-an',
             '-f', 'null',
@@ -141,7 +140,7 @@ class FFmpegWrapper:
         return json.loads(result.stdout)
 
     @staticmethod
-    def transcode(  # pylint: disable=too-many-arguments
+    def transcode(  # pylint: disable=too-many-arguments,too-many-locals
         input_path: Path,
         output_path: Path,
         codec: str,
@@ -156,6 +155,7 @@ class FFmpegWrapper:
         target_fps: Optional[float] = None,
         deinterlace: bool = False,
         is_upscaling: bool = False,
+        log_command: bool = False,
     ) -> None:
         width, height = [int(x) for x in resolution.split(':')]
         vf_filter = FFmpegWrapper.__build_video_filter(width, height, deinterlace, is_upscaling)
@@ -170,6 +170,16 @@ class FFmpegWrapper:
                 audio_bitrate, vf_filter, output_path,
             ),
         )
+
+        if log_command:
+            print('ffmpeg \\')
+            for i, arg in enumerate(command[1:], 1):
+                if i == len(command) - 1:
+                    print(f'  {arg}')
+                else:
+                    print(f'  {arg} \\')
+            print()
+
         subprocess.run(command, check=True, capture_output=False)
 
     @staticmethod
@@ -180,6 +190,7 @@ class FFmpegWrapper:
             '-c:a', 'aac',
             '-b:a', audio_bitrate,
             '-ac', FFmpegWrapper.__AUDIO_CHANNELS,
+            '-ar', FFmpegWrapper.__AUDIO_SAMPLE_RATE,
             '-vf', vf_filter,
             '-movflags', '+faststart',
             '-f', 'mp4',
@@ -192,12 +203,18 @@ class FFmpegWrapper:
     ) -> List[str]:
         command = [
             'ffmpeg', '-v', 'error', '-stats', '-hide_banner', '-y',
+            '-sws_flags', 'accurate_rnd+full_chroma_int+full_chroma_inp',
             '-i', str(input_path),
             '-c:v', codec,
             '-preset', preset,
             '-profile:v', FFmpegWrapper.__PROFILE,
             '-level', FFmpegWrapper.__LEVEL,
             '-pix_fmt', FFmpegWrapper.__PIX_FMT,
+            '-colorspace', 'bt709',
+            '-color_primaries', 'bt709',
+            '-color_trc', 'bt709',
+            '-color_range', 'tv',
+            '-video_track_timescale', '90000',
         ]
         if target_fps:
             command.extend(['-r', str(target_fps)])
@@ -230,7 +247,7 @@ class FFmpegWrapper:
         if is_upscaling:
             params.extend([
                 '-rc-lookahead', '60',
-                '-aq-strength', '18',
+                '-aq-strength', '15',
                 '-b_ref_mode', 'middle',
             ])
         else:
@@ -238,6 +255,12 @@ class FFmpegWrapper:
                 '-rc-lookahead', FFmpegWrapper.__RC_LOOKAHEAD,
                 '-aq-strength', FFmpegWrapper.__AQ_STRENGTH,
             ])
+
+        params.extend([
+            '-strict_gop', '1',
+            '-forced-idr', '1',
+            '-no-scenecut', '1',
+        ])
 
         return params
 
@@ -248,9 +271,10 @@ class FFmpegWrapper:
         filters = []
 
         if deinterlace:
-            filters.append('bwdif=mode=0')
+            filters.append('bwdif=mode=0:parity=-1:deint=1')
+            filters.append('setfield=prog')
 
-        scaler_flags = 'lanczos' if is_upscaling else 'bicubic'
+        scaler_flags = 'spline36+accurate_rnd+full_chroma_int' if is_upscaling else 'bicubic'
 
         filters.append(
             f"scale='iw*sar:ih',scale={width}:{height}:"

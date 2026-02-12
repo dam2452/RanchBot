@@ -2,7 +2,11 @@ from collections import Counter
 from datetime import datetime
 import json
 from pathlib import Path
-from typing import List
+from typing import (
+    Dict,
+    List,
+    Optional,
+)
 
 from preprocessor.config.step_configs import TranscodeConfig
 from preprocessor.core.artifacts import ResolutionAnalysisResult
@@ -27,17 +31,17 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
             context.mark_step_completed(self.name, 'all')
             return ResolutionAnalysisResult(total_files=0, upscaling_percentage=0.0)
 
-        resolutions = self.__scan_resolutions(video_paths, context)
-        if not resolutions:
-            context.logger.warning('Failed to analyze resolutions - skipping')
+        video_info = self.__scan_resolutions(video_paths, context)
+        if not video_info:
+            context.logger.warning('Failed to analyze videos - skipping')
             context.mark_step_completed(self.name, 'all')
             return ResolutionAnalysisResult(total_files=len(video_paths), upscaling_percentage=0.0)
 
-        upscaling_pct = self.__analyze_and_report(resolutions, context)
-        self.__save_results_to_json(resolutions, upscaling_pct, context)
+        upscaling_pct = self.__analyze_and_report(video_info, context)
+        self.__save_results_to_json(video_info, upscaling_pct, context)
 
         context.mark_step_completed(self.name, 'all')
-        return ResolutionAnalysisResult(total_files=len(resolutions), upscaling_percentage=upscaling_pct)
+        return ResolutionAnalysisResult(total_files=len(video_info), upscaling_percentage=upscaling_pct)
 
     @property
     def name(self) -> str:
@@ -66,39 +70,70 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
     @staticmethod
     def __scan_resolutions(
         video_paths: List[Path], context: ExecutionContext,
-    ) -> List[tuple[int, int, str]]:
-        resolutions = []
+    ) -> List[Dict[str, any]]:
+        video_info = []
 
         for video_path in video_paths:
             try:
                 probe_data = FFmpegWrapper.probe_video(video_path)
                 width, height = FFmpegWrapper.get_resolution(probe_data)
                 sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
+                field_order = FFmpegWrapper.get_field_order(probe_data)
 
                 effective_width = int(width * sar_num / sar_denom)
-                resolutions.append((effective_width, height, video_path.name))
+
+                context.logger.info(
+                    f'Analyzing interlacing for {video_path.name} '
+                    f'(field_order={field_order}, analyzing full video)...',
+                )
+                has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(
+                    video_path, analysis_time=None,
+                )
+
+                metadata_vs_reality = ResolutionAnalysisStep.__validate_field_order(
+                    field_order, has_interlacing, idet_stats,
+                )
+
+                if metadata_vs_reality != 'match':
+                    context.logger.warning(
+                        f'⚠ {video_path.name}: field_order={field_order} but idet says {metadata_vs_reality}!',
+                    )
+
+                video_info.append({
+                    'filename': video_path.name,
+                    'width': effective_width,
+                    'height': height,
+                    'field_order': field_order,
+                    'needs_deinterlace': has_interlacing,
+                    'idet_stats': idet_stats,
+                    'metadata_match': metadata_vs_reality,
+                })
 
             except Exception as e:  # pylint: disable=broad-except
                 context.logger.warning(f'Failed to probe {video_path.name}: {e}')
                 continue
 
-        return resolutions
+        return video_info
 
     def __analyze_and_report(
-        self, resolutions: List[tuple[int, int, str]], context: ExecutionContext,
+        self, video_info: List[Dict[str, any]], context: ExecutionContext,
     ) -> float:
-        resolution_counts = Counter((w, h) for w, h, _ in resolutions)
-        total_episodes = len(resolutions)
+        resolution_counts = Counter((v['width'], v['height']) for v in video_info)
+        total_episodes = len(video_info)
 
         target_width = self.config.resolution.width
         target_height = self.config.resolution.height
         target_pixels = target_width * target_height
 
         upscaling_count = sum(
-            1 for w, h, _ in resolutions
-            if (w * h) < target_pixels
+            1 for v in video_info
+            if (v['width'] * v['height']) < target_pixels
         )
         upscaling_pct = (upscaling_count / total_episodes) * 100 if total_episodes > 0 else 0
+
+        needs_deinterlace_count = sum(1 for v in video_info if v['needs_deinterlace'])
+        progressive_count = sum(1 for v in video_info if not v['needs_deinterlace'])
+        metadata_mismatch_count = sum(1 for v in video_info if v['metadata_match'] != 'match')
 
         context.logger.info('')
         context.logger.info('Source Resolution Distribution:')
@@ -134,9 +169,48 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
                 '(enhanced quality params will be used)',
             )
 
+        context.logger.info('')
+        context.logger.info('Interlacing Analysis (based on idet, not metadata):')
+        context.logger.info('-' * 60)
+        context.logger.info(
+            f'  Progressive: {progressive_count} episodes '
+            f'({(progressive_count/total_episodes)*100:.1f}%)',
+        )
+        context.logger.info(
+            f'  Interlaced (needs deinterlace): {needs_deinterlace_count} episodes '
+            f'({(needs_deinterlace_count/total_episodes)*100:.1f}%)',
+        )
+
+        if metadata_mismatch_count > 0:
+            context.logger.warning('')
+            context.logger.warning(
+                f'⚠ WARNING: {metadata_mismatch_count} episodes have INCORRECT field_order metadata!',
+            )
+            context.logger.warning(
+                '⚠ Using idet analysis instead of metadata for deinterlacing decisions.',
+            )
+
         context.logger.info('=' * 80)
 
         return upscaling_pct
+
+    @staticmethod
+    def __validate_field_order(
+        field_order: str, has_interlacing: bool, idet_stats: Optional[Dict[str, int]],
+    ) -> str:
+        if not idet_stats:
+            return 'unknown'
+
+        metadata_says_progressive = field_order in {'progressive', 'unknown'}
+        idet_says_progressive = not has_interlacing
+
+        if metadata_says_progressive and idet_says_progressive:
+            return 'match'
+        if not metadata_says_progressive and not idet_says_progressive:
+            return 'match'
+        if metadata_says_progressive and not idet_says_progressive:
+            return 'interlaced (metadata wrong)'
+        return 'progressive (metadata wrong)'
 
     @staticmethod
     def __get_resolution_label(width: int, height: int) -> str:
@@ -167,9 +241,9 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
             return 'SD'
         return 'Low'
 
-    def __save_results_to_json(
+    def __save_results_to_json(  # pylint: disable=too-many-locals
         self,
-        resolutions: List[tuple[int, int, str]],
+        video_info: List[Dict[str, any]],
         upscaling_pct: float,
         context: ExecutionContext,
     ) -> None:
@@ -178,17 +252,21 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / 'resolution_analysis.json'
 
-        resolution_counts = Counter((w, h) for w, h, _ in resolutions)
-        total_episodes = len(resolutions)
+        resolution_counts = Counter((v['width'], v['height']) for v in video_info)
+        total_episodes = len(video_info)
 
         target_width = self.config.resolution.width
         target_height = self.config.resolution.height
         target_pixels = target_width * target_height
 
         upscaling_count = sum(
-            1 for w, h, _ in resolutions
-            if (w * h) < target_pixels
+            1 for v in video_info
+            if (v['width'] * v['height']) < target_pixels
         )
+
+        needs_deinterlace_count = sum(1 for v in video_info if v['needs_deinterlace'])
+        progressive_count = sum(1 for v in video_info if not v['needs_deinterlace'])
+        metadata_mismatch_count = sum(1 for v in video_info if v['metadata_match'] != 'match')
 
         source_resolutions = [
             {
@@ -203,13 +281,17 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
 
         files_details = [
             {
-                'filename': filename,
-                'width': width,
-                'height': height,
-                'label': self.__get_resolution_label(width, height),
-                'needs_upscaling': (width * height) < target_pixels,
+                'filename': v['filename'],
+                'width': v['width'],
+                'height': v['height'],
+                'label': self.__get_resolution_label(v['width'], v['height']),
+                'needs_upscaling': (v['width'] * v['height']) < target_pixels,
+                'field_order': v['field_order'],
+                'needs_deinterlace': v['needs_deinterlace'],
+                'metadata_match': v['metadata_match'],
+                'idet_stats': v['idet_stats'],
             }
-            for width, height, filename in sorted(resolutions, key=lambda x: x[2])
+            for v in sorted(video_info, key=lambda x: x['filename'])
         ]
 
         result = {
@@ -225,6 +307,20 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
             'upscaling_required': {
                 'count': upscaling_count,
                 'percentage': round(upscaling_pct, 1),
+            },
+            'interlacing_analysis': {
+                'progressive': {
+                    'count': progressive_count,
+                    'percentage': round((progressive_count / total_episodes) * 100, 1),
+                },
+                'interlaced': {
+                    'count': needs_deinterlace_count,
+                    'percentage': round((needs_deinterlace_count / total_episodes) * 100, 1),
+                },
+                'metadata_mismatches': {
+                    'count': metadata_mismatch_count,
+                    'percentage': round((metadata_mismatch_count / total_episodes) * 100, 1),
+                },
             },
             'files': files_details,
         }

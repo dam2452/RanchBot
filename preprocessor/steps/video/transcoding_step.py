@@ -15,6 +15,7 @@ from preprocessor.services.media.ffmpeg import FFmpegWrapper
 
 
 class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeConfig]):
+    _command_logged = False
 
     def execute( # pylint: disable=too-many-locals
         self, input_data: SourceVideo, context: ExecutionContext,
@@ -51,6 +52,14 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         audio_bitrate = self._adjust_audio_bitrate(probe_data, context)
         deinterlace = self._determine_deinterlace(input_data, context, probe_data)
 
+        context.logger.info(
+            'Video: SAR 1:1 (square pixels), timebase 1/90000, '
+            'colorspace bt709, color_range tv, closed GOP=12 frames (0.5s) with IDR keyframes '
+            '(forced for frame-accurate cutting & concat)',
+        )
+        context.logger.info(
+            f'Audio: AAC {audio_bitrate} kbps, 2 channels (stereo), 48 kHz sample rate (forced)',
+        )
         context.logger.info(f'Transcoding {input_data.episode_id}')
         self._perform_transcode(
             input_data.path,
@@ -96,12 +105,13 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         context: ExecutionContext,
     ) -> float:
         input_fps = FFmpegWrapper.get_framerate(probe_data)
-        target_fps = min(input_fps, 30.0)
-        if target_fps < input_fps:
+        target_fps = 24.0
+
+        if input_fps != target_fps:
             context.logger.info(
-                f'Input FPS ({input_fps}) > 30. '
-                f'Limiting to {target_fps} FPS for compatibility and smaller file size.',
+                f'Input FPS ({input_fps:.2f}) → forcing {target_fps} FPS for consistency and cinematic quality.',
             )
+
         return target_fps
 
     def _detect_upscaling(self, probe_data: Dict[str, Any]) -> tuple[bool, int, int]:
@@ -169,15 +179,21 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
         target_res = (self.config.resolution.width, self.config.resolution.height)
         min_required = __MIN_BITRATE_FOR_RESOLUTION.get(target_res, 2.0)
-
-        source_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
         pixel_ratio = target_pixels / source_pixels
 
+        if pixel_ratio > 1.4:
+            min_required *= 1.25
+        elif pixel_ratio > 1.2:
+            min_required *= 1.15
+
+        source_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
+        quality_boost = 1.2 + max(0.0, (pixel_ratio - 1.1) * 0.4)
+
         if source_bitrate:
-            calculated = source_bitrate * pixel_ratio * 1.2
+            calculated = source_bitrate * pixel_ratio * quality_boost
             upscaled_bitrate = max(calculated, min_required)
         else:
-            upscaled_bitrate = min_required * 1.2
+            upscaled_bitrate = min_required * max(1.2, pixel_ratio * 0.9)
 
         max_allowed = self.config.video_bitrate_mbps * 1.3
         upscaled_bitrate = min(upscaled_bitrate, max_allowed)
@@ -186,10 +202,10 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
         context.logger.warning(
             f'⚠ UPSCALING: {source_pixels:,} px → {target_pixels:,} px '
-            f'(+{((target_pixels/source_pixels)-1)*100:.1f}%). '
+            f'(+{((target_pixels/source_pixels)-1)*100:.1f}%, quality_boost={quality_boost:.2f}). '
             f'Bitrate: {source_bitrate or "N/A"} → {upscaled_bitrate:.2f} Mbps '
             f'(min for {target_res[0]}x{target_res[1]}: {min_required} Mbps). '
-            f'Using Lanczos scaler + enhanced nvenc params.',
+            f'Using Spline36 scaler (flicker-free) + enhanced nvenc params.',
         )
 
         return (
@@ -224,27 +240,33 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         field_order = FFmpegWrapper.get_field_order(probe_data)
 
         if self.config.force_deinterlace:
-            if field_order == 'progressive':
-                context.logger.warning(
-                    f"⚠ Force deinterlacing enabled for {input_data.episode_id} "
-                    f"but video is progressive (field_order={field_order}). "
-                    f"This may degrade quality unnecessarily.",
-                )
-            else:
-                context.logger.info(
-                    f"Force deinterlacing enabled for {input_data.episode_id} - "
-                    f"skipping interlace detection and applying bwdif filter unconditionally",
-                )
+            context.logger.info(
+                f"Force deinterlacing enabled for {input_data.episode_id} (field_order={field_order}) - "
+                f"skipping idet analysis and applying bwdif filter unconditionally",
+            )
             return True
 
-        context.logger.info(f"Detecting interlacing for {input_data.episode_id}...")
+        context.logger.info(
+            f"Detecting interlacing for {input_data.episode_id} "
+            f"(field_order={field_order}, analyzing first 60s)...",
+        )
         has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(input_data.path)
+
+        if idet_stats:
+            metadata_says_progressive = field_order in {'progressive', 'unknown'}
+            idet_says_progressive = not has_interlacing
+
+            if metadata_says_progressive != idet_says_progressive:
+                context.logger.warning(
+                    f"⚠ {input_data.episode_id}: field_order={field_order} but idet detected "
+                    f"{'interlaced' if has_interlacing else 'progressive'} content! Using idet result.",
+                )
 
         if has_interlacing and idet_stats:
             context.logger.info(
                 f"Interlacing detected for {input_data.episode_id} "
                 f"({idet_stats['ratio']*100:.1f}% interlaced frames: "
-                f"TFF={idet_stats['tff']}, BFF={idet_stats['bff']}) - "
+                f"TFF={idet_stats['tff']}, BFF={idet_stats['bff']}, Progressive={idet_stats['progressive']}) - "
                 f"applying bwdif deinterlacing filter",
             )
         elif idet_stats:
@@ -282,8 +304,12 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         context.mark_step_started(self.name, input_data.episode_id, [str(temp_path)])
 
         try:
-            probe_data = FFmpegWrapper.probe_video(input_path)
-            input_fps = FFmpegWrapper.get_framerate(probe_data)
+            log_command = not VideoTranscoderStep._command_logged
+            if log_command:
+                VideoTranscoderStep._command_logged = True
+                context.logger.info('=' * 80)
+                context.logger.info('FFmpeg command example (showing once):')
+                context.logger.info('=' * 80)
 
             FFmpegWrapper.transcode(
                 input_path=input_path,
@@ -296,10 +322,11 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 maxrate=f'{maxrate}M',
                 bufsize=f'{bufsize}M',
                 audio_bitrate=f'{audio_bitrate}k',
-                gop_size=int(target_fps * self.config.gop_size),
-                target_fps=target_fps if target_fps < input_fps else None,
+                gop_size=int(target_fps * 0.5),
+                target_fps=target_fps,
                 deinterlace=deinterlace,
                 is_upscaling=is_upscaling,
+                log_command=log_command,
             )
             temp_path.replace(output_path)
         except BaseException:

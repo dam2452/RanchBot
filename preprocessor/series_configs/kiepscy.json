@@ -8,7 +8,7 @@
   },
   "processing": {
     "transcode": {
-      "force_deinterlace": true
+      "force_deinterlace": false
     }
   },
   "scraping": {
