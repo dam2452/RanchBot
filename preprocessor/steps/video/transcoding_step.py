@@ -16,7 +16,7 @@ from preprocessor.services.media.ffmpeg import FFmpegWrapper
 
 class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeConfig]):
 
-    def execute(
+    def execute( # pylint: disable=too-many-locals
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> TranscodedVideo:
         output_path = self._get_output_path(input_data, context)
@@ -27,6 +27,24 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         probe_data = FFmpegWrapper.probe_video(input_data.path)
         target_fps = self._calculate_target_fps(probe_data, context)
         is_upscaling, source_pixels, target_pixels = self._detect_upscaling(probe_data)
+
+        source_width, source_height = FFmpegWrapper.get_resolution(probe_data)
+        sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
+        effective_width = int(source_width * sar_num / sar_denom)
+
+        if is_upscaling:
+            context.logger.info(
+                f'{input_data.episode_id}: Source {effective_width}x{source_height} '
+                f'({source_pixels:,} px) → Target {self.config.resolution.width}x{self.config.resolution.height} '
+                f'({target_pixels:,} px) - UPSCALING DETECTED',
+            )
+        else:
+            context.logger.info(
+                f'{input_data.episode_id}: Source {effective_width}x{source_height} '
+                f'({source_pixels:,} px) → Target {self.config.resolution.width}x{self.config.resolution.height} '
+                f'({target_pixels:,} px) - No upscaling',
+            )
+
         video_bitrate, minrate, maxrate, bufsize = self._adjust_video_bitrate(
             probe_data, context, is_upscaling, source_pixels, target_pixels,
         )

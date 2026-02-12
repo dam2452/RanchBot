@@ -1,3 +1,6 @@
+from collections import Counter
+from datetime import datetime
+import json
 from pathlib import Path
 from typing import List
 
@@ -18,19 +21,20 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         context.logger.info('RESOLUTION ANALYSIS - Checking source video resolutions')
         context.logger.info('=' * 80)
 
-        video_paths = self._find_video_files(context)
+        video_paths = self.__find_video_files(context)
         if not video_paths:
             context.logger.warning('No video files found - skipping resolution analysis')
             context.mark_step_completed(self.name, 'all')
             return ResolutionAnalysisResult(total_files=0, upscaling_percentage=0.0)
 
-        resolutions = self._scan_resolutions(video_paths, context)
+        resolutions = self.__scan_resolutions(video_paths, context)
         if not resolutions:
             context.logger.warning('Failed to analyze resolutions - skipping')
             context.mark_step_completed(self.name, 'all')
             return ResolutionAnalysisResult(total_files=len(video_paths), upscaling_percentage=0.0)
 
-        upscaling_pct = self._analyze_and_report(resolutions, context)
+        upscaling_pct = self.__analyze_and_report(resolutions, context)
+        self.__save_results_to_json(resolutions, upscaling_pct, context)
 
         context.mark_step_completed(self.name, 'all')
         return ResolutionAnalysisResult(total_files=len(resolutions), upscaling_percentage=upscaling_pct)
@@ -44,7 +48,7 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         return True
 
     @staticmethod
-    def _find_video_files(context: ExecutionContext) -> List[Path]:
+    def __find_video_files(context: ExecutionContext) -> List[Path]:
         input_base = PathService.get_input_base()
         series_path = input_base / context.series_name
 
@@ -60,7 +64,7 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         return sorted(video_files)
 
     @staticmethod
-    def _scan_resolutions(
+    def __scan_resolutions(
         video_paths: List[Path], context: ExecutionContext,
     ) -> List[tuple[int, int, str]]:
         resolutions = []
@@ -80,11 +84,9 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
 
         return resolutions
 
-    def _analyze_and_report(
+    def __analyze_and_report(
         self, resolutions: List[tuple[int, int, str]], context: ExecutionContext,
     ) -> float:
-        from collections import Counter  # pylint: disable=import-outside-toplevel
-
         resolution_counts = Counter((w, h) for w, h, _ in resolutions)
         total_episodes = len(resolutions)
 
@@ -104,7 +106,7 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
 
         for (width, height), count in resolution_counts.most_common():
             pct = (count / total_episodes) * 100
-            label = self._get_resolution_label(width, height)
+            label = self.__get_resolution_label(width, height)
             context.logger.info(
                 f'  {width}x{height} ({label}): {count} episodes ({pct:.1f}%)',
             )
@@ -112,7 +114,7 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         context.logger.info('')
         context.logger.info(
             f'Target Resolution: {target_width}x{target_height} '
-            f'({self._get_resolution_label(target_width, target_height)})',
+            f'({self.__get_resolution_label(target_width, target_height)})',
         )
 
         if upscaling_pct > 50:
@@ -137,7 +139,7 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         return upscaling_pct
 
     @staticmethod
-    def _get_resolution_label(width: int, height: int) -> str:
+    def __get_resolution_label(width: int, height: int) -> str:
         resolution_labels = {
             (7680, 4320): '8K',
             (3840, 2160): '4K',
@@ -164,3 +166,70 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
         if height >= 450:
             return 'SD'
         return 'Low'
+
+    def __save_results_to_json(
+        self,
+        resolutions: List[tuple[int, int, str]],
+        upscaling_pct: float,
+        context: ExecutionContext,
+    ) -> None:
+        output_base = PathService.get_output_base()
+        output_dir = output_base / context.series_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / 'resolution_analysis.json'
+
+        resolution_counts = Counter((w, h) for w, h, _ in resolutions)
+        total_episodes = len(resolutions)
+
+        target_width = self.config.resolution.width
+        target_height = self.config.resolution.height
+        target_pixels = target_width * target_height
+
+        upscaling_count = sum(
+            1 for w, h, _ in resolutions
+            if (w * h) < target_pixels
+        )
+
+        source_resolutions = [
+            {
+                'width': width,
+                'height': height,
+                'count': count,
+                'percentage': round((count / total_episodes) * 100, 1),
+                'label': self.__get_resolution_label(width, height),
+            }
+            for (width, height), count in resolution_counts.most_common()
+        ]
+
+        files_details = [
+            {
+                'filename': filename,
+                'width': width,
+                'height': height,
+                'label': self.__get_resolution_label(width, height),
+                'needs_upscaling': (width * height) < target_pixels,
+            }
+            for width, height, filename in sorted(resolutions, key=lambda x: x[2])
+        ]
+
+        result = {
+            'analysis_date': datetime.now().isoformat(),
+            'series_name': context.series_name,
+            'target_resolution': {
+                'width': target_width,
+                'height': target_height,
+                'label': self.__get_resolution_label(target_width, target_height),
+            },
+            'source_resolutions': source_resolutions,
+            'total_files': total_episodes,
+            'upscaling_required': {
+                'count': upscaling_count,
+                'percentage': round(upscaling_pct, 1),
+            },
+            'files': files_details,
+        }
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+        context.logger.info(f'Resolution analysis saved to: {output_file}')

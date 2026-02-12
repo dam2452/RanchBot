@@ -5,7 +5,7 @@ from preprocessor.config.step_configs import CharacterReferenceConfig
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.scraping.reference_processor import CharacterReferenceProcessor
+from preprocessor.services.characters.reference_downloader import CharacterReferenceDownloader
 
 
 class CharacterReferenceStep(
@@ -53,22 +53,23 @@ class CharacterReferenceStep(
         output_dir: Path,
         context: ExecutionContext,
     ) -> None:
-        context.logger.info(f"Processing character references from {characters_path}")
+        context.logger.info(f"Downloading character references from {characters_path}")
 
-        processor = CharacterReferenceProcessor(
+        downloader = CharacterReferenceDownloader(
             {
-                "characters_file": characters_path,
+                "characters_json": characters_path,
                 "output_dir": output_dir,
                 "search_engine": self.config.search_engine,
                 "images_per_character": self.config.images_per_character,
+                "series_name": context.series_name,
             },
         )
 
-        exit_code = processor.work()
+        exit_code = downloader.work()
 
         if exit_code != 0:
             raise RuntimeError(
-                f"Character reference processor failed with exit code {exit_code}",
+                f"Character reference downloader failed with exit code {exit_code}",
             )
 
         context.logger.info(f"Character references saved to: {output_dir}")
