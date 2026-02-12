@@ -196,7 +196,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         else:
             upscaled_bitrate = min_required * max(1.2, pixel_ratio * 0.9)
 
-        max_allowed = self.config.video_bitrate_mbps * 1.3
+        max_allowed = self.config.video_bitrate_mbps * 1.1
         upscaled_bitrate = min(upscaled_bitrate, max_allowed)
 
         ratio = upscaled_bitrate / self.config.video_bitrate_mbps
