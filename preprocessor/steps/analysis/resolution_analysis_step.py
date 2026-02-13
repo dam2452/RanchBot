@@ -302,53 +302,55 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
 
         return sorted(video_files)
 
-    @staticmethod
     def __scan_resolutions(
-            video_paths: List[Path], context: ExecutionContext,
+            self, video_paths: List[Path], context: ExecutionContext,
     ) -> List[Dict[str, Any]]:
-        video_info = []
+        max_workers = self.config.max_parallel_episodes
+        results = self._execute_with_threadpool(
+            video_paths, context, max_workers, self.__scan_single_video,
+        )
+        return [r for r in results if r is not None]
 
-        for video_path in video_paths:
-            try:
-                probe_data = FFmpegWrapper.probe_video(video_path)
-                width, height = FFmpegWrapper.get_resolution(probe_data)
-                sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
-                field_order = FFmpegWrapper.get_field_order(probe_data)
+    @staticmethod
+    def __scan_single_video(video_path: Path, context: ExecutionContext) -> Optional[Dict[str, Any]]:
+        try:
+            probe_data = FFmpegWrapper.probe_video(video_path)
+            width, height = FFmpegWrapper.get_resolution(probe_data)
+            sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
+            field_order = FFmpegWrapper.get_field_order(probe_data)
 
-                effective_width = int(width * sar_num / sar_denom)
+            effective_width = int(width * sar_num / sar_denom)
 
-                context.logger.info(
-                    f'Analyzing interlacing for {video_path.name} '
-                    f'(field_order={field_order}, analyzing full video)...',
+            context.logger.info(
+                f'Analyzing interlacing for {video_path.name} '
+                f'(field_order={field_order}, analyzing full video)...',
+            )
+            has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(
+                video_path, analysis_time=None,
+            )
+
+            metadata_vs_reality = ResolutionAnalysisStep.__validate_field_order(
+                field_order, has_interlacing, idet_stats,
+            )
+
+            if metadata_vs_reality != 'match':
+                context.logger.warning(
+                    f'⚠ {video_path.name}: field_order={field_order} but idet says {metadata_vs_reality}!',
                 )
-                has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(
-                    video_path, analysis_time=None,
-                )
 
-                metadata_vs_reality = ResolutionAnalysisStep.__validate_field_order(
-                    field_order, has_interlacing, idet_stats,
-                )
+            return {
+                'filename': video_path.name,
+                'width': effective_width,
+                'height': height,
+                'field_order': field_order,
+                'needs_deinterlace': has_interlacing,
+                'idet_stats': idet_stats,
+                'metadata_match': metadata_vs_reality,
+            }
 
-                if metadata_vs_reality != 'match':
-                    context.logger.warning(
-                        f'⚠ {video_path.name}: field_order={field_order} but idet says {metadata_vs_reality}!',
-                    )
-
-                video_info.append({
-                    'filename': video_path.name,
-                    'width': effective_width,
-                    'height': height,
-                    'field_order': field_order,
-                    'needs_deinterlace': has_interlacing,
-                    'idet_stats': idet_stats,
-                    'metadata_match': metadata_vs_reality,
-                })
-
-            except Exception as e:
-                context.logger.warning(f'Failed to probe {video_path.name}: {e}')
-                continue
-
-        return video_info
+        except Exception as e:
+            context.logger.warning(f'Failed to probe {video_path.name}: {e}')
+            return None
 
     @staticmethod
     def __validate_field_order(
