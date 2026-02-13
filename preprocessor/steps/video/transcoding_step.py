@@ -1,4 +1,5 @@
 from dataclasses import replace
+import math
 from pathlib import Path
 from typing import (
     Any,
@@ -135,26 +136,51 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             return target_bitrate, minrate, maxrate, bufsize
 
         pixel_ratio = target_pixels / source_pixels
-        scaled_bitrate = source_bitrate * (pixel_ratio ** 0.7)
+        exponent = self.__calculate_scaling_exponent(pixel_ratio, is_upscaling)
+        scaled_bitrate = source_bitrate * (pixel_ratio ** exponent)
+        clamped_bitrate = self.__apply_bitrate_limits(scaled_bitrate, target_bitrate)
 
-        final_bitrate = min(scaled_bitrate, target_bitrate)
-        ratio = final_bitrate / target_bitrate
+        ratio = clamped_bitrate / target_bitrate
+        direction = self.__get_scaling_direction(pixel_ratio, is_upscaling)
 
-        direction = 'upscaling' if is_upscaling else 'downscaling' if pixel_ratio < 1.0 else 'same resolution'
         context.logger.info(
             f'Bitrate calculation ({direction}): '
             f'source {source_bitrate:.2f} Mbps @ {source_pixels:,}px → '
             f'scaled {scaled_bitrate:.2f} Mbps @ {target_pixels:,}px '
-            f'(pixel_ratio {pixel_ratio:.2f}, exponent 0.7) → '
-            f'final {final_bitrate:.2f} Mbps (capped to target {target_bitrate} Mbps)',
+            f'(pixel_ratio {pixel_ratio:.2f}, exponent {exponent:.1f}) → '
+            f'final {clamped_bitrate:.2f} Mbps (capped to target {target_bitrate} Mbps)',
         )
 
         return (
-            final_bitrate,
+            clamped_bitrate,
             round(minrate * ratio, 2),
             round(maxrate * ratio, 2),
             round(bufsize * ratio, 2),
         )
+
+    @staticmethod
+    def __calculate_scaling_exponent(pixel_ratio: float, is_upscaling: bool) -> float:
+        safe_ratio = max(pixel_ratio, 0.01)
+        log_ratio = math.log10(safe_ratio)
+
+        if is_upscaling:
+            capped_log = min(log_ratio, 1.0)
+            return 0.8 + capped_log * 0.35
+
+        capped_log = max(log_ratio, -2.0)
+        return 0.8 + capped_log * 0.175
+
+    @staticmethod
+    def __apply_bitrate_limits(scaled_bitrate: float, target_bitrate: float) -> float:
+        return min(scaled_bitrate, target_bitrate)
+
+    @staticmethod
+    def __get_scaling_direction(pixel_ratio: float, is_upscaling: bool) -> str:
+        if is_upscaling:
+            return 'upscaling'
+        if pixel_ratio < 1.0:
+            return 'downscaling'
+        return 'same resolution'
 
     def __compute_audio_bitrate(
             self,
