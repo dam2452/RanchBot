@@ -4,9 +4,10 @@ from preprocessor.services.video.strategies.scene_changes_strategy import SceneC
 
 
 class KeyframeStrategyFactory:
-
     @staticmethod
-    def create(strategy_type: KeyframeStrategy, frames_per_scene: int=1) -> BaseKeyframeStrategy:
+    def create(
+        strategy_type: KeyframeStrategy, frames_per_scene: int = 1,
+    ) -> BaseKeyframeStrategy:
         if strategy_type == KeyframeStrategy.SCENE_CHANGES:
             return SceneChangesStrategy(frames_per_scene=frames_per_scene)
         raise ValueError(f'Unknown keyframe strategy: {strategy_type}')

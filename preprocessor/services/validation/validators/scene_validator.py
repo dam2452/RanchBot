@@ -1,10 +1,9 @@
-import json
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
-    Optional,
+    List,
 )
 
 from preprocessor.config.constants import OUTPUT_FILE_PATTERNS
@@ -18,37 +17,37 @@ if TYPE_CHECKING:
 
 
 class SceneValidator(BaseValidator):
-
     def validate(self, stats: 'EpisodeStats') -> None:
+        scenes_file = self.__resolve_scenes_file(stats)
+
+        if not self._check_path_exists(scenes_file, stats, f'Missing scenes file: {scenes_file}'):
+            return
+
+        if not self.__validate_json_integrity(stats, scenes_file):
+            return
+
+        data = self._load_json_safely(scenes_file)
+        if data:
+            self.__extract_scene_stats(stats, data)
+
+    def __resolve_scenes_file(self, stats: 'EpisodeStats') -> Path:
         scenes_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.scenes,
         )
-        scenes_file = scenes_dir / f"{stats.series_name}_{stats.episode_info.episode_code()}{OUTPUT_FILE_PATTERNS['scenes_suffix']}"
+        suffix = OUTPUT_FILE_PATTERNS['scenes_suffix']
+        return scenes_dir / f"{stats.series_name}_{stats.episode_info.episode_code()}{suffix}"
 
-        if not scenes_file.exists():
-            self._add_error(stats, f'Missing scenes file: {scenes_file}')
-            return
-
-        result = FileValidator.validate_json_file(scenes_file)
+    def __validate_json_integrity(self, stats: 'EpisodeStats', file_path: Path) -> bool:
+        result = FileValidator.validate_json_file(file_path)
         if not result.is_valid:
             self._add_error(stats, f'Invalid scenes JSON: {result.error_message}')
-            return
+            return False
+        return True
 
-        data = self.__load_json_safely(scenes_file)
-        if not data:
-            self._add_error(stats, f'Error reading scenes: {scenes_file}')
-            return
-
+    def __extract_scene_stats(self, stats: 'EpisodeStats', data: Dict[str, Any]) -> None:
         stats.scenes_count = data.get('total_scenes', 0)
-        scenes = data.get('scenes', [])
-        if scenes:
-            durations = [scene.get('duration', 0) for scene in scenes]
-            stats.scenes_avg_duration = round(sum(durations) / len(durations), 2)
+        scenes: List[Dict[str, Any]] = data.get('scenes', [])
 
-    @staticmethod
-    def __load_json_safely(file_path: Path) -> Optional[Dict[str, Any]]:
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return None
+        if scenes:
+            durations = [s.get('duration', 0) for s in scenes]
+            stats.scenes_avg_duration = round(sum(durations) / len(durations), 2)

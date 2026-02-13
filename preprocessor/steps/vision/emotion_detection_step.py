@@ -23,69 +23,46 @@ from preprocessor.services.video.emotion_utils import EmotionDetector
 
 
 class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDetectionConfig]):
-
     def __init__(self, config: EmotionDetectionConfig) -> None:
         super().__init__(config)
-        self._model: Optional[HSEmotionRecognizer] = None
-
-    def cleanup(self) -> None:
-        self._model = None
-
-    def execute(self, input_data: FrameCollection, context: ExecutionContext) -> EmotionData:
-        detections_path = self._get_character_detections_path(input_data, context)
-
-        if self._check_cache_validity(detections_path, context, input_data.episode_id, 'cached emotion detection'):
-            return EmotionData(
-                episode_id=input_data.episode_id,
-                episode_info=input_data.episode_info,
-                path=detections_path,
-            )
-
-        if not detections_path.exists():
-            context.logger.warning(
-                f'No character detections found for emotion analysis: {detections_path}',
-            )
-            return EmotionData(
-                episode_id=input_data.episode_id,
-                episode_info=input_data.episode_info,
-                path=detections_path,
-            )
-
-        context.logger.info(f'Detecting emotions for {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
-
-        self._ensure_model_loaded(context)
-
-        detections_data = FileOperations.load_json(detections_path)
-        self._process_emotions(detections_data, input_data, context)
-        FileOperations.atomic_write_json(detections_path, detections_data)
-
-        context.mark_step_completed(self.name, input_data.episode_id)
-        return EmotionData(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=detections_path,
-        )
+        self.__model: Optional[HSEmotionRecognizer] = None
 
     @property
     def name(self) -> str:
         return 'emotion_detection'
 
-    @staticmethod
-    def _get_character_detections_path(
-        input_data: FrameCollection, context: ExecutionContext,
-    ) -> Path:
-        filename = f'{context.series_name}_{input_data.episode_info.episode_code()}'
-        output_filename: str = f'{filename}_character_detections.json'
-        return context.get_output_path(
-            input_data.episode_info, 'character_detections', output_filename,
-        )
+    def cleanup(self) -> None:
+        self.__model = None
 
-    def _ensure_model_loaded(self, context: ExecutionContext) -> None:
-        if self._model is None:
-            self._model = EmotionDetector._init_model(context.logger)
+    def execute(self, input_data: FrameCollection, context: ExecutionContext) -> EmotionData:
+        detections_path = self.__resolve_detections_path(input_data, context)
 
-    def _process_emotions(
+        if self._check_cache_validity(detections_path, context, input_data.episode_id, 'cached emotion detection'):
+            return self.__construct_emotion_data(input_data, detections_path)
+
+        if not detections_path.exists():
+            context.logger.warning(
+                f'No character detections found for emotion analysis: {detections_path}',
+            )
+            return self.__construct_emotion_data(input_data, detections_path)
+
+        context.logger.info(f'Detecting emotions for {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        self.__prepare_emotion_model(context)
+
+        detections_data = FileOperations.load_json(detections_path)
+        self.__process_and_update_emotions(detections_data, input_data, context)
+        FileOperations.atomic_write_json(detections_path, detections_data)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_emotion_data(input_data, detections_path)
+
+    def __prepare_emotion_model(self, context: ExecutionContext) -> None:
+        if self.__model is None:
+            self.__model = EmotionDetector._init_model(context.logger)
+
+    def __process_and_update_emotions(
         self,
         detections_data: Dict[str, Any],
         input_data: FrameCollection,
@@ -93,7 +70,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
     ) -> None:
         detections: List[Dict[str, Any]] = detections_data.get('detections', [])
 
-        face_crops, face_metadata = self._collect_face_crops(
+        face_crops, face_metadata = self.__collect_face_crops(
             detections, input_data.directory, context,
         )
 
@@ -103,13 +80,33 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
 
         context.logger.info(f'Processing {len(face_crops)} faces with HSEmotion model')
         emotion_results = EmotionDetector._detect_batch(
-            face_crops, self._model, batch_size=32, logger=context.logger,
+            face_crops, self.__model, batch_size=32, logger=context.logger,
         )
 
-        self._apply_emotion_results(detections, emotion_results, face_metadata, context)
+        self.__apply_emotion_results(detections, emotion_results, face_metadata, context)
 
     @staticmethod
-    def _collect_face_crops(
+    def __resolve_detections_path(
+        input_data: FrameCollection, context: ExecutionContext,
+    ) -> Path:
+        filename = f'{context.series_name}_{input_data.episode_info.episode_code()}'
+        output_filename: str = f'{filename}_character_detections.json'
+        return context.get_output_path(
+            input_data.episode_info, 'character_detections', output_filename,
+        )
+
+    @staticmethod
+    def __construct_emotion_data(
+        input_data: FrameCollection, detections_path: Path,
+    ) -> EmotionData:
+        return EmotionData(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=detections_path,
+        )
+
+    @staticmethod
+    def __collect_face_crops(
         detections: List[Dict[str, Any]],
         frames_dir: Path,
         context: ExecutionContext,
@@ -152,7 +149,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
         return face_crops, face_metadata
 
     @staticmethod
-    def _apply_emotion_results(
+    def __apply_emotion_results(
         detections: List[Dict[str, Any]],
         emotion_results: List[Optional[Tuple[str, float, Dict[str, float]]]],
         face_metadata: List[Dict[str, int]],

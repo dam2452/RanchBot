@@ -11,11 +11,13 @@ class CharacterDetectionInFrame(TypedDict):
     embedding: NotRequired[List[float]]
     name: str
 
+
 class ObjectDetectionInFrame(TypedDict):
     bbox: List[int]
     class_id: int
     class_name: str
     confidence: float
+
 
 class Detection(TypedDict):
     bbox: List[int]

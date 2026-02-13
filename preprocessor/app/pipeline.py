@@ -16,109 +16,51 @@ if TYPE_CHECKING:
 
 class PipelineDefinition:
     def __init__(self, name: str) -> None:
-        self.name: str = name
-        self._steps: Dict[str, StepBuilder] = {}
-        self._graph: Optional[nx.DiGraph] = None
+        self.__name = name
+        self.__steps: Dict[str, StepBuilder] = {}
+        self.__graph: Optional[nx.DiGraph] = None
 
-    def get_all_steps(self) -> Dict[str, StepBuilder]:
-        return dict(self._steps)
-
-    def get_execution_order(
-        self, targets: Optional[List[str]] = None, skip: Optional[List[str]] = None,
-    ) -> List[str]:
-        if not self._graph:
-            raise RuntimeError(
-                "Pipeline not validated! Call pipeline.validate() first.",
-            )
-
-        full_order: List[str] = list(nx.topological_sort(self._graph))
-
-        if targets:
-            required: Set[str] = set()
-            for target in targets:
-                if target not in self._steps:
-                    raise ValueError(
-                        f"Target step '{target}' does not exist in pipeline",
-                    )
-                required.add(target)
-                required.update(nx.ancestors(self._graph, target))
-            full_order = [s for s in full_order if s in required]
-
-        skip_set: Set[str] = set(skip or [])
-        return [s for s in full_order if s not in skip_set]
-
-    def get_step(self, step_id: str) -> StepBuilder:
-        if step_id not in self._steps:
-            raise KeyError(
-                f"Step '{step_id}' not found. Available: {list(self._steps.keys())}",
-            )
-        return self._steps[step_id]
+    @property
+    def name(self) -> str:
+        return self.__name
 
     def register(self, step: StepBuilder) -> None:
-        if step.id in self._steps:
+        if step.id in self.__steps:
             raise ValueError(
                 f"DUPLICATE STEP:\n"
                 f"  Step '{step.id}' is already registered in the pipeline!\n"
                 f"  Check build_pipeline() in pipeline_factory.py",
             )
-        self._steps[step.id] = step
+        self.__steps[step.id] = step
 
-    def to_ascii_art(self) -> str:
-        if not self._graph:
-            self.validate()
+    def get_step(self, step_id: str) -> StepBuilder:
+        if step_id not in self.__steps:
+            raise KeyError(
+                f"Step '{step_id}' not found. Available: {list(self.__steps.keys())}",
+            )
+        return self.__steps[step_id]
 
-        lines: List[str] = [
-            "=" * 80,
-            f"PIPELINE: {self.name}",
-            "=" * 80,
-            "",
-        ]
-
-        phases: Dict[str, List[StepBuilder]] = {}
-        for _, step in self._steps.items():
-            phase_name: str = step.phase.name
-            if phase_name not in phases:
-                phases[phase_name] = []
-            phases[phase_name].append(step)
-
-        for phase_name in ("SCRAPING", "PROCESSING", "INDEXING"):
-            if phase_name not in phases:
-                continue
-
-            lines.append(f"[{phase_name}]")
-            lines.append("-" * 80)
-
-            for step in phases[phase_name]:
-                deps_str: str = ""
-                if step.dependency_ids:
-                    deps_str = f" <- needs: {', '.join(step.dependency_ids)}"
-
-                lines.append(f"  {step.id}{deps_str}")
-                lines.append(f"    -> produces: {', '.join(step.produces)}")
-                lines.append(f"    -> {step.description}")
-                lines.append("")
-
-        lines.append("=" * 80)
-        return "\n".join(lines)
+    def get_all_steps(self) -> Dict[str, StepBuilder]:
+        return dict(self.__steps)
 
     def validate(self, logger: Optional["ErrorHandlingLogger"] = None) -> None:
-        self._graph = nx.DiGraph()
+        self.__graph = nx.DiGraph()
 
-        for step_id, step in self._steps.items():
-            self._graph.add_node(step_id, step=step)
+        for step_id, step in self.__steps.items():
+            self.__graph.add_node(step_id, step=step)
 
-        for step_id, step in self._steps.items():
+        for step_id, step in self.__steps.items():
             for dep_id in step.dependency_ids:
-                if dep_id not in self._steps:
+                if dep_id not in self.__steps:
                     self.__raise_missing_dependency_error(step_id, dep_id)
-                self._graph.add_edge(dep_id, step_id)
+                self.__graph.add_edge(dep_id, step_id)
 
-        if not nx.is_directed_acyclic_graph(self._graph):
+        if not nx.is_directed_acyclic_graph(self.__graph):
             self.__raise_cycle_error()
 
         message = (
-            f"Pipeline '{self.name}' validated successfully:\n"
-            f"   - {len(self._steps)} steps registered\n"
+            f"Pipeline '{self.__name}' validated successfully:\n"
+            f"   - {len(self.__steps)} steps registered\n"
             f"   - DAG structure confirmed\n"
             f"   - No cyclic dependencies"
         )
@@ -128,12 +70,69 @@ class PipelineDefinition:
         else:
             print(message)
 
-    def __repr__(self) -> str:
-        return f"PipelineDefinition(name='{self.name}', steps={len(self._steps)})"
+    def get_execution_order(
+        self, targets: Optional[List[str]] = None, skip: Optional[List[str]] = None,
+    ) -> List[str]:
+        if not self.__graph:
+            raise RuntimeError(
+                "Pipeline not validated! Call pipeline.validate() first.",
+            )
+
+        full_order: List[str] = list(nx.topological_sort(self.__graph))
+
+        if targets:
+            required: Set[str] = set()
+            for target in targets:
+                if target not in self.__steps:
+                    raise ValueError(f"Target step '{target}' does not exist in pipeline")
+                required.add(target)
+                required.update(nx.ancestors(self.__graph, target))
+            full_order = [s for s in full_order if s in required]
+
+        skip_set: Set[str] = set(skip or [])
+        return [s for s in full_order if s not in skip_set]
+
+    def to_ascii_art(self) -> str:
+        if not self.__graph:
+            self.validate()
+
+        lines: List[str] = [
+            "=" * 80,
+            f"PIPELINE: {self.__name}",
+            "=" * 80,
+            "",
+        ]
+
+        phases: Dict[str, List[StepBuilder]] = self.__group_steps_by_phase()
+
+        for phase_name in ("SCRAPING", "PROCESSING", "INDEXING"):
+            if phase_name not in phases:
+                continue
+
+            lines.append(f"[{phase_name}]")
+            lines.append("-" * 80)
+
+            for step in phases[phase_name]:
+                deps_str = f" <- needs: {', '.join(step.dependency_ids)}" if step.dependency_ids else ""
+                lines.append(f"  {step.id}{deps_str}")
+                lines.append(f"    -> produces: {', '.join(step.produces)}")
+                lines.append(f"    -> {step.description}\n")
+
+        lines.append("=" * 80)
+        return "\n".join(lines)
+
+    def __group_steps_by_phase(self) -> Dict[str, List[StepBuilder]]:
+        phases: Dict[str, List[StepBuilder]] = {}
+        for step in self.__steps.values():
+            phase_name = step.phase.name
+            if phase_name not in phases:
+                phases[phase_name] = []
+            phases[phase_name].append(step)
+        return phases
 
     def __raise_cycle_error(self) -> None:
-        cycles: List[List[str]] = list(nx.simple_cycles(self._graph))
-        cycle_path: str = " -> ".join(cycles[0]) + f" -> {cycles[0][0]}"
+        cycles = list(nx.simple_cycles(self.__graph))
+        cycle_path = " -> ".join(cycles[0]) + f" -> {cycles[0][0]}"
 
         raise ValueError(
             f"\n{'=' * 80}\n"
@@ -147,9 +146,7 @@ class PipelineDefinition:
             f"\n{'=' * 80}\n",
         )
 
-    def __raise_missing_dependency_error(
-        self, step_id: str, missing_dep_id: str,
-    ) -> None:
+    def __raise_missing_dependency_error(self, step_id: str, missing_dep_id: str) -> None:
         raise ValueError(
             f"\n{'=' * 80}\n"
             f"PIPELINE DEPENDENCY ERROR\n"
@@ -163,3 +160,6 @@ class PipelineDefinition:
             f"  3. Or remove '{missing_dep_id}' from needs=[...] in definition of '{step_id}'\n"
             f"\n{'=' * 80}\n",
         )
+
+    def __repr__(self) -> str:
+        return f"PipelineDefinition(name='{self.__name}', steps={len(self.__steps)})"

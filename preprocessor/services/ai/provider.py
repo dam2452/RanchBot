@@ -31,16 +31,21 @@ from preprocessor.services.ui.console import console
 
 
 class LLMProvider:
+    def __init__(
+            self,
+            model_name: Optional[str] = None,
+            parser_mode: Optional[ParserMode] = None,
+    ) -> None:
+        self.__parser_mode = parser_mode or ParserMode.NORMAL
 
-    def __init__(self, model_name: Optional[str] = None, parser_mode: Optional[ParserMode] = None) -> None:
-        self._parser_mode = parser_mode or ParserMode.NORMAL
-
-        if self._parser_mode == ParserMode.PREMIUM:
-            self._client: BaseLLMClient = GeminiClient()
+        if self.__parser_mode == ParserMode.PREMIUM:
+            self.__client: BaseLLMClient = GeminiClient()
         else:
-            self._client: BaseLLMClient = VLLMClient(model_name=model_name)
+            self.__client: BaseLLMClient = VLLMClient(model_name=model_name)
 
-    def extract_all_seasons(self, scraped_pages: List[Dict[str, Any]]) -> Optional[List[SeasonMetadata]]:
+    def extract_all_seasons(
+            self, scraped_pages: List[Dict[str, Any]],
+    ) -> Optional[List[SeasonMetadata]]:
         combined_content = self.__build_combined_content(scraped_pages)
 
         result = self.__process_llm_request(
@@ -55,9 +60,9 @@ class LLMProvider:
         return result.seasons if result else None
 
     def extract_characters(
-        self,
-        scraped_pages: List[Dict[str, Any]],
-        series_name: str,
+            self,
+            scraped_pages: List[Dict[str, Any]],
+            series_name: str,
     ) -> Optional[List[CharacterInfo]]:
         combined_content = self.__build_combined_content(scraped_pages)
 
@@ -75,14 +80,6 @@ class LLMProvider:
 
     @staticmethod
     def __build_combined_content(scraped_pages: List[Dict[str, Any]]) -> str:
-        """Build combined markdown from scraped pages.
-
-        Args:
-            scraped_pages: List of scraped page dictionaries with 'url' and 'markdown' keys.
-
-        Returns:
-            Combined content with source separators.
-        """
         combined_parts: List[str] = []
         for i, page in enumerate(scraped_pages, 1):
             url: str = page['url']
@@ -105,6 +102,7 @@ class LLMProvider:
                 json_str = content[start:end].strip()
             else:
                 json_str = content.strip()
+
             return json.loads(json_str)
         except json.JSONDecodeError as e:
             console.print(f'[red]JSON parse error: {e}[/red]')
@@ -112,18 +110,18 @@ class LLMProvider:
             raise
 
     def __process_llm_request(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        response_model: Type[BaseModel],
-        error_context: str,
+            self,
+            system_prompt: str,
+            user_prompt: str,
+            response_model: Type[BaseModel],
+            error_context: str,
     ) -> Optional[BaseModel]:
         try:
             messages = [
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': user_prompt},
             ]
-            content = self._client.generate(messages)
+            content = self.__client.generate(messages)
             data = self.__extract_json(content)
             return response_model(**data)
         except Exception as e:

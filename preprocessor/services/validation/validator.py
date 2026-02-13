@@ -1,7 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    Any,
     Dict,
+    List,
     Optional,
 )
 
@@ -18,106 +20,137 @@ from preprocessor.services.validation.season_comparator import SeasonComparison
 
 console = Console()
 
-class Validator:
 
+class Validator:
     def __init__(
-        self,
-        season: str,
-        series_name: str = 'ranczo',
-        anomaly_threshold: float = 20.0,
-        base_output_dir: Path = None,
-        episodes_info_json: Optional[Path] = None,
-    ):
-        self.season = season
-        self.series_name = series_name
-        self.anomaly_threshold = anomaly_threshold
-        self.base_output_dir = base_output_dir
-        self.episode_manager = EpisodeManager(episodes_info_json, series_name)
-        self.validation_reports_dir = base_output_dir / settings.output_subdirs.validation_reports
+            self,
+            season: str,
+            series_name: str = 'ranczo',
+            anomaly_threshold: float = 20.0,
+            base_output_dir: Optional[Path] = None,
+            episodes_info_json: Optional[Path] = None,
+    ) -> None:
+        self.__season = season
+        self.__series_name = series_name
+        self.__anomaly_threshold = anomaly_threshold
+        self.__base_output_dir = base_output_dir
+        self.__episode_manager = EpisodeManager(episodes_info_json, series_name)
+        self.__validation_reports_dir = base_output_dir / settings.output_subdirs.validation_reports
 
     def validate(self) -> int:
-        transcriptions_season_path = self.base_output_dir / 'transcriptions' / self.season
-        if not transcriptions_season_path.exists():
-            console.print(f'[red]Season directory not found: {transcriptions_season_path}[/red]')
+        transcriptions_path = self.__base_output_dir / 'transcriptions' / self.__season
+        if not transcriptions_path.exists():
+            console.print(f'[red]Season directory not found: {transcriptions_path}[/red]')
             return 1
-        console.print(f'[bold cyan]Validating season {self.season}...[/bold cyan]')
-        episodes_stats = self.__collect_episodes_stats(transcriptions_season_path)
+
+        console.print(f'[bold cyan]Validating season {self.__season}...[/bold cyan]')
+
+        episodes_stats = self.__collect_all_episodes_stats(transcriptions_path)
         if not episodes_stats:
-            console.print(f'[red]No episodes found in {transcriptions_season_path}[/red]')
+            console.print(f'[red]No episodes found in {transcriptions_path}[/red]')
             return 1
-        self.validation_reports_dir.mkdir(parents=True, exist_ok=True)
-        self.__generate_episode_reports(episodes_stats)
-        season_comparison = SeasonComparison(season=self.season, anomaly_threshold=self.anomaly_threshold)
-        season_comparison.compare_episodes(episodes_stats)
-        report_generator = ReportGenerator(season=self.season, anomaly_threshold=self.anomaly_threshold)
-        season_report_path = self.validation_reports_dir / f'{self.series_name}_{self.season}_season.json'
-        report_generator.generate_report(episodes_stats, season_comparison, season_report_path)
-        self.__print_summary(episodes_stats, season_comparison)
-        console.print(f'\n[green]Validation reports saved to: {self.validation_reports_dir}[/green]')
+
+        self.__generate_reports_and_compare(episodes_stats)
         return 0
 
-    def __collect_episodes_stats(self, transcriptions_season_path: Path) -> Dict[str, EpisodeStats]:
-        episode_dirs = sorted([d for d in transcriptions_season_path.iterdir() if d.is_dir() and d.name.startswith('E')])
-        episodes_stats = {}
-        for episode_dir in track(episode_dirs, description='Collecting episode stats'):
-            episode_num = int(episode_dir.name[1:])
-            season_num = int(self.season[1:])
-            episode_info = self.episode_manager.get_episode_by_season_and_relative(season_num, episode_num)
-            if not episode_info:
-                console.print(f'[yellow]Skipping {episode_dir.name}: could not parse episode info[/yellow]')
-                continue
-            episode_id = episode_info.episode_code()
-            stats = EpisodeStats(episode_info=episode_info, series_name=self.series_name)
+    def __generate_reports_and_compare(self, episodes_stats: Dict[str, EpisodeStats]) -> None:
+        self.__validation_reports_dir.mkdir(parents=True, exist_ok=True)
+
+        self.__save_individual_episode_reports(episodes_stats)
+
+        comparison = SeasonComparison(season=self.__season, anomaly_threshold=self.__anomaly_threshold)
+        comparison.compare_episodes(episodes_stats)
+
+        self.__generate_season_summary_report(episodes_stats, comparison)
+        self.__print_execution_summary(episodes_stats, comparison)
+
+        console.print(f'\n[green]Validation reports saved to: {self.__validation_reports_dir}[/green]')
+
+    def __collect_all_episodes_stats(self, season_path: Path) -> Dict[str, EpisodeStats]:
+        episode_dirs = sorted([d for d in season_path.iterdir() if d.is_dir() and d.name.startswith('E')])
+        results: Dict[str, EpisodeStats] = {}
+
+        for ep_dir in track(episode_dirs, description='Collecting episode stats'):
+            stats = self.__process_single_episode_dir(ep_dir)
+            if stats:
+                results[stats.episode_info.episode_code()] = stats
+        return results
+
+    def __process_single_episode_dir(self, ep_dir: Path) -> Optional[EpisodeStats]:
+        try:
+            episode_num = int(ep_dir.name[1:])
+            season_num = int(self.__season[1:])
+            info = self.__episode_manager.get_episode_by_season_and_relative(season_num, episode_num)
+
+            if not info:
+                console.print(f'[yellow]Skipping {ep_dir.name}: could not parse info[/yellow]')
+                return None
+
+            stats = EpisodeStats(episode_info=info, series_name=self.__series_name)
             stats.collect_stats()
-            episodes_stats[episode_id] = stats
-        return episodes_stats
+            return stats
+        except ValueError:
+            return None
 
-    def __generate_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]) -> None:
+    def __save_individual_episode_reports(self, episodes_stats: Dict[str, EpisodeStats]) -> None:
+        path_manager = PathService(self.__series_name)
         for stats in episodes_stats.values():
-            episode_report = {
-                'validation_timestamp': datetime.now().isoformat(),
-                'episode_id': stats.episode_info.episode_code(),
-                'episode_title': stats.episode_info.title,
-                'status': stats.status,
-                'errors': stats.errors,
-                'warnings': stats.warnings,
-                'stats': stats.to_dict()['stats'],
-            }
-            path_manager = PathService(self.series_name)
-            report_filename = path_manager.build_filename(stats.episode_info, extension='json')
-            report_path = self.validation_reports_dir / report_filename
-            FileOperations.atomic_write_json(report_path, episode_report)
+            report = self.__build_episode_report_payload(stats)
+            filename = path_manager.build_filename(stats.episode_info, extension='json')
+            FileOperations.atomic_write_json(self.__validation_reports_dir / filename, report)
 
-    def __print_summary(self, episodes_stats: Dict[str, EpisodeStats], season_comparison: SeasonComparison) -> None:
-        console.print(f'\n[bold]Validation Summary for {self.season}[/bold]')
-        console.print(f'Total episodes: {len(episodes_stats)}')
-        pass_count = sum((1 for stats in episodes_stats.values() if stats.status == 'PASS'))
-        warning_count = sum((1 for stats in episodes_stats.values() if stats.status == 'WARNING'))
-        fail_count = sum((1 for stats in episodes_stats.values() if stats.status == 'FAIL'))
-        console.print(f'  [green]PASS:[/green] {pass_count}')
-        console.print(f'  [yellow]WARNING:[/yellow] {warning_count}')
-        console.print(f'  [red]FAIL:[/red] {fail_count}')
-        if season_comparison.anomalies:
-            console.print(f'\n[bold yellow]Anomalies detected: {len(season_comparison.anomalies)}[/bold yellow]')
-            for anomaly in season_comparison.anomalies[:5]:
-                color = 'red' if anomaly.severity == 'ERROR' else 'yellow'
-                msg = (
-                    f'{anomaly.metric} = {anomaly.value} '
-                    f'(avg: {anomaly.avg}, deviation: {anomaly.deviation_percent:.1f}%)'
-                )
-                console.print(f'  [{color}]{anomaly.episode}[/{color}]: {msg}')
-            if len(season_comparison.anomalies) > 5:
-                console.print(f'  ... and {len(season_comparison.anomalies) - 5} more')
-        for episode_id, stats in episodes_stats.items():
+    def __generate_season_summary_report(self, stats: Dict[str, EpisodeStats], comparison: SeasonComparison) -> None:
+        generator = ReportGenerator(season=self.__season, anomaly_threshold=self.__anomaly_threshold)
+        report_path = self.__validation_reports_dir / f'{self.__series_name}_{self.__season}_season.json'
+        generator.generate_report(stats, comparison, report_path)
+
+    def __print_execution_summary(self, stats: Dict[str, EpisodeStats], comparison: SeasonComparison) -> None:
+        console.print(f'\n[bold]Validation Summary for {self.__season}[/bold]')
+        console.print(f'Total episodes: {len(stats)}')
+
+        self.__print_status_counts(stats)
+        self.__print_anomalies(comparison)
+        self.__print_issues(stats)
+
+    def __build_episode_report_payload(self, stats: EpisodeStats) -> Dict[str, Any]:
+        return {
+            'validation_timestamp': datetime.now().isoformat(),
+            'episode_id': stats.episode_info.episode_code(),
+            'episode_title': stats.episode_info.title,
+            'status': stats.status,
+            'errors': stats.errors,
+            'warnings': stats.warnings,
+            'stats': stats.to_dict()['stats'],
+        }
+
+    def __print_status_counts(self, stats: Dict[str, EpisodeStats]) -> None:
+        counts = {'PASS': 0, 'WARNING': 0, 'FAIL': 0}
+        for s in stats.values():
+            counts[s.status] += 1
+        console.print(f'  [green]PASS:[/green] {counts["PASS"]}')
+        console.print(f'  [yellow]WARNING:[/yellow] {counts["WARNING"]}')
+        console.print(f'  [red]FAIL:[/red] {counts["FAIL"]}')
+
+    def __print_anomalies(self, comparison: SeasonComparison) -> None:
+        if not comparison.anomalies:
+            return
+        console.print(f'\n[bold yellow]Anomalies detected: {len(comparison.anomalies)}[/bold yellow]')
+        for anomaly in comparison.anomalies[:5]:
+            color = 'red' if anomaly.severity == 'ERROR' else 'yellow'
+            msg = f'{anomaly.metric} = {anomaly.value} (avg: {anomaly.avg}, dev: {anomaly.deviation_percent:.1f}%)'
+            console.print(f'  [{color}]{anomaly.episode}[/{color}]: {msg}')
+
+    def __print_issues(self, stats_dict: Dict[str, EpisodeStats]) -> None:
+        for ep_id, stats in stats_dict.items():
             if stats.errors:
-                console.print(f'\n[red]Errors in {episode_id}:[/red]')
-                for error in stats.errors[:3]:
-                    console.print(f'  - {error}')
-                if len(stats.errors) > 3:
-                    console.print(f'  ... and {len(stats.errors) - 3} more')
+                self.__print_list('red', f'Errors in {ep_id}', stats.errors)
             if stats.warnings:
-                console.print(f'\n[yellow]Warnings in {episode_id}:[/yellow]')
-                for warning in stats.warnings[:3]:
-                    console.print(f'  - {warning}')
-                if len(stats.warnings) > 3:
-                    console.print(f'  ... and {len(stats.warnings) - 3} more')
+                self.__print_list('yellow', f'Warnings in {ep_id}', stats.warnings)
+
+    @staticmethod
+    def __print_list(color: str, title: str, items: List[str]) -> None:
+        console.print(f'\n[{color}]{title}:[/{color}]')
+        for item in items[:3]:
+            console.print(f'  - {item}')
+        if len(items) > 3:
+            console.print(f'  ... and {len(items) - 3} more')

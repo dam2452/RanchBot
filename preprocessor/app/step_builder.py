@@ -4,16 +4,12 @@ from dataclasses import (
 )
 import importlib
 from typing import (
-    TYPE_CHECKING,
     Any,
     List,
 )
 
-if TYPE_CHECKING:
-    pass
 
-
-@dataclass
+@dataclass(frozen=True)
 class Phase:
     name: str
     color: str
@@ -50,6 +46,22 @@ class StepBuilder:
                 f"Class '{class_name}' not found in module '{module_path}' for step '{self.id}': {e}",
             ) from e
 
+    def __post_init__(self) -> None:
+        self.__validate_id()
+        self.__validate_module_path()
+
+    def __validate_id(self) -> None:
+        if not self.id.replace("_", "").replace("-", "").isalnum():
+            raise ValueError(
+                f"Invalid step_id: '{self.id}'. Use only alphanumeric and underscores.",
+            )
+
+    def __validate_module_path(self) -> None:
+        if not self.module or ":" not in self.module:
+            raise ValueError(
+                f"Invalid module format for '{self.id}'. Expected 'package.module:ClassName'",
+            )
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, StepBuilder):
             return False
@@ -57,16 +69,6 @@ class StepBuilder:
 
     def __hash__(self) -> int:
         return hash(self.id)
-
-    def __post_init__(self) -> None:
-        if not self.id.replace("_", "").replace("-", "").isalnum():
-            raise ValueError(
-                f"Invalid step_id: '{self.id}'. Use only alphanumeric and underscores.",
-            )
-        if not self.module or ":" not in self.module:
-            raise ValueError(
-                f"Invalid module format for '{self.id}'. Expected 'package.module:ClassName'",
-            )
 
     def __repr__(self) -> str:
         deps = f", needs={self.dependency_ids}" if self.needs else ""

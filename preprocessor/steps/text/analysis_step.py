@@ -17,67 +17,38 @@ from preprocessor.services.text.text_statistics import TextStatistics
 
 
 class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, TextAnalysisConfig]):
-
-    def execute(self, input_data: TranscriptionData, context: ExecutionContext) -> TextAnalysisResults:
-        output_path = self._get_output_path(input_data)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
-            return self._load_cached_result(output_path, input_data)
-
-        context.logger.info(f'Analyzing text for {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
-
-        txt_path = self._get_text_file_path(input_data)
-        stats = self._analyze_text_statistics(txt_path)
-        result_data = self._build_result_data(stats, txt_path, input_data)
-
-        FileOperations.atomic_write_json(output_path, result_data)
-        context.mark_step_completed(self.name, input_data.episode_id)
-
-        return TextAnalysisResults(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            statistics=result_data,
-        )
-
     @property
     def name(self) -> str:
         return 'text_analysis'
 
-    @staticmethod
-    def _get_output_path(input_data: TranscriptionData) -> Path:
-        output_filename = input_data.path.stem + '_text_stats.json'
-        return input_data.path.parent / output_filename
+    def execute(
+            self, input_data: TranscriptionData, context: ExecutionContext,
+    ) -> TextAnalysisResults:
+        output_path = self.__resolve_output_path(input_data)
 
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
+            return self.__load_cached_result(output_path, input_data)
 
-    @staticmethod
-    def _load_cached_result(output_path: Path, input_data: TranscriptionData) -> TextAnalysisResults:
-        stats_data = FileOperations.load_json(output_path)
-        return TextAnalysisResults(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            statistics=stats_data,
-        )
+        context.logger.info(f'Analyzing text for {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
 
-    @staticmethod
-    def _get_text_file_path(input_data: TranscriptionData) -> Path:
-        txt_path = input_data.path
-        if input_data.format != 'txt':
-            txt_path = input_data.path.with_suffix('.txt')
-        if not txt_path.exists():
-            raise FileNotFoundError(f'Transcription text file not found: {txt_path}')
-        return txt_path
+        txt_path = self.__resolve_text_file_path(input_data)
+        stats = self.__analyze_text_statistics(txt_path)
+        result_data = self.__build_result_payload(stats, txt_path, input_data)
 
-    def _analyze_text_statistics(self, txt_path: Path) -> TextStatistics:
+        self.__save_analysis_results(output_path, result_data)
+        context.mark_step_completed(self.name, input_data.episode_id)
+
+        return self.__construct_analysis_results(input_data, output_path, result_data)
+
+    def __analyze_text_statistics(self, txt_path: Path) -> TextStatistics:
         return TextStatistics.from_file(txt_path, language=self.config.language)
 
-    def _build_result_data(
-        self,
-        stats: TextStatistics,
-        txt_path: Path,
-        input_data: TranscriptionData,
+    def __build_result_payload(
+            self,
+            stats: TextStatistics,
+            txt_path: Path,
+            input_data: TranscriptionData,
     ) -> Dict[str, Any]:
         return {
             'metadata': {
@@ -88,3 +59,46 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
             },
             **stats.to_dict(),
         }
+
+    @staticmethod
+    def __resolve_output_path(input_data: TranscriptionData) -> Path:
+        output_filename = input_data.path.stem + '_text_stats.json'
+        return input_data.path.parent / output_filename
+
+    @staticmethod
+    def __resolve_text_file_path(input_data: TranscriptionData) -> Path:
+        txt_path = input_data.path
+        if input_data.format != 'txt':
+            txt_path = input_data.path.with_suffix('.txt')
+
+        if not txt_path.exists():
+            raise FileNotFoundError(f'Transcription text file not found: {txt_path}')
+
+        return txt_path
+
+    @staticmethod
+    def __load_cached_result(
+            output_path: Path,
+            input_data: TranscriptionData,
+    ) -> TextAnalysisResults:
+        stats_data = FileOperations.load_json(output_path)
+        return TextAnalysisStep.__construct_analysis_results(
+            input_data, output_path, stats_data,
+        )
+
+    @staticmethod
+    def __save_analysis_results(output_path: Path, result_data: Dict[str, Any]) -> None:
+        FileOperations.atomic_write_json(output_path, result_data)
+
+    @staticmethod
+    def __construct_analysis_results(
+            input_data: TranscriptionData,
+            output_path: Path,
+            result_data: Dict[str, Any],
+    ) -> TextAnalysisResults:
+        return TextAnalysisResults(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=output_path,
+            statistics=result_data,
+        )

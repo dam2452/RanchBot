@@ -11,7 +11,8 @@ from typing import (
 
 
 class BaseKeyframeStrategy(ABC):
-
     @abstractmethod
-    def extract_frame_requests(self, video_path: Path, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def extract_frame_requests(
+        self, video_path: Path, data: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
         pass

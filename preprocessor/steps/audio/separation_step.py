@@ -28,75 +28,46 @@ from preprocessor.services.transcription.sound_classification import (
 
 
 class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, SoundSeparationConfig]):
+    @property
+    def name(self) -> str:
+        return 'sound_separation'
 
     def execute(
-        self,
-        input_data: TranscriptionData,
-        context: ExecutionContext,
+            self,
+            input_data: TranscriptionData,
+            context: ExecutionContext,
     ) -> TranscriptionData:
-        output_paths = self._prepare_output_paths(input_data)
-
+        output_paths = self.__resolve_output_paths(input_data)
         clean_json = output_paths['clean_json']
+
         if self._check_cache_validity(clean_json, context, input_data.episode_id, 'cached'):
-            return self._create_cached_result(output_paths, input_data)
+            return self.__construct_cached_result(output_paths, input_data)
 
         context.mark_step_started(self.name, input_data.episode_id)
-        transcription_data = self._load_transcription_data(input_data)
-        dialogue_segments, sound_segments = self._separate_dialogue_from_sounds(
+
+        transcription_data = self.__load_transcription_payload(input_data)
+        dialogue_segments, sound_segments = self.__separate_dialogue_from_sounds(
             transcription_data['segments'],
         )
-        self._save_separated_data(
+
+        self.__save_separated_data(
             output_paths,
             transcription_data['episode_info'],
             dialogue_segments,
             sound_segments,
         )
-        self._generate_additional_formats(
+        self.__generate_additional_formats(
             output_paths,
             dialogue_segments,
             sound_segments,
         )
+
         context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_result_artifact(output_paths, input_data)
 
-        return self._create_result_artifact(output_paths, input_data)
-
-    @property
-    def name(self) -> str:
-        return 'sound_separation'
-
-    @staticmethod
-    def _prepare_output_paths(input_data: TranscriptionData) -> Dict[str, Path]:
-        base_name = input_data.path.stem.replace(FILE_SUFFIXES['segmented'], '')
-        episode_dir = input_data.path.parent.parent
-        clean_dir = episode_dir / 'clean'
-        sound_dir = episode_dir / 'sound_events'
-        clean_dir.mkdir(parents=True, exist_ok=True)
-        sound_dir.mkdir(parents=True, exist_ok=True)
-
-        return {
-            'clean_json': clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['json']}",
-            'sound_json': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['json']}",
-            'clean_segmented': clean_dir / f"{base_name}{FILE_SUFFIXES['segmented']}_clean{FILE_EXTENSIONS['json']}",
-            'sound_segmented': sound_dir / f"{base_name}{FILE_SUFFIXES['segmented']}_sound_events{FILE_EXTENSIONS['json']}",
-            'clean_txt': clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['txt']}",
-            'sound_txt': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['txt']}",
-            'clean_srt': clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['srt']}",
-            'sound_srt': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['srt']}",
-        }
-
-
-    @staticmethod
-    def _load_transcription_data(input_data: TranscriptionData) -> Dict[str, Any]:
-        with open(input_data.path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return {
-            'episode_info': data.get('episode_info', {}),
-            'segments': data.get('segments', []),
-        }
-
-    def _separate_dialogue_from_sounds(
-        self,
-        segments: List[Dict[str, Any]],
+    def __separate_dialogue_from_sounds(
+            self,
+            segments: List[Dict[str, Any]],
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         dialogue_segments = []
         sound_segments = []
@@ -120,12 +91,97 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
 
         return dialogue_segments, sound_segments
 
+    def __split_mixed_segment(
+            self,
+            segment: Dict[str, Any],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        words = segment.get(WordKeys.WORDS, [])
+        dialogue_parts = []
+        sound_parts = []
+        current_type = None
+        current_words = []
+        current_start = None
+
+        for word in words:
+            word_type = 'sound' if is_sound_event(word) else 'dialogue'
+            if word.get(WordKeys.TYPE) == WordTypeValues.SPACING:
+                if current_words:
+                    current_words.append(word)
+                continue
+
+            if word_type != current_type:
+                if current_words and current_type:
+                    self.__finalize_sequence(
+                        current_type,
+                        current_words,
+                        current_start,
+                        dialogue_parts,
+                        sound_parts,
+                    )
+                current_type = word_type
+                current_words = [word]
+                current_start = word.get(WordKeys.START)
+            else:
+                current_words.append(word)
+
+        if current_words and current_type:
+            self.__finalize_sequence(
+                current_type,
+                current_words,
+                current_start,
+                dialogue_parts,
+                sound_parts,
+            )
+
+        return dialogue_parts, sound_parts
+
+    def __generate_additional_formats(
+            self,
+            output_paths: Dict[str, Path],
+            dialogue_segments: List[Dict[str, Any]],
+            sound_segments: List[Dict[str, Any]],
+    ) -> None:
+        self.__generate_txt_file(output_paths['clean_json'], output_paths['clean_txt'])
+        self.__generate_txt_file(output_paths['sound_json'], output_paths['sound_txt'])
+        self.__generate_srt_file(dialogue_segments, output_paths['clean_srt'])
+        self.__generate_srt_file(sound_segments, output_paths['sound_srt'])
+
     @staticmethod
-    def _save_separated_data(
-        output_paths: Dict[str, Path],
-        episode_info_dict: Dict[str, Any],
-        dialogue_segments: List[Dict[str, Any]],
-        sound_segments: List[Dict[str, Any]],
+    def __resolve_output_paths(input_data: TranscriptionData) -> Dict[str, Path]:
+        base_name = input_data.path.stem.replace(FILE_SUFFIXES['segmented'], '')
+        episode_dir = input_data.path.parent.parent
+        clean_dir = episode_dir / 'clean'
+        sound_dir = episode_dir / 'sound_events'
+
+        clean_dir.mkdir(parents=True, exist_ok=True)
+        sound_dir.mkdir(parents=True, exist_ok=True)
+
+        return {
+            'clean_json': clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['json']}",
+            'sound_json': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['json']}",
+            'clean_segmented': clean_dir / f"{base_name}{FILE_SUFFIXES['segmented']}_clean{FILE_EXTENSIONS['json']}",
+            'sound_segmented': sound_dir / f"{base_name}{FILE_SUFFIXES['segmented']}_sound_events{FILE_EXTENSIONS['json']}",
+            'clean_txt': clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['txt']}",
+            'sound_txt': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['txt']}",
+            'clean_srt': clean_dir / f"{base_name}{FILE_SUFFIXES['clean']}{FILE_EXTENSIONS['srt']}",
+            'sound_srt': sound_dir / f"{base_name}{FILE_SUFFIXES['sound_events']}{FILE_EXTENSIONS['srt']}",
+        }
+
+    @staticmethod
+    def __load_transcription_payload(input_data: TranscriptionData) -> Dict[str, Any]:
+        with open(input_data.path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return {
+            'episode_info': data.get('episode_info', {}),
+            'segments': data.get('segments', []),
+        }
+
+    @staticmethod
+    def __save_separated_data(
+            output_paths: Dict[str, Path],
+            episode_info_dict: Dict[str, Any],
+            dialogue_segments: List[Dict[str, Any]],
+            sound_segments: List[Dict[str, Any]],
     ) -> None:
         clean_data = {'episode_info': episode_info_dict, 'segments': dialogue_segments}
         sound_data = {'episode_info': episode_info_dict, 'segments': sound_segments}
@@ -135,21 +191,10 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         FileOperations.atomic_write_json(output_paths['clean_segmented'], clean_data)
         FileOperations.atomic_write_json(output_paths['sound_segmented'], sound_data)
 
-    def _generate_additional_formats(
-        self,
-        output_paths: Dict[str, Path],
-        dialogue_segments: List[Dict[str, Any]],
-        sound_segments: List[Dict[str, Any]],
-    ) -> None:
-        self.__generate_txt_file(output_paths['clean_json'], output_paths['clean_txt'])
-        self.__generate_txt_file(output_paths['sound_json'], output_paths['sound_txt'])
-        self.__generate_srt_file(dialogue_segments, output_paths['clean_srt'])
-        self.__generate_srt_file(sound_segments, output_paths['sound_srt'])
-
     @staticmethod
-    def _create_cached_result(
-        output_paths: Dict[str, Path],
-        input_data: TranscriptionData,
+    def __construct_cached_result(
+            output_paths: Dict[str, Path],
+            input_data: TranscriptionData,
     ) -> TranscriptionData:
         return TranscriptionData(
             path=output_paths['clean_json'],
@@ -161,9 +206,9 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         )
 
     @staticmethod
-    def _create_result_artifact(
-        output_paths: Dict[str, Path],
-        input_data: TranscriptionData,
+    def __construct_result_artifact(
+            output_paths: Dict[str, Path],
+            input_data: TranscriptionData,
     ) -> TranscriptionData:
         return TranscriptionData(
             path=output_paths['clean_json'],
@@ -181,26 +226,30 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         text = re.sub('\\s+', ' ', text)
         cleaned['text'] = text.strip()
         words = cleaned.get(WordKeys.WORDS, [])
+
         if words:
             non_spacing = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
             if non_spacing:
                 cleaned[WordKeys.START] = min((w.get(WordKeys.START, 0) for w in non_spacing))
                 cleaned[WordKeys.END] = max((w.get(WordKeys.END, 0) for w in non_spacing))
+
         return cleaned
 
     @staticmethod
     def __finalize_sequence(
-        seq_type: str,
-        words: List[Dict[str, Any]],
-        start: float,
-        dialogue_parts: List[Dict[str, Any]],
-        sound_parts: List[Dict[str, Any]],
+            seq_type: str,
+            words: List[Dict[str, Any]],
+            start: float,
+            dialogue_parts: List[Dict[str, Any]],
+            sound_parts: List[Dict[str, Any]],
     ) -> None:
         non_spacing = [w for w in words if w.get(WordKeys.TYPE) != WordTypeValues.SPACING]
         if not non_spacing:
             return
+
         text = ''.join((w.get(WordKeys.TEXT, '') for w in words))
         end = words[-1].get(WordKeys.END, start)
+
         new_segment = {
             'id': 0,
             'text': text,
@@ -208,6 +257,7 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             WordKeys.END: end,
             WordKeys.WORDS: words,
         }
+
         if seq_type == 'sound':
             new_segment['sound_type'] = 'sound'
             sound_parts.append(new_segment)
@@ -229,8 +279,10 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
                 start = seg.get('start', 0)
                 end = seg.get('end', 0)
                 text = seg.get('text', '').strip()
+
                 start_time = SoundSeparationStep.__format_srt_time(start)
                 end_time = SoundSeparationStep.__format_srt_time(end)
+
                 f.write(f'{idx}\n')
                 f.write(f'{start_time} --> {end_time}\n')
                 f.write(f'{text}\n\n')
@@ -239,14 +291,17 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
     def __generate_txt_file(json_path: Path, txt_path: Path) -> None:
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+
         segments = data.get('segments', [])
         text_lines = []
+
         for seg in segments:
             text = seg.get('text', '').strip()
             text = re.sub('\\([^)]*\\)', '', text)
             text = re.sub('\\s+', ' ', text).strip()
             if text:
                 text_lines.append(text)
+
         with open(txt_path, 'w', encoding='utf-8') as f:
             f.write(' '.join(text_lines))
 
@@ -259,43 +314,3 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
         for i, seg in enumerate(segments):
             seg['id'] = i
         return segments
-
-    def __split_mixed_segment(
-        self,
-        segment: Dict[str, Any],
-    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        words = segment.get(WordKeys.WORDS, [])
-        dialogue_parts = []
-        sound_parts = []
-        current_type = None
-        current_words = []
-        current_start = None
-        for word in words:
-            word_type = 'sound' if is_sound_event(word) else 'dialogue'
-            if word.get(WordKeys.TYPE) == WordTypeValues.SPACING:
-                if current_words:
-                    current_words.append(word)
-                continue
-            if word_type != current_type:
-                if current_words and current_type:
-                    self.__finalize_sequence(
-                        current_type,
-                        current_words,
-                        current_start,
-                        dialogue_parts,
-                        sound_parts,
-                    )
-                current_type = word_type
-                current_words = [word]
-                current_start = word.get(WordKeys.START)
-            else:
-                current_words.append(word)
-        if current_words and current_type:
-            self.__finalize_sequence(
-                current_type,
-                current_words,
-                current_start,
-                dialogue_parts,
-                sound_parts,
-            )
-        return dialogue_parts, sound_parts

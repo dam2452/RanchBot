@@ -21,30 +21,26 @@ ConfigT = TypeVar("ConfigT", bound=BaseModel)
 
 
 class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
+    @property
+    def is_global(self) -> bool:
+        return True
 
-    def execute(
-        self, input_data: SourceVideo, context: ExecutionContext,
-    ) -> Optional[SourceVideo]:
-        output_path = Path(self.config.output_file)  # type: ignore[attr-defined]
+    def execute(self, input_data: SourceVideo, context: ExecutionContext) -> Optional[SourceVideo]:
+        output_path = Path(self.config.output_file)
 
         if output_path.exists() and not context.force_rerun:
-            context.logger.info(f"{self._get_metadata_type_name()} metadata already exists: {output_path}")
+            context.logger.info(f"{self._get_metadata_type_name()} metadata already exists.")
             return input_data
 
-        urls = self.config.urls  # type: ignore[attr-defined]
-        context.logger.info(f"Scraping {self._get_metadata_type_name().lower()} from {len(urls)} URLs")
+        context.logger.info(f"Scraping {self._get_metadata_type_name().lower()} from {len(self.config.urls)} URLs")
 
-        scraper_class = self._get_scraper_class()
-        scraper_args = self._build_scraper_args(output_path, context)
-        scraper = scraper_class(scraper_args)
-
+        scraper = self._get_scraper_class()(self._build_scraper_args(output_path, context))
         exit_code = scraper.work()
 
         if exit_code != 0:
-            raise RuntimeError(f"{self._get_metadata_type_name()} scraper failed with exit code {exit_code}")
+            raise RuntimeError(f"{self._get_metadata_type_name()} scraper failed with code {exit_code}")
 
         context.logger.info(f"{self._get_metadata_type_name()} metadata saved to: {output_path}")
-
         return input_data
 
     @abstractmethod
@@ -55,17 +51,12 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
     def _get_metadata_type_name(self) -> str:
         pass
 
-    @property
-    def is_global(self) -> bool:
-        return True
-
     def _build_scraper_args(self, output_path: Path, context: ExecutionContext) -> Dict[str, Any]:
-        base_args: Dict[str, Any] = {
-            "urls": self.config.urls,  # type: ignore[attr-defined]
+        return {
+            "urls": self.config.urls,
             "output_file": output_path,
-            "headless": self.config.headless,  # type: ignore[attr-defined]
-            "scraper_method": self.config.scraper_method,  # type: ignore[attr-defined]
-            "parser_mode": self.config.parser_mode,  # type: ignore[attr-defined]
+            "headless": self.config.headless,
+            "scraper_method": self.config.scraper_method,
+            "parser_mode": self.config.parser_mode,
             "series_name": context.series_name,
         }
-        return base_args

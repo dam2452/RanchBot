@@ -24,8 +24,13 @@ class ValidationStatusMixin:
 @dataclass
 class BaseValidationResult(ValidationStatusMixin):
     errors: List[str] = field(default_factory=list)
-    stats: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
+    stats: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {'status': self.status, 'errors': self.errors, 'warnings': self.warnings, 'stats': self.stats}
+        return {
+            'status': self.status,
+            'errors': self.errors,
+            'warnings': self.warnings,
+            'stats': self.stats,
+        }

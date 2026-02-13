@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 
 class ImageHashValidator(BaseValidator):
-
     def validate(self, stats: 'EpisodeStats') -> None:
         JsonDirectoryValidationHelper.validate_json_directory(
             stats,

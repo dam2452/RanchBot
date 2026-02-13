@@ -40,16 +40,19 @@ OUTPUT_FILE_PATTERNS = {
     'scenes_suffix': '_scenes.json',
 }
 
+
 class EpisodesDataKeys:
     EPISODES = 'episodes'
     SEASONS = 'seasons'
     SEASON_NUMBER = 'season'
+
 
 class EpisodeMetadataKeys:
     EPISODE_NUMBER = 'episode_number'
     PREMIERE_DATE = 'premiere_date'
     TITLE = 'title'
     VIEWERSHIP = 'viewership'
+
 
 class FfprobeKeys:
     FORMAT = 'format'

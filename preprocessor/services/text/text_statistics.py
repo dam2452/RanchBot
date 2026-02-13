@@ -14,13 +14,14 @@ from typing import (
 from preprocessor.services.text.language_config import (
     ENGLISH_CONFIG,
     POLISH_CONFIG,
-    LanguageConfig,
 )
 
 
 @dataclass
 class TextStatistics:  # pylint: disable=too-many-instance-attributes
     text: str
+    language: str = 'pl'
+
     avg_sentence_length: float = 0.0
     avg_word_length: float = 0.0
     bigrams: List[Dict[str, Any]] = field(default_factory=list)
@@ -28,7 +29,6 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
     consonants: int = 0
     digits: int = 0
     empty_lines: int = 0
-    language: str = 'pl'
     letter_frequency: Dict[str, int] = field(default_factory=dict)
     letters: int = 0
     lines: int = 0
@@ -47,11 +47,11 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
     words: int = 0
 
     @classmethod
-    def from_file(cls, file_path: Path, language: str='pl') -> 'TextStatistics':
+    def from_file(cls, file_path: Path, language: str = 'pl') -> 'TextStatistics':
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
         stats = cls(text=text, language=language)
-        stats.__calculate()
+        stats.__process_calculations()
         return stats
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,42 +85,34 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
             'trigrams': self.trigrams,
         }
 
-    def __calculate(self) -> None:  # pylint: disable=unused-private-member
-        self.__calculate_basic_stats()
-        self.__calculate_character_stats()
-        self.__calculate_word_stats()
-        self.__calculate_advanced_stats()
+    def __process_calculations(self) -> None:  # pylint: disable=unused-private-member
+        self.__calculate_structural_stats()
+        self.__calculate_character_distribution()
+        self.__calculate_lexical_stats()
+        self.__generate_n_grams()
 
-    def __calculate_advanced_stats(self) -> None:
-        if self.sentences > 0:
-            self.avg_sentence_length = round(self.words / self.sentences, 2)
-        words = self.__get_words()
-        if len(words) >= 2:
-            bigram_counter = Counter(zip(words[:-1], words[1:]))
-            self.bigrams = [{'bigram': f'{w1} {w2}', 'count': count} for (w1, w2), count in bigram_counter.most_common(25)]
-        if len(words) >= 3:
-            trigram_counter = Counter(zip(words[:-2], words[1:-1], words[2:]))
-            self.trigrams = [{'trigram': f'{w1} {w2} {w3}', 'count': count} for (w1, w2, w3), count in trigram_counter.most_common(25)]
-
-    def __calculate_basic_stats(self) -> None:
+    def __calculate_structural_stats(self) -> None:
         lines = self.text.split('\n')
         self.lines = len(lines)
-        self.empty_lines = sum((1 for line in lines if not line.strip()))
+        self.empty_lines = sum(1 for line in lines if not line.strip())
+
         paragraphs = self.text.split('\n\n')
         self.paragraphs = len([p for p in paragraphs if p.strip()])
-        sentence_pattern = '[.!?…]+(?:\\s|$)'
-        self.sentences = len(re.findall(sentence_pattern, self.text))
+
+        self.sentences = len(re.findall(r'[.!?…]+(?:\s|$)', self.text))
         self.total_chars = len(self.text)
         self.spaces = self.text.count(' ') + self.text.count('\t') + self.text.count('\n')
         self.chars_without_spaces = self.total_chars - self.spaces
 
-    def __calculate_character_stats(self) -> None:
-        config = self.__get_config()
-        letter_counter = Counter()
+    def __calculate_character_distribution(self) -> None:
+        config = POLISH_CONFIG if self.language == 'pl' else ENGLISH_CONFIG
+        letter_counter: Counter = Counter()
+
         for char in self.text:
             if char.isalpha():
                 self.letters += 1
-                letter_counter[char.lower()] += 1
+                char_lower = char.lower()
+                letter_counter[char_lower] += 1
                 if char in config.vowels:
                     self.vowels += 1
                 elif char in config.consonants:
@@ -133,21 +125,34 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
                 self.special_characters += 1
             elif not char.isspace():
                 self.symbols += 1
-        self.letter_frequency = dict(sorted(letter_counter.items(), key=lambda x: x[1], reverse=True))
 
-    def __calculate_word_stats(self) -> None:
-        words = self.__get_words()
+        self.letter_frequency = dict(letter_counter.most_common())
+
+    def __calculate_lexical_stats(self) -> None:
+        words = self.__extract_words()
         self.words = len(words)
+
         if self.words > 0:
             word_counter = Counter(words)
             self.unique_words = len(word_counter)
-            self.type_token_ratio = round(self.unique_words / self.words, 4) if self.words > 0 else 0.0
-            word_lengths = [len(w) for w in words]
-            self.avg_word_length = round(sum(word_lengths) / len(word_lengths), 2) if word_lengths else 0.0
-            self.word_frequency = [{'word': word, 'count': count} for word, count in word_counter.most_common(50)]
+            self.type_token_ratio = round(self.unique_words / self.words, 4)
 
-    def __get_config(self) -> LanguageConfig:
-        return POLISH_CONFIG if self.language == 'pl' else ENGLISH_CONFIG
+            lengths = [len(w) for w in words]
+            self.avg_word_length = round(sum(lengths) / self.words, 2)
+            self.word_frequency = [{'word': w, 'count': c} for w, c in word_counter.most_common(50)]
 
-    def __get_words(self) -> List[str]:
-        return re.findall('\\b\\w+\\b', self.text.lower())
+            if self.sentences > 0:
+                self.avg_sentence_length = round(self.words / self.sentences, 2)
+
+    def __generate_n_grams(self) -> None:
+        words = self.__extract_words()
+        if len(words) >= 2:
+            bigrams = Counter(zip(words[:-1], words[1:]))
+            self.bigrams = [{'bigram': f'{w1} {w2}', 'count': c} for (w1, w2), c in bigrams.most_common(25)]
+
+        if len(words) >= 3:
+            trigrams = Counter(zip(words[:-2], words[1:-1], words[2:]))
+            self.trigrams = [{'trigram': f'{w1} {w2} {w3}', 'count': c} for (w1, w2, w3), c in trigrams.most_common(25)]
+
+    def __extract_words(self) -> List[str]:
+        return re.findall(r'\b\w+\b', self.text.lower())

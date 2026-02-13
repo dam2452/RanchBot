@@ -20,6 +20,7 @@ class MetricComparison:
     metric_name: str
     min_value: Optional[float]
 
+
 @dataclass
 class Anomaly:
     avg: float
@@ -29,6 +30,7 @@ class Anomaly:
     severity: str
     value: float
 
+
 @dataclass
 class SeasonComparison:
     anomaly_threshold: float
@@ -37,82 +39,69 @@ class SeasonComparison:
     metrics: Dict[str, MetricComparison] = field(default_factory=dict)
 
     def compare_episodes(self, episodes_stats: Dict[str, EpisodeStats]) -> None:
-        metric_keys = [
-            'transcription_duration',
-            'transcription_chars',
-            'transcription_words',
-            'exported_frames_count',
-            'exported_frames_total_size_mb',
-            'video_size_mb',
-            'video_duration',
-            'scenes_count',
+        metrics_to_check = [
+            'transcription_duration', 'transcription_chars', 'transcription_words',
+            'exported_frames_count', 'exported_frames_total_size_mb',
+            'video_size_mb', 'video_duration', 'scenes_count',
         ]
-        for metric_key in metric_keys:
-            self.__compare_metric(metric_key, episodes_stats)
+        for key in metrics_to_check:
+            self.__analyze_metric_across_episodes(key, episodes_stats)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             'metrics': {
-                metric_name: {
-                    'min': metric.min_value,
-                    'max': metric.max_value,
-                    'avg': metric.avg_value,
-                    'difference_percent': metric.difference_percent,
-                }
-                for metric_name, metric in self.metrics.items()
+                name: {
+                    'min': m.min_value, 'max': m.max_value,
+                    'avg': m.avg_value, 'difference_percent': m.difference_percent,
+                } for name, m in self.metrics.items()
             },
             'anomalies': [
                 {
-                    'episode': anomaly.episode,
-                    'metric': anomaly.metric,
-                    'value': anomaly.value,
-                    'avg': anomaly.avg,
-                    'deviation_percent': anomaly.deviation_percent,
-                    'severity': anomaly.severity,
-                }
-                for anomaly in self.anomalies
+                    'episode': a.episode, 'metric': a.metric, 'value': a.value,
+                    'avg': a.avg, 'deviation_percent': a.deviation_percent, 'severity': a.severity,
+                } for a in self.anomalies
             ],
         }
 
-    def __compare_metric(self, metric_key: str, episodes_stats: Dict[str, EpisodeStats]) -> None:
-        values = []
-        episode_values = {}
-        for episode_id, stats in episodes_stats.items():
-            value = getattr(stats, metric_key, None)
-            if value is not None:
-                values.append(value)
-                episode_values[episode_id] = value
-        if not values:
+    def __analyze_metric_across_episodes(self, key: str, stats_dict: Dict[str, EpisodeStats]) -> None:
+        episode_values = {
+            ep_id: val for ep_id, s in stats_dict.items()
+            if (val := getattr(s, key, None)) is not None
+        }
+
+        if not episode_values:
             return
-        min_val = min(values)
-        max_val = max(values)
+
+        values = list(episode_values.values())
         avg_val = sum(values) / len(values)
-        if min_val > 0:
-            diff_percent = (max_val - min_val) / min_val * 100
-        else:
-            diff_percent = 0.0
-        self.metrics[metric_key] = MetricComparison(
-            metric_name=metric_key,
-            min_value=round(min_val, 2),
-            max_value=round(max_val, 2),
+
+        self.__calculate_metric_summary(key, values, avg_val)
+        self.__detect_anomalies_for_metric(key, episode_values, avg_val)
+
+    def __calculate_metric_summary(self, key: str, values: List[float], avg_val: float) -> None:
+        min_v, max_v = min(values), max(values)
+        diff = ((max_v - min_v) / min_v * 100) if min_v > 0 else 0.0
+
+        self.metrics[key] = MetricComparison(
+            metric_name=key,
+            min_value=round(min_v, 2),
+            max_value=round(max_v, 2),
             avg_value=round(avg_val, 2),
-            difference_percent=round(diff_percent, 2),
+            difference_percent=round(diff, 2),
         )
-        for episode_id, value in episode_values.items():
-            if avg_val > 0:
-                deviation_percent = abs((value - avg_val) / avg_val) * 100
-            else:
-                deviation_percent = 0.0
-            if deviation_percent > self.anomaly_threshold:
-                threshold_doubled = self.anomaly_threshold * 2
-                severity = 'ERROR' if deviation_percent > threshold_doubled else 'WARNING'
-                self.anomalies.append(
-                    Anomaly(
-                        episode=episode_id,
-                        metric=metric_key,
-                        value=round(value, 2),
-                        avg=round(avg_val, 2),
-                        deviation_percent=round(deviation_percent, 2),
-                        severity=severity,
-                    ),
-                )
+
+    def __detect_anomalies_for_metric(self, key: str, ep_values: Dict[str, float], avg_val: float) -> None:
+        if avg_val <= 0:
+            return
+
+        for ep_id, val in ep_values.items():
+            deviation = abs((val - avg_val) / avg_val) * 100
+            if deviation > self.anomaly_threshold:
+                self.anomalies.append(self.__create_anomaly_record(ep_id, key, val, avg_val, deviation))
+
+    def __create_anomaly_record(self, ep_id: str, key: str, val: float, avg: float, dev: float) -> Anomaly:
+        severity = 'ERROR' if dev > (self.anomaly_threshold * 2) else 'WARNING'
+        return Anomaly(
+            episode=ep_id, metric=key, value=round(val, 2),
+            avg=round(avg, 2), deviation_percent=round(dev, 2), severity=severity,
+        )

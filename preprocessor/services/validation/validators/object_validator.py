@@ -12,13 +12,11 @@ if TYPE_CHECKING:
 
 
 class ObjectValidator(BaseValidator):
-
     def validate(self, stats: 'EpisodeStats') -> None:
         self.__validate_object_detections(stats)
         self.__validate_object_visualizations(stats)
 
-    @staticmethod
-    def __validate_object_detections(stats: 'EpisodeStats') -> None:
+    def __validate_object_detections(self, stats: 'EpisodeStats') -> None:
         JsonDirectoryValidationHelper.validate_json_directory(
             stats,
             settings.output_subdirs.object_detections,
@@ -27,8 +25,7 @@ class ObjectValidator(BaseValidator):
             exclude_pattern='visualizations',
         )
 
-    @staticmethod
-    def __validate_object_visualizations(stats: 'EpisodeStats') -> None:
+    def __validate_object_visualizations(self, stats: 'EpisodeStats') -> None:
         VisualizationValidationHelper.validate_visualizations(
             stats,
             settings.output_subdirs.object_visualizations,

@@ -8,83 +8,96 @@ from preprocessor.services.validation.file_validators import FileValidator
 class GlobalValidationResult(BaseValidationResult):
     pass
 
-class GlobalValidator:
 
+class GlobalValidator:
     def __init__(self, series_name: str, base_output_dir: Path) -> None:
-        self.series_name = series_name
-        self.base_output_dir = base_output_dir
-        self.result = GlobalValidationResult()
+        self.__series_name = series_name
+        self.__base_output_dir = base_output_dir
+        self.__result = GlobalValidationResult()
 
     def validate(self) -> GlobalValidationResult:
-        self.__validate_main_json_files()
-        self.__validate_characters_folder()
-        self.__validate_processing_metadata()
-        return self.result
+        self.__check_main_json_files()
+        self.__check_characters_assets()
+        self.__check_processing_metadata_store()
+        return self.__result
+
+    def __check_main_json_files(self) -> None:
+        files = [
+            (f'{self.__series_name}_episodes.json', 'episodes_json_valid'),
+            (f'{self.__series_name}_characters.json', 'characters_json_valid'),
+        ]
+        for filename, stats_key in files:
+            self.__validate_json_at_path(self.__base_output_dir / filename, stats_key)
+
+    def __check_characters_assets(self) -> None:
+        char_dir = self.__base_output_dir / 'characters'
+        if not char_dir.exists():
+            self.__result.warnings.append('Missing characters/ directory')
+            return
+
+        folders = [d for d in char_dir.iterdir() if d.is_dir()]
+        self.__result.stats['character_folders_count'] = len(folders)
+
+        if not folders:
+            self.__result.warnings.append('No character folders in characters/')
+            return
+
+        self.__process_all_character_folders(folders)
+
+    def __process_all_character_folders(self, folders: List[Path]) -> None:
+        counters = {'total': 0, 'invalid': 0, 'empty_chars': []}
+
+        for folder in folders:
+            images = self.__get_image_files(folder)
+            if not images:
+                counters['empty_chars'].append(folder.name)
+                continue
+
+            counters['total'] += len(images)
+            counters['invalid'] += self.__validate_image_batch(images, folder.name)
+
+        self.__result.stats['character_images_count'] = counters['total']
+        self.__result.stats['invalid_character_images'] = counters['invalid']
+
+        if counters['empty_chars']:
+            self.__result.warnings.append(f'{len(counters["empty_chars"])} characters without images')
+
+    def __validate_image_batch(self, images: List[Path], char_name: str) -> int:
+        invalid_count = 0
+        for img in images:
+            v_res = FileValidator.validate_image_file(img)
+            if not v_res.is_valid:
+                invalid_count += 1
+                self.__result.errors.append(f'Invalid image {char_name}/{img.name}: {v_res.error_message}')
+        return invalid_count
+
+    def __check_processing_metadata_store(self) -> None:
+        meta_dir = self.__base_output_dir / 'processing_metadata'
+        if not meta_dir.exists():
+            self.__result.warnings.append('Missing processing_metadata/ directory')
+            return
+
+        json_files = list(meta_dir.glob('*.json'))
+        self.__result.stats['processing_metadata_files'] = len(json_files)
+
+        for f in json_files:
+            v_res = FileValidator.validate_json_file(f)
+            if not v_res.is_valid:
+                self.__result.errors.append(f'Invalid metadata {f.name}: {v_res.error_message}')
+
+    def __validate_json_at_path(self, path: Path, stats_key: str) -> None:
+        if not path.exists():
+            self.__result.warnings.append(f'Missing {path.name}')
+            return
+        v_res = FileValidator.validate_json_file(path)
+        if not v_res.is_valid:
+            self.__result.errors.append(f'Invalid {path.name}: {v_res.error_message}')
+        else:
+            self.__result.stats[stats_key] = True
 
     @staticmethod
-    def __get_character_images(char_folder: Path) -> List[Path]:
-        extensions = ['*.jpg', '*.jpeg', '*.png', '*.webp']
-        image_files = []
-        for ext in extensions:
-            image_files.extend(char_folder.glob(ext))
-        return image_files
-
-    def __validate_characters_folder(self) -> None:
-        characters_dir = self.base_output_dir / 'characters'
-        if not characters_dir.exists():
-            self.result.warnings.append('Missing characters/ directory')
-            return
-        character_folders = [d for d in characters_dir.iterdir() if d.is_dir()]
-        if not character_folders:
-            self.result.warnings.append('No character folders in characters/')
-            return
-        self.result.stats['character_folders_count'] = len(character_folders)
-        total_images = 0
-        invalid_images = 0
-        characters_without_images: List[str] = []
-        for char_folder in character_folders:
-            image_files = self.__get_character_images(char_folder)
-            if not image_files:
-                characters_without_images.append(char_folder.name)
-                continue
-            total_images += len(image_files)
-            for img_file in image_files:
-                result = FileValidator.validate_image_file(img_file)
-                if not result.is_valid:
-                    invalid_images += 1
-                    self.result.errors.append(f'Invalid character image {char_folder.name}/{img_file.name}: {result.error_message}')
-        self.result.stats['character_images_count'] = total_images
-        self.result.stats['invalid_character_images'] = invalid_images
-        if characters_without_images:
-            self.result.warnings.append(f'{len(characters_without_images)} characters without reference images')
-
-    def __validate_json_file(self, file_path: Path, stats_key: str) -> None:
-        if file_path.exists():
-            result = FileValidator.validate_json_file(file_path)
-            if not result.is_valid:
-                self.result.errors.append(f'Invalid {file_path.name}: {result.error_message}')
-            else:
-                self.result.stats[stats_key] = True
-        else:
-            self.result.warnings.append(f'Missing {file_path.name}')
-
-    def __validate_main_json_files(self) -> None:
-        episodes_file = self.base_output_dir / f'{self.series_name}_episodes.json'
-        self.__validate_json_file(episodes_file, 'episodes_json_valid')
-        characters_file = self.base_output_dir / f'{self.series_name}_characters.json'
-        self.__validate_json_file(characters_file, 'characters_json_valid')
-
-    def __validate_processing_metadata(self) -> None:
-        metadata_dir = self.base_output_dir / 'processing_metadata'
-        if not metadata_dir.exists():
-            self.result.warnings.append('Missing processing_metadata/ directory')
-            return
-        json_files = list(metadata_dir.glob('*.json'))
-        if not json_files:
-            self.result.warnings.append('No JSON files in processing_metadata/')
-            return
-        self.result.stats['processing_metadata_files'] = len(json_files)
-        for json_file in json_files:
-            result = FileValidator.validate_json_file(json_file)
-            if not result.is_valid:
-                self.result.errors.append(f'Invalid processing metadata {json_file.name}: {result.error_message}')
+    def __get_image_files(folder: Path) -> List[Path]:
+        found = []
+        for ext in ('*.jpg', '*.jpeg', '*.png', '*.webp'):
+            found.extend(folder.glob(ext))
+        return found

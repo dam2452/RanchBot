@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 
 
-@dataclass
+@dataclass(frozen=True)
 class FaceData:
     bbox: np.ndarray
     face_img: np.ndarray
@@ -13,7 +13,8 @@ class FaceData:
     source_image_idx: int
     source_image_path: Path
 
-@dataclass
+
+@dataclass(frozen=True)
 class CandidateFace:
     avg_similarity: float
     faces: List[FaceData]

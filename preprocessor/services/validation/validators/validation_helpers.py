@@ -14,24 +14,22 @@ if TYPE_CHECKING:
 
 
 class JsonDirectoryValidationHelper:
-
     @staticmethod
     def validate_json_directory(
-        stats: 'EpisodeStats',
-        subdir: str,
-        count_attr: Optional[str],
-        context_name: str,
-        exclude_pattern: Optional[str] = None,
-        check_anomalies: bool = True,
+            stats: 'EpisodeStats',
+            subdir: str,
+            count_attr: Optional[str],
+            context_name: str,
+            exclude_pattern: Optional[str] = None,
+            check_anomalies: bool = True,
     ) -> None:
         dir_path = PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)
-        count, sizes, errors = JsonDirectoryValidationHelper._validate_json_files_in_directory(
-            dir_path, exclude_pattern,
-        )
 
         if not dir_path.exists():
             stats.warnings.append(f'Missing {subdir} directory')
             return
+
+        count, sizes, errors = JsonDirectoryValidationHelper.__analyze_json_files(dir_path, exclude_pattern)
 
         if count == 0:
             stats.warnings.append(f'No JSON files in {subdir}/')
@@ -43,15 +41,13 @@ class JsonDirectoryValidationHelper:
         stats.errors.extend(errors)
 
         if check_anomalies:
-            JsonDirectoryValidationHelper._check_size_anomalies(stats, sizes, context_name)
+            JsonDirectoryValidationHelper.__perform_size_anomaly_check(stats, sizes, context_name)
 
     @staticmethod
-    def _validate_json_files_in_directory(
-        directory: Path, exclude_pattern: Optional[str] = None,
+    def __analyze_json_files(
+            directory: Path,
+            exclude_pattern: Optional[str],
     ) -> Tuple[int, List[int], List[str]]:
-        if not directory.exists():
-            return 0, [], []
-
         json_files = [
             f for f in directory.glob('*.json')
             if not exclude_pattern or exclude_pattern not in str(f)
@@ -60,8 +56,9 @@ class JsonDirectoryValidationHelper:
         if not json_files:
             return 0, [], []
 
-        sizes = []
-        errors = []
+        sizes: List[int] = []
+        errors: List[str] = []
+
         for json_file in json_files:
             result = FileValidator.validate_json_file(json_file)
             if not result.is_valid:
@@ -72,8 +69,11 @@ class JsonDirectoryValidationHelper:
         return len(json_files), sizes, errors
 
     @staticmethod
-    def _check_size_anomalies(
-        stats: 'EpisodeStats', sizes: List[int], folder_name: str, threshold: float = 0.2,
+    def __perform_size_anomaly_check(
+            stats: 'EpisodeStats',
+            sizes: List[int],
+            folder_name: str,
+            threshold: float = 0.2,
     ) -> None:
         if len(sizes) < 2:
             return
@@ -85,41 +85,41 @@ class JsonDirectoryValidationHelper:
         for i, size in enumerate(sizes):
             deviation = abs(size - avg_size) / avg_size
             if deviation > threshold:
-                warning_msg = (
-                    f'{folder_name} file #{i + 1} size deviation: '
-                    f'{deviation * 100:.1f}% from average'
+                stats.warnings.append(
+                    f'{folder_name} file #{i + 1} size deviation: {deviation * 100:.1f}% from average',
                 )
-                stats.warnings.append(warning_msg)
 
 
 class VisualizationValidationHelper:
-
     @staticmethod
     def validate_visualizations(
-        stats: 'EpisodeStats', subdir: str, count_attr: str, context_name: str,
+            stats: 'EpisodeStats',
+            subdir: str,
+            count_attr: str,
+            context_name: str,
     ) -> None:
         viz_dir = PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)
-        total_count, invalid_count, errors = VisualizationValidationHelper._validate_images_in_directory(viz_dir)
+        total, invalid, errors = VisualizationValidationHelper.__scan_images(viz_dir)
 
-        if total_count == 0 and viz_dir.exists():
+        if total == 0 and viz_dir.exists():
             stats.warnings.append(f'No visualization images in {subdir}/')
             return
 
-        if total_count > 0:
-            setattr(stats, count_attr, total_count)
+        if total > 0:
+            setattr(stats, count_attr, total)
             stats.errors.extend(errors)
-            if invalid_count > 0:
-                stats.warnings.append(f'{invalid_count} invalid {context_name} images found')
+            if invalid > 0:
+                stats.warnings.append(f'{invalid} invalid {context_name} images found')
 
     @staticmethod
-    def _validate_images_in_directory(
-        directory: Path,
-        extensions: Tuple[str, ...] = ('*.jpg', '*.png'),
+    def __scan_images(
+            directory: Path,
+            extensions: Tuple[str, ...] = ('*.jpg', '*.png'),
     ) -> Tuple[int, int, List[str]]:
         if not directory.exists():
             return 0, 0, []
 
-        image_files = []
+        image_files: List[Path] = []
         for ext in extensions:
             image_files.extend(directory.glob(ext))
 
@@ -127,7 +127,8 @@ class VisualizationValidationHelper:
             return 0, 0, []
 
         invalid_count = 0
-        errors = []
+        errors: List[str] = []
+
         for img_file in image_files:
             result = FileValidator.validate_image_file(img_file)
             if not result.is_valid:

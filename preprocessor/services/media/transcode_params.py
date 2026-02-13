@@ -6,9 +6,8 @@ from typing import (
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class TranscodeParams:
-
     input_path: Path
     output_path: Path
     codec: str
@@ -30,4 +29,6 @@ class TranscodeParams:
             width, height = [int(x) for x in self.resolution.split(':')]
             return width, height
         except (ValueError, AttributeError) as e:
-            raise ValueError(f"Invalid resolution format: {self.resolution}") from e
+            raise ValueError(
+                f"Invalid resolution format: '{self.resolution}'. Expected format 'WIDTH:HEIGHT'.",
+            ) from e

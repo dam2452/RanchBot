@@ -10,6 +10,7 @@ class HashResult(TypedDict):
     hash: str
     timestamp: float
 
+
 class VideoMetadata(TypedDict):
     bitrate: NotRequired[int]
     codec: NotRequired[str]

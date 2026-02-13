@@ -31,6 +31,7 @@ from preprocessor.config.step_configs import (
 )
 from preprocessor.services.media.resolution import Resolution
 
+# Phase Definitions
 SCRAPING = Phase("SCRAPING", color="blue")
 PROCESSING = Phase("PROCESSING", color="green")
 INDEXING = Phase("INDEXING", color="yellow")
@@ -38,8 +39,12 @@ VALIDATION = Phase("VALIDATION", color="magenta")
 
 
 def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals
-    series_config: SeriesConfig = SeriesConfig.load(series_name)
+    series_config = SeriesConfig.load(series_name)
+    output_dir = get_base_output_dir(series_name)
 
+    # =========================================================
+    # SCRAPING PHASE
+    # =========================================================
     episodes_metadata = StepBuilder(
         id="scrape_episodes",
         phase=SCRAPING,
@@ -49,7 +54,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         needs=[],
         config=EpisodeScraperConfig(
             urls=series_config.scraping.episodes.urls,
-            output_file=str(get_base_output_dir(series_name) / f"{series_name}_episodes.json"),
+            output_file=str(output_dir / f"{series_name}_episodes.json"),
             headless=True,
             merge_sources=True,
             scraper_method="crawl4ai",
@@ -66,7 +71,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         needs=[],
         config=CharacterScraperConfig(
             urls=series_config.scraping.characters.urls,
-            output_file=str(get_base_output_dir(series_name) / f"{series_name}_characters.json"),
+            output_file=str(output_dir / f"{series_name}_characters.json"),
             headless=True,
             scraper_method="crawl4ai",
             parser_mode=series_config.scraping.characters.parser_mode,
@@ -81,13 +86,16 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=["character_faces/{character}/*.jpg"],
         needs=[characters_metadata],
         config=CharacterReferenceConfig(
-            characters_file=str(get_base_output_dir(series_name) / f"{series_name}_characters.json"),
-            output_dir=str(get_base_output_dir(series_name) / "character_faces"),
+            characters_file=str(output_dir / f"{series_name}_characters.json"),
+            output_dir=str(output_dir / "character_faces"),
             search_engine=series_config.scraping.character_references.search_engine,
             images_per_character=series_config.scraping.character_references.images_per_character,
         ),
     )
 
+    # =========================================================
+    # PROCESSING PHASE: VIDEO
+    # =========================================================
     resolution_analysis = StepBuilder(
         id="resolution_analysis",
         phase=PROCESSING,
@@ -96,11 +104,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[],
         needs=[],
         config=TranscodeConfig(
-            video_bitrate_mbps=series_config.processing.transcode.video_bitrate_mbps,
-            minrate_mbps=series_config.processing.transcode.minrate_mbps,
-            maxrate_mbps=series_config.processing.transcode.maxrate_mbps,
-            bufsize_mbps=series_config.processing.transcode.bufsize_mbps,
-            gop_size=series_config.processing.transcode.gop_size,
+            bitrate_reference_mb=series_config.processing.transcode.bitrate_reference_mb,
+            bitrate_reference_seconds=series_config.processing.transcode.bitrate_reference_seconds,
+            keyframe_interval_seconds=series_config.processing.transcode.keyframe_interval_seconds,
             force_deinterlace=series_config.processing.transcode.force_deinterlace,
             resolution=Resolution.from_string(series_config.processing.transcode.resolution),
         ),
@@ -110,15 +116,13 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         id="transcode",
         phase=PROCESSING,
         module="preprocessor.steps.video.transcoding_step:VideoTranscoderStep",
-        description=f"Conversion to {series_config.processing.transcode.codec} {series_config.processing.transcode.resolution} with adaptive bitrate",
+        description=f"Conversion to h264_nvenc {series_config.processing.transcode.resolution} with adaptive bitrate",
         produces=["transcoded_videos/{season}/{episode}.mp4"],
         needs=[resolution_analysis],
         config=TranscodeConfig(
-            video_bitrate_mbps=series_config.processing.transcode.video_bitrate_mbps,
-            minrate_mbps=series_config.processing.transcode.minrate_mbps,
-            maxrate_mbps=series_config.processing.transcode.maxrate_mbps,
-            bufsize_mbps=series_config.processing.transcode.bufsize_mbps,
-            gop_size=series_config.processing.transcode.gop_size,
+            bitrate_reference_mb=series_config.processing.transcode.bitrate_reference_mb,
+            bitrate_reference_seconds=series_config.processing.transcode.bitrate_reference_seconds,
+            keyframe_interval_seconds=series_config.processing.transcode.keyframe_interval_seconds,
             force_deinterlace=series_config.processing.transcode.force_deinterlace,
         ),
     )
@@ -143,9 +147,14 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         description="Exports frames (PNG) at scene boundaries",
         produces=["frames/{season}/{episode}/*.png"],
         needs=[scene_data],
-        config=FrameExportConfig(frames_per_scene=series_config.processing.frame_export.frames_per_scene),
+        config=FrameExportConfig(
+            frames_per_scene=series_config.processing.frame_export.frames_per_scene,
+        ),
     )
 
+    # =========================================================
+    # PROCESSING PHASE: TEXT & AUDIO
+    # =========================================================
     transcription_data = StepBuilder(
         id="transcribe",
         phase=PROCESSING,
@@ -198,6 +207,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         ),
     )
 
+    # =========================================================
+    # PROCESSING PHASE: VISION
+    # =========================================================
     image_hashes = StepBuilder(
         id="image_hashing",
         phase=PROCESSING,
@@ -262,6 +274,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         config=ObjectDetectionConfig(),
     )
 
+    # =========================================================
+    # INDEXING PHASE
+    # =========================================================
     elastic_documents = StepBuilder(
         id="generate_elastic_docs",
         phase=INDEXING,
@@ -304,6 +319,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         ),
     )
 
+    # =========================================================
+    # VALIDATION PHASE
+    # =========================================================
     validation = StepBuilder(
         id="validate",
         phase=VALIDATION,
@@ -314,6 +332,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         config=ValidationConfig(),
     )
 
+    # =========================================================
+    # PIPELINE REGISTRATION
+    # =========================================================
     pipeline = PipelineDefinition(name=f"{series_name}_processing")
 
     pipeline.register(episodes_metadata)
@@ -353,6 +374,6 @@ def visualize(series_name: str = "ranczo") -> None:
     print(pipeline.to_ascii_art())
 
 
-def __get_step_configs(series_name: str) -> Dict[str, object]:
+def _get_step_configs(series_name: str) -> Dict[str, object]:
     pipeline = build_pipeline(series_name)
     return {step_id: step.config for step_id, step in pipeline.get_all_steps().items()}

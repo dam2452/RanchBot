@@ -10,7 +10,6 @@ from preprocessor.core.artifacts import EmbeddingCollection
 
 
 class MetadataBuilder:
-
     @staticmethod
     def create_embedding_collection(
         episode_id: str,
@@ -31,7 +30,7 @@ class MetadataBuilder:
 
     @staticmethod
     def create_processing_metadata(
-        episode_info,
+        episode_info: Any,
         processing_params: Dict[str, Any],
         statistics: Dict[str, Any],
         results_key: str,
@@ -46,5 +45,8 @@ class MetadataBuilder:
         }
 
     @staticmethod
-    def __create_minimal_episode_info(episode_info) -> Dict[str, Any]:
-        return {'season': episode_info.season, 'episode_number': episode_info.relative_episode}
+    def __create_minimal_episode_info(episode_info: Any) -> Dict[str, Any]:
+        return {
+            'season': episode_info.season,
+            'episode_number': episode_info.relative_episode,
+        }

@@ -5,9 +5,8 @@ from typing import Optional
 from preprocessor.cli.search_handler import SearchFilters
 
 
-@dataclass
+@dataclass(frozen=True)
 class SearchQueryParams:
-
     text: Optional[str] = None
     text_semantic: Optional[str] = None
     text_to_video: Optional[str] = None
@@ -34,9 +33,8 @@ class SearchQueryParams:
         ])
 
 
-@dataclass
+@dataclass(frozen=True)
 class SearchActionParams:
-
     list_chars_flag: bool = False
     list_objects_flag: bool = False
     stats: bool = False
@@ -49,9 +47,8 @@ class SearchActionParams:
         ])
 
 
-@dataclass
+@dataclass(frozen=True)
 class SearchConfig:
-
     series: str
     query: SearchQueryParams
     filters: SearchFilters

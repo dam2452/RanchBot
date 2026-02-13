@@ -26,28 +26,37 @@ from preprocessor.services.video.strategies.strategy_factory import KeyframeStra
 
 
 class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExportConfig]):
-
     def __init__(self, config: FrameExportConfig) -> None:
         super().__init__(config)
         decord.bridge.set_bridge('native')
-        self.strategy = KeyframeStrategyFactory.create(self.config.keyframe_strategy, self.config.frames_per_scene)
+        self.__strategy = KeyframeStrategyFactory.create(
+            self.config.keyframe_strategy, self.config.frames_per_scene,
+        )
 
-    def execute(self, input_data: SceneCollection, context: ExecutionContext) -> FrameCollection:
-        episode_dir, metadata_file = self._prepare_output_paths(input_data, context)
+    @property
+    def name(self) -> str:
+        return 'frame_export'
+
+    def execute(
+            self, input_data: SceneCollection, context: ExecutionContext,
+    ) -> FrameCollection:
+        episode_dir, metadata_file = self.__resolve_output_paths(input_data, context)
 
         if self._check_cache_validity(metadata_file, context, input_data.episode_id, 'cached'):
-            return self._load_cached_result(metadata_file, episode_dir, input_data)
+            return self.__load_cached_result(metadata_file, episode_dir, input_data)
 
-        self._prepare_episode_directory(episode_dir, context)
-        frame_requests = self._extract_frame_requests(input_data)
+        self.__prepare_episode_directory(episode_dir, context)
+        frame_requests = self.__extract_frame_requests(input_data)
 
         if not frame_requests:
-            return self._create_empty_result(episode_dir, metadata_file, input_data, context)
+            return self.__construct_empty_result(episode_dir, metadata_file, input_data, context)
 
-        context.logger.info(f'Extracting {len(frame_requests)} keyframes from {input_data.video_path.name}')
+        context.logger.info(
+            f'Extracting {len(frame_requests)} keyframes from {input_data.video_path.name}',
+        )
         context.mark_step_started(self.name, input_data.episode_id)
 
-        self._process_frame_extraction(
+        self.__process_frame_extraction(
             input_data.video_path,
             frame_requests,
             episode_dir,
@@ -65,158 +74,86 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             metadata_path=metadata_file,
         )
 
-    @property
-    def name(self) -> str:
-        return 'frame_export'
-
-    @staticmethod
-    def _prepare_output_paths(
-        input_data: SceneCollection,
-        context: ExecutionContext,
-    ) -> Tuple[Path, Path]:
-        episode_dir = context.get_output_path(input_data.episode_info, 'exported_frames', '')
-        metadata_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_frame_metadata.json'
-        metadata_file = episode_dir / metadata_filename
-        return episode_dir, metadata_file
-
-    @staticmethod
-    def _load_cached_result(
-        metadata_file: Path,
-        episode_dir: Path,
-        input_data: SceneCollection,
-    ) -> FrameCollection:
-        with open(metadata_file, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-        return FrameCollection(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            directory=episode_dir,
-            frame_count=metadata['statistics']['total_frames'],
-            metadata_path=metadata_file,
-        )
-
-    @staticmethod
-    def _prepare_episode_directory(episode_dir: Path, context: ExecutionContext) -> None:
-        if episode_dir.exists():
-            context.logger.info(f'Cleaning incomplete frames from previous run: {episode_dir}')
-            shutil.rmtree(episode_dir, ignore_errors=True)
-        episode_dir.mkdir(parents=True, exist_ok=True)
-
-    def _extract_frame_requests(self, input_data: SceneCollection) -> List[FrameRequest]:
+    def __extract_frame_requests(self, input_data: SceneCollection) -> List[FrameRequest]:
         video_path = input_data.video_path
         if not video_path.exists():
             raise FileNotFoundError(f'Video file not found for frame export: {video_path}')
         data = {'scene_timestamps': {'scenes': input_data.scenes}}
-        return self.strategy.extract_frame_requests(video_path, data)
+        return self.__strategy.extract_frame_requests(video_path, data)
 
-    @staticmethod
-    def _create_empty_result(
-        episode_dir: Path,
-        metadata_file: Path,
-        input_data: SceneCollection,
-        context: ExecutionContext,
-    ) -> FrameCollection:
-        context.logger.warning(f'No frames to extract for {input_data.episode_id}')
-        return FrameCollection(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            directory=episode_dir,
-            frame_count=0,
-            metadata_path=metadata_file,
-        )
-
-    def _process_frame_extraction(
-        self,
-        video_path: Path,
-        frame_requests: List[FrameRequest],
-        episode_dir: Path,
-        input_data: SceneCollection,
-        metadata_file: Path,
-        context: ExecutionContext,
+    def __process_frame_extraction(
+            self,
+            video_path: Path,
+            frame_requests: List[FrameRequest],
+            episode_dir: Path,
+            input_data: SceneCollection,
+            metadata_file: Path,
+            context: ExecutionContext,
     ) -> None:
         try:
-            self.__extract_frames(video_path, frame_requests, episode_dir, input_data.episode_info, context)
-            self.__write_metadata(frame_requests, input_data.episode_info, video_path, context, metadata_file)
+            self.__extract_frames(
+                video_path, frame_requests, episode_dir, input_data.episode_info, context,
+            )
+            self.__write_metadata(
+                frame_requests, input_data.episode_info, video_path, context, metadata_file,
+            )
         except Exception as e:
             context.logger.error(f'Failed to extract frames from {video_path}: {e}')
             shutil.rmtree(episode_dir, ignore_errors=True)
             raise
 
-    @staticmethod
-    def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
-        width = metadata.get('width', 0)
-        height = metadata.get('height', 0)
-        if width == 0 or height == 0:
-            raise ValueError('Invalid video dimensions')
-        sar_str = metadata.get('sample_aspect_ratio', '1:1')
-        if sar_str == 'N/A' or not sar_str:
-            sar_str = '1:1'
-        try:
-            sar_num, sar_denom = [int(x) for x in sar_str.split(':')]
-            sar = sar_num / sar_denom if sar_denom != 0 else 1.0
-        except (ValueError, ZeroDivisionError):
-            sar = 1.0
-        return width / height * sar
+    def __extract_frames(
+            self,
+            video_file: Path,
+            frame_requests: List[FrameRequest],
+            episode_dir: Path,
+            episode_info,
+            context: ExecutionContext,
+    ) -> None:
+        video_metadata = self.__fetch_video_metadata(video_file)
+        dar = self.__calculate_display_aspect_ratio(video_metadata)
+        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
+
+        for req in frame_requests:
+            frame_num = req['frame_number']
+            self.__extract_and_save_frame(
+                vr, frame_num, episode_dir, episode_info, dar, context.series_name,
+            )
+
+        del vr
 
     def __extract_and_save_frame(
-        self,
-        vr,
-        frame_num: int,
-        episode_dir: Path,
-        episode_info,
-        dar: float,
-        series_name: str,
+            self,
+            vr: decord.VideoReader,
+            frame_num: int,
+            episode_dir: Path,
+            episode_info,
+            dar: float,
+            series_name: str,
     ) -> None:
         frame_np = vr[frame_num].asnumpy()
         frame_pil = Image.fromarray(frame_np)
         resized = self.__resize_frame(frame_pil, dar)
+
         base_filename = f'{series_name}_{episode_info.episode_code()}'
         filename = f'{base_filename}_frame_{frame_num:06d}.jpg'
         resized.save(episode_dir / filename, quality=90)
-
-    def __extract_frames(
-        self,
-        video_file: Path,
-        frame_requests: List[FrameRequest],
-        episode_dir: Path,
-        episode_info,
-        context: ExecutionContext,
-    ) -> None:
-        video_metadata = self.__get_video_metadata(video_file)
-        dar = self.__calculate_display_aspect_ratio(video_metadata)
-        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
-        for req in frame_requests:
-            frame_num = req['frame_number']
-            self.__extract_and_save_frame(vr, frame_num, episode_dir, episode_info, dar, context.series_name)
-        del vr
-
-    @staticmethod
-    def __get_video_metadata(video_path: Path) -> Dict[str, Any]:
-        cmd = [
-            'ffprobe', '-v', 'error', '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height,sample_aspect_ratio,display_aspect_ratio',
-            '-of', 'json', str(video_path),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        probe_data: Dict[str, Any] = json.loads(result.stdout)
-        streams: List[Dict[str, Any]] = probe_data.get('streams', [])
-        if not streams:
-            raise ValueError(f'No video streams found in {video_path}')
-        return streams[0]
 
     def __resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
         target_width = self.config.resolution.width
         target_height = self.config.resolution.height
         target_aspect = target_width / target_height
+
         if abs(display_aspect_ratio - target_aspect) < 0.01:
             return frame.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
         if display_aspect_ratio > target_aspect:
             new_height = target_height
             new_width = int(target_height * display_aspect_ratio)
             resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
             x_crop = (new_width - target_width) // 2
-            cropped = resized.crop((x_crop, 0, x_crop + target_width, target_height))
-            return cropped
+            return resized.crop((x_crop, 0, x_crop + target_width, target_height))
+
         new_width = target_width
         new_height = int(target_width / display_aspect_ratio)
         resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
@@ -226,28 +163,32 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         return result
 
     def __write_metadata(
-        self,
-        frame_requests: List[FrameRequest],
-        episode_info,
-        source_video: Path,
-        context: ExecutionContext,
-        metadata_file: Path,
+            self,
+            frame_requests: List[FrameRequest],
+            episode_info,
+            source_video: Path,
+            context: ExecutionContext,
+            metadata_file: Path,
     ) -> None:
-        frame_types_count = {}
-        frames_with_paths = []
+        frame_types_count: Dict[str, int] = {}
+        frames_with_paths: List[Dict[str, Any]] = []
         base_filename = f'{context.series_name}_{episode_info.episode_code()}'
+
         for frame in frame_requests:
             frame_type = frame.get('type', 'unknown')
             frame_types_count[frame_type] = frame_types_count.get(frame_type, 0) + 1
+
             frame_with_path = frame.copy()
             frame_num = frame['frame_number']
             frame_with_path['frame_path'] = f'{base_filename}_frame_{frame_num:06d}.jpg'
             frames_with_paths.append(frame_with_path)
+
         scene_numbers = {
             f.get('scene_number', -1)
             for f in frame_requests
             if f.get('scene_number', -1) != -1
         }
+
         metadata = {
             'generated_at': datetime.now().isoformat(),
             'episode_info': {
@@ -274,3 +215,87 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             'frames': frames_with_paths,
         }
         FileOperations.atomic_write_json(metadata_file, metadata, indent=2)
+
+    @staticmethod
+    def __resolve_output_paths(
+            input_data: SceneCollection,
+            context: ExecutionContext,
+    ) -> Tuple[Path, Path]:
+        episode_dir = context.get_output_path(input_data.episode_info, 'exported_frames', '')
+        metadata_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_frame_metadata.json'
+        metadata_file = episode_dir / metadata_filename
+        return episode_dir, metadata_file
+
+    @staticmethod
+    def __load_cached_result(
+            metadata_file: Path,
+            episode_dir: Path,
+            input_data: SceneCollection,
+    ) -> FrameCollection:
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            metadata = json.load(f)
+        return FrameCollection(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            directory=episode_dir,
+            frame_count=metadata['statistics']['total_frames'],
+            metadata_path=metadata_file,
+        )
+
+    @staticmethod
+    def __prepare_episode_directory(episode_dir: Path, context: ExecutionContext) -> None:
+        if episode_dir.exists():
+            context.logger.info(f'Cleaning incomplete frames from previous run: {episode_dir}')
+            shutil.rmtree(episode_dir, ignore_errors=True)
+        episode_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def __construct_empty_result(
+            episode_dir: Path,
+            metadata_file: Path,
+            input_data: SceneCollection,
+            context: ExecutionContext,
+    ) -> FrameCollection:
+        context.logger.warning(f'No frames to extract for {input_data.episode_id}')
+        return FrameCollection(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            directory=episode_dir,
+            frame_count=0,
+            metadata_path=metadata_file,
+        )
+
+    @staticmethod
+    def __fetch_video_metadata(video_path: Path) -> Dict[str, Any]:
+        cmd = [
+            'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+            '-show_entries', 'stream=width,height,sample_aspect_ratio,display_aspect_ratio',
+            '-of', 'json', str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        probe_data: Dict[str, Any] = json.loads(result.stdout)
+        streams: List[Dict[str, Any]] = probe_data.get('streams', [])
+
+        if not streams:
+            raise ValueError(f'No video streams found in {video_path}')
+        return streams[0]
+
+    @staticmethod
+    def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
+        width = metadata.get('width', 0)
+        height = metadata.get('height', 0)
+
+        if width == 0 or height == 0:
+            raise ValueError('Invalid video dimensions')
+
+        sar_str = metadata.get('sample_aspect_ratio', '1:1')
+        if sar_str == 'N/A' or not sar_str:
+            sar_str = '1:1'
+
+        try:
+            sar_num, sar_denom = [int(x) for x in sar_str.split(':')]
+            sar = sar_num / sar_denom if sar_denom != 0 else 1.0
+        except (ValueError, ZeroDivisionError):
+            sar = 1.0
+
+        return width / height * sar

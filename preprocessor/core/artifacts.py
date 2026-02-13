@@ -19,20 +19,24 @@ if TYPE_CHECKING:
 class Artifact:
     pass
 
+
 @dataclass(frozen=True)
 class EpisodeArtifact(Artifact):
     episode_id: str
     episode_info: 'EpisodeInfo'
 
+
 @dataclass(frozen=True)
 class SourceVideo(EpisodeArtifact):
     path: Path
+
 
 @dataclass(frozen=True)
 class TranscodedVideo(EpisodeArtifact):
     codec: str
     path: Path
     resolution: str
+
 
 @dataclass(frozen=True)
 class SceneCollection(EpisodeArtifact):
@@ -42,11 +46,13 @@ class SceneCollection(EpisodeArtifact):
     threshold: float
     video_path: Path
 
+
 @dataclass(frozen=True)
 class FrameCollection(EpisodeArtifact):
     directory: Path
     frame_count: int
     metadata_path: Path
+
 
 @dataclass(frozen=True)
 class TranscriptionData(EpisodeArtifact):
@@ -55,6 +61,7 @@ class TranscriptionData(EpisodeArtifact):
     model: str
     path: Path
 
+
 @dataclass(frozen=True)
 class EmbeddingCollection(EpisodeArtifact):
     embedding_count: int
@@ -62,16 +69,19 @@ class EmbeddingCollection(EpisodeArtifact):
     model_name: str
     path: Path
 
+
 @dataclass(frozen=True)
 class DetectionResults(EpisodeArtifact):
     detection_count: int
     detection_type: str
     path: Path
 
+
 @dataclass(frozen=True)
 class ElasticDocuments(EpisodeArtifact):
     document_count: int
     path: Path
+
 
 @dataclass(frozen=True)
 class TextAnalysisResults(EpisodeArtifact):
@@ -79,10 +89,12 @@ class TextAnalysisResults(EpisodeArtifact):
     statistics: Dict[str, Any]
     metadata: Optional[Dict[str, Any]] = field(default=None)
 
+
 @dataclass(frozen=True)
 class AudioArtifact(EpisodeArtifact):
     format: str
     path: Path
+
 
 @dataclass(frozen=True)
 class IndexingResult(Artifact):
@@ -90,35 +102,43 @@ class IndexingResult(Artifact):
     index_name: str
     success: bool
 
+
 @dataclass(frozen=True)
 class ImageHashCollection(EpisodeArtifact):
     hash_count: int
     path: Path
 
+
 @dataclass(frozen=True)
 class EmotionData(EpisodeArtifact):
     path: Path
+
 
 @dataclass(frozen=True)
 class ClusterData(EpisodeArtifact):
     path: Path
 
+
 @dataclass(frozen=True)
 class ObjectDetectionData(EpisodeArtifact):
     path: Path
 
+
 @dataclass(frozen=True)
 class ArchiveArtifact(EpisodeArtifact):
     path: Path
+
 
 @dataclass(frozen=True)
 class ValidationResult(Artifact):
     season: str
     validation_report_dir: Path
 
+
 @dataclass(frozen=True)
 class ResolutionAnalysisResult(Artifact):
     total_files: int
     upscaling_percentage: float
+
 
 ProcessedEpisode = ElasticDocuments

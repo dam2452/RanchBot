@@ -1,4 +1,9 @@
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import (
+    TYPE_CHECKING,
+    List,
+    Tuple,
+)
 
 from preprocessor.config.constants import OUTPUT_FILE_PATTERNS
 from preprocessor.config.settings_instance import settings
@@ -11,16 +16,12 @@ if TYPE_CHECKING:
 
 
 class FrameValidator(BaseValidator):
-
     def validate(self, stats: 'EpisodeStats') -> None:
         frames_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.frames,
         )
 
-        if not frames_dir.exists():
-            self._add_warning(
-                stats, f'Missing {settings.output_subdirs.frames} directory: {frames_dir}',
-            )
+        if not self.__check_dir(stats, frames_dir):
             return
 
         frame_files = sorted(frames_dir.glob(OUTPUT_FILE_PATTERNS['frame']))
@@ -29,8 +30,17 @@ class FrameValidator(BaseValidator):
             return
 
         stats.exported_frames_count = len(frame_files)
-        total_size = 0
-        resolutions = []
+        self.__process_frames(stats, frame_files)
+
+    def __check_dir(self, stats: 'EpisodeStats', frames_dir: Path) -> bool:
+        if not frames_dir.exists():
+            self._add_warning(stats, f'Missing {settings.output_subdirs.frames} directory')
+            return False
+        return True
+
+    def __process_frames(self, stats: 'EpisodeStats', frame_files: List[Path]) -> None:
+        total_size = 0.0
+        resolutions: List[Tuple[int, int]] = []
         invalid_count = 0
 
         for frame_file in frame_files:
@@ -47,5 +57,4 @@ class FrameValidator(BaseValidator):
 
         stats.exported_frames_total_size_mb = round(total_size, 2)
         if resolutions:
-            most_common_res = max(set(resolutions), key=resolutions.count)
-            stats.exported_frames_avg_resolution = most_common_res
+            stats.exported_frames_avg_resolution = max(set(resolutions), key=resolutions.count)

@@ -13,21 +13,24 @@ from preprocessor.services.core.logging import ErrorHandlingLogger
 
 
 class BaseTranscriptionGenerator(ABC):
-
     def __init__(self, input_dir: Path, output_dir: Path, logger: ErrorHandlingLogger) -> None:
-        self.input_dir = input_dir
-        self.output_dir = output_dir
-        self.logger = logger
+        self._input_dir = input_dir
+        self._output_dir = output_dir
+        self._logger = logger
 
     def generate(self) -> None:
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        for json_file in self.input_dir.rglob('*.json'):
+        self._output_dir.mkdir(parents=True, exist_ok=True)
+        for json_file in self._input_dir.rglob('*.json'):
             try:
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                self._process_file(json_file, data)
+                data = self.__load_json(json_file)
+                if data:
+                    self._process_file(json_file, data)
             except Exception as e:
-                self.logger.error(f'Failed to generate output for {json_file}: {e}')
+                self._logger.error(f'Failed to generate output for {json_file}: {e}')
+
+    def __load_json(self, file_path: Path) -> Dict[str, Any]:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
 
     @abstractmethod
     def _get_output_filename(self, json_file: Path) -> str:

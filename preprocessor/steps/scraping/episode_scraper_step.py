@@ -12,6 +12,9 @@ from preprocessor.services.scraping.episode_scraper import EpisodeScraper
 
 
 class EpisodeScraperStep(BaseScraperStep[EpisodeScraperConfig]):
+    @property
+    def name(self) -> str:
+        return "scrape_episodes"
 
     def _get_scraper_class(self) -> Type[EpisodeScraper]:
         return EpisodeScraper
@@ -23,7 +26,3 @@ class EpisodeScraperStep(BaseScraperStep[EpisodeScraperConfig]):
         args = super()._build_scraper_args(output_path, context)
         args["merge_sources"] = self.config.merge_sources
         return args
-
-    @property
-    def name(self) -> str:
-        return "scrape_episodes"

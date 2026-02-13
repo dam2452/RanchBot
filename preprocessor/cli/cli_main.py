@@ -92,8 +92,8 @@ def __create_step_command(step_id: str, step_description: str) -> Callable:
 
         try:
             step = pipeline.get_step(_step_id)
-
             deps = step.dependency_ids
+
             if deps:
                 setup.logger.info(f"Dependencies: {', '.join(deps)}")
                 for dep_id in deps:
@@ -141,12 +141,7 @@ def __analyze_resolution(series: str) -> None:
         setup.logger.finalize()
 
 
-def _execute_search_command(config: SearchConfig) -> None:  # pylint: disable=too-many-statements
-    """Execute search with config object.
-
-    Args:
-        config: Complete search configuration.
-    """
+def __execute_search_command(config: SearchConfig) -> None:  # pylint: disable=too-many-statements
     series_config = SeriesConfig.load(config.series)
     index_base = series_config.indexing.elasticsearch.index_name
 
@@ -156,7 +151,7 @@ def _execute_search_command(config: SearchConfig) -> None:  # pylint: disable=to
         if hash_value is None:
             sys.exit(1)
 
-    async def __run() -> None:
+    async def __run_async_search() -> None:
         es_client = AsyncElasticsearch(hosts=[config.host], verify_certs=False)
 
         try:
@@ -210,7 +205,7 @@ def _execute_search_command(config: SearchConfig) -> None:  # pylint: disable=to
             embedding_svc.cleanup()
             await es_client.close()
 
-    asyncio.run(__run())
+    asyncio.run(__run_async_search())
 
 
 @cli.command(name="search")
@@ -221,8 +216,14 @@ def _execute_search_command(config: SearchConfig) -> None:  # pylint: disable=to
 @click.option("--image", type=click.Path(exists=True, path_type=Path), help="Semantic search by video embeddings")
 @click.option("--hash", "phash", type=str, help="Search by perceptual hash (provide hash string or image path)")
 @click.option("--character", type=str, help="Search by character")
-@click.option("--emotion", type=str, help="Search by emotion (neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)")
-@click.option("--object", "object_query", type=str, help="Search by detected objects (e.g., 'dog', 'person:5+', 'chair:2-4')")
+@click.option(
+    "--emotion", type=str,
+    help="Search by emotion (neutral, happiness, surprise, sadness, anger, disgust, fear, contempt)",
+)
+@click.option(
+    "--object", "object_query", type=str,
+    help="Search by detected objects (e.g., 'dog', 'person:5+', 'chair:2-4')",
+)
 @click.option("--episode-name", type=str, help="Fuzzy search by episode names")
 @click.option("--episode-name-semantic", type=str, help="Semantic search by episode names")
 @click.option("--list-characters", "list_chars_flag", is_flag=True, help="List all characters")
@@ -234,27 +235,26 @@ def _execute_search_command(config: SearchConfig) -> None:  # pylint: disable=to
 @click.option("--json-output", is_flag=True, help="Output in JSON format")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
 def search(  # pylint: disable=too-many-arguments,too-many-locals
-    series: str,
-    text: str,
-    text_semantic: str,
-    text_to_video: str,
-    image: Path,
-    phash: str,
-    character: str,
-    emotion: str,
-    object_query: str,
-    episode_name: str,
-    episode_name_semantic: str,
-    list_chars_flag: bool,
-    list_objects_flag: bool,
-    season: int,
-    episode: int,
-    limit: int,
-    stats: bool,
-    json_output: bool,
-    host: str,
+        series: str,
+        text: str,
+        text_semantic: str,
+        text_to_video: str,
+        image: Path,
+        phash: str,
+        character: str,
+        emotion: str,
+        object_query: str,
+        episode_name: str,
+        episode_name_semantic: str,
+        list_chars_flag: bool,
+        list_objects_flag: bool,
+        season: int,
+        episode: int,
+        limit: int,
+        stats: bool,
+        json_output: bool,
+        host: str,
 ) -> None:
-    """Search command entry point - Click requires all parameters."""
     config = SearchConfig(
         series=series,
         query=SearchQueryParams(
@@ -279,7 +279,7 @@ def search(  # pylint: disable=too-many-arguments,too-many-locals
         click.echo("Provide at least one search option. Use --help", err=True)
         sys.exit(1)
 
-    _execute_search_command(config)
+    __execute_search_command(config)
 
 
 _CLI_TEMPLATE_SERIES = "ranczo"
@@ -288,7 +288,6 @@ _cli_pipeline = build_pipeline(_CLI_TEMPLATE_SERIES)
 for _step_id, _step in _cli_pipeline.get_all_steps().items():
     command_func = __create_step_command(_step_id, _step.description)
     cli.add_command(command_func)
-
 
 if __name__ == "__main__":
     cli()

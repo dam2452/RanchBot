@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
+    Tuple,
 )
 
 from preprocessor.config.step_configs import TranscodeConfig
@@ -16,106 +17,69 @@ from preprocessor.services.media.transcode_params import TranscodeParams
 
 
 class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeConfig]):
-    _command_logged = False
-
-    def execute( # pylint: disable=too-many-locals
-        self, input_data: SourceVideo, context: ExecutionContext,
-    ) -> TranscodedVideo:
-        output_path = self._get_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'output exists'):
-            return self._create_result_artifact(output_path, input_data)
-
-        probe_data = FFmpegWrapper.probe_video(input_data.path)
-        target_fps = self._calculate_target_fps(probe_data, context)
-        is_upscaling, source_pixels, target_pixels = self._detect_upscaling(probe_data)
-
-        source_width, source_height = FFmpegWrapper.get_resolution(probe_data)
-        sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
-        effective_width = int(source_width * sar_num / sar_denom)
-
-        if is_upscaling:
-            context.logger.info(
-                f'{input_data.episode_id}: Source {effective_width}x{source_height} '
-                f'({source_pixels:,} px) → Target {self.config.resolution.width}x{self.config.resolution.height} '
-                f'({target_pixels:,} px) - UPSCALING DETECTED',
-            )
-        else:
-            context.logger.info(
-                f'{input_data.episode_id}: Source {effective_width}x{source_height} '
-                f'({source_pixels:,} px) → Target {self.config.resolution.width}x{self.config.resolution.height} '
-                f'({target_pixels:,} px) - No upscaling',
-            )
-
-        video_bitrate, minrate, maxrate, bufsize = self._adjust_video_bitrate(
-            probe_data, context, is_upscaling, source_pixels, target_pixels,
-        )
-        audio_bitrate = self._adjust_audio_bitrate(probe_data, context)
-        deinterlace = self._determine_deinterlace(input_data, context, probe_data)
-
-        context.logger.info(
-            'Video: SAR 1:1 (square pixels), timebase 1/90000, '
-            'colorspace bt709, color_range tv, closed GOP=12 frames (0.5s) with IDR keyframes '
-            '(forced for frame-accurate cutting & concat)',
-        )
-        context.logger.info(
-            f'Audio: AAC {audio_bitrate} kbps, 2 channels (stereo), 48 kHz sample rate (forced)',
-        )
-        context.logger.info(f'Transcoding {input_data.episode_id}')
-        self._perform_transcode(
-            input_data.path,
-            output_path,
-            video_bitrate,
-            minrate,
-            maxrate,
-            bufsize,
-            audio_bitrate,
-            target_fps,
-            deinterlace,
-            is_upscaling,
-            context,
-            input_data,
-        )
-
-        context.mark_step_completed(self.name, input_data.episode_id)
-        return self._create_result_artifact(output_path, input_data)
+    __command_logged = False
 
     @property
     def name(self) -> str:
         return 'video_transcode'
 
-    @staticmethod
-    def _get_output_path(input_data: SourceVideo, context: ExecutionContext) -> Path:
-        output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}.mp4'
-        return context.get_season_output_path(input_data.episode_info, 'transcoded_videos', output_filename)
+    def execute(
+            self, input_data: SourceVideo, context: ExecutionContext,
+    ) -> TranscodedVideo:
+        output_path = self.__resolve_output_path(input_data, context)
 
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'output exists'):
+            return self.__construct_result_artifact(output_path, input_data)
 
-    def _create_result_artifact(self, output_path: Path, input_data: SourceVideo) -> TranscodedVideo:
-        resolution_str = f'{self.config.resolution.width}x{self.config.resolution.height}'
-        return TranscodedVideo(
-            path=output_path,
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            resolution=resolution_str,
-            codec=self.config.codec,
+        probe_data = FFmpegWrapper.probe_video(input_data.path)
+        params = self.__create_transcode_params(input_data, output_path, probe_data, context)
+
+        self.__log_transcode_details(context, input_data, params, probe_data)
+        self.__execute_ffmpeg_process(context, params, input_data.episode_id)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_result_artifact(output_path, input_data)
+
+    def __create_transcode_params(
+            self,
+            input_data: SourceVideo,
+            output_path: Path,
+            probe_data: Dict[str, Any],
+            context: ExecutionContext,
+    ) -> TranscodeParams:
+        target_fps = self.__resolve_target_framerate(probe_data, context)
+        is_upscaling, source_pixels, target_pixels = self.__analyze_resolution_scaling(probe_data)
+
+        v_bitrate, v_min, v_max, v_buf = self.__compute_video_bitrate_settings(
+            probe_data, context, is_upscaling, source_pixels, target_pixels,
         )
 
-    @staticmethod
-    def _calculate_target_fps(
-        probe_data: Dict[str, Any],
-        context: ExecutionContext,
-    ) -> float:
-        input_fps = FFmpegWrapper.get_framerate(probe_data)
-        target_fps = 24.0
+        audio_bitrate = self.__compute_audio_bitrate(probe_data, context)
+        deinterlace = self.__resolve_deinterlacing_strategy(input_data, context, probe_data)
+        log_cmd = self.__should_log_command()
 
-        if input_fps != target_fps:
-            context.logger.info(
-                f'Input FPS ({input_fps:.2f}) → forcing {target_fps} FPS for consistency and cinematic quality.',
-            )
+        return TranscodeParams(
+            input_path=input_data.path,
+            output_path=output_path,
+            codec=self.config.codec,
+            preset=self.config.preset,
+            resolution=f'{self.config.resolution.width}:{self.config.resolution.height}',
+            video_bitrate=f'{v_bitrate}M',
+            minrate=f'{v_min}M',
+            maxrate=f'{v_max}M',
+            bufsize=f'{v_buf}M',
+            audio_bitrate=f'{audio_bitrate}k',
+            gop_size=int(target_fps * self.config.keyframe_interval_seconds),
+            target_fps=target_fps,
+            deinterlace=deinterlace,
+            is_upscaling=is_upscaling,
+            log_command=log_cmd,
+        )
 
-        return target_fps
-
-    def _detect_upscaling(self, probe_data: Dict[str, Any]) -> tuple[bool, int, int]:
+    def __analyze_resolution_scaling(
+            self,
+            probe_data: Dict[str, Any],
+    ) -> Tuple[bool, int, int]:
         source_width, source_height = FFmpegWrapper.get_resolution(probe_data)
         sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
         effective_width = int(source_width * sar_num / sar_denom)
@@ -125,214 +89,237 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
         return source_pixels < target_pixels, source_pixels, target_pixels
 
-    def _adjust_video_bitrate(
-        self,
-        probe_data: Dict[str, Any],
-        context: ExecutionContext,
-        is_upscaling: bool,
-        source_pixels: int,
-        target_pixels: int,
-    ) -> tuple[float, float, float, float]:
-        if is_upscaling:
-            return self._calculate_upscale_bitrate(
-                probe_data, source_pixels, target_pixels, context,
-            )
+    def __compute_video_bitrate_settings(
+            self,
+            probe_data: Dict[str, Any],
+            context: ExecutionContext,
+            is_upscaling: bool,
+            source_pixels: int,
+            target_pixels: int,
+    ) -> Tuple[float, float, float, float]:
+        return self.__compute_scaled_bitrate(
+            probe_data, source_pixels, target_pixels, context, is_upscaling,
+        )
 
-        input_video_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
-        video_bitrate = self.config.video_bitrate_mbps
-        minrate = self.config.minrate_mbps
-        maxrate = self.config.maxrate_mbps
-        bufsize = self.config.bufsize_mbps
-
-        if input_video_bitrate and input_video_bitrate < video_bitrate:
-            adjusted_bitrate = min(input_video_bitrate * 1.05, video_bitrate)
-            ratio = adjusted_bitrate / video_bitrate
-            video_bitrate = adjusted_bitrate
-            minrate = round(minrate * ratio, 2)
-            maxrate = round(maxrate * ratio, 2)
-            bufsize = round(bufsize * ratio, 2)
-            context.logger.info(
-                f'Input video bitrate ({input_video_bitrate} Mbps) < '
-                f'target ({self.config.video_bitrate_mbps} Mbps). '
-                f'Adjusted to {video_bitrate} Mbps to avoid quality loss.',
-            )
-
-        return video_bitrate, minrate, maxrate, bufsize
-
-    def _calculate_upscale_bitrate(
-        self,
-        probe_data: Dict[str, Any],
-        source_pixels: int,
-        target_pixels: int,
-        context: ExecutionContext,
-    ) -> tuple[float, float, float, float]:
-        __MIN_BITRATE_FOR_RESOLUTION: Dict[tuple[int, int], float] = {
-            (7680, 4320): 35.0,
-            (3840, 2160): 15.0,
-            (2560, 1440): 8.0,
-            (1920, 1080): 3.5,
-            (1280, 720): 2.0,
-            (854, 480): 1.2,
-            (640, 360): 0.8,
-            (426, 240): 0.5,
-            (256, 144): 0.3,
-        }
-
-        target_res = (self.config.resolution.width, self.config.resolution.height)
-        min_required = __MIN_BITRATE_FOR_RESOLUTION.get(target_res, 2.0)
-        pixel_ratio = target_pixels / source_pixels
-
-        if pixel_ratio > 1.4:
-            min_required *= 1.25
-        elif pixel_ratio > 1.2:
-            min_required *= 1.15
-
+    def __compute_scaled_bitrate(
+            self,
+            probe_data: Dict[str, Any],
+            source_pixels: int,
+            target_pixels: int,
+            context: ExecutionContext,
+            is_upscaling: bool,
+    ) -> Tuple[float, float, float, float]:
         source_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
-        quality_boost = 1.2 + max(0.0, (pixel_ratio - 1.1) * 0.4)
+        target_bitrate = self.config.calculate_video_bitrate_mbps()
+        minrate = self.config.calculate_minrate_mbps()
+        maxrate = self.config.calculate_maxrate_mbps()
+        bufsize = self.config.calculate_bufsize_mbps()
 
-        if source_bitrate:
-            calculated = source_bitrate * pixel_ratio * quality_boost
-            upscaled_bitrate = max(calculated, min_required)
-        else:
-            upscaled_bitrate = min_required * max(1.2, pixel_ratio * 0.9)
+        if not source_bitrate:
+            context.logger.warning(
+                f'Cannot detect source bitrate. Using target bitrate ({target_bitrate} Mbps).',
+            )
+            return target_bitrate, minrate, maxrate, bufsize
 
-        max_allowed = self.config.video_bitrate_mbps * 1.1
-        upscaled_bitrate = min(upscaled_bitrate, max_allowed)
+        pixel_ratio = target_pixels / source_pixels
+        scaled_bitrate = source_bitrate * (pixel_ratio ** 0.7)
 
-        ratio = upscaled_bitrate / self.config.video_bitrate_mbps
+        final_bitrate = min(scaled_bitrate, target_bitrate)
+        ratio = final_bitrate / target_bitrate
 
-        context.logger.warning(
-            f'⚠ UPSCALING: {source_pixels:,} px → {target_pixels:,} px '
-            f'(+{((target_pixels/source_pixels)-1)*100:.1f}%, quality_boost={quality_boost:.2f}). '
-            f'Bitrate: {source_bitrate or "N/A"} → {upscaled_bitrate:.2f} Mbps '
-            f'(min for {target_res[0]}x{target_res[1]}: {min_required} Mbps). '
-            f'Using Spline36 scaler (flicker-free) + enhanced nvenc params.',
+        direction = 'upscaling' if is_upscaling else 'downscaling' if pixel_ratio < 1.0 else 'same resolution'
+        context.logger.info(
+            f'Bitrate calculation ({direction}): '
+            f'source {source_bitrate:.2f} Mbps @ {source_pixels:,}px → '
+            f'scaled {scaled_bitrate:.2f} Mbps @ {target_pixels:,}px '
+            f'(pixel_ratio {pixel_ratio:.2f}, exponent 0.7) → '
+            f'final {final_bitrate:.2f} Mbps (capped to target {target_bitrate} Mbps)',
         )
 
         return (
-            upscaled_bitrate,
-            round(self.config.minrate_mbps * ratio, 2),
-            round(self.config.maxrate_mbps * ratio, 2),
-            round(self.config.bufsize_mbps * ratio, 2),
+            final_bitrate,
+            round(minrate * ratio, 2),
+            round(maxrate * ratio, 2),
+            round(bufsize * ratio, 2),
         )
 
-    def _adjust_audio_bitrate(
-        self,
-        probe_data: Dict[str, Any],
-        context: ExecutionContext,
+    def __compute_audio_bitrate(
+            self,
+            probe_data: Dict[str, Any],
+            context: ExecutionContext,
     ) -> int:
-        input_audio_bitrate = FFmpegWrapper.get_audio_bitrate(probe_data)
-        audio_bitrate = self.config.audio_bitrate_kbps
+        input_audio = FFmpegWrapper.get_audio_bitrate(probe_data)
+        target_audio = self.config.audio_bitrate_kbps
 
-        if input_audio_bitrate and input_audio_bitrate < audio_bitrate:
-            adjusted_audio_bitrate = min(int(input_audio_bitrate * 1.05), audio_bitrate)
-            audio_bitrate = adjusted_audio_bitrate
+        if input_audio and input_audio < target_audio:
+            adjusted = min(int(input_audio * 1.05), target_audio)
             context.logger.info(
-                f'Input audio bitrate ({input_audio_bitrate} kbps) < '
-                f'target ({self.config.audio_bitrate_kbps} kbps). '
-                f'Adjusted to {audio_bitrate} kbps to avoid quality loss.',
+                f'Input audio ({input_audio} kbps) < target. Adjusted to {adjusted} kbps.',
             )
+            return adjusted
+        return target_audio
 
-        return audio_bitrate
-
-    def _determine_deinterlace(
-        self, input_data: SourceVideo, context: ExecutionContext, probe_data: Dict[str, Any],
+    def __resolve_deinterlacing_strategy(
+            self,
+            input_data: SourceVideo,
+            context: ExecutionContext,
+            probe_data: Dict[str, Any],
     ) -> bool:
-        field_order = FFmpegWrapper.get_field_order(probe_data)
-
         if self.config.force_deinterlace:
-            context.logger.info(
-                f"Force deinterlacing enabled for {input_data.episode_id} (field_order={field_order}) - "
-                f"skipping idet analysis and applying bwdif filter unconditionally",
-            )
+            context.logger.info(f"Force deinterlacing enabled for {input_data.episode_id}")
             return True
 
-        context.logger.info(
-            f"Detecting interlacing for {input_data.episode_id} "
-            f"(field_order={field_order}, analyzing first 60s)...",
-        )
-        has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(input_data.path)
+        return self.__detect_and_verify_interlacing(input_data, context, probe_data)
 
-        if idet_stats:
-            metadata_says_progressive = field_order in {'progressive', 'unknown'}
-            idet_says_progressive = not has_interlacing
-
-            if metadata_says_progressive != idet_says_progressive:
-                context.logger.warning(
-                    f"⚠ {input_data.episode_id}: field_order={field_order} but idet detected "
-                    f"{'interlaced' if has_interlacing else 'progressive'} content! Using idet result.",
-                )
-
-        if has_interlacing and idet_stats:
-            context.logger.info(
-                f"Interlacing detected for {input_data.episode_id} "
-                f"({idet_stats['ratio']*100:.1f}% interlaced frames: "
-                f"TFF={idet_stats['tff']}, BFF={idet_stats['bff']}, Progressive={idet_stats['progressive']}) - "
-                f"applying bwdif deinterlacing filter",
-            )
-        elif idet_stats:
-            context.logger.info(
-                f"Progressive content detected for {input_data.episode_id} "
-                f"({idet_stats['progressive']}/{idet_stats['progressive'] + idet_stats['tff'] + idet_stats['bff']} frames) - "
-                f"no deinterlacing needed",
-            )
-        else:
-            context.logger.error(
-                f"Failed to detect interlacing for {input_data.episode_id} - "
-                f"idet filter did not return valid statistics. "
-                f"This may indicate an ffmpeg error or incompatible video format. "
-                f"Proceeding without deinterlacing.",
-            )
-
-        return has_interlacing
-
-    def _perform_transcode(  # pylint: disable=too-many-arguments
-        self,
-        input_path: Path,
-        output_path: Path,
-        video_bitrate: float,
-        minrate: float,
-        maxrate: float,
-        bufsize: float,
-        audio_bitrate: int,
-        target_fps: float,
-        deinterlace: bool,
-        is_upscaling: bool,
-        context: ExecutionContext,
-        input_data: SourceVideo,
+    def __log_execution_details(
+            self,
+            context: ExecutionContext,
+            input_data: SourceVideo,
+            params: TranscodeParams,
+            probe_data: Dict[str, Any],
     ) -> None:
-        temp_path = output_path.with_suffix('.mp4.tmp')
-        context.mark_step_started(self.name, input_data.episode_id, [str(temp_path)])
+        source_w, source_h = FFmpegWrapper.get_resolution(probe_data)
+        upscale_msg = "UPSCALING DETECTED" if params.is_upscaling else "No upscaling"
+
+        context.logger.info(
+            f'{input_data.episode_id}: Source {source_w}x{source_h} → '
+            f'Target {self.config.resolution.width}x{self.config.resolution.height} - {upscale_msg}',
+        )
+        self.__log_static_transcode_info(context, params.audio_bitrate)
+        context.logger.info(f'Transcoding {input_data.episode_id}')
+
+    def __log_transcode_details(
+            self,
+            context: ExecutionContext,
+            input_data: SourceVideo,
+            params: TranscodeParams,
+            probe_data: Dict[str, Any],
+    ) -> None:
+        self.__log_execution_details(context, input_data, params, probe_data)
+
+    def __execute_ffmpeg_process(
+            self,
+            context: ExecutionContext,
+            params: TranscodeParams,
+            episode_id: str,
+    ) -> None:
+        temp_path = params.output_path.with_suffix('.mp4.tmp')
+        final_path = params.output_path
+
+        params.output_path = temp_path
+        context.mark_step_started(self.name, episode_id, [str(temp_path)])
 
         try:
-            log_command = not VideoTranscoderStep._command_logged
-            if log_command:
-                VideoTranscoderStep._command_logged = True
-                context.logger.info('=' * 80)
-                context.logger.info('FFmpeg command example (showing once):')
-                context.logger.info('=' * 80)
+            if params.log_command:
+                self.__log_ffmpeg_command_header(context)
 
-            FFmpegWrapper.transcode(
-                TranscodeParams(
-                    input_path=input_path,
-                    output_path=temp_path,
-                    codec=self.config.codec,
-                    preset=self.config.preset,
-                    resolution=f'{self.config.resolution.width}:{self.config.resolution.height}',
-                    video_bitrate=f'{video_bitrate}M',
-                    minrate=f'{minrate}M',
-                    maxrate=f'{maxrate}M',
-                    bufsize=f'{bufsize}M',
-                    audio_bitrate=f'{audio_bitrate}k',
-                    gop_size=int(target_fps * 0.5),
-                    target_fps=target_fps,
-                    deinterlace=deinterlace,
-                    is_upscaling=is_upscaling,
-                    log_command=log_command,
-                ),
-            )
-            temp_path.replace(output_path)
+            FFmpegWrapper.transcode(params)
+            temp_path.replace(final_path)
         except BaseException:
             if temp_path.exists():
                 temp_path.unlink()
             raise
+        finally:
+            params.output_path = final_path
+
+    def __construct_result_artifact(
+            self,
+            output_path: Path,
+            input_data: SourceVideo,
+    ) -> TranscodedVideo:
+        return TranscodedVideo(
+            path=output_path,
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            resolution=f'{self.config.resolution.width}x{self.config.resolution.height}',
+            codec=self.config.codec,
+        )
+
+    @staticmethod
+    def __should_log_command() -> bool:
+        if not VideoTranscoderStep.__command_logged:
+            VideoTranscoderStep.__command_logged = True
+            return True
+        return False
+
+    @staticmethod
+    def __resolve_output_path(
+            input_data: SourceVideo,
+            context: ExecutionContext,
+    ) -> Path:
+        filename = f'{context.series_name}_{input_data.episode_info.episode_code()}.mp4'
+        return context.get_season_output_path(
+            input_data.episode_info, 'transcoded_videos', filename,
+        )
+
+    @staticmethod
+    def __resolve_target_framerate(
+            probe_data: Dict[str, Any],
+            context: ExecutionContext,
+    ) -> float:
+        input_fps = FFmpegWrapper.get_framerate(probe_data)
+        target_fps = 24.0
+
+        if input_fps != target_fps:
+            context.logger.info(
+                f'Input FPS ({input_fps:.2f}) → forcing {target_fps} FPS for consistency.',
+            )
+        return target_fps
+
+    @staticmethod
+    def __detect_and_verify_interlacing(
+            input_data: SourceVideo,
+            context: ExecutionContext,
+            probe_data: Dict[str, Any],
+    ) -> bool:
+        context.logger.info(f"Detecting interlacing for {input_data.episode_id}...")
+        has_interlacing, idet_stats = FFmpegWrapper.detect_interlacing(input_data.path)
+        field_order = FFmpegWrapper.get_field_order(probe_data)
+
+        if not idet_stats:
+            context.logger.error(
+                f"Failed to detect interlacing for {input_data.episode_id}. Proceeding without deinterlace.",
+            )
+            return False
+
+        VideoTranscoderStep.__log_interlacing_diagnostics(context, has_interlacing, idet_stats, field_order)
+        return has_interlacing
+
+    @staticmethod
+    def __log_interlacing_diagnostics(
+            context: ExecutionContext,
+            has_interlacing: bool,
+            idet_stats: Dict[str, Any],
+            field_order: str,
+    ) -> None:
+        meta_progressive = field_order in {'progressive', 'unknown'}
+        idet_progressive = not has_interlacing
+
+        if meta_progressive != idet_progressive:
+            context.logger.warning(
+                f"⚠ Conflict: Metadata says {field_order}, idet says "
+                f"{'interlaced' if has_interlacing else 'progressive'}. Using idet result.",
+            )
+
+        if has_interlacing:
+            context.logger.info(
+                f"Interlacing detected ({idet_stats['ratio'] * 100:.1f}%). Applying bwdif.",
+            )
+        else:
+            context.logger.info("Progressive content detected. No deinterlacing needed.")
+
+    @staticmethod
+    def __log_static_transcode_info(context: ExecutionContext, audio_bitrate: str) -> None:
+        context.logger.info(
+            'Video: SAR 1:1, timebase 1/90000, colorspace bt709, '
+            'closed GOP=12 frames with IDR keyframes.',
+        )
+        context.logger.info(
+            f'Audio: AAC {audio_bitrate}, 2 channels, 48 kHz (forced).',
+        )
+
+    @staticmethod
+    def __log_ffmpeg_command_header(context: ExecutionContext) -> None:
+        context.logger.info('=' * 80)
+        context.logger.info('FFmpeg command example (showing once):')
+        context.logger.info('=' * 80)

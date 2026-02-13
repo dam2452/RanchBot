@@ -55,14 +55,11 @@ class TranscriptionProcessingConfig:
 
 @dataclass
 class TranscodeProcessingConfig:
-    bufsize_mbps: float
-    codec: str
+    bitrate_reference_mb: float
+    bitrate_reference_seconds: float
     force_deinterlace: bool
-    gop_size: float
-    maxrate_mbps: float
-    minrate_mbps: float
+    keyframe_interval_seconds: float
     resolution: str
-    video_bitrate_mbps: float
 
 
 @dataclass
@@ -152,14 +149,11 @@ class SeriesConfig:
                     device=data['processing']['transcription']['device'],
                 ),
                 transcode=TranscodeProcessingConfig(
-                    codec=data['processing']['transcode']['codec'],
-                    resolution=data['processing']['transcode']['resolution'],
-                    video_bitrate_mbps=data['processing']['transcode']['video_bitrate_mbps'],
-                    minrate_mbps=data['processing']['transcode']['minrate_mbps'],
-                    maxrate_mbps=data['processing']['transcode']['maxrate_mbps'],
-                    bufsize_mbps=data['processing']['transcode']['bufsize_mbps'],
-                    gop_size=data['processing']['transcode']['gop_size'],
+                    bitrate_reference_mb=data['processing']['transcode']['bitrate_reference_mb'],
+                    bitrate_reference_seconds=data['processing']['transcode']['bitrate_reference_seconds'],
                     force_deinterlace=data['processing']['transcode']['force_deinterlace'],
+                    keyframe_interval_seconds=data['processing']['transcode']['keyframe_interval_seconds'],
+                    resolution=data['processing']['transcode']['resolution'],
                 ),
                 scene_detection=SceneDetectionProcessingConfig(
                     threshold=data['processing']['scene_detection']['threshold'],

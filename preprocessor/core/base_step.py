@@ -21,18 +21,11 @@ ConfigT = TypeVar("ConfigT", bound=BaseModel)
 
 class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     def __init__(self, config: ConfigT) -> None:
-        self._config: ConfigT = config
-
-    def cleanup(self) -> None:
-        pass
+        self.__config: ConfigT = config
 
     @property
     def config(self) -> ConfigT:
-        return self._config
-
-    @abstractmethod
-    def execute(self, input_data: InputT, context: "ExecutionContext") -> OutputT:
-        pass
+        return self.__config
 
     @property
     @abstractmethod
@@ -43,6 +36,13 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     def is_global(self) -> bool:
         return False
 
+    @abstractmethod
+    def execute(self, input_data: InputT, context: "ExecutionContext") -> OutputT:
+        pass
+
+    def cleanup(self) -> None:
+        pass
+
     def _check_cache_validity(
         self,
         output_path: Path,
@@ -50,7 +50,7 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         episode_id: str,
         cache_description: str,
     ) -> bool:
-        if output_path.exists() and (not context.force_rerun):
+        if output_path.exists() and not context.force_rerun:
             if context.is_step_completed(self.name, episode_id):
                 context.logger.info(f'Skipping {episode_id} ({cache_description})')
                 return True

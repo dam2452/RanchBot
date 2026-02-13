@@ -9,7 +9,7 @@ from preprocessor.services.episodes.episode_manager import EpisodeManager
 from preprocessor.services.io.path_service import PathService
 
 
-@dataclass
+@dataclass(frozen=True)
 class PipelineSetup:
     context: ExecutionContext
     logger: ErrorHandlingLogger
@@ -18,7 +18,6 @@ class PipelineSetup:
 
 
 class PipelineContextFactory:
-
     @staticmethod
     def build(
         series: str,
@@ -62,6 +61,7 @@ class PipelineContextFactory:
         if not episodes_json.exists():
             episodes_json = None
         return EpisodeManager(episodes_json, series, logger)
+
     @staticmethod
     def __create_logger(
         command_name: str,

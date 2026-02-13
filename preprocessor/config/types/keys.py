@@ -8,6 +8,7 @@ class SegmentKeys:
     TEXT = 'text'
     VIDEO_PATH = 'video_path'
 
+
 class EpisodeMetadataKeys:
     EPISODE_INFO = 'episode_info'
     EPISODE_METADATA = 'episode_metadata'
@@ -18,6 +19,7 @@ class EpisodeMetadataKeys:
     TITLE = 'title'
     VIEWERSHIP = 'viewership'
 
+
 class ElasticsearchKeys:
     AGGREGATIONS = 'aggregations'
     BUCKETS = 'buckets'
@@ -27,16 +29,19 @@ class ElasticsearchKeys:
     SOURCE = '_source'
     TOTAL = 'total'
 
+
 class ElasticsearchAggregationKeys:
     SEASONS = 'seasons'
     UNIQUE_EPISODES = 'unique_episodes'
     VALUE = 'value'
+
 
 class TranscriptionContextKeys:
     CONTEXT = 'context'
     OVERALL_END_TIME = 'overall_end_time'
     OVERALL_START_TIME = 'overall_start_time'
     TARGET = 'target'
+
 
 class ElasticsearchQueryKeys:
     AGGS = 'aggs'
@@ -64,14 +69,17 @@ class ElasticsearchQueryKeys:
     TERMS = 'terms'
     TOP_HITS = 'top_hits'
 
+
 class EpisodesDataKeys:
     EPISODES = 'episodes'
     SEASONS = 'seasons'
     SEASON_NUMBER = 'season_number'
 
+
 class FfprobeKeys:
     FORMAT = 'format'
     STREAMS = 'streams'
+
 
 class FfprobeStreamKeys:
     BIT_RATE = 'bit_rate'
@@ -81,9 +89,11 @@ class FfprobeStreamKeys:
     R_FRAME_RATE = 'r_frame_rate'
     WIDTH = 'width'
 
+
 class FfprobeFormatKeys:
     DURATION = 'duration'
     SIZE = 'size'
+
 
 class DetectionKeys:
     CHARACTERS = 'characters'
@@ -93,21 +103,25 @@ class DetectionKeys:
     FRAME_NAME = 'frame_name'
     FRAME_NUMBER = 'frame_number'
 
+
 class CharacterDetectionKeys:
     BBOX = 'bbox'
     CONFIDENCE = 'confidence'
     EMOTION = 'emotion'
     NAME = 'name'
 
+
 class EmotionKeys:
     CONFIDENCE = 'confidence'
     LABEL = 'label'
+
 
 class ObjectDetectionKeys:
     BBOX = 'bbox'
     CLASS_ID = 'class_id'
     CLASS_NAME = 'class_name'
     CONFIDENCE = 'confidence'
+
 
 class SceneKeys:
     END = 'end'
@@ -119,9 +133,11 @@ class SceneKeys:
     SCENE_START_TIME = 'scene_start_time'
     START = 'start'
 
+
 class SceneTimeKeys:
     FRAME = 'frame'
     SECONDS = 'seconds'
+
 
 class ElasticDocKeys:
     CHARACTER_APPEARANCES = 'character_appearances'
@@ -129,6 +145,7 @@ class ElasticDocKeys:
     PERCEPTUAL_HASH = 'perceptual_hash'
     PERCEPTUAL_HASH_INT = 'perceptual_hash_int'
     SCENE_INFO = 'scene_info'
+
 
 class EmbeddingKeys:
     EMBEDDING = 'embedding'
@@ -142,6 +159,7 @@ class EmbeddingKeys:
     TITLE = 'title'
     TITLE_EMBEDDING = 'title_embedding'
 
+
 class ValidationMetadataKeys:
     CODEC = 'codec'
     DURATION = 'duration'
@@ -152,6 +170,7 @@ class ValidationMetadataKeys:
     SIZE_MB = 'size_mb'
     WIDTH = 'width'
 
+
 class WordKeys:
     END = 'end'
     START = 'start'
@@ -160,9 +179,11 @@ class WordKeys:
     WORD = 'word'
     WORDS = 'words'
 
+
 class WordTypeValues:
     AUDIO_EVENT = 'audio_event'
     SPACING = 'spacing'
+
 
 class GoogleSearchKeys:
     API_KEY = 'api_key'
@@ -171,6 +192,7 @@ class GoogleSearchKeys:
     HL = 'hl'
     IMAGES_RESULTS = 'images_results'
     Q = 'q'
+
 
 class ImageResultKeys:
     IMAGE = 'image'

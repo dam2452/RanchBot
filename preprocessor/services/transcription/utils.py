@@ -4,11 +4,11 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 
 class TranscriptionUtils:
-
     @staticmethod
     def convert_words_list(words: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return [
@@ -26,25 +26,20 @@ class TranscriptionUtils:
     def fix_transcription_file_unicode(file_path: Path) -> bool:
         if not file_path.exists():
             return False
+
         with open(file_path, 'r', encoding='utf-8') as f:
             original_content = f.read()
             f.seek(0)
             data: Dict[str, Any] = json.load(f)
+
         new_content = json.dumps(data, ensure_ascii=False, indent=2)
+
         if original_content != new_content:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
             return True
         return False
 
-    @staticmethod
-    def __fix_unicode(file_path: Path) -> None:  # pylint: disable=unused-private-member
-        if not file_path.exists():
-            return
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data: Dict[str, Any] = json.load(f)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
 
 class WhisperUtils:
     LANGUAGE_MAP: Dict[str, str] = {
@@ -56,10 +51,15 @@ class WhisperUtils:
     }
 
     @staticmethod
-    def build_transcription_result(segments: Any, language: str=None) -> Dict[str, Any]:
+    def get_language_code(language: str) -> str:
+        return WhisperUtils.LANGUAGE_MAP.get(language.lower(), language.lower())
+
+    @staticmethod
+    def build_transcription_result(segments: Any, language: Optional[str] = None) -> Dict[str, Any]:
         result: Dict[str, Any] = {'text': '', 'segments': []}
         if language:
             result['language'] = language
+
         for segment in segments:
             segment_dict = WhisperUtils.__process_segment(segment)
             result['segments'].append(segment_dict)
@@ -67,12 +67,8 @@ class WhisperUtils:
         return result
 
     @staticmethod
-    def get_language_code(language: str) -> str:
-        return WhisperUtils.LANGUAGE_MAP.get(language.lower(), language.lower())
-
-    @staticmethod
     def __process_segment(segment: Any) -> Dict[str, Any]:
-        words = []
+        words: List[Dict[str, Any]] = []
         if hasattr(segment, 'words') and segment.words:
             for word in segment.words:
                 words.append({
@@ -81,6 +77,7 @@ class WhisperUtils:
                     'end': word.end,
                     'probability': word.probability,
                 })
+
         return {
             'id': segment.id,
             'seek': 0,

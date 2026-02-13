@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 
 class CharacterValidator(BaseValidator):
-
     def validate(self, stats: 'EpisodeStats') -> None:
         VisualizationValidationHelper.validate_visualizations(
             stats,

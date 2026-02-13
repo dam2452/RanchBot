@@ -27,9 +27,9 @@ class FFmpegWrapper:
 
     @staticmethod
     def detect_interlacing(
-        video_path: Path,
-        analysis_time: Optional[int] = 60,
-        threshold: float = 0.15,
+            video_path: Path,
+            analysis_time: Optional[int] = 60,
+            threshold: float = 0.15,
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
         cmd = ['ffmpeg']
 
@@ -77,9 +77,11 @@ class FFmpegWrapper:
         stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'audio')
         if not stream:
             return None
+
         bit_rate = stream.get('bit_rate')
         if not bit_rate:
             return None
+
         return int(int(bit_rate) / 1000)
 
     @staticmethod
@@ -87,9 +89,11 @@ class FFmpegWrapper:
         stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
         if not stream:
             raise ValueError('No video streams found')
+
         r_frame_rate = stream.get('r_frame_rate')
         if not r_frame_rate:
             raise ValueError('Frame rate not found')
+
         num, denom = [int(x) for x in r_frame_rate.split('/')]
         return num / denom
 
@@ -98,9 +102,11 @@ class FFmpegWrapper:
         stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
         if not stream:
             return None
+
         bit_rate = stream.get('bit_rate')
         if not bit_rate:
             return None
+
         return round(int(bit_rate) / 1000000, 2)
 
     @staticmethod
@@ -108,10 +114,12 @@ class FFmpegWrapper:
         stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
         if not stream:
             raise ValueError('No video streams found')
+
         width = stream.get('width')
         height = stream.get('height')
         if not width or not height:
             raise ValueError('Resolution not found')
+
         return int(width), int(height)
 
     @staticmethod
@@ -119,9 +127,11 @@ class FFmpegWrapper:
         stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
         if not stream:
             return (1, 1)
+
         sar = stream.get('sample_aspect_ratio', '1:1')
         if sar == '0:1' or not sar:
             return (1, 1)
+
         try:
             num, denom = [int(x) for x in sar.split(':')]
             return (num, denom)
@@ -137,17 +147,15 @@ class FFmpegWrapper:
 
     @staticmethod
     def probe_video(video_path: Path) -> Dict[str, Any]:
-        cmd = ['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(video_path)]
+        cmd = [
+            'ffprobe', '-v', 'error', '-show_streams', '-show_format',
+            '-of', 'json', str(video_path),
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         return json.loads(result.stdout)
 
     @staticmethod
     def transcode(params: TranscodeParams) -> None:
-        """Transcode video with parameter object.
-
-        Args:
-            params: Transcoding parameters.
-        """
         width, height = params.get_resolution_tuple()
         vf_filter = FFmpegWrapper.__build_video_filter(
             width, height, params.deinterlace, params.is_upscaling,
@@ -172,19 +180,23 @@ class FFmpegWrapper:
         )
 
         if params.log_command:
-            print('ffmpeg \\')
-            for i, arg in enumerate(command[1:], 1):
-                if i == len(command) - 1:
-                    print(f'  {arg}')
-                else:
-                    print(f'  {arg} \\')
-            print()
+            FFmpegWrapper.__log_ffmpeg_command(command)
 
         subprocess.run(command, check=True, capture_output=False)
 
     @staticmethod
+    def __log_ffmpeg_command(command: List[str]) -> None:
+        print('ffmpeg \\')
+        for i, arg in enumerate(command[1:], 1):
+            if i == len(command) - 1:
+                print(f'  {arg}')
+            else:
+                print(f'  {arg} \\')
+        print()
+
+    @staticmethod
     def __build_audio_and_output_params(
-        audio_bitrate: str, vf_filter: str, output_path: Path,
+            audio_bitrate: str, vf_filter: str, output_path: Path,
     ) -> List[str]:
         return [
             '-c:a', 'aac',
@@ -199,7 +211,7 @@ class FFmpegWrapper:
 
     @staticmethod
     def __build_base_command(
-        input_path: Path, codec: str, preset: str, target_fps: Optional[float],
+            input_path: Path, codec: str, preset: str, target_fps: Optional[float],
     ) -> List[str]:
         command = [
             'ffmpeg', '-v', 'error', '-stats', '-hide_banner', '-y',
@@ -216,18 +228,20 @@ class FFmpegWrapper:
             '-color_range', 'tv',
             '-video_track_timescale', '90000',
         ]
+
         if target_fps:
             command.extend(['-r', str(target_fps)])
+
         return command
 
     @staticmethod
     def __build_encoding_params(
-        video_bitrate: str,
-        minrate: str,
-        maxrate: str,
-        bufsize: str,
-        gop_size: int,
-        is_upscaling: bool = False,
+            video_bitrate: str,
+            minrate: str,
+            maxrate: str,
+            bufsize: str,
+            gop_size: int,
+            is_upscaling: bool = False,
     ) -> List[str]:
         params = [
             '-rc', 'vbr_hq',
@@ -266,7 +280,7 @@ class FFmpegWrapper:
 
     @staticmethod
     def __build_video_filter(
-        width: int, height: int, deinterlace: bool = False, is_upscaling: bool = False,
+            width: int, height: int, deinterlace: bool = False, is_upscaling: bool = False,
     ) -> str:
         filters = []
 

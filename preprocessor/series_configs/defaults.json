@@ -18,14 +18,11 @@
       "threshold": 0.5
     },
     "transcode": {
-      "bufsize_mbps": 5.0,
-      "codec": "h264_nvenc",
+      "bitrate_reference_mb": 50.0,
+      "bitrate_reference_seconds": 100.0,
       "force_deinterlace": false,
-      "gop_size": 2.0,
-      "maxrate_mbps": 3.5,
-      "minrate_mbps": 1.5,
-      "resolution": "720p",
-      "video_bitrate_mbps": 2.5
+      "keyframe_interval_seconds": 0.5,
+      "resolution": "720p"
     },
     "transcription": {
       "device": "cuda",

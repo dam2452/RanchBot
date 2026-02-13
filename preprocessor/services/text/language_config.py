@@ -2,27 +2,31 @@ from dataclasses import dataclass
 from typing import Set
 
 
-@dataclass
+@dataclass(frozen=True)
 class LanguageConfig:
     consonants: Set[str]
     punctuation: Set[str]
     special_chars: Set[str]
     vowels: Set[str]
-POLISH_VOWELS = set('aąeęioóuyAĄEĘIOÓUY')
-POLISH_CONSONANTS = set('bcćdfghjklłmnńprsśtwzźżBCĆDFGHJKLŁMNŃPRSŚTWZŹŻ')
-ENGLISH_VOWELS = set('aeiouAEIOU')
-ENGLISH_CONSONANTS = set('bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ')
-PUNCTUATION = set('.,;:!?…-—–()[]{}"\'«»„\'\'')
-SPECIAL_CHARS = set('@#$%^&*+=<>|\\/_~`')
+
+
+_PUNCTUATION = set('.,;:!?…-—–()[]{}"\'«»„\'\'')
+_SPECIAL_CHARS = set('@#$%^&*+=<>|\\/_~`')
+_ENGLISH_VOWELS = set('aeiouAEIOU')
+_ENGLISH_CONSONANTS = set('bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ')
+_POLISH_VOWELS = set('aąeęioóuyAĄEĘIOÓUY')
+_POLISH_CONSONANTS = set('bcćdfghjklłmnńprsśtwzźżBCĆDFGHJKLŁMNŃPRSŚTWZŹŻ')
+
 POLISH_CONFIG = LanguageConfig(
-    vowels=POLISH_VOWELS | ENGLISH_VOWELS,
-    consonants=POLISH_CONSONANTS | ENGLISH_CONSONANTS,
-    punctuation=PUNCTUATION,
-    special_chars=SPECIAL_CHARS,
+    vowels=_POLISH_VOWELS | _ENGLISH_VOWELS,
+    consonants=_POLISH_CONSONANTS | _ENGLISH_CONSONANTS,
+    punctuation=_PUNCTUATION,
+    special_chars=_SPECIAL_CHARS,
 )
+
 ENGLISH_CONFIG = LanguageConfig(
-    vowels=ENGLISH_VOWELS,
-    consonants=ENGLISH_CONSONANTS,
-    punctuation=PUNCTUATION,
-    special_chars=SPECIAL_CHARS,
+    vowels=_ENGLISH_VOWELS,
+    consonants=_ENGLISH_CONSONANTS,
+    punctuation=_PUNCTUATION,
+    special_chars=_SPECIAL_CHARS,
 )

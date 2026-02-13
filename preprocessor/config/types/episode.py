@@ -11,6 +11,7 @@ class EpisodeInfo(TypedDict):
     title: str
     viewership: Union[str, int, float]
 
+
 class EpisodeMetadata(TypedDict):
     episode_number: int
     premiere_date: str
@@ -19,6 +20,9 @@ class EpisodeMetadata(TypedDict):
     title: str
     viewership: Union[str, int, float]
 
+
 class SeasonInfo(TypedDict):
     pass
+
+
 SeasonInfoDict = Dict[str, int]

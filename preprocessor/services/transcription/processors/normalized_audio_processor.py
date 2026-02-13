@@ -18,75 +18,78 @@ class NormalizedAudioProcessor:
     SUPPORTED_AUDIO_EXTENSIONS: Tuple[str, str] = ('.wav', '.mp3')
 
     def __init__(
-        self,
-        input_audios: Path,
-        output_dir: Path,
-        logger: ErrorHandlingLogger,
-        language: str,
-        model: str,
-        device: str,
-        audio_files: Optional[List[Path]] = None,
+            self,
+            input_audios: Path,
+            output_dir: Path,
+            logger: ErrorHandlingLogger,
+            language: str,
+            model: str,
+            device: str,
+            audio_files: Optional[List[Path]] = None,
     ):
-        self.__input_audios: Path = input_audios
-        self.__output_dir: Path = output_dir
-        self.__logger: ErrorHandlingLogger = logger
-        self.__audio_files: Optional[List[Path]] = audio_files
-        self.__language: str = language
-        self.__input_audios.mkdir(parents=True, exist_ok=True)
+        self.__input_audios = input_audios
+        self.__output_dir = output_dir
+        self.__logger = logger
+        self.__audio_files = audio_files
+        self.__language = language
+
         self.__output_dir.mkdir(parents=True, exist_ok=True)
+
         if device != 'cuda':
-            raise ValueError(f'Only GPU (cuda) is supported, got device={device}')
-        compute_type = 'float16'
-        self.__logger.info(
-            f'Loading Whisper model {model} on {device} with compute_type={compute_type}',
-        )
+            raise ValueError(f'Whisper acceleration requires CUDA device, got: {device}')
+
         self.__whisper_model = WhisperModel(
             model,
             device=device,
-            compute_type=compute_type,
+            compute_type='float16',
         )
+        self.__logger.info(f'Whisper {model} initialized on {device}')
 
     def cleanup(self) -> None:
-        self.__logger.info('Unloading Whisper model and clearing GPU memory...')
+        self.__logger.info('Purging GPU memory and unloading Whisper model...')
         if hasattr(self, '_NormalizedAudioProcessor__whisper_model'):
             del self.__whisper_model
+
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        self.__logger.info('Whisper model unloaded, GPU memory cleared')
 
     def __call__(self) -> None:
-        if self.__audio_files is not None:
-            for audio in self.__audio_files:
-                self.__process_normalized_audio(audio)
-        else:
-            for audio in self.__input_audios.rglob('*'):
-                if audio.suffix.lower() in self.SUPPORTED_AUDIO_EXTENSIONS:
-                    self.__process_normalized_audio(audio)
+        targets = self.__audio_files if self.__audio_files is not None else self.__discover_audios()
+        for audio in targets:
+            self.__transcribe_file(audio)
 
-    def __process_normalized_audio(self, normalized_audio: Path) -> None:
+    def __discover_audios(self) -> List[Path]:
+        return [
+            a for a in self.__input_audios.rglob('*')
+            if a.suffix.lower() in self.SUPPORTED_AUDIO_EXTENSIONS
+        ]
+
+    def __transcribe_file(self, audio_path: Path) -> None:
         try:
-            output_file = self.__output_dir / normalized_audio.with_suffix('.json').name
+            output_file = self.__output_dir / audio_path.with_suffix('.json').name
             if output_file.exists():
                 return
-            language_code = WhisperUtils.get_language_code(self.__language)
+
             segments, info = self.__whisper_model.transcribe(
-                str(normalized_audio),
-                language=language_code,
+                str(audio_path),
+                language=WhisperUtils.get_language_code(self.__language),
                 beam_size=10,
                 word_timestamps=True,
                 condition_on_previous_text=False,
                 temperature=0.0,
-                compression_ratio_threshold=None,
             )
-            result = WhisperUtils.build_transcription_result(
-                segments,
-                language=info.language,
-            )
-            for segment_dict in result['segments']:
-                segment_dict['temperature'] = 0.0
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=2)
-            self.__logger.info(f'Processed: {normalized_audio}')
+
+            result = WhisperUtils.build_transcription_result(segments, language=info.language)
+            self.__save_results(result, output_file)
+            self.__logger.info(f'Transcription saved: {output_file.name}')
+
         except Exception as e:
-            self.__logger.error(f'Error processing file {normalized_audio}: {e}')
+            self.__logger.error(f'Whisper error on {audio_path.name}: {e}')
+
+    def __save_results(self, result: dict, path: Path) -> None:
+        for segment in result.get('segments', []):
+            segment['temperature'] = 0.0
+
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)

@@ -1,7 +1,4 @@
-from typing import (
-    List,
-    Optional,
-)
+from typing import Optional
 
 from patchright.sync_api import sync_playwright
 
@@ -9,22 +6,25 @@ from preprocessor.services.core.logging import ErrorHandlingLogger
 
 
 class ScraperClipboard:
-    _BROWSER_ARGS: List[str] = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    __BROWSER_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
 
     @staticmethod
-    def scrape(url: str, headless: bool=True, logger: Optional[ErrorHandlingLogger]=None) -> Optional[str]:
+    def scrape(url: str, headless: bool = True, logger: Optional[ErrorHandlingLogger] = None) -> Optional[str]:
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=headless, args=ScraperClipboard._BROWSER_ARGS)
+                browser = p.chromium.launch(headless=headless, args=ScraperClipboard.__BROWSER_ARGS)
                 context = browser.new_context()
                 page = context.new_page()
+
                 page.goto(url, wait_until='networkidle', timeout=30000)
+
                 page.keyboard.press('Control+A')
                 page.keyboard.press('Control+C')
-                clipboard_text = page.evaluate('navigator.clipboard.readText()')
+
+                content = page.evaluate('navigator.clipboard.readText()')
                 browser.close()
-                return clipboard_text
+                return content
         except Exception as e:
             if logger:
-                logger.error(f'Clipboard scraping failed: {e}')
+                logger.error(f'Clipboard scraping failed for {url}: {e}')
             return None

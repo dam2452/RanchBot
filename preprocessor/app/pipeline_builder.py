@@ -17,20 +17,20 @@ if TYPE_CHECKING:
 
 class PipelineExecutor:
     def __init__(self, context: ExecutionContext) -> None:
-        self.context = context
-        self.steps: List[PipelineStep] = []
+        self.__context = context
+        self.__steps: List[PipelineStep] = []
 
     def add_step(self, step: PipelineStep) -> "PipelineExecutor":
-        self.steps.append(step)
+        self.__steps.append(step)
         return self
 
     def cleanup(self) -> None:
-        for step in self.steps:
+        for step in self.__steps:
             if hasattr(step, "cleanup"):
                 try:
                     step.cleanup()
                 except Exception as e:
-                    self.context.logger.error(f"Cleanup failed for step {step.name}: {e}")
+                    self.__context.logger.error(f"Cleanup failed for step {step.name}: {e}")
 
     def execute_step(
         self,
@@ -39,18 +39,18 @@ class PipelineExecutor:
         source_path: Path,
         episode_manager: EpisodeManager,
     ) -> None:
-        step = pipeline.get_step(step_id)
-        self.context.logger.info(f"Step: {step_id}")
-        self.context.logger.info(f"{step.description}")
+        step_def = pipeline.get_step(step_id)
+        self.__context.logger.info(f"Step: {step_id}")
+        self.__context.logger.info(f"{step_def.description}")
 
-        StepClass = step.load_class()
-        instance = StepClass(step.config)
+        StepClass = step_def.load_class()
+        instance = StepClass(step_def.config)
 
-        runner = PipelineExecutor(self.context)
+        runner = PipelineExecutor(self.__context)
         runner.add_step(instance)
-        runner.__run_for_episodes(source_path, episode_manager)
+        runner.run(source_path, episode_manager)
 
-        self.context.logger.info(f"Step '{step_id}' completed")
+        self.__context.logger.info(f"Step '{step_id}' completed")
 
     def execute_steps(
         self,
@@ -60,24 +60,12 @@ class PipelineExecutor:
         episode_manager: EpisodeManager,
     ) -> None:
         for step_id in step_ids:
-            self.context.logger.info(f"{'=' * 80}")
+            self.__context.logger.info(f"{'=' * 80}")
             self.execute_step(pipeline, step_id, source_path, episode_manager)
 
-    def __mark_step_completed(self, step_name: str, episode_id: str) -> None:
-        if self.context.state_manager is None:
-            return
-        self.context.state_manager.mark_step_completed(step_name, episode_id)
-
-    def __mark_step_in_progress(self, step_name: str, episode_id: str) -> None:
-        if self.context.state_manager is None:
-            return
-        self.context.state_manager.mark_step_started(step_name, episode_id)
-
-    def __run_for_episodes(  # pylint: disable=unused-private-member
-        self, source_path: Path, episode_manager: EpisodeManager,
-    ) -> None:
+    def run(self, source_path: Path, episode_manager: EpisodeManager) -> None:
         video_files = VideoDiscovery.discover(source_path)
-        self.context.logger.info(
+        self.__context.logger.info(
             f"Discovered {len(video_files)} video files in {source_path}",
         )
 
@@ -85,7 +73,7 @@ class PipelineExecutor:
         for video_file in video_files:
             episode_info = episode_manager.parse_filename(video_file)
             if not episode_info:
-                self.context.logger.warning(f"Cannot parse: {video_file}")
+                self.__context.logger.warning(f"Cannot parse: {video_file}")
                 continue
 
             episode_id = episode_manager.get_episode_id_for_state(episode_info)
@@ -97,38 +85,38 @@ class PipelineExecutor:
                 ),
             )
 
-        for step in self.steps:
+        for step in self.__steps:
             if step.is_global:
                 self.__run_global_step(step)
             else:
                 current_artifacts = self.__run_episode_step(step, current_artifacts)
 
     def __run_global_step(self, step: PipelineStep) -> None:
-        self.context.logger.info(f"=== Running Global Step: {step.name} ===")
+        self.__context.logger.info(f"=== Running Global Step: {step.name} ===")
 
         if self.__should_skip_step(step.name, 'all'):
-            self.context.logger.info(f"Skipping {step.name} (already completed)")
+            self.__context.logger.info(f"Skipping {step.name} (already completed)")
             return
 
         try:
             self.__mark_step_in_progress(step.name, 'all')
-            step.execute(None, self.context)
+            step.execute(None, self.__context)
             self.__mark_step_completed(step.name, 'all')
         except Exception as e:
-            self.context.logger.error(f"Global step {step.name} failed: {e}")
+            self.__context.logger.error(f"Global step {step.name} failed: {e}")
             raise
 
     def __run_episode_step(
         self, step: PipelineStep, current_artifacts: List[Any],
     ) -> List[Any]:
-        self.context.logger.info(f"=== Running Step: {step.name} ===")
+        self.__context.logger.info(f"=== Running Step: {step.name} ===")
         next_artifacts = []
 
         for artifact in current_artifacts:
             episode_id = artifact.episode_id
 
             if self.__should_skip_step(step.name, episode_id):
-                self.context.logger.info(
+                self.__context.logger.info(
                     f"Skipping {step.name} for {episode_id} (already completed)",
                 )
                 next_artifacts.append(artifact)
@@ -136,7 +124,7 @@ class PipelineExecutor:
 
             try:
                 self.__mark_step_in_progress(step.name, episode_id)
-                result = step.execute(artifact, self.context)
+                result = step.execute(artifact, self.__context)
                 self.__mark_step_completed(step.name, episode_id)
 
                 if result:
@@ -144,18 +132,28 @@ class PipelineExecutor:
                 else:
                     next_artifacts.append(artifact)
             except Exception as e:
-                self.context.logger.error(
+                self.__context.logger.error(
                     f"Step {step.name} failed for {artifact.episode_id}: {e}",
                 )
                 raise
 
         return next_artifacts
 
+    def __mark_step_completed(self, step_name: str, episode_id: str) -> None:
+        if self.__context.state_manager is None:
+            return
+        self.__context.state_manager.mark_step_completed(step_name, episode_id)
+
+    def __mark_step_in_progress(self, step_name: str, episode_id: str) -> None:
+        if self.__context.state_manager is None:
+            return
+        self.__context.state_manager.mark_step_started(step_name, episode_id)
+
     def __should_skip_step(self, step_name: str, episode_id: str) -> bool:
-        if self.context.force_rerun:
+        if self.__context.force_rerun:
             return False
 
-        if self.context.state_manager is None:
+        if self.__context.state_manager is None:
             return False
 
-        return self.context.state_manager.is_step_completed(step_name, episode_id)
+        return self.__context.state_manager.is_step_completed(step_name, episode_id)

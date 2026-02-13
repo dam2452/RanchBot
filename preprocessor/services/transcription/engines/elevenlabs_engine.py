@@ -4,6 +4,7 @@ import time
 from typing import (
     Any,
     Dict,
+    List,
     Optional,
 )
 
@@ -17,23 +18,24 @@ from preprocessor.services.ui.console import console
 
 
 class ElevenLabsEngine(TranscriptionEngine):
-
     def __init__(
-        self,
-        logger: ErrorHandlingLogger,
-        model_id: Optional[str]=None,
-        language_code: Optional[str]=None,
-        diarize: Optional[bool]=None,
-        polling_interval: Optional[int]=None,
-    ):
-        if not settings.elevenlabs.api_key:
-            raise ValueError('ElevenLabs API key not provided. Set ELEVEN_API_KEY environment variable.')
-        self.client = ElevenLabs(api_key=settings.elevenlabs.api_key)
-        self.model_id = model_id or settings.elevenlabs.model_id
-        self.language_code = language_code or settings.elevenlabs.language_code
-        self.diarize = diarize if diarize is not None else settings.elevenlabs.diarize
-        self.polling_interval = polling_interval or settings.elevenlabs.polling_interval
-        self.additional_formats = [
+            self,
+            logger: ErrorHandlingLogger,
+            model_id: Optional[str] = None,
+            language_code: Optional[str] = None,
+            diarize: Optional[bool] = None,
+            polling_interval: Optional[int] = None,
+    ) -> None:
+        self.__validate_api_key()
+
+        self.__client = ElevenLabs(api_key=settings.elevenlabs.api_key)
+        self.__logger = logger
+        self.__model_id = model_id or settings.elevenlabs.model_id
+        self.__language_code = language_code or settings.elevenlabs.language_code
+        self.__diarize = diarize if diarize is not None else settings.elevenlabs.diarize
+        self.__polling_interval = polling_interval or settings.elevenlabs.polling_interval
+
+        self.__additional_formats: List[Dict[str, Any]] = [
             {'format': 'srt'},
             {
                 'format': 'segmented_json',
@@ -44,79 +46,103 @@ class ElevenLabsEngine(TranscriptionEngine):
                 'max_segment_chars': 200,
             },
         ]
-        self._logger: ErrorHandlingLogger = logger
 
     def get_name(self) -> str:
         return 'ElevenLabs'
 
     def transcribe(self, audio_path: Path) -> Dict[str, Any]:
-        console.print(f'[cyan]Transcribing with 11labs: {audio_path.name}[/cyan]')
+        console.print(f'[cyan]Transcribing with ElevenLabs: {audio_path.name}[/cyan]')
+
         if not audio_path.exists():
             raise FileNotFoundError(f'Audio file not found: {audio_path}')
-        transcription_id = self.__submit_job(audio_path)
-        result = self.__poll_for_results(transcription_id)
+
+        job_id = self.__submit_job(audio_path)
+        raw_result = self.__poll_for_results(job_id)
+
         console.print(f'[green]Transcription completed: {audio_path.name}[/green]')
-        return self.__convert_to_unified_format(result)
-
-    @staticmethod
-    def __convert_to_unified_format(result) -> Dict[str, Any]:
-        unified_data = {'text': result.text, 'language_code': result.language_code, 'segments': []}
-        if result.additional_formats:
-            for fmt in result.additional_formats:
-                if fmt.requested_format == 'segmented_json':
-                    segmented_data = json.loads(fmt.content)
-                    for seg in segmented_data.get('segments', []):
-                        words = seg.get('words', [])
-                        if not words:
-                            continue
-                        non_spacing_words = [w for w in words if w.get('type') != 'spacing']
-                        segment = {'text': seg.get('text', '').strip(), 'words': words}
-                        if non_spacing_words:
-                            first_word = non_spacing_words[0]
-                            last_word = non_spacing_words[-1]
-                            segment['start'] = first_word.get('start')
-                            segment['end'] = last_word.get('end')
-                            segment['speaker'] = first_word.get('speaker_id')
-                        unified_data['segments'].append(segment)
-                    break
-        return unified_data
-
-    def __poll_for_results(self, transcription_id: str):
-        self._logger.info(f'Polling for results (ID: {transcription_id})...')
-        max_attempts = settings.elevenlabs.max_attempts
-        attempt = 0
-        while attempt < max_attempts:
-            try:
-                result = self.client.speech_to_text.transcripts.get(transcription_id=transcription_id)
-                self._logger.info('Transcription complete!')
-                return result
-            except ApiError as e:
-                if e.status_code == 404:
-                    self._logger.info('   ...Processing. Waiting...')
-                    time.sleep(self.polling_interval)
-                    attempt += 1
-                else:
-                    self._logger.error(f'API error during polling: {e.body}')
-                    raise
-        raise TimeoutError(f'Transcription timeout after {max_attempts} attempts')
+        return self.__convert_to_unified_format(raw_result)
 
     def __submit_job(self, audio_path: Path) -> str:
         try:
             with open(audio_path, 'rb') as audio_file:
                 audio_data = audio_file.read()
-            submit_response = self.client.speech_to_text.convert(
+
+            response = self.__client.speech_to_text.convert(
                 file=audio_data,
-                model_id=self.model_id,
-                language_code=self.language_code,
+                model_id=self.__model_id,
+                language_code=self.__language_code,
                 tag_audio_events=True,
                 timestamps_granularity='character',
-                diarize=self.diarize,
+                diarize=self.__diarize,
                 use_multi_channel=False,
-                additional_formats=self.additional_formats,
+                additional_formats=self.__additional_formats,
                 webhook=True,
             )
-            self._logger.info(f'Job submitted. ID: {submit_response.transcription_id}')
-            return submit_response.transcription_id
+            self.__logger.info(f'Job submitted. ID: {response.transcription_id}')
+            return response.transcription_id
         except ApiError as e:
-            self._logger.error(f'API error during job submission: {e.body}')
+            self.__logger.error(f'API error during job submission: {e.body}')
             raise
+
+    def __poll_for_results(self, transcription_id: str) -> Any:
+        self.__logger.info(f'Polling for results (ID: {transcription_id})...')
+        max_attempts = settings.elevenlabs.max_attempts
+
+        for _attempt in range(max_attempts):
+            try:
+                result = self.__client.speech_to_text.transcripts.get(transcription_id=transcription_id)
+                self.__logger.info('Transcription ready!')
+                return result
+            except ApiError as e:
+                if e.status_code == 404:
+                    time.sleep(self.__polling_interval)
+                else:
+                    self.__logger.error(f'API error during polling: {e.body}')
+                    raise
+
+        raise TimeoutError(f'Transcription timeout after {max_attempts} attempts')
+
+    @staticmethod
+    def __convert_to_unified_format(result: Any) -> Dict[str, Any]:
+        unified_data = {
+            'text': result.text,
+            'language_code': result.language_code,
+            'segments': [],
+        }
+
+        if not result.additional_formats:
+            return unified_data
+
+        for fmt in result.additional_formats:
+            if fmt.requested_format == 'segmented_json':
+                segmented_data = json.loads(fmt.content)
+                for seg in segmented_data.get('segments', []):
+                    segment = ElevenLabsEngine.__parse_segment(seg)
+                    if segment:
+                        unified_data['segments'].append(segment)
+                break
+        return unified_data
+
+    @staticmethod
+    def __parse_segment(seg_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        words = seg_data.get('words', [])
+        if not words:
+            return None
+
+        non_spacing = [w for w in words if w.get('type') != 'spacing']
+        segment = {
+            'text': seg_data.get('text', '').strip(),
+            'words': words,
+        }
+
+        if non_spacing:
+            segment['start'] = non_spacing[0].get('start')
+            segment['end'] = non_spacing[-1].get('end')
+            segment['speaker'] = non_spacing[0].get('speaker_id')
+
+        return segment
+
+    @staticmethod
+    def __validate_api_key() -> None:
+        if not settings.elevenlabs.api_key:
+            raise ValueError('ElevenLabs API key missing in settings.')

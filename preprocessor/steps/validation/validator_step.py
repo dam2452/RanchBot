@@ -9,6 +9,9 @@ from preprocessor.services.validation.validator import Validator
 
 
 class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, ValidationConfig]):
+    @property
+    def name(self) -> str:
+        return "validate"
 
     def execute(
         self,
@@ -17,21 +20,14 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
     ) -> ValidationResult:
         context.logger.info(f"Starting validation for season {context.season}")
 
-        validator = self._create_validator(context)
-        self._run_validation(validator)
+        validator = self.__create_validator(context)
+        self.__run_validation(validator)
 
         context.logger.info("Validation completed successfully")
 
-        return ValidationResult(
-            season=context.season,
-            validation_report_dir=validator.validation_reports_dir,
-        )
+        return self.__construct_validation_result(context, validator)
 
-    @property
-    def name(self) -> str:
-        return "validate"
-
-    def _create_validator(self, context: ExecutionContext) -> Validator:
+    def __create_validator(self, context: ExecutionContext) -> Validator:
         return Validator(
             season=context.season,
             series_name=context.series_name,
@@ -41,7 +37,17 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
         )
 
     @staticmethod
-    def _run_validation(validator: Validator) -> None:
+    def __run_validation(validator: Validator) -> None:
         exit_code = validator.validate()
         if exit_code != 0:
             raise RuntimeError(f"Validation failed with exit code {exit_code}")
+
+    @staticmethod
+    def __construct_validation_result(
+        context: ExecutionContext,
+        validator: Validator,
+    ) -> ValidationResult:
+        return ValidationResult(
+            season=context.season,
+            validation_report_dir=validator.validation_reports_dir,
+        )

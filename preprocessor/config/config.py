@@ -3,12 +3,8 @@ from dataclasses import (
     field,
 )
 import os
-from pathlib import Path
 from typing import (
-    Any,
     ClassVar,
-    Dict,
-    List,
     Optional,
     Tuple,
 )
@@ -19,7 +15,7 @@ from preprocessor.config.mixins import OutputDirMixin
 from preprocessor.services.media.resolution import Resolution
 
 
-@dataclass
+@dataclass(frozen=True)
 class ElasticDocumentSubdirs:
     episode_names: str = 'episode_names'
     full_episode_embeddings: str = 'full_episode_embeddings'
@@ -30,13 +26,15 @@ class ElasticDocumentSubdirs:
     text_statistics: str = 'text_statistics'
     video_frames: str = 'video_frames'
 
-@dataclass
+
+@dataclass(frozen=True)
 class TranscriptionSubdirs:
     clean: str = 'clean'
     raw: str = 'raw'
     sound_events: str = 'sound_events'
 
-@dataclass
+
+@dataclass(frozen=True)
 class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
     archives: str = 'archives'
     character_detections: str = 'character_detections'
@@ -55,15 +53,17 @@ class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
     validation_reports: str = 'validation_reports'
     video: str = 'transcoded_videos'
 
-@dataclass
+
+@dataclass(frozen=True)
 class BaseAPISettings:
-    _api_key: Optional[SecretStr] = None
+    _api_key: Optional[SecretStr] = field(default=None, repr=False)
 
     @property
     def api_key(self) -> Optional[str]:
         return self._api_key.get_secret_value() if self._api_key else None
 
-@dataclass
+
+@dataclass(frozen=True)
 class TranscodeSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'transcoded_videos'
 
@@ -73,29 +73,34 @@ class TranscodeSettings(OutputDirMixin):
     target_duration_seconds: float = 100.0
     target_file_size_mb: float = 50.0
 
-@dataclass
+
+@dataclass(frozen=True)
 class SceneDetectionSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'scene_timestamps'
 
     min_scene_len: int = 10
     threshold: float = 0.5
 
-@dataclass
+
+@dataclass(frozen=True)
 class SceneChangesSettings:
     frames_per_scene: int = 1
 
-@dataclass
+
+@dataclass(frozen=True)
 class KeyframeExtractionSettings:
     scene_changes: SceneChangesSettings = field(default_factory=SceneChangesSettings)
     strategy: str = 'scene_changes'
 
-@dataclass
+
+@dataclass(frozen=True)
 class FrameExportSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'exported_frames'
 
     resolution: Resolution = Resolution.R1080P
 
-@dataclass
+
+@dataclass(frozen=True)
 class TranscriptionSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'transcriptions'
 
@@ -103,7 +108,8 @@ class TranscriptionSettings(OutputDirMixin):
     language: str = 'Polish'
     model: str = 'large-v3-turbo'
 
-@dataclass
+
+@dataclass(frozen=True)
 class WhisperSettings:
     model: str = 'large-v3-turbo'
 
@@ -111,13 +117,15 @@ class WhisperSettings:
     def _from_env(cls) -> 'WhisperSettings':
         return cls(model=os.getenv('WHISPER_MODEL', 'large-v3-turbo'))
 
-@dataclass
+
+@dataclass(frozen=True)
 class TextChunkingSettings:
     segments_per_embedding: int = 5
     text_chunk_overlap: int = 3
     text_sentences_per_chunk: int = 8
 
-@dataclass
+
+@dataclass(frozen=True)
 class ElevenLabsSettings(BaseAPISettings):
     diarize: bool = True
     language_code: str = 'pol'
@@ -132,7 +140,8 @@ class ElevenLabsSettings(BaseAPISettings):
             api_key = SecretStr(os.getenv('ELEVEN_API_KEY', ''))
         return cls(_api_key=api_key)
 
-@dataclass
+
+@dataclass(frozen=True)
 class EmbeddingModelSettings:
     embedding_dim: int = 4096
     enable_chunked_prefill: bool = True
@@ -145,7 +154,8 @@ class EmbeddingModelSettings:
     model_revision: str = 'main'
     tensor_parallel_size: int = 1
 
-@dataclass
+
+@dataclass(frozen=True)
 class EmbeddingSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'embeddings'
 
@@ -155,12 +165,14 @@ class EmbeddingSettings(OutputDirMixin):
     progress_sub_batch_size: int = 100
     text_batch_size: int = 64
 
-@dataclass
+
+@dataclass(frozen=True)
 class FaceRecognitionSettings:
     detection_size: Tuple[int, int] = (1280, 1280)
     model_name: str = 'buffalo_l'
 
-@dataclass
+
+@dataclass(frozen=True)
 class FaceClusteringSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'face_clusters'
 
@@ -168,7 +180,8 @@ class FaceClusteringSettings(OutputDirMixin):
     min_samples: int = 3
     save_noise: bool = True
 
-@dataclass
+
+@dataclass(frozen=True)
 class EmotionDetectionSettings:
     model_name: str = 'enet_b2_8'
 
@@ -177,7 +190,8 @@ class EmotionDetectionSettings:
         model_name = os.getenv('EMOTION_MODEL_NAME', 'enet_b2_8')
         return cls(model_name=model_name)
 
-@dataclass
+
+@dataclass(frozen=True)
 class CharacterSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'characters'
 
@@ -187,18 +201,21 @@ class CharacterSettings(OutputDirMixin):
     reference_images_per_character: int = 3
     reference_matching_threshold: float = 0.5
 
-@dataclass
+
+@dataclass(frozen=True)
 class ObjectDetectionSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'object_detections'
 
     conf_threshold: float = 0.3
     model_name: str = 'ustc-community/dfine-xlarge-obj2coco'
 
-@dataclass
+
+@dataclass(frozen=True)
 class ImageHashSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'image_hashes'
 
-@dataclass
+
+@dataclass(frozen=True)
 class ImageScraperSettings(BaseAPISettings):
     max_results_to_scrape: int = 50
     min_image_height: int = 600
@@ -220,23 +237,29 @@ class ImageScraperSettings(BaseAPISettings):
             api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
         return cls(_api_key=api_key)
 
-@dataclass
+
+@dataclass(frozen=True)
 class ScraperSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'scraped_pages'
 
-@dataclass
+
+@dataclass(frozen=True)
 class ElasticsearchSettings:
     host: str = ''
-    password: str = ''
+    password: str = field(default='', repr=False)
     user: str = ''
 
     @classmethod
     def _from_env(cls) -> 'ElasticsearchSettings':
-        return cls(host=os.getenv('ES_HOST', ''), user=os.getenv('ES_USER', ''), password=os.getenv('ES_PASS', ''))
+        return cls(
+            host=os.getenv('ES_HOST', ''),
+            user=os.getenv('ES_USER', ''),
+            password=os.getenv('ES_PASS', ''),
+        )
 
-@dataclass
+
+@dataclass(frozen=True)
 class GeminiSettings(BaseAPISettings):
-
     @classmethod
     def _from_env(cls) -> 'GeminiSettings':
         api_key = None
@@ -244,7 +267,8 @@ class GeminiSettings(BaseAPISettings):
             api_key = SecretStr(os.getenv('GEMINI_API_KEY', ''))
         return cls(_api_key=api_key)
 
-@dataclass
+
+@dataclass(frozen=True)
 class Settings:  # pylint: disable=too-many-instance-attributes
     character: CharacterSettings
     elasticsearch: ElasticsearchSettings
@@ -293,65 +317,3 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             transcode=TranscodeSettings(),
             transcription=TranscriptionSettings(),
         )
-
-@dataclass
-class TranscodeConfig:
-    codec: str
-    gop_size: float
-    resolution: Resolution
-    transcoded_videos: Path
-    videos: Path
-    audio_bitrate_kbps: int = 128
-    bufsize_mbps: Optional[float] = None
-    episodes_info_json: Optional[Path] = None
-    maxrate_mbps: Optional[float] = None
-    minrate_mbps: Optional[float] = None
-    video_bitrate_mbps: Optional[float] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'videos': self.videos,
-            'transcoded_videos': self.transcoded_videos,
-            'resolution': self.resolution,
-            'codec': self.codec,
-            'video_bitrate_mbps': self.video_bitrate_mbps,
-            'minrate_mbps': self.minrate_mbps,
-            'maxrate_mbps': self.maxrate_mbps,
-            'bufsize_mbps': self.bufsize_mbps,
-            'audio_bitrate_kbps': self.audio_bitrate_kbps,
-            'gop_size': self.gop_size,
-            'episodes_info_json': self.episodes_info_json,
-        }
-
-@dataclass
-class TranscriptionConfig:
-    device: str
-    episodes_info_json: Path
-    language: str
-    model: str
-    name: str
-    transcription_jsons: Path
-    videos: Path
-    extra_json_keys_to_remove: List[str] = field(default_factory=list)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'videos': self.videos,
-            'episodes_info_json': self.episodes_info_json,
-            'transcription_jsons': self.transcription_jsons,
-            'model': self.model,
-            'language': self.language,
-            'device': self.device,
-            'extra_json_keys_to_remove': self.extra_json_keys_to_remove,
-            'name': self.name,
-        }
-
-@dataclass
-class IndexConfig:
-    name: str
-    transcription_jsons: Path
-    append: bool = False
-    dry_run: bool = False
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {'name': self.name, 'transcription_jsons': str(self.transcription_jsons), 'dry_run': self.dry_run, 'append': self.append}

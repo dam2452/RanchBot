@@ -10,11 +10,10 @@ from typing import (
 
 
 class TranscriptionEngine(ABC):
-
     @abstractmethod
     def get_name(self) -> str:
-        ...
+        pass
 
     @abstractmethod
     def transcribe(self, audio_path: Path) -> Dict[str, Any]:
-        ...
+        pass

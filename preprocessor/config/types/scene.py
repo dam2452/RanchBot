@@ -13,14 +13,17 @@ class SceneDict(TypedDict):
     start_frame: int
     start_time: float
 
+
 class SceneTimestampPoint(TypedDict):
     frame: int
     seconds: float
+
 
 class SceneTimestamp(TypedDict):
     end: SceneTimestampPoint
     scene_number: int
     start: SceneTimestampPoint
+
 
 class SceneTimestampsData(TypedDict):
     fps: NotRequired[float]

@@ -20,7 +20,7 @@ class EpisodeInfo(BaseModel):
 
     @field_validator('viewership', mode='before')
     @classmethod
-    def __convert_viewership_to_str(cls, v: Optional[int]) -> Optional[str]:  # pylint: disable=unused-private-member
+    def _convert_viewership_to_str(cls, v: Optional[int]) -> Optional[str]:
         if v is None:
             return None
         if isinstance(v, int):
@@ -34,7 +34,7 @@ class SeasonMetadata(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def __convert_old_format(cls, data: Dict) -> Dict:  # pylint: disable=unused-private-member
+    def _convert_old_format(cls, data: Dict) -> Dict:
         if isinstance(data, dict) and 'episodes' in data:
             for idx, episode in enumerate(data['episodes'], start=1):
                 if isinstance(episode, dict) and 'episode_number' in episode and ('episode_in_season' not in episode):

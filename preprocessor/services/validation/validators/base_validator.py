@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 
 class BaseValidator(ABC):
-
     @abstractmethod
     def validate(self, stats: 'EpisodeStats') -> None:
         pass

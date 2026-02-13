@@ -1,10 +1,18 @@
 from typing import (
+    Any,
     List,
     NotRequired,
     TypedDict,
+    Union,
 )
 
-from .episode import EpisodeMetadata
+from preprocessor.config.types.episode import EpisodeMetadata
+
+
+class ClipSegment(TypedDict):
+    end_time: float
+    start_time: float
+    video_path: Union[str, Any]
 
 
 class BaseSegment(TypedDict):
@@ -12,6 +20,7 @@ class BaseSegment(TypedDict):
     id: int
     start: float
     text: str
+
 
 class SegmentWithTimes(TypedDict):
     end_time: float
@@ -21,8 +30,10 @@ class SegmentWithTimes(TypedDict):
     text: str
     video_path: NotRequired[str]
 
+
 class SegmentWithScore(SegmentWithTimes):
     _score: float
+
 
 class ElasticsearchSegment(TypedDict):
     _score: NotRequired[float]
@@ -36,6 +47,7 @@ class ElasticsearchSegment(TypedDict):
     start_time: NotRequired[float]
     text: str
     video_path: NotRequired[str]
+
 
 class TranscriptionContext(TypedDict):
     context: List[BaseSegment]

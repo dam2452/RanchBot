@@ -1,5 +1,8 @@
 from pathlib import Path
-from typing import Optional
+from typing import (
+    Optional,
+    Tuple,
+)
 
 from preprocessor.config.step_configs import CharacterReferenceConfig
 from preprocessor.core.artifacts import SourceVideo
@@ -11,20 +14,6 @@ from preprocessor.services.characters.reference_downloader import CharacterRefer
 class CharacterReferenceStep(
     PipelineStep[SourceVideo, SourceVideo, CharacterReferenceConfig],
 ):
-    def execute(
-        self, input_data: SourceVideo, context: ExecutionContext,
-    ) -> Optional[SourceVideo]:
-        characters_path, output_dir = self._get_paths()
-        self._validate_characters_file(characters_path)
-
-        if output_dir.exists() and any(output_dir.iterdir()) and not context.force_rerun:
-            context.logger.info(f"Character references already exist in: {output_dir}")
-            return input_data
-
-        self._process_character_references(characters_path, output_dir, context)
-
-        return input_data
-
     @property
     def name(self) -> str:
         return "process_character_references"
@@ -33,21 +22,26 @@ class CharacterReferenceStep(
     def is_global(self) -> bool:
         return True
 
-    def _get_paths(self) -> tuple[Path, Path]:
+    def execute(
+        self, input_data: SourceVideo, context: ExecutionContext,
+    ) -> Optional[SourceVideo]:
+        characters_path, output_dir = self.__resolve_paths()
+        self.__validate_characters_file(characters_path)
+
+        if self.__should_skip_processing(output_dir, context):
+            context.logger.info(f"Character references already exist in: {output_dir}")
+            return input_data
+
+        self.__download_character_references(characters_path, output_dir, context)
+
+        return input_data
+
+    def __resolve_paths(self) -> Tuple[Path, Path]:
         characters_path = Path(self.config.characters_file)
         output_dir = Path(self.config.output_dir)
         return characters_path, output_dir
 
-    @staticmethod
-    def _validate_characters_file(characters_path: Path) -> None:
-        if not characters_path.exists():
-            raise FileNotFoundError(
-                f"Characters file not found: {characters_path}. "
-                f"Run scrape_characters first.",
-            )
-
-
-    def _process_character_references(
+    def __download_character_references(
         self,
         characters_path: Path,
         output_dir: Path,
@@ -73,3 +67,17 @@ class CharacterReferenceStep(
             )
 
         context.logger.info(f"Character references saved to: {output_dir}")
+
+    @staticmethod
+    def __should_skip_processing(output_dir: Path, context: ExecutionContext) -> bool:
+        if context.force_rerun:
+            return False
+        return output_dir.exists() and any(output_dir.iterdir())
+
+    @staticmethod
+    def __validate_characters_file(characters_path: Path) -> None:
+        if not characters_path.exists():
+            raise FileNotFoundError(
+                f"Characters file not found: {characters_path}. "
+                f"Run scrape_characters first.",
+            )

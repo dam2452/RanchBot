@@ -1,6 +1,10 @@
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+)
 
 from preprocessor.config.constants import OUTPUT_FILE_NAMES
 from preprocessor.config.settings_instance import settings
@@ -15,7 +19,6 @@ ELASTIC_SUBDIRS = settings.output_subdirs.elastic_document_subdirs
 
 
 class ElasticValidator(BaseValidator):
-
     def validate(self, stats: 'EpisodeStats') -> None:
         self.__validate_character_detections(stats)
         self.__validate_embeddings(stats)
@@ -23,9 +26,7 @@ class ElasticValidator(BaseValidator):
         self.__validate_text_statistics(stats)
 
     def __validate_character_detections(self, stats: 'EpisodeStats') -> None:
-        char_detections_dir = PathService(stats.series_name).get_episode_dir(
-            stats.episode_info, settings.output_subdirs.character_detections,
-        )
+        char_detections_dir = self.__get_dir(stats, settings.output_subdirs.character_detections)
         detections_file = char_detections_dir / OUTPUT_FILE_NAMES['detections']
 
         self._validate_json_if_exists(
@@ -35,10 +36,7 @@ class ElasticValidator(BaseValidator):
         )
 
     def __validate_embeddings(self, stats: 'EpisodeStats') -> None:
-        embeddings_dir = PathService(stats.series_name).get_episode_dir(
-            stats.episode_info, settings.output_subdirs.embeddings,
-        )
-
+        embeddings_dir = self.__get_dir(stats, settings.output_subdirs.embeddings)
         if embeddings_dir.exists():
             embeddings_file = embeddings_dir / OUTPUT_FILE_NAMES['embeddings_text']
             self._validate_json_if_exists(
@@ -48,46 +46,38 @@ class ElasticValidator(BaseValidator):
             )
 
     def __validate_elastic_documents(self, stats: 'EpisodeStats') -> None:
-        elastic_subdirs = [
-            ELASTIC_SUBDIRS.text_segments,
-            ELASTIC_SUBDIRS.text_embeddings,
-            ELASTIC_SUBDIRS.video_frames,
-            ELASTIC_SUBDIRS.episode_names,
-            ELASTIC_SUBDIRS.text_statistics,
-            ELASTIC_SUBDIRS.full_episode_embeddings,
-            ELASTIC_SUBDIRS.sound_events,
-            ELASTIC_SUBDIRS.sound_event_embeddings,
+        subdirs_to_check = [
+            ELASTIC_SUBDIRS.text_segments, ELASTIC_SUBDIRS.text_embeddings,
+            ELASTIC_SUBDIRS.video_frames, ELASTIC_SUBDIRS.episode_names,
+            ELASTIC_SUBDIRS.text_statistics, ELASTIC_SUBDIRS.full_episode_embeddings,
+            ELASTIC_SUBDIRS.sound_events, ELASTIC_SUBDIRS.sound_event_embeddings,
         ]
 
-        found_elastic_docs = False
-        for subdir in elastic_subdirs:
-            elastic_base = settings.output_subdirs.elastic_documents
-            elastic_docs_dir = PathService(stats.series_name).get_episode_dir(
-                stats.episode_info, f'{elastic_base}/{subdir}',
-            )
+        found_any = False
+        elastic_base = settings.output_subdirs.elastic_documents
 
-            if elastic_docs_dir.exists():
-                found_elastic_docs = True
-                for jsonl_file in elastic_docs_dir.glob('*.jsonl'):
-                    result = FileValidator.validate_jsonl_file(jsonl_file)
-                    if not result.is_valid:
-                        self._add_error(stats, f'Invalid JSONL {jsonl_file.name}: {result.error_message}')
-                    else:
-                        self.__validate_embedding_dimensions(stats, jsonl_file, subdir)
+        for subdir in subdirs_to_check:
+            docs_dir = self.__get_dir(stats, f'{elastic_base}/{subdir}')
+            if docs_dir.exists():
+                found_any = True
+                self.__process_jsonl_files(stats, docs_dir, subdir)
 
-        if not found_elastic_docs:
+        if not found_any:
             self._add_warning(stats, f'Missing {settings.output_subdirs.elastic_documents} directory')
 
-    def __validate_text_statistics(self, stats: 'EpisodeStats') -> None:
-        transcriptions_dir = PathService(stats.series_name).get_episode_dir(
-            stats.episode_info, settings.output_subdirs.transcriptions,
-        )
+    def __process_jsonl_files(self, stats: 'EpisodeStats', docs_dir: Path, subdir: str) -> None:
+        for jsonl_file in docs_dir.glob('*.jsonl'):
+            result = FileValidator.validate_jsonl_file(jsonl_file)
+            if not result.is_valid:
+                self._add_error(stats, f'Invalid JSONL {jsonl_file.name}: {result.error_message}')
+            else:
+                self.__validate_embedding_dimensions(stats, jsonl_file, subdir)
 
-        if transcriptions_dir.exists():
+    def __validate_text_statistics(self, stats: 'EpisodeStats') -> None:
+        trans_dir = self.__get_dir(stats, settings.output_subdirs.transcriptions)
+        if trans_dir.exists():
             clean_subdir = settings.output_subdirs.transcription_subdirs.clean
-            clean_dir = transcriptions_dir / clean_subdir
-            filename = f'{stats.series_name}_{stats.episode_info.episode_code()}_text_stats.json'
-            text_stats_file = clean_dir / filename
+            text_stats_file = trans_dir / clean_subdir / f'{stats.series_name}_{stats.episode_info.episode_code()}_text_stats.json'
 
             if text_stats_file.exists():
                 result = FileValidator.validate_json_file(text_stats_file)
@@ -96,9 +86,7 @@ class ElasticValidator(BaseValidator):
             else:
                 self._add_warning(stats, f'Missing text statistics file: {text_stats_file.name}')
 
-    def __validate_embedding_dimensions(
-        self, stats: 'EpisodeStats', jsonl_file: Path, subdir: str,
-    ) -> None:
+    def __validate_embedding_dimensions(self, stats: 'EpisodeStats', jsonl_file: Path, subdir: str) -> None:
         embedding_fields = {
             ELASTIC_SUBDIRS.text_embeddings: 'text_embedding',
             ELASTIC_SUBDIRS.video_frames: 'video_embedding',
@@ -110,8 +98,8 @@ class ElasticValidator(BaseValidator):
         if subdir not in embedding_fields:
             return
 
-        embedding_field = embedding_fields[subdir]
         expected_dim = settings.embedding_model.embedding_dim
+        field_name = embedding_fields[subdir]
 
         try:
             with open(jsonl_file, 'r', encoding='utf-8') as f:
@@ -119,17 +107,18 @@ class ElasticValidator(BaseValidator):
                     if not line.strip():
                         continue
                     doc = json.loads(line)
-                    if embedding_field in doc:
-                        embedding = doc[embedding_field]
-                        if isinstance(embedding, list):
-                            actual_dim = len(embedding)
-                            if actual_dim != expected_dim:
-                                error_msg = (
-                                    f'{jsonl_file.name} line {line_num}: '
-                                    f'{embedding_field} has {actual_dim} dimensions, '
-                                    f'expected {expected_dim}'
-                                )
-                                self._add_error(stats, error_msg)
-                                return
+                    self.__check_doc_dimension(stats, doc, field_name, expected_dim, jsonl_file.name, line_num)
         except Exception as e:
             self._add_error(stats, f'Error validating embeddings in {jsonl_file.name}: {e}')
+
+    def __check_doc_dimension(
+        self, stats: 'EpisodeStats', doc: Dict[str, Any], field: str, expected: int, fname: str,
+        lnum: int,
+    ) -> None:
+        if field in doc and isinstance(doc[field], list):
+            actual = len(doc[field])
+            if actual != expected:
+                self._add_error(stats, f'{fname} line {lnum}: {field} has {actual} dim, expected {expected}')
+
+    def __get_dir(self, stats: 'EpisodeStats', subdir: str) -> Path:
+        return PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)
