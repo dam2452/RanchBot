@@ -3,7 +3,7 @@ from typing import (
     List,
 )
 
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 from preprocessor.services.characters.image_search.image_search import BaseImageSearch
 

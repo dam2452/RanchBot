@@ -130,7 +130,7 @@ class PipelineExecutor:
                 )
                 return False
 
-        if not step.supports_batch_processing():
+        if not step.supports_batch_processing:
             return False
 
         return True
