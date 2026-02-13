@@ -123,7 +123,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             is_upscaling: bool,
     ) -> Tuple[float, float, float, float]:
         source_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
-        target_bitrate = self.config.calculate_video_bitrate_mbps()
+        target_bitrate = self.config.video_bitrate_mbps
         minrate = self.config.calculate_minrate_mbps()
         maxrate = self.config.calculate_maxrate_mbps()
         bufsize = self.config.calculate_bufsize_mbps()
