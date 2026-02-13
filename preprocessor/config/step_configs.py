@@ -21,7 +21,7 @@ class TranscodeConfig(BaseModel):
     bitrate_reference_seconds: float = Field(gt=0)
     force_deinterlace: bool = False
     keyframe_interval_seconds: float = Field(gt=0)
-    max_parallel_episodes: int = Field(default=2, ge=1, le=10)
+    max_parallel_episodes: int = Field(default=3, ge=1, le=10)
     resolution: Resolution = Field(default=Resolution.R720P)
 
     @property
