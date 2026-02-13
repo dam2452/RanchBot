@@ -29,6 +29,29 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
     def name(self) -> str:
         return 'text_embedding'
 
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        if self.__model is None:
+            context.logger.info(f'Loading VLLM embedding model: {self.config.model_name}')
+            self.__model = EmbeddingModelWrapper(
+                self.config.model_name,
+                self.config.device,
+                self.config.batch_size,
+            )
+
+    def execute_batch(
+        self, input_data: List[TranscriptionData], context: ExecutionContext,
+    ) -> List[EmbeddingCollection]:
+        return self._execute_sequential(input_data, context, self.__execute_single)
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__model:
+            self.__model = None
+            context.logger.info('VLLM embedding model unloaded')
+
     def cleanup(self) -> None:
         if self.__model:
             self.__model = None
@@ -48,6 +71,27 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
             return self.__construct_embedding_collection(input_data, output_path, 0)
 
         self.__prepare_embedding_model()
+        context.logger.info(f'Generating text embeddings for {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        results = self.__process_text_embeddings(segments)
+        self.__save_embedding_results(results, output_path, input_data)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_embedding_collection(input_data, output_path, len(results))
+
+    def __execute_single(
+        self, input_data: TranscriptionData, context: ExecutionContext,
+    ) -> EmbeddingCollection:
+        output_path = self.__resolve_output_path(input_data, context)
+
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached text embeddings'):
+            return self.__load_cached_result(output_path, input_data)
+
+        segments = self.__extract_valid_segments(input_data, context)
+        if not segments:
+            return self.__construct_embedding_collection(input_data, output_path, 0)
+
         context.logger.info(f'Generating text embeddings for {input_data.episode_id}')
         context.mark_step_started(self.name, input_data.episode_id)
 

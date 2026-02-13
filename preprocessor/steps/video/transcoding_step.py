@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
+    List,
     Tuple,
 )
 
@@ -23,6 +24,17 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
     @property
     def name(self) -> str:
         return 'video_transcode'
+
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def execute_batch(
+        self, input_data: List[SourceVideo], context: ExecutionContext,
+    ) -> List[TranscodedVideo]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.execute,
+        )
 
     def execute(
             self, input_data: SourceVideo, context: ExecutionContext,

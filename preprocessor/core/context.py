@@ -7,6 +7,7 @@ from typing import (
 
 from preprocessor.config.config import Settings
 from preprocessor.config.settings_factory import SettingsFactory
+from preprocessor.core.model_pool import ModelPool
 from preprocessor.services.core.logging import ErrorHandlingLogger
 
 if TYPE_CHECKING:
@@ -22,14 +23,21 @@ class ExecutionContext:
             logger: ErrorHandlingLogger,
             state_manager: Optional['StateManager'] = None,
             force_rerun: bool = False,
+            disable_parallel: bool = False,
             settings_instance: Optional[Settings] = None,
     ) -> None:
         self.__series_name: str = series_name
         self.__base_output_dir: Path = base_output_dir / series_name
         self.__state_manager: Optional['StateManager'] = state_manager
         self.__force_rerun: bool = force_rerun
+        self.__disable_parallel: bool = disable_parallel
         self.__logger: ErrorHandlingLogger = logger
         self.__settings: Settings = settings_instance or SettingsFactory.get_settings()
+        self.__model_pool: ModelPool = ModelPool()
+
+    @property
+    def disable_parallel(self) -> bool:
+        return self.__disable_parallel
 
     @property
     def force_rerun(self) -> bool:
@@ -38,6 +46,10 @@ class ExecutionContext:
     @property
     def logger(self) -> ErrorHandlingLogger:
         return self.__logger
+
+    @property
+    def model_pool(self) -> ModelPool:
+        return self.__model_pool
 
     @property
     def series_name(self) -> str:

@@ -37,6 +37,17 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def name(self) -> str:
         return 'frame_export'
 
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def execute_batch(
+        self, input_data: List[SceneCollection], context: ExecutionContext,
+    ) -> List[FrameCollection]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.execute,
+        )
+
     def execute(
             self, input_data: SceneCollection, context: ExecutionContext,
     ) -> FrameCollection:

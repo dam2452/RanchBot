@@ -1,3 +1,5 @@
+from typing import List
+
 from preprocessor.config.step_configs import ValidationConfig
 from preprocessor.core.artifacts import (
     ElasticDocuments,
@@ -12,6 +14,17 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
     @property
     def name(self) -> str:
         return "validate"
+
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def execute_batch(
+        self, input_data: List[ElasticDocuments], context: ExecutionContext,
+    ) -> List[ValidationResult]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.execute,
+        )
 
     def execute(
         self,

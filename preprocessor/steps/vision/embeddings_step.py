@@ -29,6 +29,27 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
     def name(self) -> str:
         return 'video_embedding'
 
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        if self.__model is None:
+            context.logger.info(f'Loading VLLM embedding model: {self.config.model_name}')
+            self.__model = EmbeddingModelWrapper(self.config.model_name, self.config.device)
+            self.__model.load_model()
+
+    def execute_batch(
+        self, input_data: List[FrameCollection], context: ExecutionContext,
+    ) -> List[EmbeddingCollection]:
+        return self._execute_sequential(input_data, context, self.__execute_single)
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__model:
+            self.__model.cleanup()
+            self.__model = None
+            context.logger.info('VLLM embedding model unloaded')
+
     def cleanup(self) -> None:
         if self.__model:
             self.__model.cleanup()
@@ -47,6 +68,30 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
             return self.__construct_embedding_collection(input_data, output_path, 0)
 
         self.__prepare_embedding_model(context)
+        context.logger.info(
+            f'Generating video embeddings for {len(frame_requests)} frames in {input_data.episode_id}',
+        )
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        image_hashes = self.__fetch_image_hashes(input_data, context)
+        results = self.__generate_embeddings(frame_requests, input_data, image_hashes)
+        self.__save_embedding_results(results, output_path, input_data, image_hashes)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_embedding_collection(input_data, output_path, len(results))
+
+    def __execute_single(
+        self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> EmbeddingCollection:
+        output_path = self.__resolve_output_path(input_data, context)
+
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached video embeddings'):
+            return self.__load_cached_result(output_path, input_data)
+
+        frame_requests = self.__extract_frame_requests(input_data, context)
+        if not frame_requests:
+            return self.__construct_embedding_collection(input_data, output_path, 0)
+
         context.logger.info(
             f'Generating video embeddings for {len(frame_requests)} frames in {input_data.episode_id}',
         )

@@ -27,6 +27,41 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
     def name(self) -> str:
         return 'elasticsearch_indexing'
 
+    @property
+    def is_global(self) -> bool:
+        """Indexing is a global step - processes all episodes at once."""
+        return True
+
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        if self.__es is None:
+            context.logger.info(f'Initializing Elasticsearch client: {self.config.host}')
+            self.__es = ElasticsearchWrapper(
+                host=self.config.host,
+                index_name=self.config.index_name,
+            )
+
+    def execute_batch(
+        self, input_data: List[List[ElasticDocuments]], context: ExecutionContext,
+    ) -> List[IndexingResult]:
+        context.logger.info(f"Batch indexing {len(input_data)} document collections")
+
+        results = []
+        for docs in input_data:
+            result = asyncio.run(self.__execute_async(docs, context))
+            results.append(result)
+
+        return results
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__es:
+            asyncio.run(self.__es.close())
+            self.__es = None
+            context.logger.info('Elasticsearch client closed')
+
     def cleanup(self) -> None:
         if self.__es:
             asyncio.run(self.__es.close())

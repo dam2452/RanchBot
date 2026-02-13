@@ -21,6 +21,7 @@ class TranscodeConfig(BaseModel):
     bitrate_reference_seconds: float = Field(gt=0)
     force_deinterlace: bool = False
     keyframe_interval_seconds: float = Field(gt=0)
+    max_parallel_episodes: int = Field(default=3, ge=1, le=10)
     resolution: Resolution = Field(default=Resolution.R720P)
 
     @property
@@ -52,6 +53,7 @@ class TranscodeConfig(BaseModel):
 
 
 class SceneDetectionConfig(BaseModel):
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
     min_scene_len: int = Field(default=10, ge=1)
     threshold: float = Field(default=0.5, ge=0, le=1)
 
@@ -61,11 +63,13 @@ class FrameExportConfig(BaseModel):
 
     frames_per_scene: int = Field(default=3, ge=1)
     keyframe_strategy: KeyframeStrategy = KeyframeStrategy.SCENE_CHANGES
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
     resolution: Resolution = Field(default=Resolution.R720P)
 
 
 class TranscriptionConfig(BaseModel):
     language: str = 'pl'
+    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
     model: str = 'large-v3'
     output_formats: List[str] = ['json', 'srt', 'txt']
 
@@ -74,17 +78,20 @@ class WhisperTranscriptionConfig(BaseModel):
     beam_size: int = Field(default=10, ge=1)
     device: str = 'cuda'
     language: str = 'pl'
+    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
     model: str = 'large-v3-turbo'
     temperature: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class TextAnalysisConfig(BaseModel):
     language: str = 'pl'
+    max_parallel_episodes: int = Field(default=8, ge=1, le=16)
 
 
 class TextEmbeddingConfig(BaseModel):
     batch_size: int = Field(default=8, ge=1)
     device: str = 'cuda'
+    max_parallel_episodes: int = Field(default=1, ge=1, le=2)
     model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
     text_chunk_overlap: int = Field(default=1, ge=0)
     text_sentences_per_chunk: int = Field(default=5, ge=1)
@@ -93,19 +100,22 @@ class TextEmbeddingConfig(BaseModel):
 class VideoEmbeddingConfig(BaseModel):
     batch_size: int = Field(default=8, ge=1)
     device: str = 'cuda'
+    max_parallel_episodes: int = Field(default=1, ge=1, le=2)
     model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
 
 
 class SoundSeparationConfig(BaseModel):
-    pass
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
 
 
 class DocumentGenerationConfig(BaseModel):
     generate_segments: bool = True
+    max_parallel_episodes: int = Field(default=8, ge=1, le=16)
 
 
 class ImageHashConfig(BaseModel):
     batch_size: int = Field(default=32, ge=1)
+    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
 
 
 class TranscriptionImportConfig(BaseModel):
@@ -118,35 +128,38 @@ class ElasticsearchConfig(BaseModel):
     dry_run: bool = False
     host: str = 'localhost:9200'
     index_name: str
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
 
 
 class AudioExtractionConfig(BaseModel):
-    pass
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
 
 
 class CharacterDetectionConfig(BaseModel):
+    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
     threshold: float = Field(default=0.7, ge=0.0, le=1.0)
 
 
 class EmotionDetectionConfig(BaseModel):
-    pass
+    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
 
 
 class FaceClusteringConfig(BaseModel):
-    pass
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
 
 
 class ObjectDetectionConfig(BaseModel):
-    pass
+    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
 
 
 class ArchiveConfig(BaseModel):
-    pass
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
 
 
 class ValidationConfig(BaseModel):
     anomaly_threshold: float = 20.0
     episodes_info_json: Optional[Path] = None
+    max_parallel_episodes: int = Field(default=8, ge=1, le=16)
 
 
 class EpisodeScraperConfig(BaseModel):
@@ -169,5 +182,6 @@ class CharacterScraperConfig(BaseModel):
 class CharacterReferenceConfig(BaseModel):
     characters_file: str
     images_per_character: int = Field(default=5, ge=1, le=20)
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
     output_dir: str
     search_engine: str = "duckduckgo"

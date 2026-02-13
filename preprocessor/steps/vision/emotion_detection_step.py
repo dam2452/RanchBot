@@ -34,6 +34,51 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
     def cleanup(self) -> None:
         self.__model = None
 
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        if self.__model is None:
+            context.logger.info('Loading HSEmotion model...')
+            self.__model = EmotionDetector.init_model(context.logger)
+
+    def execute_batch(
+        self, input_data: List[FrameCollection], context: ExecutionContext,
+    ) -> List[EmotionData]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.__execute_single,
+        )
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__model:
+            context.logger.info('HSEmotion model unloaded')
+            self.__model = None
+
+    def __execute_single(
+        self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> EmotionData:
+        detections_path = self.__resolve_detections_path(input_data, context)
+
+        if self._check_cache_validity(detections_path, context, input_data.episode_id, 'cached emotion detection'):
+            return self.__construct_emotion_data(input_data, detections_path)
+
+        if not detections_path.exists():
+            context.logger.warning(
+                f'No character detections found for emotion analysis: {detections_path}',
+            )
+            return self.__construct_emotion_data(input_data, detections_path)
+
+        context.logger.info(f'Detecting emotions for {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        detections_data = FileOperations.load_json(detections_path)
+        self.__process_and_update_emotions(detections_data, input_data, context)
+        FileOperations.atomic_write_json(detections_path, detections_data)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_emotion_data(input_data, detections_path)
+
     def execute(self, input_data: FrameCollection, context: ExecutionContext) -> EmotionData:
         detections_path = self.__resolve_detections_path(input_data, context)
 

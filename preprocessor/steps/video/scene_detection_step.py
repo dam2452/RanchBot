@@ -26,6 +26,29 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
     def name(self) -> str:
         return 'scene_detection'
 
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        if not self.__model_loaded:
+            context.logger.info('Loading TransNetV2 model...')
+            self.__transnet.load_model()
+            self.__model_loaded = True
+
+    def execute_batch(
+        self, input_data: List[TranscodedVideo], context: ExecutionContext,
+    ) -> List[SceneCollection]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.__execute_single,
+        )
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__model_loaded:
+            self.__transnet.cleanup()
+            self.__model_loaded = False
+            context.logger.info('TransNetV2 model unloaded')
+
     def cleanup(self) -> None:
         if self.__model_loaded:
             self.__transnet.cleanup()
@@ -40,6 +63,23 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
             return self.__load_cached_result(output_path, input_data)
 
         self.__prepare_detection_environment(context)
+
+        context.logger.info(f'Detecting scenes in {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        scenes = self.__detect_scenes(input_data.path)
+        self.__save_detection_results(scenes, input_data.path, output_path)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return self.__construct_scene_collection(output_path, input_data, scenes)
+
+    def __execute_single(
+        self, input_data: TranscodedVideo, context: ExecutionContext,
+    ) -> SceneCollection:
+        output_path = self.__resolve_output_path(input_data, context)
+
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
+            return self.__load_cached_result(output_path, input_data)
 
         context.logger.info(f'Detecting scenes in {input_data.episode_id}')
         context.mark_step_started(self.name, input_data.episode_id)

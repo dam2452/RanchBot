@@ -32,6 +32,56 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         self.__face_app = None
         self.__character_vectors = {}
 
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        if self.__face_app is None:
+            context.logger.info('Loading Face Detection model...')
+            self.__face_app = FaceDetector.init()
+            self.__load_character_references(context)
+
+    def execute_batch(
+        self, input_data: List[FrameCollection], context: ExecutionContext,
+    ) -> List[DetectionResults]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.__execute_single,
+        )
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__face_app:
+            context.logger.info('Face Detection model unloaded')
+            self.__face_app = None
+            self.__character_vectors = {}
+
+    def __execute_single(
+        self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> DetectionResults:
+        output_path = self.__resolve_output_path(input_data, context)
+
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached character detections'):
+            return self.__load_cached_result(output_path, input_data)
+
+        context.logger.info(f'Detecting characters in {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        frame_files = self.__extract_frame_files(input_data)
+        if not frame_files:
+            return self.__construct_empty_result(output_path, input_data, context)
+
+        results = self.__process_character_detection(frame_files)
+        self.__save_detection_results(results, output_path, input_data, context, frame_files)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return DetectionResults(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=output_path,
+            detection_type='character',
+            detection_count=len(results),
+        )
+
     def execute(
         self, input_data: FrameCollection, context: ExecutionContext,
     ) -> DetectionResults:

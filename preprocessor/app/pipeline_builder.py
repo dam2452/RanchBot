@@ -110,6 +110,34 @@ class PipelineExecutor:
         self, step: PipelineStep, current_artifacts: List[Any],
     ) -> List[Any]:
         self.__context.logger.info(f"=== Running Step: {step.name} ===")
+
+        if self.__should_use_batch_processing(step):
+            return self.__run_episode_step_batch(step, current_artifacts)
+        return self.__run_episode_step_sequential(step, current_artifacts)
+
+    def __should_use_batch_processing(self, step: PipelineStep) -> bool:
+
+        if self.__context.disable_parallel:
+            self.__context.logger.info(
+                f"Batch processing disabled globally for {step.name}",
+            )
+            return False
+
+        if hasattr(step.config, 'enable_parallel'):
+            if not step.config.enable_parallel:
+                self.__context.logger.info(
+                    f"Batch processing disabled by config for {step.name}",
+                )
+                return False
+
+        if not step.supports_batch_processing():
+            return False
+
+        return True
+
+    def __run_episode_step_sequential(
+        self, step: PipelineStep, current_artifacts: List[Any],
+    ) -> List[Any]:
         next_artifacts = []
 
         for artifact in current_artifacts:
@@ -138,6 +166,48 @@ class PipelineExecutor:
                 raise
 
         return next_artifacts
+
+    def __run_episode_step_batch(
+        self, step: PipelineStep, current_artifacts: List[Any],
+    ) -> List[Any]:
+        artifacts_to_process = []
+        next_artifacts = []
+
+        for artifact in current_artifacts:
+            episode_id = artifact.episode_id
+            if self.__should_skip_step(step.name, episode_id):
+                self.__context.logger.info(
+                    f"Skipping {step.name} for {episode_id} (already completed)",
+                )
+                next_artifacts.append(artifact)
+            else:
+                artifacts_to_process.append(artifact)
+
+        if not artifacts_to_process:
+            return next_artifacts
+
+        self.__context.logger.info(
+            f"Processing {len(artifacts_to_process)} episodes with batch processing",
+        )
+
+        try:
+            if hasattr(step, 'setup_resources'):
+                step.setup_resources(self.__context)
+
+            for artifact in artifacts_to_process:
+                self.__mark_step_in_progress(step.name, artifact.episode_id)
+
+            results = step.execute_batch(artifacts_to_process, self.__context)
+
+            for artifact, result in zip(artifacts_to_process, results):
+                self.__mark_step_completed(step.name, artifact.episode_id)
+                next_artifacts.append(result or artifact)
+
+            return next_artifacts
+
+        finally:
+            if hasattr(step, 'teardown_resources'):
+                step.teardown_resources(self.__context)
 
     def __mark_step_completed(self, step_name: str, episode_id: str) -> None:
         if self.__context.state_manager is None:
