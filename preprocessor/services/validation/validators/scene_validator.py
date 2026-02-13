@@ -30,7 +30,8 @@ class SceneValidator(BaseValidator):
         if data:
             self.__extract_scene_stats(stats, data)
 
-    def __resolve_scenes_file(self, stats: 'EpisodeStats') -> Path:
+    @staticmethod
+    def __resolve_scenes_file(stats: 'EpisodeStats') -> Path:
         scenes_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.scenes,
         )
@@ -44,7 +45,8 @@ class SceneValidator(BaseValidator):
             return False
         return True
 
-    def __extract_scene_stats(self, stats: 'EpisodeStats', data: Dict[str, Any]) -> None:
+    @staticmethod
+    def __extract_scene_stats(stats: 'EpisodeStats', data: Dict[str, Any]) -> None:
         stats.scenes_count = data.get('total_scenes', 0)
         scenes: List[Dict[str, Any]] = data.get('scenes', [])
 

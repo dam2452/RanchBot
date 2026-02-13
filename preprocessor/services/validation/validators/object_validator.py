@@ -16,7 +16,8 @@ class ObjectValidator(BaseValidator):
         self.__validate_object_detections(stats)
         self.__validate_object_visualizations(stats)
 
-    def __validate_object_detections(self, stats: 'EpisodeStats') -> None:
+    @staticmethod
+    def __validate_object_detections(stats: 'EpisodeStats') -> None:
         JsonDirectoryValidationHelper.validate_json_directory(
             stats,
             settings.output_subdirs.object_detections,
@@ -25,7 +26,8 @@ class ObjectValidator(BaseValidator):
             exclude_pattern='visualizations',
         )
 
-    def __validate_object_visualizations(self, stats: 'EpisodeStats') -> None:
+    @staticmethod
+    def __validate_object_visualizations(stats: 'EpisodeStats') -> None:
         VisualizationValidationHelper.validate_visualizations(
             stats,
             settings.output_subdirs.object_visualizations,

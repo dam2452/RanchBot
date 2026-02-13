@@ -10,4 +10,5 @@ class KeyframeStrategyFactory:
     ) -> BaseKeyframeStrategy:
         if strategy_type == KeyframeStrategy.SCENE_CHANGES:
             return SceneChangesStrategy(frames_per_scene=frames_per_scene)
-        raise ValueError(f'Unknown keyframe strategy: {strategy_type}')
+
+        raise ValueError(f"Unknown strategy type: {strategy_type}")

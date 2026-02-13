@@ -7,6 +7,7 @@ from typing import (
 )
 
 from preprocessor.config.enums import FrameType
+from preprocessor.config.types import FrameRequest
 from preprocessor.services.ui.console import console
 from preprocessor.services.video.strategies.base_strategy import BaseKeyframeStrategy
 
@@ -17,7 +18,7 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
 
     def extract_frame_requests(
         self, video_path: Path, data: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+    ) -> List[FrameRequest]:
         scenes = self.__extract_scenes(data)
         if not scenes:
             console.print('[yellow]No scene timestamps found[/yellow]')
@@ -28,15 +29,15 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
 
     def __process_all_scenes(
         self, scenes: List[Dict[str, Any]], fps: float,
-    ) -> List[Dict[str, Any]]:
-        frame_requests: List[Dict[str, Any]] = []
+    ) -> List[FrameRequest]:
+        frame_requests: List[FrameRequest] = []
         for i, scene in enumerate(scenes):
             frame_requests.extend(self.__process_single_scene(scene, i, fps))
         return frame_requests
 
     def __process_single_scene(
         self, scene: Dict[str, Any], scene_index: int, fps: float,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[FrameRequest]:
         start_frame = scene.get('start', {}).get('frame', 0)
         frame_count = scene.get('frame_count', 1)
 
@@ -51,8 +52,8 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
 
     def __generate_multi_frame_requests(
         self, start_frame: int, frame_count: int, scene_index: int, fps: float,
-    ) -> List[Dict[str, Any]]:
-        requests: List[Dict[str, Any]] = []
+    ) -> List[FrameRequest]:
+        requests: List[FrameRequest] = []
         for frame_idx in range(self.__frames_per_scene):
             frame_number = self.__calculate_frame_number(
                 start_frame, frame_count, frame_idx,
@@ -93,8 +94,8 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
     @staticmethod
     def __create_request(
         frame: int, fps: float, type_name: str, scene_num: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        req: Dict[str, Any] = {
+    ) -> FrameRequest:
+        req: FrameRequest = {
             'frame_number': int(frame),
             'timestamp': float(frame / fps),
             'type': type_name,

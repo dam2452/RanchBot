@@ -15,7 +15,11 @@ from preprocessor.config.enums import (
 )
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.ai import LLMProvider
-from preprocessor.services.core.base_processor import BaseProcessor
+from preprocessor.services.core.base_processor import (
+    BaseProcessor,
+    OutputSpec,
+    ProcessingItem,
+)
 from preprocessor.services.scraping.clipboard import ScraperClipboard
 from preprocessor.services.scraping.crawl4ai import ScraperCrawl4AI
 from preprocessor.services.ui.console import console
@@ -98,3 +102,23 @@ class BaseScraper(BaseProcessor):
             )
 
         return None
+
+    def get_output_subdir(self) -> str:
+        return 'scraper'
+
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        return []
+
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        return []
+
+    def _process_item(
+            self, item: ProcessingItem, missing_outputs: List[OutputSpec],
+    ) -> None:
+        pass
+
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        if 'urls' not in args:
+            raise ValueError("Missing required argument: 'urls'")
+        if 'output_file' not in args:
+            raise ValueError("Missing required argument: 'output_file'")

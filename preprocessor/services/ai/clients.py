@@ -80,7 +80,7 @@ class GeminiClient(BaseLLMClient):
 
         response = self.__client.chat.completions.create(
             model=self.__GEMINI_MODEL_NAME,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
         )
         return response.choices[0].message.content.strip()
 

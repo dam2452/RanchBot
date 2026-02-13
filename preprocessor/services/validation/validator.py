@@ -112,7 +112,8 @@ class Validator:
         self.__print_anomalies(comparison)
         self.__print_issues(stats)
 
-    def __build_episode_report_payload(self, stats: EpisodeStats) -> Dict[str, Any]:
+    @staticmethod
+    def __build_episode_report_payload(stats: EpisodeStats) -> Dict[str, Any]:
         return {
             'validation_timestamp': datetime.now().isoformat(),
             'episode_id': stats.episode_info.episode_code(),
@@ -123,7 +124,8 @@ class Validator:
             'stats': stats.to_dict()['stats'],
         }
 
-    def __print_status_counts(self, stats: Dict[str, EpisodeStats]) -> None:
+    @staticmethod
+    def __print_status_counts(stats: Dict[str, EpisodeStats]) -> None:
         counts = {'PASS': 0, 'WARNING': 0, 'FAIL': 0}
         for s in stats.values():
             counts[s.status] += 1
@@ -131,7 +133,8 @@ class Validator:
         console.print(f'  [yellow]WARNING:[/yellow] {counts["WARNING"]}')
         console.print(f'  [red]FAIL:[/red] {counts["FAIL"]}')
 
-    def __print_anomalies(self, comparison: SeasonComparison) -> None:
+    @staticmethod
+    def __print_anomalies(comparison: SeasonComparison) -> None:
         if not comparison.anomalies:
             return
         console.print(f'\n[bold yellow]Anomalies detected: {len(comparison.anomalies)}[/bold yellow]')

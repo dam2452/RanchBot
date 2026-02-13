@@ -72,7 +72,8 @@ class SimpleProgress:
             self.__render_progress(task_id)
             task['last_print_time'] = current_time
 
-    def __should_render(self, task: Dict[str, Any], current_time: float) -> bool:
+    @staticmethod
+    def __should_render(task: Dict[str, Any], current_time: float) -> bool:
         is_finished = task['completed'] >= task['total']
         is_second_passed = (current_time - task['last_print_time']) >= 1.0
         return is_finished or is_second_passed
@@ -95,7 +96,8 @@ class SimpleProgress:
             highlight=False,
         )
 
-    def __compute_task_eta(self, task: Dict[str, Any]) -> str:
+    @staticmethod
+    def __compute_task_eta(task: Dict[str, Any]) -> str:
         completed = task['completed']
         total = task['total']
 
@@ -108,7 +110,8 @@ class SimpleProgress:
         eta_seconds = (elapsed / completed) * (total - completed)
         return TimeFormatter.format_hms(eta_seconds)
 
-    def __build_visual_bar(self, completed: int, total: int, width: int = 30) -> str:
+    @staticmethod
+    def __build_visual_bar(completed: int, total: int, width: int = 30) -> str:
         if total <= 0:
             return '-' * width
 

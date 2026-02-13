@@ -51,14 +51,16 @@ class TranscriptionValidator(BaseValidator):
         stats.transcription_words = len(text.split())
         stats.transcription_duration = self.__determine_duration(data)
 
-    def __get_full_text(self, data: Dict[str, Any]) -> str:
+    @staticmethod
+    def __get_full_text(data: Dict[str, Any]) -> str:
         text = data.get('text', '')
         if not text:
             segments: List[Dict[str, Any]] = data.get('segments', [])
             text = ' '.join(s.get('text', '') for s in segments)
         return text
 
-    def __determine_duration(self, data: Dict[str, Any]) -> float:
+    @staticmethod
+    def __determine_duration(data: Dict[str, Any]) -> float:
         words: List[Dict[str, Any]] = data.get('words', [])
         if words:
             return words[-1].get('end', 0.0)
@@ -86,7 +88,8 @@ class TranscriptionValidator(BaseValidator):
             invalid_msg_prefix='Invalid sound events JSON',
         )
 
-    def __resolve_file_map(self, stats: 'EpisodeStats') -> Dict[str, Path]:
+    @staticmethod
+    def __resolve_file_map(stats: 'EpisodeStats') -> Dict[str, Path]:
         path_svc = PathService(stats.series_name)
         trans_dir = path_svc.get_episode_dir(stats.episode_info, settings.output_subdirs.transcriptions)
         base = f'{stats.series_name}_{stats.episode_info.episode_code()}'

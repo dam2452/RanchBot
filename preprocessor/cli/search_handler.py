@@ -66,11 +66,12 @@ class SearchCommandHandler:
         if self.__json_output:
             return json.dumps(result, indent=2)
 
-        output = ["\nStatystyki:"]
-        output.append(f"  Segments: {result['segments']:,}")
-        output.append(f"  Text Embeddings: {result['text_embeddings']:,}")
-        output.append(f"  Video Embeddings: {result['video_embeddings']:,}")
-        output.append(f"  Episode Names: {result['episode_names']:,}")
+        output = [
+            "\nStatystyki:", f"  Segments: {result['segments']:,}",
+            f"  Text Embeddings: {result['text_embeddings']:,}",
+            f"  Video Embeddings: {result['video_embeddings']:,}",
+            f"  Episode Names: {result['episode_names']:,}",
+        ]
         return "\n".join(output)
 
     async def handle_list_characters(self) -> str:

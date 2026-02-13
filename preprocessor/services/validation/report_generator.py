@@ -33,7 +33,8 @@ class ReportGenerator:
         self.__write_to_disk(report, output_path)
         return report
 
-    def __write_to_disk(self, data: Dict[str, Any], path: Path) -> None:
+    @staticmethod
+    def __write_to_disk(data: Dict[str, Any], path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)

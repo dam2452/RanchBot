@@ -1,12 +1,10 @@
 import asyncio
 from pathlib import Path
 import sys
-from typing import (
-    Callable,
-    Tuple,
-)
+from typing import Tuple
 
 import click
+from click import Command
 from elasticsearch import AsyncElasticsearch
 
 from preprocessor.app.pipeline_builder import PipelineExecutor
@@ -82,7 +80,7 @@ def __run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
         setup.logger.finalize()
 
 
-def __create_step_command(step_id: str, step_description: str) -> Callable:
+def __create_step_command(step_id: str, step_description: str) -> Command:
     @click.command(name=step_id.replace("_", "-"), help=f"{step_description}")
     @click.option("--series", required=True, help="Series name (e.g., ranczo)")
     @click.option("--force-rerun", is_flag=True, help="Force rerun even if cached")

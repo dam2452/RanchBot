@@ -1,5 +1,8 @@
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+)
 
 from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.services.core.environment import Environment
@@ -16,7 +19,7 @@ class PathService:
         self,
         episode_info: 'EpisodeInfo',
         extension: str = 'json',
-        suffix: str = '',
+        suffix: Optional[str] = None,
     ) -> str:
         base = f'{self.__series_name}_{episode_info.episode_code()}'
         suffix_str = f'_{suffix}' if suffix else ''

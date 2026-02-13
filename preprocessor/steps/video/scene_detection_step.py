@@ -69,7 +69,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
             video_path: Path,
             output_path: Path,
     ) -> None:
-        video_info = self.__transnet._TransNetWrapper__get_video_info(video_path)
+        video_info = self.__transnet.get_video_info(video_path)
         output_data = self.__build_results_payload(scenes, video_info)
         FileOperations.atomic_write_json(output_path, output_data)
 

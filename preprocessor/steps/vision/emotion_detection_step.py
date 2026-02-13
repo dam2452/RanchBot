@@ -60,7 +60,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
 
     def __prepare_emotion_model(self, context: ExecutionContext) -> None:
         if self.__model is None:
-            self.__model = EmotionDetector._init_model(context.logger)
+            self.__model = EmotionDetector.init_model(context.logger)
 
     def __process_and_update_emotions(
         self,
@@ -79,7 +79,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
             return
 
         context.logger.info(f'Processing {len(face_crops)} faces with HSEmotion model')
-        emotion_results = EmotionDetector._detect_batch(
+        emotion_results = EmotionDetector.detect_batch(
             face_crops, self.__model, batch_size=32, logger=context.logger,
         )
 
@@ -136,7 +136,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
                 if not bbox:
                     continue
 
-                face_crop = EmotionDetector._crop_face(frame, bbox)
+                face_crop = EmotionDetector.crop_face(frame, bbox)
                 if face_crop is None:
                     continue
 

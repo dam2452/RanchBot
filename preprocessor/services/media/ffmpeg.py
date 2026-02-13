@@ -8,6 +8,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Union,
 )
 
 from preprocessor.services.media.transcode_params import TranscodeParams
@@ -30,7 +31,7 @@ class FFmpegWrapper:
             video_path: Path,
             analysis_time: Optional[int] = 60,
             threshold: float = 0.15,
-    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    ) -> Tuple[bool, Optional[Dict[str, Union[int, float]]]]:
         cmd = ['ffmpeg']
 
         if analysis_time is not None:
@@ -126,17 +127,17 @@ class FFmpegWrapper:
     def get_sample_aspect_ratio(probe_data: Dict[str, Any]) -> Tuple[int, int]:
         stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
         if not stream:
-            return (1, 1)
+            return 1, 1
 
         sar = stream.get('sample_aspect_ratio', '1:1')
         if sar == '0:1' or not sar:
-            return (1, 1)
+            return 1, 1
 
         try:
             num, denom = [int(x) for x in sar.split(':')]
-            return (num, denom)
+            return num, denom
         except (ValueError, AttributeError):
-            return (1, 1)
+            return 1, 1
 
     @staticmethod
     def get_field_order(probe_data: Dict[str, Any]) -> str:
@@ -304,7 +305,7 @@ class FFmpegWrapper:
         return streams[0] if streams else None
 
     @staticmethod
-    def __parse_idet_output(stderr: str) -> Optional[Dict[str, int]]:
+    def __parse_idet_output(stderr: str) -> Optional[Dict[str, Union[int, float]]]:
         matches = re.findall(
             r'Multi frame detection:\s+TFF:\s*(\d+)\s+BFF:\s*(\d+)\s+Progressive:\s*(\d+)',
             stderr,

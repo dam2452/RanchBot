@@ -127,7 +127,7 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
     ) -> None:
         output_data: Dict[str, Any] = MetadataBuilder.create_processing_metadata(
             episode_info=input_data.episode_info,
-            processing_params=self.config.dict(),
+            processing_params=self.config.model_dump(),
             statistics={
                 'total_embeddings': len(results),
                 'embedding_dimension': len(results[0]['embedding']) if results else 0,

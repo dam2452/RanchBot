@@ -114,7 +114,7 @@ class WhisperSettings:
     model: str = 'large-v3-turbo'
 
     @classmethod
-    def _from_env(cls) -> 'WhisperSettings':
+    def from_env(cls) -> 'WhisperSettings':
         return cls(model=os.getenv('WHISPER_MODEL', 'large-v3-turbo'))
 
 
@@ -134,7 +134,7 @@ class ElevenLabsSettings(BaseAPISettings):
     polling_interval: int = 20
 
     @classmethod
-    def _from_env(cls) -> 'ElevenLabsSettings':
+    def from_env(cls) -> 'ElevenLabsSettings':
         api_key = None
         if os.getenv('ELEVEN_API_KEY'):
             api_key = SecretStr(os.getenv('ELEVEN_API_KEY', ''))
@@ -186,7 +186,7 @@ class EmotionDetectionSettings:
     model_name: str = 'enet_b2_8'
 
     @classmethod
-    def _from_env(cls) -> 'EmotionDetectionSettings':
+    def from_env(cls) -> 'EmotionDetectionSettings':
         model_name = os.getenv('EMOTION_MODEL_NAME', 'enet_b2_8')
         return cls(model_name=model_name)
 
@@ -231,7 +231,7 @@ class ImageScraperSettings(BaseAPISettings):
         return self.api_key
 
     @classmethod
-    def _from_env(cls) -> 'ImageScraperSettings':
+    def from_env(cls) -> 'ImageScraperSettings':
         api_key = None
         if os.getenv('SERPAPI_API_KEY'):
             api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
@@ -250,7 +250,7 @@ class ElasticsearchSettings:
     user: str = ''
 
     @classmethod
-    def _from_env(cls) -> 'ElasticsearchSettings':
+    def from_env(cls) -> 'ElasticsearchSettings':
         return cls(
             host=os.getenv('ES_HOST', ''),
             user=os.getenv('ES_USER', ''),
@@ -261,7 +261,7 @@ class ElasticsearchSettings:
 @dataclass(frozen=True)
 class GeminiSettings(BaseAPISettings):
     @classmethod
-    def _from_env(cls) -> 'GeminiSettings':
+    def from_env(cls) -> 'GeminiSettings':
         api_key = None
         if os.getenv('GEMINI_API_KEY'):
             api_key = SecretStr(os.getenv('GEMINI_API_KEY', ''))
@@ -293,10 +293,10 @@ class Settings:  # pylint: disable=too-many-instance-attributes
     whisper: WhisperSettings
 
     @classmethod
-    def _from_env(cls) -> 'Settings':
+    def from_env(cls) -> 'Settings':
         return cls(
             output_subdirs=OutputSubdirs(),
-            whisper=WhisperSettings._from_env(),
+            whisper=WhisperSettings.from_env(),
             text_chunking=TextChunkingSettings(),
             embedding_model=EmbeddingModelSettings(),
             embedding=EmbeddingSettings(),
@@ -309,11 +309,11 @@ class Settings:  # pylint: disable=too-many-instance-attributes
             object_detection=ObjectDetectionSettings(),
             face_recognition=FaceRecognitionSettings(),
             face_clustering=FaceClusteringSettings(),
-            emotion_detection=EmotionDetectionSettings._from_env(),
-            image_scraper=ImageScraperSettings._from_env(),
-            elevenlabs=ElevenLabsSettings._from_env(),
-            elasticsearch=ElasticsearchSettings._from_env(),
-            gemini=GeminiSettings._from_env(),
+            emotion_detection=EmotionDetectionSettings.from_env(),
+            image_scraper=ImageScraperSettings.from_env(),
+            elevenlabs=ElevenLabsSettings.from_env(),
+            elasticsearch=ElasticsearchSettings.from_env(),
+            gemini=GeminiSettings.from_env(),
             transcode=TranscodeSettings(),
             transcription=TranscriptionSettings(),
         )

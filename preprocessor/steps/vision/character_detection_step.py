@@ -103,7 +103,7 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         output_data: Dict[str, Any] = {
             'episode_id': input_data.episode_id,
             'series_name': context.series_name,
-            'detection_settings': self.config.dict(),
+            'detection_settings': self.config.model_dump(),
             'statistics': {
                 'total_frames_processed': len(frame_files),
                 'frames_with_detections': len(results),

@@ -120,5 +120,6 @@ class ElasticValidator(BaseValidator):
             if actual != expected:
                 self._add_error(stats, f'{fname} line {lnum}: {field} has {actual} dim, expected {expected}')
 
-    def __get_dir(self, stats: 'EpisodeStats', subdir: str) -> Path:
+    @staticmethod
+    def __get_dir(stats: 'EpisodeStats', subdir: str) -> Path:
         return PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)

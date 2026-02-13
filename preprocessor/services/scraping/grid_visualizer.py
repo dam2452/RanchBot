@@ -84,7 +84,8 @@ class CharacterGridVisualizer:
             'avg_similarity': avg_similarity,
         }
 
-    def __empty_result(self) -> Dict[str, Any]:
+    @staticmethod
+    def __empty_result() -> Dict[str, Any]:
         return {
             'width': 0,
             'height': 0,
@@ -92,7 +93,8 @@ class CharacterGridVisualizer:
             'avg_similarity': 0.0,
         }
 
-    def __get_processed_characters(self, dir_path: Path) -> List[Path]:
+    @staticmethod
+    def __get_processed_characters(dir_path: Path) -> List[Path]:
         return sorted([d for d in dir_path.iterdir() if d.is_dir()])
 
     def __create_canvas(self, num_chars: int) -> np.ndarray:
@@ -238,7 +240,7 @@ class CharacterGridVisualizer:
             if face_img is None:
                 continue
 
-            face_resized = CharacterGridVisualizer._safe_resize(
+            face_resized = CharacterGridVisualizer.safe_resize(
                 face_img,
                 (self.__dims.face_size, self.__dims.face_size),
             )
@@ -317,7 +319,7 @@ class CharacterGridVisualizer:
         return float(np.mean([m.get('average_similarity', 0) for m in metadata_all]))
 
     @staticmethod
-    def _safe_resize(img: np.ndarray, target_size: Tuple[int, int]) -> Optional[np.ndarray]:
+    def safe_resize(img: np.ndarray, target_size: Tuple[int, int]) -> Optional[np.ndarray]:
         if img is None or img.size == 0:
             return None
         if img.shape[0] == 0 or img.shape[1] == 0:

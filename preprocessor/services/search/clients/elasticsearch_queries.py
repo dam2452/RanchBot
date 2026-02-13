@@ -102,7 +102,8 @@ class ElasticsearchQueries:
         }
         return await es_client.search(index=index, knn=knn, size=limit)
 
-    def __build_episode_filters(self, season: Optional[int], episode: Optional[int]) -> List[Dict[str, Any]]:
+    @staticmethod
+    def __build_episode_filters(season: Optional[int], episode: Optional[int]) -> List[Dict[str, Any]]:
         filters = []
         if season is not None:
             filters.append({'term': {'episode_metadata.season': season}})
@@ -123,7 +124,8 @@ class ElasticsearchQueries:
             },
         }
 
-    async def __list_nested_terms(self, es_client: AsyncElasticsearch, index: str, path: str, field: str) -> List[
+    @staticmethod
+    async def __list_nested_terms(es_client: AsyncElasticsearch, index: str, path: str, field: str) -> List[
         Tuple[str, int]
     ]:
         result = await es_client.search(

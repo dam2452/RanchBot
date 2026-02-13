@@ -43,8 +43,8 @@ class PipelineExecutor:
         self.__context.logger.info(f"Step: {step_id}")
         self.__context.logger.info(f"{step_def.description}")
 
-        StepClass = step_def.load_class()
-        instance = StepClass(step_def.config)
+        step_class = step_def.load_class()
+        instance = step_class(step_def.config)
 
         runner = PipelineExecutor(self.__context)
         runner.add_step(instance)

@@ -76,7 +76,8 @@ class AudioNormalizer:
         tmp_output.replace(output)
         self.__logger.info(f'Normalization complete: {output.name}')
 
-    def __extract_audio(self, video: Path, audio_idx: int, output: Path) -> None:
+    @staticmethod
+    def __extract_audio(video: Path, audio_idx: int, output: Path) -> None:
         cmd = [
             'ffmpeg', '-y', '-i', str(video), '-map', f'0:{audio_idx}',
             '-acodec', 'pcm_s16le', '-ar', '48000', '-ac', '1', str(output),

@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
+    Literal,
     Optional,
 )
 
@@ -20,7 +21,7 @@ class MultiFormatGenerator:
             self,
             jsons_dir: Path,
             episodes_info_json: Path,
-            output_base_path: Path,  # pylint: disable=unused-argument
+            _output_base_path: Path,
             logger: ErrorHandlingLogger,
             series_name: str = '',
     ) -> None:
@@ -65,7 +66,10 @@ class MultiFormatGenerator:
         self.__save_srt(transcription, episode_info, base_dir)
         self.__save_txt(transcription, episode_info, base_dir)
 
-    def __save_json(self, data: Dict[str, Any], ep_info: Any, out_dir: Path, fmt: str) -> None:
+    def __save_json(
+            self, data: Dict[str, Any], ep_info: Any, out_dir: Path,
+            fmt: Literal['full', 'simple', 'segmented'],
+    ) -> None:
         gen = JsonGenerator(fmt, Path(''), out_dir, self.__logger)
         filename = self.__episode_manager.path_manager.build_filename(
             ep_info, extension='json', suffix=fmt if fmt != 'full' else None,

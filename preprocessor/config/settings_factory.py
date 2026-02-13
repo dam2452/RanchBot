@@ -9,7 +9,7 @@ class SettingsFactory:
     @classmethod
     def get_settings(cls) -> Settings:
         if cls.__instance is None:
-            cls.__instance = Settings._from_env()
+            cls.__instance = Settings.from_env()
         return cls.__instance
 
     @classmethod

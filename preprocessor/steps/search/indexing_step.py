@@ -149,6 +149,6 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
 
     @staticmethod
     def __get_mapping_for_type(
-        doc_type: str,  # pylint: disable=unused-argument
+        _doc_type: str,
     ) -> Optional[Dict[str, Any]]:
         return None

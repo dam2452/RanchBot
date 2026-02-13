@@ -26,7 +26,8 @@ class VideoValidator(BaseValidator):
 
         self.__populate_video_metrics(stats, result.metadata)
 
-    def __resolve_video_file_path(self, stats: 'EpisodeStats') -> Path:
+    @staticmethod
+    def __resolve_video_file_path(stats: 'EpisodeStats') -> Path:
         filename = f'{stats.series_name.lower()}_{stats.episode_info.episode_code()}{DEFAULT_VIDEO_EXTENSION}'
         season_dir = (
             get_base_output_dir(stats.series_name) /
@@ -35,7 +36,8 @@ class VideoValidator(BaseValidator):
         )
         return season_dir / filename
 
-    def __populate_video_metrics(self, stats: 'EpisodeStats', metadata: dict) -> None:
+    @staticmethod
+    def __populate_video_metrics(stats: 'EpisodeStats', metadata: dict) -> None:
         stats.video_size_mb = metadata['size_mb']
         stats.video_duration = metadata['duration']
         stats.video_codec = metadata['codec']

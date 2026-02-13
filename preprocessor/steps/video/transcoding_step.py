@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 from typing import (
     Any,
@@ -206,21 +207,19 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         temp_path = params.output_path.with_suffix('.mp4.tmp')
         final_path = params.output_path
 
-        params.output_path = temp_path
+        temp_params = replace(params, output_path=temp_path)
         context.mark_step_started(self.name, episode_id, [str(temp_path)])
 
         try:
-            if params.log_command:
+            if temp_params.log_command:
                 self.__log_ffmpeg_command_header(context)
 
-            FFmpegWrapper.transcode(params)
+            FFmpegWrapper.transcode(temp_params)
             temp_path.replace(final_path)
         except BaseException:
             if temp_path.exists():
                 temp_path.unlink()
             raise
-        finally:
-            params.output_path = final_path
 
     def __construct_result_artifact(
             self,

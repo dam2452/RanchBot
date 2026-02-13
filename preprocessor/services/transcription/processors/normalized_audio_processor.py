@@ -47,8 +47,7 @@ class NormalizedAudioProcessor:
 
     def cleanup(self) -> None:
         self.__logger.info('Purging GPU memory and unloading Whisper model...')
-        if hasattr(self, '_NormalizedAudioProcessor__whisper_model'):
-            del self.__whisper_model
+        del self.__whisper_model
 
         gc.collect()
         if torch.cuda.is_available():
@@ -87,7 +86,8 @@ class NormalizedAudioProcessor:
         except Exception as e:
             self.__logger.error(f'Whisper error on {audio_path.name}: {e}')
 
-    def __save_results(self, result: dict, path: Path) -> None:
+    @staticmethod
+    def __save_results(result: dict, path: Path) -> None:
         for segment in result.get('segments', []):
             segment['temperature'] = 0.0
 

@@ -47,7 +47,8 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
             total_files=len(video_info), upscaling_percentage=upscaling_pct,
         )
 
-    def __log_analysis_header(self, context: ExecutionContext) -> None:
+    @staticmethod
+    def __log_analysis_header(context: ExecutionContext) -> None:
         context.logger.info('=' * 80)
         context.logger.info('RESOLUTION ANALYSIS - Checking source video resolutions')
         context.logger.info('=' * 80)
@@ -121,7 +122,8 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
             f'({self.__get_resolution_label(target_width, target_height)})',
         )
 
-    def __log_upscaling_warnings(self, context: ExecutionContext, upscaling_pct: float) -> None:
+    @staticmethod
+    def __log_upscaling_warnings(context: ExecutionContext, upscaling_pct: float) -> None:
         if upscaling_pct > 50:
             context.logger.warning('')
             context.logger.warning('⚠' * 30)
@@ -139,8 +141,8 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
                 '(enhanced quality params will be used)',
             )
 
+    @staticmethod
     def __log_interlacing_analysis(
-            self,
             context: ExecutionContext,
             progressive_count: int,
             needs_deinterlace_count: int,
@@ -158,7 +160,8 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
             f'({(needs_deinterlace_count / total_episodes) * 100:.1f}%)',
         )
 
-    def __log_metadata_warnings(self, context: ExecutionContext, mismatch_count: int) -> None:
+    @staticmethod
+    def __log_metadata_warnings(context: ExecutionContext, mismatch_count: int) -> None:
         if mismatch_count > 0:
             context.logger.warning('')
             context.logger.warning(

@@ -35,13 +35,13 @@ class FaceClusterValidator(BaseValidator):
         if data:
             self.__parse_cluster_stats(stats, data)
 
-    def __get_metadata_file(self, clusters_dir: Path) -> Optional[Path]:
+    @staticmethod
+    def __get_metadata_file(clusters_dir: Path) -> Optional[Path]:
         files = list(clusters_dir.glob('*_face_clusters.json'))
         return files[0] if files else None
 
     def __parse_cluster_stats(self, stats: 'EpisodeStats', data: Dict[str, Any]) -> None:
         clusters = data.get('clusters', {})
-        total_faces = 0
 
         if isinstance(clusters, (dict, list)):
             stats.face_clusters_count = len(clusters)

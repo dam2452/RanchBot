@@ -104,7 +104,7 @@ class CharacterReferenceProcessor(BaseProcessor):
             console.print(f'[yellow]Skipping {char_name}: no faces detected[/yellow]')
             return
 
-        selected_faces = self.__find_common_face(all_faces, char_name, ref_images)
+        selected_faces = self.__find_common_face(all_faces)
         if not selected_faces:
             console.print(f'[yellow]Skipping {char_name}: could not identify common face[/yellow]')
             return
@@ -154,8 +154,6 @@ class CharacterReferenceProcessor(BaseProcessor):
     def __find_common_face(
             self,
             all_faces: List[List[FaceData]],
-            char_name: str,  # pylint: disable=unused-argument
-            ref_images: List[Path],  # pylint: disable=unused-argument
     ) -> Optional[List[FaceData]]:
         first_faces = all_faces[0]
         candidates = self.__find_face_candidates(first_faces, all_faces[1:], all_faces)
@@ -190,7 +188,8 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         return candidates
 
-    def __get_best_match(self, ref_face: FaceData, candidates: List[FaceData]) -> Tuple[Optional[FaceData], float]:
+    @staticmethod
+    def __get_best_match(ref_face: FaceData, candidates: List[FaceData]) -> Tuple[Optional[FaceData], float]:
         best_match, best_sim = None, -1.0
         for cand in candidates:
             sim = float(np.dot(ref_face.face_vector, cand.face_vector))
@@ -207,7 +206,7 @@ class CharacterReferenceProcessor(BaseProcessor):
 
         face_vectors = []
         for idx, face_data in enumerate(selected_faces):
-            norm_face = CharacterGridVisualizer._safe_resize(
+            norm_face = CharacterGridVisualizer.safe_resize(
                 face_data.face_img,
                 settings.character.normalized_face_size,
             )

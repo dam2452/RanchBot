@@ -40,7 +40,7 @@ class TransNetWrapper:
         if self.__model is None:
             raise RuntimeError('Model not loaded. Call load_model() first.')
 
-        video_info = self.__get_video_info(video_path)
+        video_info = self.get_video_info(video_path)
         if not video_info:
             raise RuntimeError(f'Failed to get video info for {video_path}')
 
@@ -112,7 +112,7 @@ class TransNetWrapper:
         return f'{hours:02d}:{minutes:02d}:{secs:02d}:{frames:02d}'
 
     @staticmethod
-    def __get_video_info(video_file: Path) -> Optional[Dict[str, Any]]:
+    def get_video_info(video_file: Path) -> Optional[Dict[str, Any]]:
         try:
             vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
             fps = vr.get_avg_fps()

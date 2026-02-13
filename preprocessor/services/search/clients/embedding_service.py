@@ -61,7 +61,8 @@ class EmbeddingService:
         ).to(device)
         return self.__compute_normalized_embedding(model, {'input_ids': inputs})
 
-    def __compute_normalized_embedding(self, model: Any, inputs: Dict[str, Any]) -> List[float]:
+    @staticmethod
+    def __compute_normalized_embedding(model: Any, inputs: Dict[str, Any]) -> List[float]:
         with torch.no_grad():
             output = model(**inputs, output_hidden_states=True)
             embedding = output.hidden_states[-1][:, -1, :].squeeze(0)

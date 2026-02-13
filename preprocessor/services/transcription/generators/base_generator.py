@@ -28,7 +28,8 @@ class BaseTranscriptionGenerator(ABC):
             except Exception as e:
                 self._logger.error(f'Failed to generate output for {json_file}: {e}')
 
-    def __load_json(self, file_path: Path) -> Dict[str, Any]:
+    @staticmethod
+    def __load_json(file_path: Path) -> Dict[str, Any]:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
 

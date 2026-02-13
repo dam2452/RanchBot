@@ -5,7 +5,7 @@ from typing import (
 
 
 class FrameRequest(TypedDict):
-    frame: int
-    scene_number: NotRequired[int]
-    time: float
+    frame_number: int
+    timestamp: float
     type: str
+    scene_number: NotRequired[int]
