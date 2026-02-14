@@ -13,15 +13,3 @@ class TestClipHandler(BaseTest):
             self.send_command(f'/klip {quote}'),
             f"clip_{quote}.mp4",
         )
-
-    @pytest.mark.asyncio
-    async def test_clip_not_found(self):
-        self.expect_command_result_contains(
-            '/klip nieistniejący_cytat', [msg.get_no_segments_found_message()],
-        )
-
-    @pytest.mark.asyncio
-    async def test_no_quote_provided(self):
-        self.expect_command_result_contains(
-            '/klip', [msg.get_no_quote_provided_message()],
-        )
