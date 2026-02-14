@@ -48,7 +48,7 @@ class TestSerialContextHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'nieprawidłow' in all_responses.lower() or 'invalid' in all_responses.lower() or 'błąd' in all_responses.lower()
+        assert 'nieznany' in all_responses.lower() or 'unknown' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_serial_too_many_arguments(self):

@@ -11,7 +11,6 @@ from typing import (
 from bot.database import db
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
-from tests.e2e.settings import settings as s
 
 logger = logging.getLogger(__name__)
 
@@ -130,10 +129,10 @@ class FakeResponder(AbstractResponder):
 
 class BaseIntegrationTest:
     logger = logging.getLogger(__name__)
-    admin_id: int
+    admin_id: int = 123
 
     def setup_method(self):
-        self.admin_id = int(s.TEST_ADMINS.split(",")[0])
+        pass
 
     def create_message(
         self,

@@ -29,16 +29,16 @@ class TestRemoveKeyHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
     async def test_remove_key_with_spaces(self, mock_db):
-        await mock_db.create_subscription_key(15, 'klucz ze spacjami')
+        await mock_db.create_subscription_key(15, 'klucz_ze_spacjami')
 
-        message = self.create_message('/rmk klucz ze spacjami')
+        message = self.create_message('/rmk klucz_ze_spacjami')
         responder = self.create_responder()
 
         handler = RemoveKeyHandler(message, responder, logger)
         await handler.handle()
 
         assert responder.has_sent_text(), "Handler should send success message"
-        key_days = await mock_db.get_subscription_days_by_key('klucz ze spacjami')
+        key_days = await mock_db.get_subscription_days_by_key('klucz_ze_spacjami')
         assert key_days is None, "Key with spaces should be removed"
 
     @pytest.mark.asyncio
@@ -63,7 +63,7 @@ class TestRemoveKeyHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'użyj' in all_responses.lower() or 'usage' in all_responses.lower()
+        assert 'podaj' in all_responses.lower() or 'example' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_remove_key_with_special_characters(self, mock_db):

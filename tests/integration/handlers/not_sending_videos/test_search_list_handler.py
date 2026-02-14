@@ -40,7 +40,7 @@ class TestSearchListHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'nie znaleziono' in all_responses.lower() or 'not found' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_search_list_empty_segments(self, mock_db):

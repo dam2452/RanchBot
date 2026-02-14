@@ -94,7 +94,7 @@ class TestDeleteClipHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'nie masz' in all_responses.lower() or 'no clips' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_delete_clip_missing_argument(self):

@@ -31,7 +31,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'użyj' in all_responses.lower() or 'usage' in all_responses.lower()
+        assert 'podaj' in all_responses.lower() or 'example' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_reindex_invalid_target_format(self):
@@ -122,7 +122,7 @@ class TestReindexHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send message about no new series"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'brak' in all_responses.lower() or 'no new' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_reindex_with_exception(self):

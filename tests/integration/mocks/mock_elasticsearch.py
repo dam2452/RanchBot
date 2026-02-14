@@ -30,10 +30,14 @@ class MockElasticsearch:
         episode_number: int = 1,
         episode_title: str = "Test Episode",
     ):
+        segment_id = len(cls._segments) + 1
         segment = {
+            'id': segment_id,
             'text': text,
             'start_time': start,
             'end_time': end,
+            'start': start,
+            'end': end,
             'video_path': video_path,
             'episode_info': {
                 'season': season,
@@ -92,17 +96,20 @@ class MockElasticsearch:
             'series_name': series_name,
         })
 
-        seasons = set()
-        episodes = set()
+        season_episodes = {}
         for segment in cls._segments:
             ep_info = segment.get('episode_info', {})
-            seasons.add(ep_info.get('season', 1))
-            episodes.add(ep_info.get('episode_number', 1))
+            season = ep_info.get('season', 1)
+            episode_num = ep_info.get('episode_number', 1)
+            season_key = str(season)
+            if season_key not in season_episodes:
+                season_episodes[season_key] = set()
+            season_episodes[season_key].add(episode_num)
 
-        return {
-            'seasons': max(seasons) if seasons else 1,
-            'episodes': max(episodes) if episodes else 1,
-        }
+        if not season_episodes:
+            return {'1': 10}
+
+        return {season_key: len(episodes) for season_key, episodes in season_episodes.items()}
 
     @classmethod
     def get_call_log(cls) -> List[Dict[str, Any]]:
@@ -151,4 +158,13 @@ class MockElasticsearch:
             'context_size': context_size,
         })
         segments = await cls.find_segment_by_quote(quote, logger, series_name, size=1)
-        return segments[0] if segments else None
+        if not segments:
+            return None
+
+        target_segment = segments[0]
+        return {
+            'target': target_segment,
+            'context': [target_segment],
+            'overall_start_time': target_segment.get('start_time', target_segment.get('start', 0.0)),
+            'overall_end_time': target_segment.get('end_time', target_segment.get('end', 0.0)),
+        }

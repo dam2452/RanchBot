@@ -38,7 +38,7 @@ class TestListModeratorsHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send empty message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower() or 'nie ma' in all_responses.lower()
+        assert 'nie znaleziono' in all_responses.lower() or 'not found' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_list_moderators_excludes_admins(self):
@@ -67,7 +67,7 @@ class TestListModeratorsHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send moderators list"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'nie znaleziono' in all_responses.lower() or 'not found' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_list_moderators_with_single_moderator(self, mock_db):

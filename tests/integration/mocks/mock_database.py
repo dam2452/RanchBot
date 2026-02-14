@@ -52,6 +52,10 @@ class MockDatabase(DatabaseInterface):
         cls._search_history = []
         cls._command_usage = {}
         cls._call_log = []
+        cls._user_active_series = {}
+        cls._series = {1: 'ranczo'}
+        cls._series_by_name = {'ranczo': 1}
+        cls._next_series_id = 2
 
     @classmethod
     async def init_pool(cls, *args, **kwargs):
@@ -394,7 +398,7 @@ class MockDatabase(DatabaseInterface):
         })
 
     @classmethod
-    async def get_saved_clips(cls, user_id: int):
+    async def get_saved_clips(cls, user_id: int, series_id: Optional[int] = None):
         if user_id not in cls._saved_clips:
             return []
         return [
@@ -410,6 +414,7 @@ class MockDatabase(DatabaseInterface):
                 is_compilation=clip.get('is_compilation', False),
                 season=clip.get('season'),
                 episode_number=clip.get('episode_number'),
+                series_id=clip.get('series_id'),
             )
             for i, clip in enumerate(cls._saved_clips[user_id], 1)
         ]
@@ -419,7 +424,7 @@ class MockDatabase(DatabaseInterface):
         cls, chat_id: int, user_id: int, clip_name: str, video_data: bytes,
         start_time: float, end_time: float, duration: float,
         is_compilation: bool = False, season: Optional[int] = None,
-        episode_number: Optional[int] = None,
+        episode_number: Optional[int] = None, series_id: Optional[int] = None,
     ):
         if user_id not in cls._saved_clips:
             cls._saved_clips[user_id] = []
@@ -432,6 +437,7 @@ class MockDatabase(DatabaseInterface):
             'is_compilation': is_compilation,
             'season': season,
             'episode_number': episode_number,
+            'series_id': series_id,
         })
         cls._call_log.append({
             'method': 'save_clip',
@@ -525,5 +531,27 @@ class MockDatabase(DatabaseInterface):
             quote=search_data['quote'],
             segments=search_data['segments'],
         )
+
+    _user_active_series: Dict[int, int] = {}
+    _series: Dict[int, str] = {1: 'ranczo'}
+    _series_by_name: Dict[str, int] = {'ranczo': 1}
+    _next_series_id: int = 2
+
+    @classmethod
+    async def get_user_active_series(cls, user_id: int) -> Optional[int]:
+        return cls._user_active_series.get(user_id)
+
+    @classmethod
+    async def get_series_by_id(cls, series_id: int) -> Optional[str]:
+        return cls._series.get(series_id)
+
+    @classmethod
+    async def set_user_active_series(cls, user_id: int, series_id: int):
+        cls._user_active_series[user_id] = series_id
+        cls._call_log.append({
+            'method': 'set_user_active_series',
+            'user_id': user_id,
+            'series_id': series_id,
+        })
 
     pool = None

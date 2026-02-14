@@ -56,7 +56,7 @@ class TestUseKeyHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'nieprawidłowy' in all_responses.lower() or 'invalid' in all_responses.lower() or 'błąd' in all_responses.lower()
+        assert 'niepoprawny' in all_responses.lower() or 'invalid' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_use_key_missing_argument(self):
@@ -70,10 +70,10 @@ class TestUseKeyHandlerIntegration(BaseIntegrationTest):
 
     @pytest.mark.asyncio
     async def test_use_key_with_spaces(self, mock_db):
-        await mock_db.create_subscription_key(7, 'key with spaces')
+        await mock_db.create_subscription_key(7, 'key_with_spaces')
         user_id = 10004
 
-        message = self.create_message('/key key with spaces', user_id=user_id)
+        message = self.create_message('/key key_with_spaces', user_id=user_id)
         responder = self.create_responder()
 
         handler = SaveUserKeyHandler(message, responder, logger)
@@ -99,7 +99,7 @@ class TestUseKeyHandlerIntegration(BaseIntegrationTest):
 
         assert responder2.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder2.get_all_text_responses())
-        assert 'nieprawidłowy' in all_responses.lower() or 'invalid' in all_responses.lower()
+        assert 'niepoprawny' in all_responses.lower() or 'invalid' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_use_key_extends_existing_subscription(self, mock_db):

@@ -41,7 +41,7 @@ class TestSelectClipHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'najpierw' in all_responses.lower() or 'first' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_select_clip_missing_argument(self):

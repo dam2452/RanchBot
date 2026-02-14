@@ -18,6 +18,8 @@ class TestSaveClipHandlerIntegration(BaseIntegrationTest):
         segment = {
             'video_path': '/fake/path.mp4',
             'episode_info': {'season': 1, 'episode_number': 1},
+            'start': 0.0,
+            'end': 5.0,
         }
         mock_db._last_clips[chat_id] = {
             'segment': json.dumps(segment),
@@ -48,7 +50,7 @@ class TestSaveClipHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send error message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'nie' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'najpierw' in all_responses.lower() or 'first' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_save_clip_missing_name(self):

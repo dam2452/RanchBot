@@ -13,8 +13,8 @@ class TestMyClipsHandlerIntegration(BaseIntegrationTest):
     @pytest.mark.asyncio
     async def test_my_clips_with_saved_clips(self, mock_db):
         user_id = self.admin_id
-        await mock_db.save_clip(user_id, user_id, 'clip1', b'data1', 0.0, 5.0, 5.0)
-        await mock_db.save_clip(user_id, user_id, 'clip2', b'data2', 5.0, 10.0, 5.0)
+        await mock_db.save_clip(user_id, user_id, 'clip1', b'data1', 0.0, 5.0, 5.0, False, 1, 1)
+        await mock_db.save_clip(user_id, user_id, 'clip2', b'data2', 5.0, 10.0, 5.0, False, 1, 2)
 
         message = self.create_message('/mojeklipy', user_id=user_id)
         responder = self.create_responder()
@@ -39,12 +39,12 @@ class TestMyClipsHandlerIntegration(BaseIntegrationTest):
 
         assert responder.has_sent_text(), "Handler should send message"
         all_responses = ' '.join(responder.get_all_text_responses())
-        assert 'brak' in all_responses.lower() or 'no' in all_responses.lower()
+        assert 'nie' in all_responses.lower() or 'no' in all_responses.lower()
 
     @pytest.mark.asyncio
     async def test_my_clips_with_single_clip(self, mock_db):
         user_id = self.admin_id
-        await mock_db.save_clip(user_id, user_id, 'only_clip', b'data', 0.0, 5.0, 5.0)
+        await mock_db.save_clip(user_id, user_id, 'only_clip', b'data', 0.0, 5.0, 5.0, False, 1, 1)
 
         message = self.create_message('/mk', user_id=user_id)
         responder = self.create_responder()
@@ -60,7 +60,7 @@ class TestMyClipsHandlerIntegration(BaseIntegrationTest):
     async def test_my_clips_with_many_clips(self, mock_db):
         user_id = self.admin_id
         for i in range(10):
-            await mock_db.save_clip(user_id, user_id, f'clip{i}', b'data', 0.0, 5.0, 5.0)
+            await mock_db.save_clip(user_id, user_id, f'clip{i}', b'data', 0.0, 5.0, 5.0, False, 1, i+1)
 
         message = self.create_message('/mojeklipy', user_id=user_id)
         responder = self.create_responder()
@@ -76,7 +76,7 @@ class TestMyClipsHandlerIntegration(BaseIntegrationTest):
     @pytest.mark.asyncio
     async def test_my_clips_different_aliases(self, mock_db):
         user_id = self.admin_id
-        await mock_db.save_clip(user_id, user_id, 'test_clip', b'data', 0.0, 5.0, 5.0)
+        await mock_db.save_clip(user_id, user_id, 'test_clip', b'data', 0.0, 5.0, 5.0, False, 1, 1)
 
         for command in ('/mojeklipy', '/myclips', '/mk'):
             responder = self.create_responder()
