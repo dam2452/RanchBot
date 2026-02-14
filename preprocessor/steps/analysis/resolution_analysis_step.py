@@ -9,7 +9,7 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.step_configs import TranscodeConfig
+from preprocessor.config.step_configs import ResolutionAnalysisConfig
 from preprocessor.core.artifacts import ResolutionAnalysisResult
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
@@ -17,7 +17,7 @@ from preprocessor.services.io.path_service import PathService
 from preprocessor.services.media.ffmpeg import FFmpegWrapper
 
 
-class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, TranscodeConfig]):
+class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, ResolutionAnalysisConfig]):
     @property
     def name(self) -> str:
         return 'resolution_analysis'
@@ -305,9 +305,8 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Transc
     def __scan_resolutions(
             self, video_paths: List[Path], context: ExecutionContext,
     ) -> List[Dict[str, Any]]:
-        max_workers = self.config.max_parallel_episodes
         results = self._execute_with_threadpool(
-            video_paths, context, max_workers, self.__scan_single_video,
+            video_paths, context, self.config.max_parallel_episodes, self.__scan_single_video,
         )
         return [r for r in results if r is not None]
 

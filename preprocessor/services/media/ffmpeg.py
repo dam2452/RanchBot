@@ -147,6 +147,13 @@ class FFmpegWrapper:
         return stream.get('field_order', 'unknown')
 
     @staticmethod
+    def get_video_codec(probe_data: Dict[str, Any]) -> str:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return 'h264'
+        return stream.get('codec_name', 'h264').lower()
+
+    @staticmethod
     def probe_video(video_path: Path) -> Dict[str, Any]:
         cmd = [
             'ffprobe', '-v', 'error', '-show_streams', '-show_format',

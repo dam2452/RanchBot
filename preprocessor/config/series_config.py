@@ -55,10 +55,11 @@ class TranscriptionProcessingConfig:
 
 @dataclass
 class TranscodeProcessingConfig:
-    bitrate_reference_mb: float
-    bitrate_reference_seconds: float
     force_deinterlace: bool
     keyframe_interval_seconds: float
+    max_bitrate_duration_seconds: float
+    max_bitrate_file_size_mb: float
+    min_upscale_bitrate_ratio: float
     resolution: str
 
 
@@ -149,8 +150,9 @@ class SeriesConfig:
                     device=data['processing']['transcription']['device'],
                 ),
                 transcode=TranscodeProcessingConfig(
-                    bitrate_reference_mb=data['processing']['transcode']['bitrate_reference_mb'],
-                    bitrate_reference_seconds=data['processing']['transcode']['bitrate_reference_seconds'],
+                    max_bitrate_file_size_mb=data['processing']['transcode']['max_bitrate_file_size_mb'],
+                    max_bitrate_duration_seconds=data['processing']['transcode']['max_bitrate_duration_seconds'],
+                    min_upscale_bitrate_ratio=data['processing']['transcode']['min_upscale_bitrate_ratio'],
                     force_deinterlace=data['processing']['transcode']['force_deinterlace'],
                     keyframe_interval_seconds=data['processing']['transcode']['keyframe_interval_seconds'],
                     resolution=data['processing']['transcode']['resolution'],

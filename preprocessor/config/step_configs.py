@@ -17,11 +17,12 @@ from preprocessor.services.media.resolution import Resolution
 class TranscodeConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    bitrate_reference_mb: float = Field(gt=0)
-    bitrate_reference_seconds: float = Field(gt=0)
     force_deinterlace: bool = False
     keyframe_interval_seconds: float = Field(gt=0)
+    max_bitrate_duration_seconds: float = Field(gt=0)
+    max_bitrate_file_size_mb: float = Field(gt=0)
     max_parallel_episodes: int = Field(default=3, ge=1, le=10)
+    min_upscale_bitrate_ratio: float = Field(default=0.52, ge=0, le=1)
     resolution: Resolution = Field(default=Resolution.R720P)
 
     @property
@@ -38,7 +39,7 @@ class TranscodeConfig(BaseModel):
 
     @property
     def video_bitrate_mbps(self) -> float:
-        total = (self.bitrate_reference_mb * 8) / self.bitrate_reference_seconds
+        total = (self.max_bitrate_file_size_mb * 8) / self.max_bitrate_duration_seconds
         audio = self.audio_bitrate_kbps / 1000.0
         return round(total - audio, 2)
 
@@ -50,6 +51,13 @@ class TranscodeConfig(BaseModel):
 
     def calculate_bufsize_mbps(self, multiplier: float = 2.0) -> float:
         return round(self.video_bitrate_mbps * multiplier, 2)
+
+
+class ResolutionAnalysisConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    max_parallel_episodes: int = Field(default=10, ge=1, le=20)
+    resolution: Resolution = Field(default=Resolution.R720P)
 
 
 class SceneDetectionConfig(BaseModel):

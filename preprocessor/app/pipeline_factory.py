@@ -20,6 +20,7 @@ from preprocessor.config.step_configs import (
     FrameExportConfig,
     ImageHashConfig,
     ObjectDetectionConfig,
+    ResolutionAnalysisConfig,
     SceneDetectionConfig,
     SoundSeparationConfig,
     TextAnalysisConfig,
@@ -103,11 +104,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         description="Analyze source video resolutions and warn if upscaling required",
         produces=[],
         needs=[],
-        config=TranscodeConfig(
-            bitrate_reference_mb=series_config.processing.transcode.bitrate_reference_mb,
-            bitrate_reference_seconds=series_config.processing.transcode.bitrate_reference_seconds,
-            keyframe_interval_seconds=series_config.processing.transcode.keyframe_interval_seconds,
-            force_deinterlace=series_config.processing.transcode.force_deinterlace,
+        config=ResolutionAnalysisConfig(
             resolution=Resolution.from_string(series_config.processing.transcode.resolution),
         ),
     )
@@ -120,9 +117,10 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=["transcoded_videos/{season}/{episode}.mp4"],
         needs=[resolution_analysis],
         config=TranscodeConfig(
-            bitrate_reference_mb=series_config.processing.transcode.bitrate_reference_mb,
-            bitrate_reference_seconds=series_config.processing.transcode.bitrate_reference_seconds,
+            max_bitrate_file_size_mb=series_config.processing.transcode.max_bitrate_file_size_mb,
+            max_bitrate_duration_seconds=series_config.processing.transcode.max_bitrate_duration_seconds,
             keyframe_interval_seconds=series_config.processing.transcode.keyframe_interval_seconds,
+            min_upscale_bitrate_ratio=series_config.processing.transcode.min_upscale_bitrate_ratio,
             force_deinterlace=series_config.processing.transcode.force_deinterlace,
         ),
     )
