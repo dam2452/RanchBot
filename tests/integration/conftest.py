@@ -105,14 +105,14 @@ def mock_es():
     async def mock_find_segment_by_quote(quote, segment_logger, series_name, size=1, **_kwargs):
         return await MockElasticsearch.find_segment_by_quote(quote, segment_logger, series_name, size)
 
-    async def mock_get_season_details(_logger, series_name, **_kwargs):
-        return await MockElasticsearch.get_season_details_from_elastic(_logger, series_name)
+    async def mock_get_season_details(logger, series_name, **_kwargs):  # pylint: disable=redefined-outer-name
+        return await MockElasticsearch.get_season_details_from_elastic(logger, series_name)
 
-    async def mock_find_video_path_by_episode(season, episode_number, _logger, **_kwargs):
-        return await MockElasticsearch.find_video_path_by_episode(season, episode_number, _logger)
+    async def mock_find_video_path_by_episode(season, episode_number, logger, **_kwargs):  # pylint: disable=redefined-outer-name
+        return await MockElasticsearch.find_video_path_by_episode(season, episode_number, logger)
 
-    async def mock_find_segment_with_context(quote, _logger, series_name, context_size=15):
-        return await MockElasticsearch.find_segment_with_context(quote, _logger, series_name, context_size)
+    async def mock_find_segment_with_context(quote, logger, series_name, context_size=15):  # pylint: disable=redefined-outer-name
+        return await MockElasticsearch.find_segment_with_context(quote, logger, series_name, context_size)
 
     with patch('bot.search.transcription_finder.TranscriptionFinder.find_segment_by_quote', side_effect=mock_find_segment_by_quote), \
          patch('bot.search.transcription_finder.TranscriptionFinder.get_season_details_from_elastic', side_effect=mock_get_season_details), \
@@ -128,7 +128,7 @@ def mock_ffmpeg():
     async def mock_extract_clip(video_path, start_time, end_time, clip_logger, output_path=None, resolution_key='720p'):
         return await MockFFmpeg.extract_clip(video_path, start_time, end_time, clip_logger, output_path, resolution_key)
 
-    async def mock_get_video_duration(_video_path):
+    async def mock_get_video_duration(video_path):  # pylint: disable=unused-argument
         return 5.0
 
     original_exists = Path.exists
