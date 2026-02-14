@@ -45,7 +45,7 @@ from bot.adapters.rest.auth.auth_service import (
 from bot.adapters.rest.models import TextCompatibleCommandWrapper
 from bot.adapters.rest.rest_message import RestMessage
 from bot.adapters.rest.rest_responder import RestResponder
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.factory import create_all_factories
 from bot.settings import settings as s
 from bot.utils.constants import (
@@ -110,7 +110,7 @@ async def refresh(request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token.")
 
     user_id = token_record.user_id
-    user = await DatabaseManager.get_user_by_id(user_id)
+    user = await db.get_user_by_id(user_id)
     if not user:
         logger.warning(f"Refresh token validated for user ID {user_id}, but user not found in DB.")
         raise HTTPException(status_code=401, detail="User associated with token not found.")
@@ -255,7 +255,7 @@ async def lifespan(app_instance: FastAPI):
     app_instance.state.limiter = limiter
     app_instance.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    await DatabaseManager.ensure_db_initialized()
+    await db.ensure_db_initialized()
     logger.info("DB initialization process ensured by REST runner lifespan.")
 
     factories = create_all_factories(logger, bot=None)

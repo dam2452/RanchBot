@@ -14,7 +14,7 @@ from elasticsearch.helpers import (
 )
 import urllib3
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.settings import settings as s
 from bot.utils.constants import (
     ElasticsearchKeys,
@@ -130,7 +130,7 @@ class ElasticSearchManager:
         video_base_path: Path,
         logger: logging.Logger,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[dict]:
         actions = []
         for season_path in base_path.iterdir():
             if not season_path.is_dir():
@@ -151,7 +151,7 @@ class ElasticSearchManager:
         season_path: Path,
         video_base_path: Path,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[dict]:
         season_actions = []
         season_dir = season_path.name
 
@@ -178,7 +178,7 @@ class ElasticSearchManager:
         season_dir: str,
         video_base_path: Path,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[dict]:
         actions = []
         with episode_file.open("r", encoding="utf-8") as f:
             data = json.load(f)
@@ -271,7 +271,7 @@ async def main(logger: logging.Logger) -> None:
     video_base_path = Path(args.video_base_path)
     index_name = args.index_name
 
-    await DatabaseManager.init_pool()
+    await db.init_pool()
 
     es_client = await ElasticSearchManager.connect_to_elasticsearch(logger)
     try:

@@ -1,6 +1,6 @@
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -27,7 +27,7 @@ class RemoveKeyHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         args = self._message.get_text().split(maxsplit=1)
         key = args[1]
-        success = await DatabaseManager.remove_subscription_key(key)
+        success = await db.remove_subscription_key(key)
 
         if success:
             await self._reply(get_remove_key_success_message(key))

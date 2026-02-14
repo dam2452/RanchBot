@@ -13,7 +13,7 @@ from typing import (
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.platforms.rest_runner import run_rest_api
 from bot.platforms.telegram_runner import run_telegram_bot
 from bot.settings import settings as s
@@ -38,7 +38,7 @@ class DBLogHandler(logging.Handler):
 
     async def log_to_db(self, record: LogRecord) -> None:
         log_message = self.format(record)
-        await DatabaseManager.log_system_message(record.levelname, log_message)
+        await db.log_system_message(record.levelname, log_message)
 
 
 logging.basicConfig(level=get_log_level())
@@ -55,7 +55,7 @@ logging.getLogger().addHandler(db_log_handler)
 
 
 async def initialize_common_and_set_admin():
-    await DatabaseManager.ensure_db_initialized()
+    await db.ensure_db_initialized()
     logger.info("DB initialization process ensured by main application.")
 
     admin_user_id_str = os.getenv("DEFAULT_ADMIN")
@@ -80,7 +80,7 @@ async def initialize_common_and_set_admin():
         try:
             bot_instance = Bot(token=s.TELEGRAM_BOT_TOKEN.get_secret_value())
             user_data = await bot_instance.get_chat(admin_user_id)
-            await DatabaseManager.set_default_admin(
+            await db.set_default_admin(
                 user_id=admin_user_id,
                 username=user_data.username or f"tg_user_{admin_user_id}",
                 full_name=user_data.full_name or "Telegram Default Admin",

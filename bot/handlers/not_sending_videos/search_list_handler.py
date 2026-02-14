@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -29,7 +29,7 @@ class SearchListHandler(BotMessageHandler):
         return [self.__check_last_search_exists]
 
     async def __check_last_search_exists(self) -> bool:
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
+        last_search = await db.get_last_search_by_chat_id(self._message.get_chat_id())
         if not last_search:
             await self.__reply_no_previous_search_results()
             return False
@@ -37,7 +37,7 @@ class SearchListHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
+        last_search = await db.get_last_search_by_chat_id(self._message.get_chat_id())
 
         segments = json.loads(last_search.segments)
 

@@ -2,10 +2,14 @@ from typing import (
     Any,
     Dict,
     List,
-    NotRequired,
     TypedDict,
     Union,
 )
+
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
 
 
 class EpisodeInfo(TypedDict):

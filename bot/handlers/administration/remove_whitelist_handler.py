@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -38,7 +38,7 @@ class RemoveWhitelistHandler(BotMessageHandler):
 
     async def __check_user_exists(self) -> bool:
         user_id = int(self._message.get_text().split()[1])
-        user_exists = await DatabaseManager.is_user_in_db(user_id)
+        user_exists = await db.is_user_in_db(user_id)
         if not user_exists:
             await self.__reply_user_not_found(user_id)
             return False
@@ -47,7 +47,7 @@ class RemoveWhitelistHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         user_id = int(self._message.get_text().split()[1])
 
-        await DatabaseManager.remove_user(user_id)
+        await db.remove_user(user_id)
         await self.__reply_user_removed(user_id)
 
     async def __reply_user_removed(self, user_id: int) -> None:

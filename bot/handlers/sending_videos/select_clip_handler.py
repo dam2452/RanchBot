@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -38,7 +38,7 @@ class SelectClipHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
 
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
+        last_search = await db.get_last_search_by_chat_id(self._message.get_chat_id())
         if not last_search:
             return await self.__reply_no_previous_search()
 
@@ -70,7 +70,7 @@ class SelectClipHandler(BotMessageHandler):
             suggestions=["Wybrać krótszy fragment"],
         )
 
-        await DatabaseManager.insert_last_clip(
+        await db.insert_last_clip(
             chat_id=self._message.get_chat_id(),
             segment=segment,
             compiled_clip=None,

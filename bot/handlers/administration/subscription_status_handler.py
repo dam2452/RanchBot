@@ -6,7 +6,7 @@ from typing import (
     Tuple,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -52,7 +52,7 @@ class SubscriptionStatusHandler(BotMessageHandler):
 
     @staticmethod
     async def __get_subscription_status(user_id: int) -> Optional[Tuple[date, int]]:
-        subscription_end = await DatabaseManager.get_user_subscription(user_id)
+        subscription_end = await db.get_user_subscription(user_id)
         if subscription_end is None:
             return None
         days_remaining = (subscription_end - date.today()).days

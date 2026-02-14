@@ -2,7 +2,7 @@ import logging
 import math
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -37,7 +37,7 @@ class ClipHandler(BotMessageHandler):
 
     async def __validate_length(self) -> bool:
         msg = self._message
-        if not await DatabaseManager.is_admin_or_moderator(msg.get_user_id()) \
+        if not await db.is_admin_or_moderator(msg.get_user_id()) \
                 and len(msg.get_text()) > settings.MAX_SEARCH_QUERY_LENGTH:
             await self._reply_error(get_message_too_long_message())
             return False
@@ -70,7 +70,7 @@ class ClipHandler(BotMessageHandler):
             suggestions=["Wybrać krótszy fragment"],
         )
 
-        await DatabaseManager.insert_last_clip(
+        await db.insert_last_clip(
             chat_id=msg.get_chat_id(),
             segment=segment,
             compiled_clip=None,

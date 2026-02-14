@@ -106,7 +106,8 @@ disable=
     logging-fstring-interpolation,
     consider-alternative-union-syntax,
     too-many-positional-arguments,
-    broad-exception-caught
+    broad-exception-caught,
+    too-many-public-methods
 
 [REPORTS]
 

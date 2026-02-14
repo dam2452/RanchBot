@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -41,7 +41,7 @@ class CreateKeyHandler(BotMessageHandler):
     async def __check_key_is_unique(self) -> bool:
         args = self._message.get_text().split()
         key = " ".join(args[2:])
-        if await DatabaseManager.get_subscription_days_by_key(key):
+        if await db.get_subscription_days_by_key(key):
             await self._reply_error(get_key_already_exists_message(key))
             await self._log_system_message(logging.INFO, get_key_already_exists_message(key))
             return False
@@ -52,7 +52,7 @@ class CreateKeyHandler(BotMessageHandler):
         days = int(args[1])
         key = " ".join(args[2:])
 
-        await DatabaseManager.create_subscription_key(days, key)
+        await db.create_subscription_key(days, key)
 
         await self._reply(
             get_create_key_success_message(days, key),

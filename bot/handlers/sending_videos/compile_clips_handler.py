@@ -3,7 +3,7 @@ import logging
 import math
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -58,7 +58,7 @@ class CompileClipsHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         username = self._message.get_username()
 
-        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+        last_search = await db.get_last_search_by_chat_id(chat_id)
         if not last_search or not last_search.segments:
             return await self.__reply_no_previous_search_results()
 
@@ -78,7 +78,7 @@ class CompileClipsHandler(BotMessageHandler):
             return await self.__reply_no_matching_segments_found()
 
         if (
-            not await DatabaseManager.is_admin_or_moderator(user_id)
+            not await db.is_admin_or_moderator(user_id)
             and len(selected_segments) > settings.MAX_CLIPS_PER_COMPILATION
         ):
             return await self.__reply_max_clips_exceeded()
@@ -137,7 +137,7 @@ class CompileClipsHandler(BotMessageHandler):
             raise self.InvalidRangeException(get_invalid_range_message(index))
 
         num_of_clips = end - start + 1
-        if not await DatabaseManager.is_admin_or_moderator(user_id) and num_of_clips > settings.MAX_CLIPS_PER_COMPILATION:
+        if not await db.is_admin_or_moderator(user_id) and num_of_clips > settings.MAX_CLIPS_PER_COMPILATION:
             raise self.MaxClipsExceededException()
 
         collected = []
@@ -174,7 +174,7 @@ class CompileClipsHandler(BotMessageHandler):
 
     @staticmethod
     async def _check_clip_duration_limit(user_id: int, total_duration: float) -> bool:
-        if await DatabaseManager.is_admin_or_moderator(user_id):
+        if await db.is_admin_or_moderator(user_id):
             return False
         return total_duration > settings.LIMIT_DURATION
 

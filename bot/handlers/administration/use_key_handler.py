@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -30,11 +30,11 @@ class SaveUserKeyHandler(BotMessageHandler):
         username = self._message.get_username()
         full_name = self._message.get_full_name()
 
-        subscription_days = await DatabaseManager.get_subscription_days_by_key(key)
+        subscription_days = await db.get_subscription_days_by_key(key)
         if subscription_days:
-            await DatabaseManager.add_user(user_id, username, full_name, None)
-            await DatabaseManager.add_subscription(user_id, subscription_days)
-            await DatabaseManager.remove_subscription_key(key)
+            await db.add_user(user_id, username, full_name, None)
+            await db.add_subscription(user_id, subscription_days)
+            await db.remove_subscription_key(key)
 
             await self._reply(get_subscription_redeemed_message(subscription_days), data={"days": subscription_days})
         else:

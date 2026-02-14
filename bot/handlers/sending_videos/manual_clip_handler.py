@@ -6,7 +6,7 @@ from typing import (
     Tuple,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -113,7 +113,7 @@ class ManualClipHandler(BotMessageHandler):
             },
         }
 
-        return await DatabaseManager.insert_last_clip(
+        return await db.insert_last_clip(
             chat_id=self._message.get_chat_id(),
             segment=segment_data,
             compiled_clip=None,

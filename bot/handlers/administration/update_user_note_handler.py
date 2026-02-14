@@ -2,7 +2,7 @@ import logging
 import math
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -50,6 +50,6 @@ class UpdateUserNoteHandler(BotMessageHandler):
         )
 
     async def __update_user_note(self, user_id: int, note: str) -> None:
-        await DatabaseManager.update_user_note(user_id, note)
+        await db.update_user_note(user_id, note)
         await self._reply(get_note_updated_message())
         await self._log_system_message(logging.INFO, get_log_note_updated_message(self._message.get_username(), user_id, note))

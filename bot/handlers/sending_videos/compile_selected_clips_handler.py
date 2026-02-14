@@ -3,7 +3,7 @@ import math
 import tempfile
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -37,7 +37,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
 
     async def __check_user_has_clips(self) -> bool:
         user_id = self._message.get_user_id()
-        user_clips = await DatabaseManager.get_saved_clips(user_id)
+        user_clips = await db.get_saved_clips(user_id)
         if not user_clips:
             await self.__reply_no_matching_clips_found()
             return False
@@ -52,7 +52,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         except ValueError:
             return await self._reply_invalid_args_count(get_invalid_args_count_message())
 
-        user_clips = await DatabaseManager.get_saved_clips(user_id)
+        user_clips = await db.get_saved_clips(user_id)
 
         selected_clips = []
         for clip_number in clip_numbers:
