@@ -110,8 +110,8 @@ class MockDatabase(DatabaseInterface):
     async def add_user(
         cls,
         user_id: int,
-        username: str,
-        full_name: str,
+        username: Optional[str] = None,
+        full_name: Optional[str] = None,
         note: Optional[str] = None,
         subscription_days: Optional[int] = None,
     ):
@@ -187,18 +187,22 @@ class MockDatabase(DatabaseInterface):
         cls,
         chat_id: int,
         segment: Dict[str, Any],
-        clip_type: str,
-        adjusted_start_time: float,
-        adjusted_end_time: float,
-        **kwargs,
+        compiled_clip: Optional[bytes],
+        clip_type: ClipType,
+        adjusted_start_time: Optional[float],
+        adjusted_end_time: Optional[float],
+        is_adjusted: bool,
+        series_id: Optional[int] = None,
     ):
         cls._last_clips[chat_id] = {
             'chat_id': chat_id,
             'segment': segment,
+            'compiled_clip': compiled_clip,
             'clip_type': clip_type,
             'adjusted_start_time': adjusted_start_time,
             'adjusted_end_time': adjusted_end_time,
-            **kwargs,
+            'is_adjusted': is_adjusted,
+            'series_id': series_id,
         }
 
         cls._call_log.append({
@@ -261,11 +265,11 @@ class MockDatabase(DatabaseInterface):
         })
 
     @classmethod
-    async def log_system_message(cls, level: str, message: str):
+    async def log_system_message(cls, log_level: str, log_message: str):
         cls._call_log.append({
             'method': 'log_system_message',
-            'level': level,
-            'message': message,
+            'log_level': log_level,
+            'log_message': log_message,
         })
 
     @classmethod
@@ -398,7 +402,7 @@ class MockDatabase(DatabaseInterface):
         })
 
     @classmethod
-    async def get_saved_clips(cls, user_id: int, series_id: Optional[int] = None):
+    async def get_saved_clips(cls, user_id: int, _series_id: Optional[int] = None):
         if user_id not in cls._saved_clips:
             return []
         return [
@@ -420,12 +424,13 @@ class MockDatabase(DatabaseInterface):
         ]
 
     @classmethod
-    async def save_clip(    # pylint: disable=too-many-arguments,unused-argument
+    async def save_clip(  # pylint: disable=too-many-arguments
         cls, chat_id: int, user_id: int, clip_name: str, video_data: bytes,
         start_time: float, end_time: float, duration: float,
         is_compilation: bool = False, season: Optional[int] = None,
         episode_number: Optional[int] = None, series_id: Optional[int] = None,
     ):
+        _ = chat_id
         if user_id not in cls._saved_clips:
             cls._saved_clips[user_id] = []
         cls._saved_clips[user_id].append({
@@ -492,7 +497,7 @@ class MockDatabase(DatabaseInterface):
         })
 
     @classmethod
-    async def get_last_clip_by_chat_id(cls, chat_id: int):
+    async def get_last_clip_by_chat_id(cls, chat_id: int, _series_id: Optional[int] = None):
         if chat_id not in cls._last_clips:
             return None
 
@@ -510,10 +515,11 @@ class MockDatabase(DatabaseInterface):
         )
 
     @classmethod
-    async def insert_last_search(cls, chat_id: int, quote: str, segments: str):
+    async def insert_last_search(cls, chat_id: int, quote: str, segments: str, series_id: Optional[int] = None):
         cls._last_searches[chat_id] = {
             'quote': quote,
             'segments': segments,
+            'series_id': series_id,
         }
         cls._call_log.append({
             'method': 'insert_last_search',
@@ -521,7 +527,7 @@ class MockDatabase(DatabaseInterface):
         })
 
     @classmethod
-    async def get_last_search_by_chat_id(cls, chat_id: int):
+    async def get_last_search_by_chat_id(cls, chat_id: int, _series_id: Optional[int] = None):
         if chat_id not in cls._last_searches:
             return None
         search_data = cls._last_searches[chat_id]

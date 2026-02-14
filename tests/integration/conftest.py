@@ -1,5 +1,14 @@
+import asyncio
+import logging
+from pathlib import Path
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import (
+    MagicMock,
+    patch,
+)
+
+import pytest
+import pytest_asyncio
 
 mock_settings = MagicMock()
 mock_settings.BOT_USERNAME = "test_bot"
@@ -25,17 +34,13 @@ mock_settings.VIDEO_DATA_DIR = "/tmp/test_videos"
 
 sys.modules['bot.settings'] = MagicMock(settings=mock_settings)
 
-import asyncio
-import logging
-from unittest.mock import patch
-
-import pytest
-import pytest_asyncio
-
-from bot.database.db_provider import set_db, reset_db
-from tests.integration.mocks.mock_database import MockDatabase
-from tests.integration.mocks.mock_elasticsearch import MockElasticsearch
-from tests.integration.mocks.mock_ffmpeg import MockFFmpeg
+from bot.database.db_provider import (  # pylint: disable=wrong-import-position
+    reset_db,
+    set_db,
+)
+from tests.integration.mocks.mock_database import MockDatabase  # pylint: disable=wrong-import-position
+from tests.integration.mocks.mock_elasticsearch import MockElasticsearch  # pylint: disable=wrong-import-position
+from tests.integration.mocks.mock_ffmpeg import MockFFmpeg  # pylint: disable=wrong-import-position
 
 
 def pytest_collection_modifyitems(items):
@@ -85,7 +90,7 @@ async def mock_db():
         full_name="Test User",
         password="test_password",
     )
-    logger.info(f"Mock admin 123 added")
+    logger.info("Mock admin 123 added")
 
     with patch('bot.services.reindex.series_scanner.SeriesScanner.scan_all_series', side_effect=mock_scan_all_series):
         yield MockDatabase
@@ -97,17 +102,17 @@ async def mock_db():
 def mock_es():
     MockElasticsearch.reset()
 
-    async def mock_find_segment_by_quote(quote, segment_logger, series_name, size=1, **kwargs):
+    async def mock_find_segment_by_quote(quote, segment_logger, series_name, size=1, **_kwargs):
         return await MockElasticsearch.find_segment_by_quote(quote, segment_logger, series_name, size)
 
-    async def mock_get_season_details(logger, series_name, **kwargs):
-        return await MockElasticsearch.get_season_details_from_elastic(logger, series_name)
+    async def mock_get_season_details(_logger, series_name, **_kwargs):
+        return await MockElasticsearch.get_season_details_from_elastic(_logger, series_name)
 
-    async def mock_find_video_path_by_episode(season, episode_number, logger, **kwargs):
-        return await MockElasticsearch.find_video_path_by_episode(season, episode_number, logger)
+    async def mock_find_video_path_by_episode(season, episode_number, _logger, **_kwargs):
+        return await MockElasticsearch.find_video_path_by_episode(season, episode_number, _logger)
 
-    async def mock_find_segment_with_context(quote, logger, series_name, context_size=15):
-        return await MockElasticsearch.find_segment_with_context(quote, logger, series_name, context_size)
+    async def mock_find_segment_with_context(quote, _logger, series_name, context_size=15):
+        return await MockElasticsearch.find_segment_with_context(quote, _logger, series_name, context_size)
 
     with patch('bot.search.transcription_finder.TranscriptionFinder.find_segment_by_quote', side_effect=mock_find_segment_by_quote), \
          patch('bot.search.transcription_finder.TranscriptionFinder.get_season_details_from_elastic', side_effect=mock_get_season_details), \
@@ -123,10 +128,9 @@ def mock_ffmpeg():
     async def mock_extract_clip(video_path, start_time, end_time, clip_logger, output_path=None, resolution_key='720p'):
         return await MockFFmpeg.extract_clip(video_path, start_time, end_time, clip_logger, output_path, resolution_key)
 
-    async def mock_get_video_duration(video_path):
+    async def mock_get_video_duration(_video_path):
         return 5.0
 
-    from pathlib import Path
     original_exists = Path.exists
 
     def mock_path_exists(self):

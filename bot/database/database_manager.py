@@ -18,6 +18,7 @@ import asyncpg
 import bcrypt
 
 from bot.database.database_protocol import DatabaseInterface
+from bot.database.db_provider import db
 from bot.database.models import (
     ClipType,
     LastClip,
@@ -98,14 +99,14 @@ class DatabaseManager(DatabaseInterface):
         db_manager_logger.info("📦 Database pool and schema initialization process ensured by db.")
 
     @staticmethod
-    def __get_db_connection():
+    def __get_db_connection():  # pylint: disable=unused-private-member
         if db.pool is None or db.pool.is_closing():
             db_manager_logger.critical("Attempted to acquire connection from a non-existent or closed pool.")
             raise ConnectionError("Database connection pool is not initialized or is closed.")
         return db.pool.acquire()
 
     @staticmethod
-    async def __resolve_series_id(identifier_id: Optional[int], series_id: Optional[int]) -> Optional[int]:
+    async def __resolve_series_id(identifier_id: Optional[int], series_id: Optional[int]) -> Optional[int]:  # pylint: disable=unused-private-member
         if series_id is not None:
             return series_id
 
@@ -355,7 +356,7 @@ class DatabaseManager(DatabaseInterface):
                     )
 
     @staticmethod
-    def __row_to_video_clip(row: asyncpg.Record) -> VideoClip:
+    def __row_to_video_clip(row: asyncpg.Record) -> VideoClip:  # pylint: disable=unused-private-member
         return VideoClip(
             id=row[DatabaseKeys.ID],
             chat_id=row["chat_id"],
@@ -865,7 +866,7 @@ class DatabaseManager(DatabaseInterface):
                 )
 
     @staticmethod
-    async def __get_message_from_message_table(
+    async def __get_message_from_message_table(  # pylint: disable=unused-private-member
         table: str, key: str, handler_name: str,
     ) -> Optional[str]:
         async with db.__get_db_connection() as conn:
