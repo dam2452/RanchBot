@@ -3,7 +3,7 @@ import logging
 import math
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -38,7 +38,7 @@ class SearchHandler(BotMessageHandler):
     async def __check_quote_length(self) -> bool:
         args = self._message.get_text().split()
         quote = " ".join(args[1:])
-        if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and len(
+        if not await db.is_admin_or_moderator(self._message.get_user_id()) and len(
                 quote,
         ) > settings.MAX_SEARCH_QUERY_LENGTH:
             await self._reply_error(get_message_too_long_message())
@@ -57,7 +57,7 @@ class SearchHandler(BotMessageHandler):
             await self.__reply_no_segments_found(quote)
             return
 
-        await DatabaseManager.insert_last_search(
+        await db.insert_last_search(
             chat_id=self._message.get_chat_id(),
             quote=quote,
             segments=json.dumps(segments),

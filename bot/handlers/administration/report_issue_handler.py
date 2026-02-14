@@ -2,7 +2,7 @@ import logging
 import math
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -41,7 +41,7 @@ class ReportIssueHandler(BotMessageHandler):
         await self.__handle_user_report_submission(report_content)
 
     async def __handle_user_report_submission(self, report: str) -> None:
-        await DatabaseManager.add_report(self._message.get_user_id(), report)
+        await db.add_report(self._message.get_user_id(), report)
         await self._reply(get_report_received_message())
         await self._log_system_message(
             logging.INFO,

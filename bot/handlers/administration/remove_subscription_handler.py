@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -36,7 +36,7 @@ class RemoveSubscriptionHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         user_id = int(self._message.get_text().split()[1])
 
-        await DatabaseManager.remove_subscription(user_id)
+        await db.remove_subscription(user_id)
 
         await self._reply(get_subscription_removed_message(str(user_id)))
         await self._log_system_message(logging.INFO, get_log_subscription_removed_message(str(user_id), self._message.get_username()))

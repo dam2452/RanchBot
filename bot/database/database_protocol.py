@@ -21,8 +21,6 @@ from bot.database.models import (
 
 
 class DatabaseInterface(ABC):
-    """Abstract base class defining the interface that all database implementations must follow."""
-
     @staticmethod
     @abstractmethod
     async def init_pool(
@@ -260,6 +258,11 @@ class DatabaseInterface(ABC):
     @staticmethod
     @abstractmethod
     async def get_last_search_by_chat_id(chat_id: int, series_id: Optional[int] = None) -> Optional[SearchHistory]:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    async def log_user_activity(user_id: int, command: str, series_id: Optional[int] = None) -> None:
         pass
 
     @staticmethod

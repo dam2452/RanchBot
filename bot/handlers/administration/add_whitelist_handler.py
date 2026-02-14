@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -42,7 +42,7 @@ class AddWhitelistHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         user_input = self._message.get_text().split()[1]
 
-        await DatabaseManager.add_user(
+        await db.add_user(
             user_id=int(user_input),
             username="",
             full_name="",

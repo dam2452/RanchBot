@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import pytest_asyncio
 import requests
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from tests.e2e.settings import settings as s
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ _test_lock = asyncio.Lock()
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def db_pool():
-    await DatabaseManager.init_pool(
+    await db.init_pool(
         host=s.TEST_POSTGRES_HOST,
         port=s.TEST_POSTGRES_PORT,
         database=s.TEST_POSTGRES_DB,
@@ -21,10 +21,10 @@ async def db_pool():
         password=s.TEST_POSTGRES_PASSWORD.get_secret_value(),
         schema=s.POSTGRES_SCHEMA,
     )
-    await DatabaseManager.init_db()
+    await db.init_db()
     yield
-    if DatabaseManager.pool is not None:
-        await DatabaseManager.pool.close()
+    if db.pool is not None:
+        await db.pool.close()
 
 
 class APIClient(requests.Session):
@@ -56,12 +56,12 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
         "subscription_keys",
         "user_command_limits",
     ]
-    await DatabaseManager.clear_test_db(tables=tables_to_clear, schema="ranczo")
+    await db.clear_test_db(tables=tables_to_clear, schema="ranczo")
     logger.info("The specified test database tables have been cleared.")
 
     i = 0
     for admin_id in s.TEST_ADMINS.split(","):
-        await DatabaseManager.set_default_admin(
+        await db.set_default_admin(
             user_id=int(admin_id),
             username=f"TestUser{i}",
             full_name=f"TestUser{i}",

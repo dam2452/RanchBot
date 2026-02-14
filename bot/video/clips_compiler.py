@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.interfaces.message import AbstractMessage
 from bot.settings import settings
@@ -77,7 +77,7 @@ class ClipsCompiler:
         with compiled_output.open("rb") as f:
             compiled_clip_data = f.read()
 
-        await DatabaseManager.insert_last_clip(
+        await db.insert_last_clip(
             chat_id=message.get_chat_id(),
             segment={},
             compiled_clip=compiled_clip_data,
@@ -107,7 +107,7 @@ async def process_compiled_clip(
     with compiled_output.open("rb") as f:
         compiled_clip_data = f.read()
 
-    await DatabaseManager.insert_last_clip(
+    await db.insert_last_clip(
         chat_id=message.get_chat_id(),
         segment={},
         compiled_clip=compiled_clip_data,

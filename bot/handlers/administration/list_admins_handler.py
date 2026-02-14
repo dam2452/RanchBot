@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import UserProfile
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -23,7 +23,7 @@ class ListAdminsHandler(BotMessageHandler):
         return []
 
     async def _do_handle(self) -> None:
-        users = await DatabaseManager.get_admin_users()
+        users = await db.get_admin_users()
         if not users:
             return await self.__reply_no_admins_found()
 

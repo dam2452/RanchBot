@@ -14,7 +14,7 @@ from elasticsearch.helpers import (
 )
 import urllib3
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.settings import settings as s
 from bot.utils.constants import (
     ElasticsearchKeys,
@@ -271,7 +271,7 @@ async def main(logger: logging.Logger) -> None:
     video_base_path = Path(args.video_base_path)
     index_name = args.index_name
 
-    await DatabaseManager.init_pool()
+    await db.init_pool()
 
     es_client = await ElasticSearchManager.connect_to_elasticsearch(logger)
     try:

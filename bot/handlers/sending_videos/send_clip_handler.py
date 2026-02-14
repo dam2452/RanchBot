@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -42,7 +42,7 @@ class SendClipHandler(BotMessageHandler):
         clip_identifier = " ".join(content[1:])
         user_id = self._message.get_user_id()
 
-        clips = await DatabaseManager.get_saved_clips(user_id) or []
+        clips = await db.get_saved_clips(user_id) or []
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
@@ -50,7 +50,7 @@ class SendClipHandler(BotMessageHandler):
                 await self.__reply_clip_not_found(clip_number)
                 return False
         else:
-            clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
+            clip = await db.get_clip_by_name(user_id, clip_identifier)
             if not clip:
                 await self.__reply_clip_not_found(None)
                 return False
@@ -64,10 +64,10 @@ class SendClipHandler(BotMessageHandler):
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
-            clips = await DatabaseManager.get_saved_clips(user_id)
+            clips = await db.get_saved_clips(user_id)
             clip = clips[clip_number - 1]
         else:
-            clip = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
+            clip = await db.get_clip_by_name(user_id, clip_identifier)
 
         if await self._handle_clip_duration_limit_exceeded(clip.duration):
             return None

@@ -8,7 +8,7 @@ from typing import (
     Optional,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from tests.e2e.settings import settings as s
@@ -159,7 +159,7 @@ class BaseIntegrationTest:
         full_name: str = "Test User",
         subscription_days: Optional[int] = None,
     ) -> Dict[str, Any]:
-        await DatabaseManager.add_user(
+        await db.add_user(
             user_id=user_id,
             username=username,
             full_name=full_name,
@@ -174,13 +174,13 @@ class BaseIntegrationTest:
         }
 
     async def make_user_subscriber(self, user_id: int, days: int = 365) -> None:
-        await DatabaseManager.add_subscription(user_id, days)
+        await db.add_subscription(user_id, days)
 
     async def make_user_admin(self, user_id: int) -> None:
-        await DatabaseManager.add_admin(user_id)
+        await db.add_admin(user_id)
 
     async def make_user_moderator(self, user_id: int) -> None:
-        await DatabaseManager.add_moderator(user_id)
+        await db.add_moderator(user_id)
 
     async def remove_admin(self, user_id: int) -> None:
-        await DatabaseManager.remove_admin(user_id)
+        await db.remove_admin(user_id)

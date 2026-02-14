@@ -1,6 +1,6 @@
 import pytest
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 import bot.responses.not_sending_videos.my_clips_handler_responses as myclips_msg
 import bot.responses.not_sending_videos.save_clip_handler_responses as save_clip_msg
 from tests.e2e.base_test import BaseTest
@@ -16,7 +16,7 @@ class TestE2E(BaseTest):
             f'/zapisz {clip_name}',
             [save_clip_msg.get_clip_saved_successfully_message(clip_name)],
         )
-        clips = await DatabaseManager.get_saved_clips(self.default_admin)
+        clips = await db.get_saved_clips(self.default_admin)
         self.expect_command_result_contains(
             '/mojeklipy',
             [self.remove_n_lines(myclips_msg.format_myclips_response(clips, "TestUser0", "TestUser0", await self.get_season_info()), 4)],

@@ -14,7 +14,7 @@ from typing import (
 import pytest_asyncio
 import requests
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.search.transcription_finder import TranscriptionFinder
 from tests.e2e.settings import settings as s
 
@@ -156,7 +156,7 @@ class BaseTest:
         user_id = user_id or secrets.randbits(32)
         username = username or self.__generate_random_username()
 
-        await DatabaseManager.add_user(
+        await db.add_user(
             user_id=user_id,
             username=username,
             full_name=full_name,
@@ -173,8 +173,8 @@ class BaseTest:
         }
 
     async def switch_to_normal_user(self) -> None:
-        await DatabaseManager.remove_admin(self.default_admin)
-        await DatabaseManager.add_subscription(self.default_admin, 2137)
+        await db.remove_admin(self.default_admin)
+        await db.add_subscription(self.default_admin, 2137)
 
     @staticmethod
     async def calculate_hash_of_message(message: str) -> str:

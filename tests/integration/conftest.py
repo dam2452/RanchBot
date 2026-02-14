@@ -5,9 +5,7 @@ from unittest.mock import patch
 import pytest
 import pytest_asyncio
 
-from bot.database.database_manager import DatabaseManager
-from bot.search.transcription_finder import TranscriptionFinder
-from bot.video.clips_extractor import ClipsExtractor
+from bot.database.db_provider import set_db, reset_db
 from tests.e2e.settings import settings as s
 from tests.integration.mocks.mock_database import MockDatabase
 from tests.integration.mocks.mock_elasticsearch import MockElasticsearch
@@ -50,56 +48,7 @@ async def auth_token():
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def mock_db():
     MockDatabase.reset()
-
-    original_methods = {}
-    for method_name in dir(DatabaseManager):
-        if not method_name.startswith('_'):
-            method = getattr(DatabaseManager, method_name, None)
-            if callable(method):
-                original_methods[method_name] = method
-
-    for method_name in dir(MockDatabase):
-        if not method_name.startswith('_') and hasattr(DatabaseManager, method_name):
-            mock_method = getattr(MockDatabase, method_name)
-            setattr(DatabaseManager, method_name, mock_method)
-
-    class MockTransaction:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
-
-    class MockConnection:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
-
-        def transaction(self):
-            return MockTransaction()
-
-        async def execute(self, *_args, **_kwargs):
-            pass
-
-        async def fetch(self, *_args, **_kwargs):
-            return []
-
-        async def fetchrow(self, *_args, **_kwargs):
-            return None
-
-        async def fetchval(self, *_args, **_kwargs):
-            return None
-
-    class MockPool:
-        def is_closing(self):
-            return False
-
-        def acquire(self):
-            return MockConnection()
-
-    DatabaseManager.pool = MockPool()
+    set_db(MockDatabase)
 
     i = 0
     for admin_id in s.TEST_ADMINS.split(","):
@@ -114,16 +63,12 @@ async def mock_db():
 
     yield MockDatabase
 
-    for method_name, original_method in original_methods.items():
-        setattr(DatabaseManager, method_name, original_method)
+    reset_db()
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 def mock_es():
     MockElasticsearch.reset()
-
-    original_find = TranscriptionFinder.find_segment_by_quote
-    original_season = TranscriptionFinder.get_season_details_from_elastic
 
     async def mock_find_segment_by_quote(quote, segment_logger, series_name, size=1):
         return await MockElasticsearch.find_segment_by_quote(quote, segment_logger, series_name, size)
@@ -131,24 +76,17 @@ def mock_es():
     async def mock_get_season_details(season_logger, series_name):
         return await MockElasticsearch.get_season_details_from_elastic(season_logger, series_name)
 
-    with patch.object(TranscriptionFinder, 'find_segment_by_quote', side_effect=mock_find_segment_by_quote), \
-         patch.object(TranscriptionFinder, 'get_season_details_from_elastic', side_effect=mock_get_season_details):
+    with patch('bot.search.transcription_finder.TranscriptionFinder.find_segment_by_quote', side_effect=mock_find_segment_by_quote), \
+         patch('bot.search.transcription_finder.TranscriptionFinder.get_season_details_from_elastic', side_effect=mock_get_season_details):
         yield MockElasticsearch
-
-    TranscriptionFinder.find_segment_by_quote = original_find
-    TranscriptionFinder.get_season_details_from_elastic = original_season
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 def mock_ffmpeg():
     MockFFmpeg.reset()
 
-    original_extract = ClipsExtractor.extract_clip
-
     async def mock_extract_clip(video_path, start_time, end_time, clip_logger, output_path=None, resolution_key='720p'):
         return await MockFFmpeg.extract_clip(video_path, start_time, end_time, clip_logger, output_path, resolution_key)
 
-    with patch.object(ClipsExtractor, 'extract_clip', side_effect=mock_extract_clip):
+    with patch('bot.video.clips_extractor.ClipsExtractor.extract_clip', side_effect=mock_extract_clip):
         yield MockFFmpeg
-
-    ClipsExtractor.extract_clip = original_extract

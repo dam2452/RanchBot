@@ -6,7 +6,7 @@ from typing import (
     Tuple,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import (
     ClipType,
     LastClip,
@@ -98,7 +98,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             suggestions=["Zmniejszyć rozszerzenie czasowe", "Wybrać krótszy fragment"],
         )
 
-        await DatabaseManager.insert_last_clip(
+        await db.insert_last_clip(
             chat_id=msg.get_chat_id(),
             segment=segment_info,
             compiled_clip=None,
@@ -125,7 +125,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
 
     async def __is_adjustment_exceeding_limits(self, additional_start_offset: float, additional_end_offset: float) -> bool:
         return (
-            not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and
+            not await db.is_admin_or_moderator(self._message.get_user_id()) and
             abs(additional_start_offset) + abs(additional_end_offset) > settings.MAX_ADJUSTMENT_DURATION
         )
 
@@ -134,7 +134,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         last_clip = None
 
         if len(content) == 4:
-            last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+            last_search: SearchHistory = await db.get_last_search_by_chat_id(chat_id)
             if not last_search:
                 await self.__reply_no_previous_searches()
                 return None, None
@@ -146,7 +146,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
                 await self.__reply_invalid_segment_index()
                 return None, None
         elif len(content) == 3:
-            last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
+            last_clip = await db.get_last_clip_by_chat_id(chat_id)
             if not last_clip:
                 await self.__reply_no_quotes_selected()
                 return None, None

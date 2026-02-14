@@ -9,7 +9,7 @@ from typing import (
     List,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import get_limit_exceeded_message
@@ -45,10 +45,10 @@ class BotMiddleware(ABC):
     @staticmethod
     async def check_command_limits_and_privileges(message: AbstractMessage, responder: AbstractResponder) -> bool:
         user_id = message.get_user_id()
-        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(user_id)
+        is_admin_or_moderator = await db.is_admin_or_moderator(user_id)
 
         if not is_admin_or_moderator:
-            limited = await DatabaseManager.is_command_limited(user_id, settings.MESSAGE_LIMIT, settings.LIMIT_DURATION)
+            limited = await db.is_command_limited(user_id, settings.MESSAGE_LIMIT, settings.LIMIT_DURATION)
             if limited:
                 await responder.send_text(get_limit_exceeded_message())
                 return False
@@ -57,8 +57,8 @@ class BotMiddleware(ABC):
 
     @staticmethod
     async def _does_user_have_moderator_privileges(user_id: int) -> bool:
-        return await DatabaseManager.is_user_moderator(user_id) or await DatabaseManager.is_user_admin(user_id)
+        return await db.is_user_moderator(user_id) or await db.is_user_admin(user_id)
 
     @staticmethod
     async def _does_user_have_admin_privileges(user_id: int) -> bool:
-        return await DatabaseManager.is_user_admin(user_id)
+        return await db.is_user_admin(user_id)

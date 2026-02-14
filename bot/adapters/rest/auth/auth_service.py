@@ -12,7 +12,7 @@ from jose import (
 )
 from passlib.context import CryptContext
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import (
     RefreshToken,
     UserProfile,
@@ -33,7 +33,7 @@ def _verify_password(plain: str, hashed: str) -> bool:
 
 
 async def authenticate_user(username: str, password: str) -> Optional[UserProfile]:
-    result = await DatabaseManager.get_credentials_with_profile_by_username(username)
+    result = await db.get_credentials_with_profile_by_username(username)
     dummy_hash = "$2b$12$XEMBQhCuW2tw8rAIIoKV1ejU7nee6VDFZ5tRETJbkAQI2WCUDPqIm"
 
     if result is None:
@@ -79,7 +79,7 @@ async def create_refresh_token(
     token = jwt.encode(payload, s.JWT_SECRET_KEY.get_secret_value(), algorithm=s.JWT_ALGORITHM)
 
     try:
-        await DatabaseManager.insert_refresh_token(
+        await db.insert_refresh_token(
             user_id=user.user_id,
             token=token,
             created_at=now,
@@ -108,12 +108,12 @@ async def verify_refresh_token(token: str) -> Optional[RefreshToken]:
     except JWTError:
         return None
 
-    return await DatabaseManager.get_refresh_token(token)
+    return await db.get_refresh_token(token)
 
 
 async def revoke_refresh_token(token: str) -> None:
-    await DatabaseManager.revoke_refresh_token(token)
+    await db.revoke_refresh_token(token)
 
 
 async def revoke_all_user_refresh_tokens(user_id: int) -> int:
-    return await DatabaseManager.revoke_all_user_tokens(user_id)
+    return await db.revoke_all_user_tokens(user_id)

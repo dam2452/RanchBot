@@ -2,7 +2,7 @@ from datetime import date
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -43,7 +43,7 @@ class AddSubscriptionHandler(BotMessageHandler):
         user_id = int(content[1])
         days = int(content[2])
 
-        new_end_date = await DatabaseManager.add_subscription(user_id, days)
+        new_end_date = await db.add_subscription(user_id, days)
         if new_end_date is None:
             await self.__reply_subscription_error()
             return

@@ -10,7 +10,7 @@ from typing import (
 from aiogram.types import InlineQuery
 
 from bot.adapters.telegram.telegram_inline_query import TelegramInlineQuery
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.factory.permission_level_factory import PermissionLevelFactory
 from bot.handlers import (
     AdjustVideoClipHandler,
@@ -74,7 +74,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
                 if not inline_query.query:
                     return
 
-                if not await DatabaseManager.is_user_subscribed(user_id):
+                if not await db.is_user_subscribed(user_id):
                     await log_system_message(logging.WARNING, f"Unauthorized inline query from user {user_id}", self._logger)
                     await answer_error(
                         title="❌ Brak uprawnień",

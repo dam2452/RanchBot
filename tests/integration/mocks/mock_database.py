@@ -10,6 +10,7 @@ from typing import (
     Optional,
 )
 
+from bot.database.database_protocol import DatabaseInterface
 from bot.database.models import (
     ClipType,
     LastClip,
@@ -20,9 +21,9 @@ from bot.database.models import (
 )
 
 
-class MockDatabase:
+class MockDatabase(DatabaseInterface):
     """
-    Mock database implementing the same interface as DatabaseManager.
+    Mock database implementing the same interface as db.
     This class has many public methods as required by the database interface,
     and private methods are used internally for mock implementation.
     """
@@ -245,6 +246,15 @@ class MockDatabase:
         if user_id not in cls._subscriptions:
             return False
         return cls._subscriptions[user_id] > datetime.now()
+
+    @classmethod
+    async def log_user_activity(cls, user_id: int, command: str, series_id: Optional[int] = None):
+        cls._call_log.append({
+            'method': 'log_user_activity',
+            'user_id': user_id,
+            'command': command,
+            'series_id': series_id,
+        })
 
     @classmethod
     async def log_system_message(cls, level: str, message: str):

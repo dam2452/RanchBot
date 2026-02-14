@@ -22,7 +22,7 @@ from aiogram.types import (
     InlineQueryResultCachedVideo,
 )
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import VideoClip
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -103,16 +103,16 @@ class InlineClipHandler(BotMessageHandler):
             await log_system_message(logging.ERROR, f"Failed to generate any results for: '{query}'", self._logger)
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
-        await DatabaseManager.log_command_usage(user_id)
+        await db.log_command_usage(user_id)
         return results
 
     async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[ElasticsearchSegment], Optional[Dict[str, Any]], bool]:
         active_series = await self._get_user_active_series(user_id)
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
-            DatabaseManager.get_clip_by_name(user_id, query),
+            db.get_clip_by_name(user_id, query),
             TranscriptionFinder.find_segment_by_quote(query, self._logger, active_series, size=5),
             TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series),
-            DatabaseManager.is_admin_or_moderator(user_id),
+            db.is_admin_or_moderator(user_id),
             return_exceptions=True,
         )
 

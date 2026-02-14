@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -37,7 +37,7 @@ class DeleteClipHandler(BotMessageHandler):
 
         clip_identifier = content[1]
         user_id = self._message.get_user_id()
-        user_clips = await DatabaseManager.get_saved_clips(user_id)
+        user_clips = await db.get_saved_clips(user_id)
 
         if not user_clips:
             await self.__reply_no_saved_clips()
@@ -49,7 +49,7 @@ class DeleteClipHandler(BotMessageHandler):
                 await self.__reply_clip_index_not_exist(clip_number)
                 return False
             return True
-        clip_exists = await DatabaseManager.get_clip_by_name(user_id, clip_identifier)
+        clip_exists = await db.get_clip_by_name(user_id, clip_identifier)
         if not clip_exists:
             await self.__reply_clip_name_not_found(clip_identifier)
             return False
@@ -62,12 +62,12 @@ class DeleteClipHandler(BotMessageHandler):
 
         if clip_identifier.isdigit():
             clip_number = int(clip_identifier)
-            user_clips = await DatabaseManager.get_saved_clips(user_id)
+            user_clips = await db.get_saved_clips(user_id)
             clip_name_to_delete = user_clips[clip_number - 1].name
         else:
             clip_name_to_delete = clip_identifier
 
-        await DatabaseManager.delete_clip(user_id, clip_name_to_delete)
+        await db.delete_clip(user_id, clip_name_to_delete)
         await self.__reply_clip_deleted(clip_name_to_delete)
 
     async def __reply_clip_index_not_exist(self, clip_number: int) -> None:

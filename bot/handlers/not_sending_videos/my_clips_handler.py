@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -25,7 +25,7 @@ class MyClipsHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()
 
-        clips = await DatabaseManager.get_saved_clips(user_id)
+        clips = await db.get_saved_clips(user_id)
         if not clips:
             return await self.__reply_no_saved_clips()
 

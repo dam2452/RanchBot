@@ -14,7 +14,7 @@ from typing import (
 )
 
 from bot.adapters.rest.models import ResponseStatus as RS
-from bot.database.database_manager import DatabaseManager
+from bot.database import db
 from bot.database.models import ClipType
 from bot.exceptions import (
     CompilationTooLargeException,
@@ -83,7 +83,7 @@ class BotMessageHandler(ABC):
                 f"{type(e)} Error in {self.__get_action_name()} for user '{self._message.get_user_id()}': {e}",
             )
 
-        await DatabaseManager.log_command_usage(self._message.get_user_id())
+        await db.log_command_usage(self._message.get_user_id())
 
     async def _log_system_message(self, level: int, message: str) -> None:
         await log_system_message(level, message, self._logger)
@@ -96,7 +96,7 @@ class BotMessageHandler(ABC):
 
     async def _get_user_active_series_id(self, user_id: int) -> int:
         active_series = await self._get_user_active_series(user_id)
-        return await DatabaseManager.get_or_create_series(active_series)
+        return await db.get_or_create_series(active_series)
 
     async def _reply_invalid_args_count(self, response: str) -> None:
         await self._responder.send_markdown(response)
@@ -119,7 +119,7 @@ class BotMessageHandler(ABC):
         pass
 
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: float) -> bool:
-        if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
+        if not await db.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
             await self._responder.send_markdown(get_limit_exceeded_clip_duration_message())
             await self._log_system_message(logging.INFO, get_log_clip_duration_exceeded_message(self._message.get_user_id()))
             return True
