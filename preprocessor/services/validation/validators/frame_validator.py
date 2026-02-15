@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     List,
     Tuple,
 )
@@ -8,15 +9,13 @@ from typing import (
 from preprocessor.config.constants import OUTPUT_FILE_PATTERNS
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.io.path_service import PathService
+from preprocessor.services.validation.episode_stats import EpisodeStats
 from preprocessor.services.validation.file_validators import FileValidator
 from preprocessor.services.validation.validators.base_validator import BaseValidator
 
-if TYPE_CHECKING:
-    from preprocessor.services.validation.episode_stats import EpisodeStats
-
 
 class FrameValidator(BaseValidator):
-    def validate(self, stats: 'EpisodeStats') -> None:
+    def validate(self, stats: EpisodeStats) -> None:
         frames_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.frames,
         )
@@ -32,13 +31,13 @@ class FrameValidator(BaseValidator):
         stats.exported_frames_count = len(frame_files)
         self.__process_frames(stats, frame_files)
 
-    def __check_dir(self, stats: 'EpisodeStats', frames_dir: Path) -> bool:
+    def __check_dir(self, stats: EpisodeStats, frames_dir: Path) -> bool:
         if not frames_dir.exists():
             self._add_warning(stats, f'Missing {settings.output_subdirs.frames} directory')
             return False
         return True
 
-    def __process_frames(self, stats: 'EpisodeStats', frame_files: List[Path]) -> None:
+    def __process_frames(self, stats: EpisodeStats, frame_files: List[Path]) -> None:
         total_size = 0.0
         resolutions: List[Tuple[int, int]] = []
         invalid_count = 0

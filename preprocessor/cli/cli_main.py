@@ -139,7 +139,7 @@ def __analyze_resolution(series: str) -> None:
         setup.logger.finalize()
 
 
-def __execute_search_command(config: SearchConfig) -> None:  # pylint: disable=too-many-statements
+def __execute_search_command(config: SearchConfig) -> None:  # pylint: disable=too-many-statements  # Complex async search setup - splitting would reduce readability
     series_config = SeriesConfig.load(config.series)
     index_base = series_config.indexing.elasticsearch.index_name
 
@@ -232,7 +232,7 @@ def __execute_search_command(config: SearchConfig) -> None:  # pylint: disable=t
 @click.option("--stats", is_flag=True, help="Show index statistics")
 @click.option("--json-output", is_flag=True, help="Output in JSON format")
 @click.option("--host", type=str, default="http://localhost:9200", help="Elasticsearch host")
-def search(  # pylint: disable=too-many-arguments,too-many-locals
+def search(  # pylint: disable=too-many-arguments,too-many-locals  # CLI command with many options - cannot refactor without breaking Click interface
         series: str,
         text: str,
         text_semantic: str,

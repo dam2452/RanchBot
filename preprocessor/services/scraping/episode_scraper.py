@@ -14,7 +14,6 @@ from preprocessor.services.ui.console import console
 class EpisodeScraper(BaseScraper):
     def __init__(self, args: Dict[str, Any]) -> None:
         super().__init__(args)
-        self.__merge_sources: bool = self._args.get('merge_sources', True)  # pylint: disable=unused-private-member
         self.__expected_episodes_count: Optional[int] = self._args.get('expected_episodes_count')
         self.__videos_dir: Optional[Path] = self._args.get('videos_dir')
 

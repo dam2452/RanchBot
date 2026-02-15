@@ -1,6 +1,6 @@
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import (
     Any,
@@ -13,8 +13,24 @@ from preprocessor.config.step_configs import ResolutionAnalysisConfig
 from preprocessor.core.artifacts import ResolutionAnalysisResult
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.services.io.files import FileOperations
 from preprocessor.services.io.path_service import PathService
 from preprocessor.services.media.ffmpeg import FFmpegWrapper
+
+
+@dataclass(frozen=True)
+class _AnalysisData:
+    video_info: List[Dict[str, Any]]
+    resolution_counts: Counter
+    total_episodes: int
+    target_width: int
+    target_height: int
+    target_pixels: int
+    upscaling_count: int
+    upscaling_pct: float
+    progressive_count: int
+    needs_deinterlace_count: int
+    metadata_mismatch_count: int
 
 
 class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, ResolutionAnalysisConfig]):
@@ -194,50 +210,38 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Resolu
         progressive_count = sum(1 for v in video_info if not v['needs_deinterlace'])
         metadata_mismatch_count = sum(1 for v in video_info if v['metadata_match'] != 'match')
 
-        result = self.__build_analysis_payload(
-            context,
-            video_info,
-            resolution_counts,
-            total_episodes,
-            target_width,
-            target_height,
-            target_pixels,
-            upscaling_count,
-            upscaling_pct,
-            progressive_count,
-            needs_deinterlace_count,
-            metadata_mismatch_count,
+        analysis_data = _AnalysisData(
+            video_info=video_info,
+            resolution_counts=resolution_counts,
+            total_episodes=total_episodes,
+            target_width=target_width,
+            target_height=target_height,
+            target_pixels=target_pixels,
+            upscaling_count=upscaling_count,
+            upscaling_pct=upscaling_pct,
+            progressive_count=progressive_count,
+            needs_deinterlace_count=needs_deinterlace_count,
+            metadata_mismatch_count=metadata_mismatch_count,
         )
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-
+        result = self.__build_analysis_payload(context, analysis_data)
+        FileOperations.atomic_write_json(output_file, result, indent=2)
         context.logger.info(f'Resolution analysis saved to: {output_file}')
 
-    def __build_analysis_payload(  # pylint: disable=too-many-arguments
+    def __build_analysis_payload(
             self,
             context: ExecutionContext,
-            video_info: List[Dict[str, Any]],
-            resolution_counts: Counter,
-            total_episodes: int,
-            target_width: int,
-            target_height: int,
-            target_pixels: int,
-            upscaling_count: int,
-            upscaling_pct: float,
-            progressive_count: int,
-            needs_deinterlace_count: int,
-            metadata_mismatch_count: int,
+            data: _AnalysisData,
     ) -> Dict[str, Any]:
         source_resolutions = [
             {
                 'width': width,
                 'height': height,
                 'count': count,
-                'percentage': round((count / total_episodes) * 100, 1),
+                'percentage': round((count / data.total_episodes) * 100, 1),
                 'label': self.__get_resolution_label(width, height),
             }
-            for (width, height), count in resolution_counts.most_common()
+            for (width, height), count in data.resolution_counts.most_common()
         ]
 
         files_details = [
@@ -246,41 +250,41 @@ class ResolutionAnalysisStep(PipelineStep[None, ResolutionAnalysisResult, Resolu
                 'width': v['width'],
                 'height': v['height'],
                 'label': self.__get_resolution_label(v['width'], v['height']),
-                'needs_upscaling': (v['width'] * v['height']) < target_pixels,
+                'needs_upscaling': (v['width'] * v['height']) < data.target_pixels,
                 'field_order': v['field_order'],
                 'needs_deinterlace': v['needs_deinterlace'],
                 'metadata_match': v['metadata_match'],
                 'idet_stats': v['idet_stats'],
             }
-            for v in sorted(video_info, key=lambda x: x['filename'])
+            for v in sorted(data.video_info, key=lambda x: x['filename'])
         ]
 
         return {
             'analysis_date': datetime.now().isoformat(),
             'series_name': context.series_name,
             'target_resolution': {
-                'width': target_width,
-                'height': target_height,
-                'label': self.__get_resolution_label(target_width, target_height),
+                'width': data.target_width,
+                'height': data.target_height,
+                'label': self.__get_resolution_label(data.target_width, data.target_height),
             },
             'source_resolutions': source_resolutions,
-            'total_files': total_episodes,
+            'total_files': data.total_episodes,
             'upscaling_required': {
-                'count': upscaling_count,
-                'percentage': round(upscaling_pct, 1),
+                'count': data.upscaling_count,
+                'percentage': round(data.upscaling_pct, 1),
             },
             'interlacing_analysis': {
                 'progressive': {
-                    'count': progressive_count,
-                    'percentage': round((progressive_count / total_episodes) * 100, 1),
+                    'count': data.progressive_count,
+                    'percentage': round((data.progressive_count / data.total_episodes) * 100, 1),
                 },
                 'interlaced': {
-                    'count': needs_deinterlace_count,
-                    'percentage': round((needs_deinterlace_count / total_episodes) * 100, 1),
+                    'count': data.needs_deinterlace_count,
+                    'percentage': round((data.needs_deinterlace_count / data.total_episodes) * 100, 1),
                 },
                 'metadata_mismatches': {
-                    'count': metadata_mismatch_count,
-                    'percentage': round((metadata_mismatch_count / total_episodes) * 100, 1),
+                    'count': data.metadata_mismatch_count,
+                    'percentage': round((data.metadata_mismatch_count / data.total_episodes) * 100, 1),
                 },
             },
             'files': files_details,

@@ -1,18 +1,17 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     List,
 )
 
+from preprocessor.app.pipeline import PipelineDefinition
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
 from preprocessor.services.episodes.episode_manager import EpisodeManager
 from preprocessor.services.video.discovery import VideoDiscovery
-
-if TYPE_CHECKING:
-    from preprocessor.app.pipeline import PipelineDefinition
 
 
 class PipelineExecutor:
@@ -43,8 +42,7 @@ class PipelineExecutor:
         self.__context.logger.info(f"Step: {step_id}")
         self.__context.logger.info(f"{step_def.description}")
 
-        step_class = step_def.load_class()
-        instance = step_class(step_def.config)
+        instance = step_def.step_class(step_def.config)
 
         runner = PipelineExecutor(self.__context)
         runner.add_step(instance)

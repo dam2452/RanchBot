@@ -21,7 +21,7 @@ from preprocessor.services.ui.console import (
     SimpleProgress,
     console,
 )
-from preprocessor.services.ui.progress import ProgressTracker
+from preprocessor.services.ui.progress import OperationTracker
 
 
 @dataclass
@@ -67,7 +67,7 @@ class BaseProcessor(ABC):
         self.state_manager: Optional[StateManager] = args.get('state_manager')
         self.series_name: str = args.get('series_name', 'unknown')
         self.path_manager: PathService = args.get('path_manager', PathService(self.series_name))
-        self.progress = args.get('progress_tracker', ProgressTracker())
+        self.progress = args.get('progress_tracker', OperationTracker('default', 0, 0.0))
 
     def cleanup(self) -> None:
         pass

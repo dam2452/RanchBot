@@ -1,14 +1,7 @@
 import time
-from typing import Optional
 
 from preprocessor.services.core.time import TimeFormatter
 from preprocessor.services.ui.console import console
-
-
-class ProgressTracker:
-    def __init__(self) -> None:
-        self.__current_operation: Optional[str] = None  # pylint: disable=unused-private-member
-        self.__start_time: Optional[float] = None  # pylint: disable=unused-private-member
 
 
 class OperationTracker:

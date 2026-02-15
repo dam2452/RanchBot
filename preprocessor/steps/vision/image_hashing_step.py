@@ -1,4 +1,3 @@
-# pylint: disable=cyclic-import
 import gc
 from pathlib import Path
 from typing import (
@@ -18,12 +17,27 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    JsonFileOutput,
+    OutputDescriptor,
+)
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.video.frame_utils import FrameLoader
 from preprocessor.services.video.image_hasher import PerceptualHasher
 
 
 class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHashConfig]):
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        """Define output file descriptors for image hashing step."""
+        return [
+            JsonFileOutput(
+                subdir="hashes",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=50,
+            ),
+        ]
+
+
     def __init__(self, config: ImageHashConfig) -> None:
         super().__init__(config)
         self.__hasher: Optional[PerceptualHasher] = None
@@ -108,11 +122,15 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
         return hash_results
 
-    @staticmethod
-    def __resolve_output_path(input_data: FrameCollection, context: ExecutionContext) -> Path:
-        filename_base = f'{context.series_name}_{input_data.episode_info.episode_code()}'
-        output_filename: str = f'{filename_base}_image_hashes.json'
-        return context.get_output_path(input_data.episode_info, 'image_hashes', output_filename)
+    def __resolve_output_path(self, input_data: FrameCollection, context: ExecutionContext) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': f'S{input_data.episode_info.season:02d}',
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
 
     @staticmethod
     def __load_cached_result(output_path: Path, input_data: FrameCollection) -> ImageHashCollection:

@@ -4,6 +4,7 @@ from typing import (
     Tuple,
 )
 
+from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.config.step_configs import CharacterReferenceConfig
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
@@ -25,7 +26,7 @@ class CharacterReferenceStep(
     def execute(
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> Optional[SourceVideo]:
-        characters_path, output_dir = self.__resolve_paths()
+        characters_path, output_dir = self.__resolve_paths(context)
         self.__validate_characters_file(characters_path)
 
         if self.__should_skip_processing(output_dir, context):
@@ -36,9 +37,10 @@ class CharacterReferenceStep(
 
         return input_data
 
-    def __resolve_paths(self) -> Tuple[Path, Path]:
-        characters_path = Path(self.config.characters_file)
-        output_dir = Path(self.config.output_dir)
+    def __resolve_paths(self, context: ExecutionContext) -> Tuple[Path, Path]:
+        base_dir = get_base_output_dir(context.series_name)
+        characters_path = base_dir / f"{context.series_name}_characters.json"
+        output_dir = base_dir / "character_faces"
         return characters_path, output_dir
 
     def __download_character_references(

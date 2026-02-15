@@ -21,6 +21,11 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    DirectoryOutput,
+    create_frames_output,
+)
+from preprocessor.core.temp_files import StepTempFile
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.video.strategies.strategy_factory import KeyframeStrategyFactory
 
@@ -32,6 +37,9 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         self.__strategy = KeyframeStrategyFactory.create(
             self.config.keyframe_strategy, self.config.frames_per_scene,
         )
+
+    def get_output_descriptors(self) -> List[DirectoryOutput]:
+        return [create_frames_output()]
 
     @property
     def name(self) -> str:
@@ -148,7 +156,10 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
 
         base_filename = f'{series_name}_{episode_info.episode_code()}'
         filename = f'{base_filename}_frame_{frame_num:06d}.jpg'
-        resized.save(episode_dir / filename, quality=90)
+        final_path = episode_dir / filename
+
+        with StepTempFile(final_path) as temp_path:
+            resized.save(temp_path, quality=90)
 
     def __resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
         target_width = self.config.resolution.width
@@ -227,12 +238,19 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         }
         FileOperations.atomic_write_json(metadata_file, metadata, indent=2)
 
-    @staticmethod
     def __resolve_output_paths(
+            self,
             input_data: SceneCollection,
             context: ExecutionContext,
     ) -> Tuple[Path, Path]:
-        episode_dir = context.get_output_path(input_data.episode_info, 'exported_frames', '')
+        episode_dir = self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
         metadata_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_frame_metadata.json'
         metadata_file = episode_dir / metadata_filename
         return episode_dir, metadata_file

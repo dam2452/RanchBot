@@ -18,7 +18,7 @@ from preprocessor.services.text.language_config import (
 
 
 @dataclass
-class TextStatistics:  # pylint: disable=too-many-instance-attributes
+class TextStatistics:  # pylint: disable=too-many-instance-attributes  # Data structure for comprehensive text statistics - all attributes necessary
     text: str
     language: str = 'pl'
 
@@ -85,7 +85,7 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes
             'trigrams': self.trigrams,
         }
 
-    def __process_calculations(self) -> None:  # pylint: disable=unused-private-member
+    def __process_calculations(self) -> None:  # pylint: disable=unused-private-member  # Called in from_file (line 54) - false positive
         self.__calculate_structural_stats()
         self.__calculate_character_distribution()
         self.__calculate_lexical_stats()

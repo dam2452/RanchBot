@@ -35,7 +35,7 @@ class TranscriptionSubdirs:
 
 
 @dataclass(frozen=True)
-class OutputSubdirs:  # pylint: disable=too-many-instance-attributes
+class OutputSubdirs:  # pylint: disable=too-many-instance-attributes  # Configuration dataclass - all subdirs needed
     archives: str = 'archives'
     character_detections: str = 'character_detections'
     character_visualizations: str = 'character_detections/visualizations'
@@ -269,7 +269,7 @@ class GeminiSettings(BaseAPISettings):
 
 
 @dataclass(frozen=True)
-class Settings:  # pylint: disable=too-many-instance-attributes
+class Settings:  # pylint: disable=too-many-instance-attributes  # Main settings dataclass aggregating all subsettings
     character: CharacterSettings
     elasticsearch: ElasticsearchSettings
     elevenlabs: ElevenLabsSettings

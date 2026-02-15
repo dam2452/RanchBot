@@ -66,15 +66,5 @@ class PerceptualHasher:
 
         return hashes
 
-    def __compute_hash(self, image_tensor: torch.Tensor) -> int:  # pylint: disable=unused-private-member
-        if self.model is None:
-            raise RuntimeError('Model not initialized or already cleaned up')
-        with torch.no_grad():
-            features = self.model(image_tensor)
-            features = F.adaptive_avg_pool2d(features, (1, 1))
-            features = features.flatten()
-            hash_bits = (features > features.median()).int()
-            hash_val = int(''.join([str(bit.item()) for bit in hash_bits.tolist()[:64]]), 2)
-            return hash_val
 
 __all__ = ['PerceptualHasher']

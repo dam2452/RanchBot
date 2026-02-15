@@ -13,6 +13,10 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    JsonFileOutput,
+    OutputDescriptor,
+)
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.text.text_statistics import TextStatistics
 
@@ -26,6 +30,15 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
     def supports_batch_processing(self) -> bool:
         return True
 
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        return [
+            JsonFileOutput(
+                pattern="{season}/{episode}.json",
+                subdir="text_analysis",
+                min_size_bytes=50,
+            ),
+        ]
+
     def execute_batch(
         self, input_data: List[TranscriptionData], context: ExecutionContext,
     ) -> List[TextAnalysisResults]:
@@ -36,7 +49,7 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
     def execute(
             self, input_data: TranscriptionData, context: ExecutionContext,
     ) -> TextAnalysisResults:
-        output_path = self.__resolve_output_path(input_data)
+        output_path = self.__resolve_output_path(input_data, context)
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
             return self.__load_cached_result(output_path, input_data)
@@ -72,10 +85,17 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
             **stats.to_dict(),
         }
 
-    @staticmethod
-    def __resolve_output_path(input_data: TranscriptionData) -> Path:
-        output_filename = input_data.path.stem + '_text_stats.json'
-        return input_data.path.parent / output_filename
+    def __resolve_output_path(
+        self, input_data: TranscriptionData, context: ExecutionContext,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
 
     @staticmethod
     def __resolve_text_file_path(input_data: TranscriptionData) -> Path:

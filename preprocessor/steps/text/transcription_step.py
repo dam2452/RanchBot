@@ -13,6 +13,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import JsonFileOutput
 from preprocessor.services.episodes.episode_manager import EpisodeManager
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.transcription.whisper import Whisper
@@ -22,6 +23,15 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
     def __init__(self, config: WhisperTranscriptionConfig) -> None:
         super().__init__(config)
         self.__whisper: Optional[Whisper] = None
+
+    def get_output_descriptors(self) -> List[JsonFileOutput]:
+        return [
+            JsonFileOutput(
+                pattern="{season}/{episode}.json",
+                subdir="transcriptions",
+                min_size_bytes=50,
+            ),
+        ]
 
     @property
     def name(self) -> str:
@@ -60,7 +70,11 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
             self.__whisper = None
 
     def execute(self, input_data: AudioArtifact, context: ExecutionContext) -> TranscriptionData:
-        output_path = self.__resolve_output_path(input_data, context)
+        output_path = self.__resolve_output_path(
+            context,
+            input_data.episode_info.season,
+            input_data.episode_info.episode,
+        )
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached transcription'):
             return self.__construct_cached_result(output_path, input_data)
@@ -79,7 +93,11 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
     def __execute_single(
         self, input_data: AudioArtifact, context: ExecutionContext,
     ) -> TranscriptionData:
-        output_path = self.__resolve_output_path(input_data, context)
+        output_path = self.__resolve_output_path(
+            context,
+            input_data.episode_info.season,
+            input_data.episode_info.episode,
+        )
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached transcription'):
             return self.__construct_cached_result(output_path, input_data)
@@ -149,13 +167,14 @@ class TranscriptionStep(PipelineStep[AudioArtifact, TranscriptionData, WhisperTr
             format='json',
         )
 
-    @staticmethod
-    def __resolve_output_path(input_data: AudioArtifact, context: ExecutionContext) -> Path:
-        output_filename: str = (
-            f'{context.series_name}_{input_data.episode_info.episode_code()}.json'
-        )
-        return context.get_output_path(
-            input_data.episode_info,
-            'transcriptions',
-            f'raw/{output_filename}',
+    def __resolve_output_path(
+        self,
+        context: ExecutionContext,
+        season: int,
+        episode: int,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {"season": season, "episode": episode},
         )

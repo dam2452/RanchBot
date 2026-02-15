@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     List,
     Optional,
 )
@@ -8,11 +9,9 @@ from typing import (
 from preprocessor.config.config import Settings
 from preprocessor.config.settings_factory import SettingsFactory
 from preprocessor.core.model_pool import ModelPool
+from preprocessor.core.state_manager import StateManager
 from preprocessor.services.core.logging import ErrorHandlingLogger
-
-if TYPE_CHECKING:
-    from preprocessor.core.state_manager import StateManager
-    from preprocessor.services.episodes.episode_manager import EpisodeInfo
+from preprocessor.services.episodes.types import EpisodeInfo
 
 
 class ExecutionContext:
@@ -21,19 +20,23 @@ class ExecutionContext:
             series_name: str,
             base_output_dir: Path,
             logger: ErrorHandlingLogger,
-            state_manager: Optional['StateManager'] = None,
+            state_manager: Optional[StateManager] = None,
             force_rerun: bool = False,
             disable_parallel: bool = False,
             settings_instance: Optional[Settings] = None,
     ) -> None:
         self.__series_name: str = series_name
         self.__base_output_dir: Path = base_output_dir / series_name
-        self.__state_manager: Optional['StateManager'] = state_manager
+        self.__state_manager: Optional[StateManager] = state_manager
         self.__force_rerun: bool = force_rerun
         self.__disable_parallel: bool = disable_parallel
         self.__logger: ErrorHandlingLogger = logger
         self.__settings: Settings = settings_instance or SettingsFactory.get_settings()
         self.__model_pool: ModelPool = ModelPool()
+
+    @property
+    def base_output_dir(self) -> Path:
+        return self.__base_output_dir
 
     @property
     def disable_parallel(self) -> bool:
@@ -61,11 +64,11 @@ class ExecutionContext:
         return self.__settings
 
     @property
-    def state_manager(self) -> Optional['StateManager']:
+    def state_manager(self) -> Optional[StateManager]:
         return self.__state_manager
 
     def get_output_path(
-            self, episode_info: 'EpisodeInfo', subdir: str, filename: str,
+            self, episode_info: EpisodeInfo, subdir: str, filename: str,
     ) -> Path:
         season_code: str = episode_info.season_code()
         episode_code: str = episode_info.episode_num()
@@ -75,7 +78,7 @@ class ExecutionContext:
         return path
 
     def get_season_output_path(
-            self, episode_info: 'EpisodeInfo', subdir: str, filename: str,
+            self, episode_info: EpisodeInfo, subdir: str, filename: str,
     ) -> Path:
         season_code: str = episode_info.season_code()
 

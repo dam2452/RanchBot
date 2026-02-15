@@ -11,21 +11,17 @@ from preprocessor.services.search.clients.embedding_service import EmbeddingServ
 class EmbeddingModelWrapper:
     def __init__(
             self,
-            model_name: str,
-            device: str = 'cuda',
-            batch_size: int = 8,
+            _model_name: str,
+            _device: str = 'cuda',
+            _batch_size: int = 8,
     ) -> None:
-        self.__model_name = model_name  # pylint: disable=unused-private-member
-        self.__device = device  # pylint: disable=unused-private-member
-        self.__batch_size = batch_size  # pylint: disable=unused-private-member
         self.__service = EmbeddingService()
-        self.__loaded = False  # pylint: disable=unused-private-member
 
     def load_model(self) -> None:
-        self.__loaded = True  # pylint: disable=unused-private-member
+        pass
 
     def cleanup(self) -> None:
-        self.__loaded = False  # pylint: disable=unused-private-member
+        pass
 
     def encode_text(self, text: Union[str, List[str]]) -> Union[List[float], List[List[float]]]:
         if isinstance(text, str):

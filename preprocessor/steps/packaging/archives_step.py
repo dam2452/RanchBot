@@ -8,9 +8,19 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import FileOutput
 
 
 class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, ArchiveConfig]):
+    def get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{episode}.zip",
+                subdir="archives",
+                min_size_bytes=1024*100,
+            ),
+        ]
+
     @property
     def name(self) -> str:
         return 'archive_generation'
@@ -40,12 +50,17 @@ class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, Arch
         context.mark_step_completed(self.name, input_data.episode_id)
         return self.__construct_archive_artifact(input_data, output_path)
 
-    @staticmethod
     def __resolve_output_path(
-            input_data: ProcessedEpisode, context: ExecutionContext,
+            self, input_data: ProcessedEpisode, context: ExecutionContext,
     ) -> Path:
-        output_filename: str = f'{context.series_name}_{input_data.episode_info.episode_code()}_archive.zip'
-        return context.get_output_path(input_data.episode_info, 'archives', output_filename)
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
 
     @staticmethod
     def __construct_archive_artifact(

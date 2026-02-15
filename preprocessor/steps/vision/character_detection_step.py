@@ -14,11 +14,26 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    JsonFileOutput,
+    OutputDescriptor,
+)
 from preprocessor.services.characters import FaceDetector
 from preprocessor.services.io.files import FileOperations
 
 
 class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, CharacterDetectionConfig]):
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        """Define output file descriptors for character detection step."""
+        return [
+            JsonFileOutput(
+                subdir="detections/characters",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ]
+
+
     def __init__(self, config: CharacterDetectionConfig) -> None:
         super().__init__(config)
         self.__face_app = None
@@ -163,12 +178,14 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         }
         FileOperations.atomic_write_json(output_path, output_data)
 
-    @staticmethod
-    def __resolve_output_path(input_data: FrameCollection, context: ExecutionContext) -> Path:
-        filename = f'{context.series_name}_{input_data.episode_info.episode_code()}'
-        output_filename: str = f'{filename}_character_detections.json'
-        return context.get_output_path(
-            input_data.episode_info, 'character_detections', output_filename,
+    def __resolve_output_path(self, input_data: FrameCollection, context: ExecutionContext) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': f'S{input_data.episode_info.season:02d}',
+                'episode': input_data.episode_info.episode_code(),
+            },
         )
 
     @staticmethod

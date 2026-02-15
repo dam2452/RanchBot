@@ -18,11 +18,37 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    JsonFileOutput,
+    OutputDescriptor,
+)
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.video.emotion_utils import EmotionDetector
 
 
 class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDetectionConfig]):
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        """Define output file descriptors for emotion detection step."""
+        return [
+            JsonFileOutput(
+                subdir="detections/emotions",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ]
+
+    def __resolve_output_path(self, input_data: FrameCollection, context: ExecutionContext) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': f'S{input_data.episode_info.season:02d}',
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
+
+
+
     def __init__(self, config: EmotionDetectionConfig) -> None:
         super().__init__(config)
         self.__model: Optional[HSEmotionRecognizer] = None
@@ -58,50 +84,52 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
     def __execute_single(
         self, input_data: FrameCollection, context: ExecutionContext,
     ) -> EmotionData:
-        detections_path = self.__resolve_detections_path(input_data, context)
+        input_path = self.__resolve_input_path(input_data, context)
+        output_path = self.__resolve_output_path(input_data, context)
 
-        if self._check_cache_validity(detections_path, context, input_data.episode_id, 'cached emotion detection'):
-            return self.__construct_emotion_data(input_data, detections_path)
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached emotion detection'):
+            return self.__construct_emotion_data(input_data, output_path)
 
-        if not detections_path.exists():
+        if not input_path.exists():
             context.logger.warning(
-                f'No character detections found for emotion analysis: {detections_path}',
+                f'No character detections found for emotion analysis: {input_path}',
             )
-            return self.__construct_emotion_data(input_data, detections_path)
+            return self.__construct_emotion_data(input_data, output_path)
 
         context.logger.info(f'Detecting emotions for {input_data.episode_id}')
         context.mark_step_started(self.name, input_data.episode_id)
 
-        detections_data = FileOperations.load_json(detections_path)
+        detections_data = FileOperations.load_json(input_path)
         self.__process_and_update_emotions(detections_data, input_data, context)
-        FileOperations.atomic_write_json(detections_path, detections_data)
+        FileOperations.atomic_write_json(output_path, detections_data)
 
         context.mark_step_completed(self.name, input_data.episode_id)
-        return self.__construct_emotion_data(input_data, detections_path)
+        return self.__construct_emotion_data(input_data, output_path)
 
     def execute(self, input_data: FrameCollection, context: ExecutionContext) -> EmotionData:
-        detections_path = self.__resolve_detections_path(input_data, context)
+        input_path = self.__resolve_input_path(input_data, context)
+        output_path = self.__resolve_output_path(input_data, context)
 
-        if self._check_cache_validity(detections_path, context, input_data.episode_id, 'cached emotion detection'):
-            return self.__construct_emotion_data(input_data, detections_path)
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached emotion detection'):
+            return self.__construct_emotion_data(input_data, output_path)
 
-        if not detections_path.exists():
+        if not input_path.exists():
             context.logger.warning(
-                f'No character detections found for emotion analysis: {detections_path}',
+                f'No character detections found for emotion analysis: {input_path}',
             )
-            return self.__construct_emotion_data(input_data, detections_path)
+            return self.__construct_emotion_data(input_data, output_path)
 
         context.logger.info(f'Detecting emotions for {input_data.episode_id}')
         context.mark_step_started(self.name, input_data.episode_id)
 
         self.__prepare_emotion_model(context)
 
-        detections_data = FileOperations.load_json(detections_path)
+        detections_data = FileOperations.load_json(input_path)
         self.__process_and_update_emotions(detections_data, input_data, context)
-        FileOperations.atomic_write_json(detections_path, detections_data)
+        FileOperations.atomic_write_json(output_path, detections_data)
 
         context.mark_step_completed(self.name, input_data.episode_id)
-        return self.__construct_emotion_data(input_data, detections_path)
+        return self.__construct_emotion_data(input_data, output_path)
 
     def __prepare_emotion_model(self, context: ExecutionContext) -> None:
         if self.__model is None:
@@ -130,14 +158,17 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
 
         self.__apply_emotion_results(detections, emotion_results, face_metadata, context)
 
-    @staticmethod
-    def __resolve_detections_path(
-        input_data: FrameCollection, context: ExecutionContext,
+    def __resolve_input_path(
+        self, input_data: FrameCollection, context: ExecutionContext,
     ) -> Path:
-        filename = f'{context.series_name}_{input_data.episode_info.episode_code()}'
-        output_filename: str = f'{filename}_character_detections.json'
-        return context.get_output_path(
-            input_data.episode_info, 'character_detections', output_filename,
+        season_code = f'S{input_data.episode_info.season:02d}'
+        episode_code = input_data.episode_info.episode_code()
+        return (
+            context.base_output_dir
+            / 'detections'
+            / 'characters'
+            / season_code
+            / f'{episode_code}.json'
         )
 
     @staticmethod

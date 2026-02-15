@@ -68,9 +68,15 @@ class VLLMClient(BaseLLMClient):
 
 
 class GeminiClient(BaseLLMClient):
-    __GEMINI_MODEL_NAME = 'gemini-2.5-flash'
-
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        model_name: str = 'gemini-2.5-flash',
+        base_url: str = 'https://generativelanguage.googleapis.com/v1beta/openai/',
+        api_key: Optional[str] = None,
+    ) -> None:
+        self.__model_name = model_name
+        self.__base_url = base_url
+        self.__api_key = api_key or settings.gemini.api_key
         self.__client: Optional[OpenAI] = None
         self.__init_client()
 
@@ -79,23 +85,22 @@ class GeminiClient(BaseLLMClient):
             raise RuntimeError('Gemini client not initialized')
 
         response = self.__client.chat.completions.create(
-            model=self.__GEMINI_MODEL_NAME,
+            model=self.__model_name,
             messages=messages,  # type: ignore[arg-type]
         )
         return response.choices[0].message.content.strip()
 
     def __init_client(self) -> None:
-        console.print(f'[cyan]Initializing {self.__GEMINI_MODEL_NAME} via OpenAI SDK...[/cyan]')
+        console.print(f'[cyan]Initializing {self.__model_name} via OpenAI SDK...[/cyan]')
         try:
-            api_key = settings.gemini.api_key
-            if not api_key:
+            if not self.__api_key:
                 raise ValueError('GEMINI_API_KEY not set in environment')
 
             self.__client = OpenAI(
-                base_url='https://generativelanguage.googleapis.com/v1beta/openai/',
-                api_key=api_key,
+                base_url=self.__base_url,
+                api_key=self.__api_key,
             )
-            console.print(f'[green]{self.__GEMINI_MODEL_NAME} initialized[/green]')
+            console.print(f'[green]{self.__model_name} initialized[/green]')
         except Exception as e:
             console.print(f'[red]Failed to initialize Gemini client: {e}[/red]')
             raise

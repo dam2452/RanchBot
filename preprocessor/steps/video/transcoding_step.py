@@ -15,6 +15,8 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import FileOutput
+from preprocessor.core.temp_files import StepTempFile
 from preprocessor.services.media.ffmpeg import FFmpegWrapper
 from preprocessor.services.media.transcode_params import TranscodeParams
 
@@ -26,6 +28,15 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         'vp9': 2.85, 'av1': 4.0,
     }
     __command_logged = False
+
+    def get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{episode}.mp4",
+                subdir="transcoded_videos",
+                min_size_bytes=1024*1024,
+            ),
+        ]
 
     @property
     def name(self) -> str:
@@ -184,18 +195,13 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         return tgt_a
 
     def __execute_ffmpeg_process(self, context: ExecutionContext, params: TranscodeParams, ep_id: str) -> None:
-        temp = params.output_path.with_suffix('.mp4.tmp')
-        t_params = replace(params, output_path=temp)
-        context.mark_step_started(self.name, ep_id, [str(temp)])
-        try:
-            if t_params.log_command:
+        with StepTempFile(params.output_path) as temp_path:
+            temp_params = replace(params, output_path=temp_path)
+            context.mark_step_started(self.name, ep_id, [str(temp_path)])
+
+            if temp_params.log_command:
                 context.logger.info('=' * 20 + ' FFmpeg ' + '=' * 20)
-            FFmpegWrapper.transcode(t_params)
-            temp.replace(params.output_path)
-        except BaseException:
-            if temp.exists():
-                temp.unlink()
-            raise
+            FFmpegWrapper.transcode(temp_params)
 
     @staticmethod
     def __normalize_codec_name(codec: str) -> str:
@@ -213,10 +219,15 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             1.0,
         )
 
-    @staticmethod
-    def __resolve_output_path(input_data: SourceVideo, context: ExecutionContext) -> Path:
-        filename = f'{context.series_name}_{input_data.episode_info.episode_code()}.mp4'
-        return context.get_season_output_path(input_data.episode_info, 'transcoded_videos', filename)
+    def __resolve_output_path(self, input_data: SourceVideo, context: ExecutionContext) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
 
     def __construct_result_artifact(self, path: Path, input_data: SourceVideo) -> TranscodedVideo:
         return TranscodedVideo(

@@ -12,17 +12,6 @@ from typing import (
 
 from preprocessor.services.episodes import EpisodeInfo
 from preprocessor.services.validation.base_result import ValidationStatusMixin
-from preprocessor.services.validation.validators import (
-    CharacterValidator,
-    ElasticValidator,
-    FaceClusterValidator,
-    FrameValidator,
-    ImageHashValidator,
-    ObjectValidator,
-    SceneValidator,
-    TranscriptionValidator,
-    VideoValidator,
-)
 
 
 class EpisodeStatsData(TypedDict, total=False):
@@ -53,16 +42,28 @@ class EpisodeStats(ValidationStatusMixin):
     video_size_mb: Optional[float] = None
     scenes_count: Optional[int] = None
 
-    def __post_init__(self) -> None:
-        self.__validators = [
+    def collect_stats(self) -> None:
+        # pylint: disable=import-outside-toplevel  # Necessary to avoid circular import (validators import EpisodeStats)
+        from preprocessor.services.validation.validators import (
+            CharacterValidator,
+            ElasticValidator,
+            FaceClusterValidator,
+            FrameValidator,
+            ImageHashValidator,
+            ObjectValidator,
+            SceneValidator,
+            TranscriptionValidator,
+            VideoValidator,
+        )
+
+        validators = [
             TranscriptionValidator(), FrameValidator(), VideoValidator(),
             SceneValidator(), ImageHashValidator(), CharacterValidator(),
             FaceClusterValidator(), ObjectValidator(), ElasticValidator(),
         ]
 
-    def collect_stats(self) -> None:
-        for v in self.__validators:
-            v.validate(self)
+        for validator in validators:
+            validator.validate(self)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

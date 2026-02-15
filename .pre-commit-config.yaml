@@ -1,5 +1,5 @@
 fail_fast: false
-exclude: '^(bot/RANCZO-WIDEO/|bot/RANCZO-TRANSKRYPCJE/)'
+exclude: '^(bot/RANCZO-WIDEO/|bot/RANCZO-TRANSKRYPCJE/|scripts/)'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

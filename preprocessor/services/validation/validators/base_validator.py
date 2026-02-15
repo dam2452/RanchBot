@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import (
     ABC,
     abstractmethod,
@@ -5,26 +7,23 @@ from abc import (
 import json
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Optional,
 )
 
+from preprocessor.services.validation.episode_stats import EpisodeStats
 from preprocessor.services.validation.file_validators import FileValidator
-
-if TYPE_CHECKING:
-    from preprocessor.services.validation.episode_stats import EpisodeStats
 
 
 class BaseValidator(ABC):
     @abstractmethod
-    def validate(self, stats: 'EpisodeStats') -> None:
+    def validate(self, stats: EpisodeStats) -> None:
         pass
 
     @staticmethod
     def _check_path_exists(
-        path: Path, stats: 'EpisodeStats', error_msg: str,
+        path: Path, stats: EpisodeStats, error_msg: str,
     ) -> bool:
         if not path.exists():
             stats.errors.append(error_msg)
@@ -32,16 +31,16 @@ class BaseValidator(ABC):
         return True
 
     @staticmethod
-    def _add_warning(stats: 'EpisodeStats', message: str) -> None:
+    def _add_warning(stats: EpisodeStats, message: str) -> None:
         stats.warnings.append(message)
 
     @staticmethod
-    def _add_error(stats: 'EpisodeStats', message: str) -> None:
+    def _add_error(stats: EpisodeStats, message: str) -> None:
         stats.errors.append(message)
 
     @staticmethod
     def _validate_json_if_exists(
-        stats: 'EpisodeStats',
+        stats: EpisodeStats,
         file_path: Path,
         error_msg_prefix: str,
     ) -> bool:
@@ -56,7 +55,7 @@ class BaseValidator(ABC):
 
     @staticmethod
     def _validate_json_with_warning(
-        stats: 'EpisodeStats',
+        stats: EpisodeStats,
         file_path: Path,
         missing_msg: str,
         invalid_msg_prefix: str,
@@ -73,7 +72,7 @@ class BaseValidator(ABC):
 
     @staticmethod
     def _validate_json_with_error(
-        stats: 'EpisodeStats',
+        stats: EpisodeStats,
         file_path: Path,
         missing_msg: str,
         invalid_msg_prefix: str,

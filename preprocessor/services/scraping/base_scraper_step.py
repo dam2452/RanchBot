@@ -13,6 +13,7 @@ from typing import (
 
 from pydantic import BaseModel
 
+from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.core.artifacts import SourceVideo
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
@@ -26,7 +27,7 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
         return True
 
     def execute(self, input_data: SourceVideo, context: ExecutionContext) -> Optional[SourceVideo]:
-        output_path = Path(self.config.output_file)
+        output_path = self.__resolve_output_path(context)
 
         if output_path.exists() and not context.force_rerun:
             context.logger.info(f"{self._get_metadata_type_name()} metadata already exists.")
@@ -42,6 +43,11 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
 
         context.logger.info(f"{self._get_metadata_type_name()} metadata saved to: {output_path}")
         return input_data
+
+    def __resolve_output_path(self, context: ExecutionContext) -> Path:
+        metadata_type = self._get_metadata_type_name().lower()
+        output_dir = get_base_output_dir(context.series_name)
+        return output_dir / f"{context.series_name}_{metadata_type}.json"
 
     @abstractmethod
     def _get_scraper_class(self) -> Type:

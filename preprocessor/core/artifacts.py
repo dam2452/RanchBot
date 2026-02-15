@@ -1,18 +1,18 @@
+from __future__ import annotations
+
 from dataclasses import (
     dataclass,
     field,
 )
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
     Optional,
 )
 
-if TYPE_CHECKING:
-    from preprocessor.services.episodes.episode_manager import EpisodeInfo
+from preprocessor.services.episodes.types import EpisodeInfo
 
 
 @dataclass(frozen=True)
@@ -23,7 +23,7 @@ class Artifact:
 @dataclass(frozen=True)
 class EpisodeArtifact(Artifact):
     episode_id: str
-    episode_info: 'EpisodeInfo'
+    episode_info: EpisodeInfo
 
 
 @dataclass(frozen=True)

@@ -14,10 +14,21 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import FileOutput
+from preprocessor.core.temp_files import StepTempFile
 from preprocessor.services.io.files import FileOperations
 
 
 class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGenerationConfig]):
+    def get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{episode}.ndjson",
+                subdir="elastic_documents",
+                min_size_bytes=100,
+            ),
+        ]
+
     @property
     def name(self) -> str:
         return 'document_generation'
@@ -85,20 +96,21 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
             video_bot_path: str,
     ) -> int:
         count = 0
-        with open(output_path, 'w', encoding='utf-8') as f:
-            for i, segment in enumerate(segments):
-                doc = {
-                    'episode_id': episode_info.episode_code(),
-                    'episode_metadata': episode_metadata,
-                    'segment_id': i,
-                    'text': segment.get('text', '').strip(),
-                    'start_time': segment.get('start', 0.0),
-                    'end_time': segment.get('end', 0.0),
-                    'speaker': segment.get('speaker', 'unknown'),
-                    'video_path': video_bot_path,
-                }
-                f.write(json.dumps(doc, ensure_ascii=False) + '\n')
-                count += 1
+        with StepTempFile(output_path) as temp_path:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                for i, segment in enumerate(segments):
+                    doc = {
+                        'episode_id': episode_info.episode_code(),
+                        'episode_metadata': episode_metadata,
+                        'segment_id': i,
+                        'text': segment.get('text', '').strip(),
+                        'start_time': segment.get('start', 0.0),
+                        'end_time': segment.get('end', 0.0),
+                        'speaker': segment.get('speaker', 'unknown'),
+                        'video_path': video_bot_path,
+                    }
+                    f.write(json.dumps(doc, ensure_ascii=False) + '\n')
+                    count += 1
         return count
 
     @staticmethod
@@ -110,15 +122,25 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
         episode_id = getattr(input_data, 'episode_id')
         return episode_info, episode_id
 
-    @staticmethod
-    def __resolve_output_dir(episode_info: Any, context: ExecutionContext) -> Path:
-        return context.get_output_path(episode_info, 'elastic_documents', '')
+    def __resolve_output_dir(self, episode_info: Any, context: ExecutionContext) -> Path:
+        output_path = self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': episode_info.season_code(),
+                'episode': episode_info.episode_code(),
+            },
+        )
+        return output_path.parent
 
-    @staticmethod
-    def __resolve_segments_output_path(episode_info: Any, context: ExecutionContext) -> Path:
-        output_filename = f'{context.series_name}_{episode_info.episode_code()}_text_segments.jsonl'
-        return context.get_output_path(
-            episode_info, 'elastic_documents/text_segments', output_filename,
+    def __resolve_segments_output_path(self, episode_info: Any, context: ExecutionContext) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': episode_info.season_code(),
+                'episode': episode_info.episode_code(),
+            },
         )
 
     @staticmethod

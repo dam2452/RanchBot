@@ -1,22 +1,21 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     List,
     Optional,
     Tuple,
 )
 
 from preprocessor.services.io.path_service import PathService
+from preprocessor.services.validation.episode_stats import EpisodeStats
 from preprocessor.services.validation.file_validators import FileValidator
-
-if TYPE_CHECKING:
-    from preprocessor.services.validation.episode_stats import EpisodeStats
 
 
 class JsonDirectoryValidationHelper:
     @staticmethod
     def validate_json_directory(
-            stats: 'EpisodeStats',
+            stats: EpisodeStats,
             subdir: str,
             count_attr: Optional[str],
             context_name: str,
@@ -70,7 +69,7 @@ class JsonDirectoryValidationHelper:
 
     @staticmethod
     def __perform_size_anomaly_check(
-            stats: 'EpisodeStats',
+            stats: EpisodeStats,
             sizes: List[int],
             folder_name: str,
             threshold: float = 0.2,
@@ -93,7 +92,7 @@ class JsonDirectoryValidationHelper:
 class VisualizationValidationHelper:
     @staticmethod
     def validate_visualizations(
-            stats: 'EpisodeStats',
+            stats: EpisodeStats,
             subdir: str,
             count_attr: str,
             context_name: str,

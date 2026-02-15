@@ -52,12 +52,11 @@ class SearchCommandHandler:
     def __init__(
             self,
             es_client: AsyncElasticsearch,
-            embedding_service: EmbeddingService,
+            _embedding_service: EmbeddingService,
             queries: ElasticsearchQueries,
             json_output: bool,
     ) -> None:
         self.__es = es_client
-        self.__embedding = embedding_service  # pylint: disable=unused-private-member
         self.__queries = queries
         self.__json_output = json_output
 

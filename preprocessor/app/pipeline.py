@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from typing import (
-    TYPE_CHECKING,
     Dict,
     List,
     Optional,
@@ -9,9 +10,7 @@ from typing import (
 import networkx as nx
 
 from preprocessor.app.step_builder import StepBuilder
-
-if TYPE_CHECKING:
-    from preprocessor.services.core.logging import ErrorHandlingLogger
+from preprocessor.services.core.logging import ErrorHandlingLogger
 
 
 class PipelineDefinition:

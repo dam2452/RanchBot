@@ -8,9 +8,24 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    JsonFileOutput,
+    OutputDescriptor,
+)
 
 
 class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteringConfig]):
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        """Define output file descriptors for face clustering step."""
+        return [
+            JsonFileOutput(
+                subdir="clusters/faces",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ]
+
+
     def __init__(self, config: FaceClusteringConfig) -> None:
         super().__init__(config)
         self.__model = None
@@ -48,8 +63,7 @@ class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteri
         """Execute single episode (batch processing variant without lazy loading)."""
         output_path = self.__resolve_output_path(input_data, context)
 
-        if self.__is_execution_cached(output_path, input_data.episode_id, context):
-            context.logger.info(f'Skipping {input_data.episode_id} (cached face clustering)')
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached face clustering'):
             return self.__construct_cluster_data(input_data, output_path)
 
         context.logger.info(f'Clustering faces for {input_data.episode_id}')
@@ -63,8 +77,7 @@ class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteri
     ) -> ClusterData:
         output_path = self.__resolve_output_path(input_data, context)
 
-        if self.__is_execution_cached(output_path, input_data.episode_id, context):
-            context.logger.info(f'Skipping {input_data.episode_id} (cached face clustering)')
+        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached face clustering'):
             return self.__construct_cluster_data(input_data, output_path)
 
         context.logger.info(f'Clustering faces for {input_data.episode_id}')
@@ -73,22 +86,16 @@ class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteri
         context.mark_step_completed(self.name, input_data.episode_id)
         return self.__construct_cluster_data(input_data, output_path)
 
-    def __is_execution_cached(
-            self, output_path: Path, episode_id: str, context: ExecutionContext,
-    ) -> bool:
-        if not output_path.exists():
-            return False
-        if context.force_rerun:
-            return False
-        return context.is_step_completed(self.name, episode_id)
-
-    @staticmethod
     def __resolve_output_path(
-            input_data: FrameCollection, context: ExecutionContext,
+        self, input_data: FrameCollection, context: ExecutionContext,
     ) -> Path:
-        output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_clusters.json'
-        return context.get_output_path(
-            input_data.episode_info, 'face_clusters', output_filename,
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': f'S{input_data.episode_info.season:02d}',
+                'episode': input_data.episode_info.episode_code(),
+            },
         )
 
     @staticmethod

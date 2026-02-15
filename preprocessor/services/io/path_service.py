@@ -1,14 +1,11 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Optional,
-)
+from typing import Optional
 
 from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.services.core.environment import Environment
-
-if TYPE_CHECKING:
-    from preprocessor.services.episodes.episode_manager import EpisodeInfo
+from preprocessor.services.episodes.types import EpisodeInfo
 
 
 class PathService:
@@ -17,7 +14,7 @@ class PathService:
 
     def build_filename(
         self,
-        episode_info: 'EpisodeInfo',
+        episode_info: EpisodeInfo,
         extension: str = 'json',
         suffix: Optional[str] = None,
     ) -> str:
@@ -25,7 +22,7 @@ class PathService:
         suffix_str = f'_{suffix}' if suffix else ''
         return f'{base}{suffix_str}.{extension}'
 
-    def get_episode_dir(self, episode_info: 'EpisodeInfo', subdir: str) -> Path:
+    def get_episode_dir(self, episode_info: EpisodeInfo, subdir: str) -> Path:
         base_output_dir = get_base_output_dir(self.__series_name)
         return base_output_dir / subdir / episode_info.season_code() / episode_info.episode_num()
 

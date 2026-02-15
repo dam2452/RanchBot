@@ -15,15 +15,26 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import FileOutput
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.io.metadata import MetadataBuilder
 from preprocessor.services.search.embedding_model import EmbeddingModelWrapper
 
 
+# pylint: disable=duplicate-code  # Pattern shared with vision/embeddings_step - different data types (text vs frames)
 class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, TextEmbeddingConfig]):
     def __init__(self, config: TextEmbeddingConfig) -> None:
         super().__init__(config)
         self.__model: Optional[EmbeddingModelWrapper] = None
+
+    def get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{episode}.npy",
+                subdir="embeddings/text",
+                min_size_bytes=1024,
+            ),
+        ]
 
     @property
     def name(self) -> str:
@@ -61,7 +72,11 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
         input_data: TranscriptionData,
         context: ExecutionContext,
     ) -> EmbeddingCollection:
-        output_path = self.__resolve_output_path(input_data, context)
+        output_path = self.__resolve_output_path(
+            context,
+            input_data.episode_info.season,
+            input_data.episode_info.episode,
+        )
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached text embeddings'):
             return self.__load_cached_result(output_path, input_data)
@@ -83,7 +98,11 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
     def __execute_single(
         self, input_data: TranscriptionData, context: ExecutionContext,
     ) -> EmbeddingCollection:
-        output_path = self.__resolve_output_path(input_data, context)
+        output_path = self.__resolve_output_path(
+            context,
+            input_data.episode_info.season,
+            input_data.episode_info.episode,
+        )
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached text embeddings'):
             return self.__load_cached_result(output_path, input_data)
@@ -196,11 +215,17 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
             embedding_type='text',
         )
 
-    @staticmethod
-    def __resolve_output_path(input_data: TranscriptionData, context: ExecutionContext) -> Path:
-        episode_code = input_data.episode_info.episode_code()
-        output_filename: str = f'{context.series_name}_{episode_code}_embeddings_text.json'
-        return context.get_output_path(input_data.episode_info, 'embeddings', output_filename)
+    def __resolve_output_path(
+        self,
+        context: ExecutionContext,
+        season: int,
+        episode: int,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {"season": season, "episode": episode},
+        )
 
     @staticmethod
     def __load_cached_result(

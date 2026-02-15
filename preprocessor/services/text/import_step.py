@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
 import re
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -14,10 +15,10 @@ from preprocessor.config.step_configs import TranscriptionImportConfig
 from preprocessor.core.artifacts import TranscriptionData
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.services.episodes.episode_manager import EpisodeManager
-
-if TYPE_CHECKING:
-    from preprocessor.services.episodes.episode_manager import EpisodeInfo
+from preprocessor.services.episodes.episode_manager import (
+    EpisodeInfo,
+    EpisodeManager,
+)
 
 
 class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], TranscriptionImportConfig]):
@@ -83,7 +84,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
 
         return self.__construct_new_artifact(episode_id, episode_info, output_path, converted_data)
 
-    def __resolve_episode_info(self, json_file: Path) -> Optional['EpisodeInfo']:
+    def __resolve_episode_info(self, json_file: Path) -> Optional[EpisodeInfo]:
         info = self.__episode_manager.parse_filename(json_file)
         if not info:
             season, episode = self.__extract_season_episode_fallback(json_file)
@@ -105,7 +106,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
             return True
         return False
 
-    def __get_output_path(self, episode_info: 'EpisodeInfo', context: ExecutionContext) -> Path:
+    def __get_output_path(self, episode_info: EpisodeInfo, context: ExecutionContext) -> Path:
         filename = self.__episode_manager.path_manager.build_filename(episode_info, extension='json')
         return context.get_output_path(episode_info, 'transcriptions', filename)
 
@@ -190,7 +191,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     @staticmethod
-    def __construct_cached_artifact(episode_id: str, info: 'EpisodeInfo', path: Path) -> TranscriptionData:
+    def __construct_cached_artifact(episode_id: str, info: EpisodeInfo, path: Path) -> TranscriptionData:
         return TranscriptionData(
             episode_id=episode_id, episode_info=info, path=path,
             language='pl', model='11labs', format='json',
@@ -198,7 +199,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
 
     @staticmethod
     def __construct_new_artifact(
-        episode_id: str, info: 'EpisodeInfo', path: Path,
+        episode_id: str, info: EpisodeInfo, path: Path,
         data: Dict[str, Any],
     ) -> TranscriptionData:
         trans_meta = data.get('transcription', {})

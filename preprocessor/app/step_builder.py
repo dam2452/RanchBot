@@ -1,11 +1,24 @@
+from __future__ import annotations
+
 from dataclasses import (
     dataclass,
     field,
 )
-import importlib
+from pathlib import Path
+import re
 from typing import (
     Any,
+    Dict,
     List,
+    Optional,
+    Type,
+    Union,
+)
+
+from preprocessor.core.base_step import PipelineStep
+from preprocessor.core.output_descriptors import (
+    OutputDescriptor,
+    ValidationResult,
 )
 
 
@@ -18,48 +31,58 @@ class Phase:
 @dataclass
 class StepBuilder:
     description: str
-    id: str
-    module: str
+    step_class: Type[PipelineStep]
     phase: Phase
-    produces: List[str]
+    produces: Union[List[str], List[OutputDescriptor]]
+    id: Optional[str] = None
     config: Any = None
-    needs: List["StepBuilder"] = field(default_factory=list)
+    needs: List[StepBuilder] = field(default_factory=list)
 
     @property
     def dependency_ids(self) -> List[str]:
         return [step.id for step in self.needs]
 
-    def load_class(self) -> type:
-        module_path, class_name = self.module.split(":")
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        if not self.produces:
+            return []
 
-        try:
-            mod = importlib.import_module(module_path)
-        except ImportError as e:
-            raise ImportError(
-                f"Cannot load module '{module_path}' for step '{self.id}': {e}",
-            ) from e
+        if isinstance(self.produces[0], OutputDescriptor):
+            return self.produces
 
-        try:
-            return getattr(mod, class_name)
-        except AttributeError as e:
-            raise AttributeError(
-                f"Class '{class_name}' not found in module '{module_path}' for step '{self.id}': {e}",
-            ) from e
+        return []
+
+    def validate_outputs(
+            self,
+            base_dir: Path,
+            context_vars: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, ValidationResult]:
+        results = {}
+        for idx, descriptor in enumerate(self.get_output_descriptors()):
+            result = descriptor.validate(base_dir, context_vars)
+            results[f'{self.id}_output_{idx}'] = result
+        return results
+
+    def get_dependency_outputs(self) -> Dict[str, List[OutputDescriptor]]:
+        return {
+            dep.id: dep.get_output_descriptors()
+            for dep in self.needs
+        }
 
     def __post_init__(self) -> None:
+        if self.id is None:
+            object.__setattr__(self, 'id', self.__generate_id_from_class())
         self.__validate_id()
-        self.__validate_module_path()
+
+    def __generate_id_from_class(self) -> str:
+        class_name = self.step_class.__name__
+        class_name_without_step = re.sub(r'Step$', '', class_name)
+        snake_case = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name_without_step).lower()
+        return snake_case
 
     def __validate_id(self) -> None:
-        if not self.id.replace("_", "").replace("-", "").isalnum():
+        if not self.id or not self.id.replace("_", "").replace("-", "").isalnum():
             raise ValueError(
                 f"Invalid step_id: '{self.id}'. Use only alphanumeric and underscores.",
-            )
-
-    def __validate_module_path(self) -> None:
-        if not self.module or ":" not in self.module:
-            raise ValueError(
-                f"Invalid module format for '{self.id}'. Expected 'package.module:ClassName'",
             )
 
     def __eq__(self, other: object) -> bool:

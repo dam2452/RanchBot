@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Optional,
@@ -8,14 +9,12 @@ from typing import (
 
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.io.path_service import PathService
+from preprocessor.services.validation.episode_stats import EpisodeStats
 from preprocessor.services.validation.validators.base_validator import BaseValidator
-
-if TYPE_CHECKING:
-    from preprocessor.services.validation.episode_stats import EpisodeStats
 
 
 class FaceClusterValidator(BaseValidator):
-    def validate(self, stats: 'EpisodeStats') -> None:
+    def validate(self, stats: EpisodeStats) -> None:
         clusters_dir = PathService(stats.series_name).get_episode_dir(
             stats.episode_info, settings.output_subdirs.face_clusters,
         )
@@ -40,7 +39,7 @@ class FaceClusterValidator(BaseValidator):
         files = list(clusters_dir.glob('*_face_clusters.json'))
         return files[0] if files else None
 
-    def __parse_cluster_stats(self, stats: 'EpisodeStats', data: Dict[str, Any]) -> None:
+    def __parse_cluster_stats(self, stats: EpisodeStats, data: Dict[str, Any]) -> None:
         clusters = data.get('clusters', {})
 
         if isinstance(clusters, (dict, list)):

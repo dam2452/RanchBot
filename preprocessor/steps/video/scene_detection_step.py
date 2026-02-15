@@ -12,6 +12,10 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import (
+    JsonFileOutput,
+    OutputDescriptor,
+)
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.media.scene_detection import TransNetWrapper
 
@@ -29,6 +33,15 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
     @property
     def supports_batch_processing(self) -> bool:
         return True
+
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        return [
+            JsonFileOutput(
+                pattern="{season}/{episode}.json",
+                subdir="scene_detections",
+                min_size_bytes=10,
+            ),
+        ]
 
     def setup_resources(self, context: ExecutionContext) -> None:
         if not self.__model_loaded:
@@ -161,12 +174,16 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
             min_scene_len=self.config.min_scene_len,
         )
 
-    @staticmethod
     def __resolve_output_path(
+            self,
             input_data: TranscodedVideo,
             context: ExecutionContext,
     ) -> Path:
-        output_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_scenes.json'
-        return context.get_output_path(
-            input_data.episode_info, 'scene_timestamps', output_filename,
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+            },
         )

@@ -20,6 +20,7 @@ from preprocessor.config.types import (
 from preprocessor.core.artifacts import TranscriptionData
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.temp_files import StepTempFile
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.transcription.sound_classification import (
     classify_segment,
@@ -285,18 +286,19 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
 
     @staticmethod
     def __generate_srt_file(segments: List[Dict[str, Any]], srt_path: Path) -> None:
-        with open(srt_path, 'w', encoding='utf-8') as f:
-            for idx, seg in enumerate(segments, 1):
-                start = seg.get('start', 0)
-                end = seg.get('end', 0)
-                text = seg.get('text', '').strip()
+        with StepTempFile(srt_path) as temp_path:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                for idx, seg in enumerate(segments, 1):
+                    start = seg.get('start', 0)
+                    end = seg.get('end', 0)
+                    text = seg.get('text', '').strip()
 
-                start_time = SoundSeparationStep.__format_srt_time(start)
-                end_time = SoundSeparationStep.__format_srt_time(end)
+                    start_time = SoundSeparationStep.__format_srt_time(start)
+                    end_time = SoundSeparationStep.__format_srt_time(end)
 
-                f.write(f'{idx}\n')
-                f.write(f'{start_time} --> {end_time}\n')
-                f.write(f'{text}\n\n')
+                    f.write(f'{idx}\n')
+                    f.write(f'{start_time} --> {end_time}\n')
+                    f.write(f'{text}\n\n')
 
     @staticmethod
     def __generate_txt_file(json_path: Path, txt_path: Path) -> None:
@@ -313,12 +315,9 @@ class SoundSeparationStep(PipelineStep[TranscriptionData, TranscriptionData, Sou
             if text:
                 text_lines.append(text)
 
-        with open(txt_path, 'w', encoding='utf-8') as f:
-            f.write(' '.join(text_lines))
-
-    @staticmethod
-    def __is_sound_event_text(text: str) -> bool:  # pylint: disable=unused-private-member
-        return bool(re.match(r'^\(.*\)$', text.strip()))
+        with StepTempFile(txt_path) as temp_path:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write(' '.join(text_lines))
 
     @staticmethod
     def __renumber_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

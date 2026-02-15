@@ -15,7 +15,7 @@ _console_instance: Optional[Console] = None
 
 
 def __get_console() -> Console:
-    global _console_instance  # pylint: disable=global-statement
+    global _console_instance  # pylint: disable=global-statement  # Singleton pattern - global required for module-level instance
     if _console_instance is None:
         _console_instance = __initialize_rich_console()
     return _console_instance

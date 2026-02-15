@@ -15,15 +15,26 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.core.output_descriptors import FileOutput
 from preprocessor.services.io.files import FileOperations
 from preprocessor.services.io.metadata import MetadataBuilder
 from preprocessor.services.search.embedding_model import EmbeddingModelWrapper
 
 
+# pylint: disable=duplicate-code  # Pattern shared with text/embeddings_step - different data types (frames vs text)
 class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, VideoEmbeddingConfig]):
     def __init__(self, config: VideoEmbeddingConfig) -> None:
         super().__init__(config)
         self.__model: Optional[EmbeddingModelWrapper] = None
+
+    def get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{episode}.npy",
+                subdir="embeddings/vision",
+                min_size_bytes=1024,
+            ),
+        ]
 
     @property
     def name(self) -> str:
@@ -58,7 +69,11 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
     def execute(
             self, input_data: FrameCollection, context: ExecutionContext,
     ) -> EmbeddingCollection:
-        output_path = self.__resolve_output_path(input_data, context)
+        output_path = self.__resolve_output_path(
+            context,
+            input_data.episode_info.season,
+            input_data.episode_info.episode,
+        )
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached video embeddings'):
             return self.__load_cached_result(output_path, input_data)
@@ -83,7 +98,11 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
     def __execute_single(
         self, input_data: FrameCollection, context: ExecutionContext,
     ) -> EmbeddingCollection:
-        output_path = self.__resolve_output_path(input_data, context)
+        output_path = self.__resolve_output_path(
+            context,
+            input_data.episode_info.season,
+            input_data.episode_info.episode,
+        )
 
         if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached video embeddings'):
             return self.__load_cached_result(output_path, input_data)
@@ -145,12 +164,14 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
             len(emb_data.get('video_embeddings', [])),
         )
 
-    def __construct_embedding_collection(  # pylint: disable=duplicate-code
+    def __construct_embedding_collection(
             self,
             input_data: FrameCollection,
             output_path: Path,
             embedding_count: int,
     ) -> EmbeddingCollection:
+        # Similar pattern exists in text/embeddings_step.py but with different input type (FrameCollection vs TranscriptionData)
+        # and embedding_type ('video' vs 'text'). Not truly duplicated - both use the same MetadataBuilder method.
         return MetadataBuilder.create_embedding_collection(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
@@ -181,11 +202,17 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
         )
         FileOperations.atomic_write_json(output_path, output_data)
 
-    @staticmethod
-    def __resolve_output_path(input_data: FrameCollection, context: ExecutionContext) -> Path:
-        filename_base = f'{context.series_name}_{input_data.episode_info.episode_code()}'
-        output_filename: str = f'{filename_base}_embeddings_video.json'
-        return context.get_output_path(input_data.episode_info, 'embeddings', output_filename)
+    def __resolve_output_path(
+        self,
+        context: ExecutionContext,
+        season: int,
+        episode: int,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {"season": season, "episode": episode},
+        )
 
     @staticmethod
     def __extract_frame_requests(

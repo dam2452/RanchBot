@@ -173,7 +173,6 @@ class ValidationConfig(BaseModel):
 class EpisodeScraperConfig(BaseModel):
     headless: bool = True
     merge_sources: bool = True
-    output_file: str
     parser_mode: str = "normal"
     scraper_method: str = "crawl4ai"
     urls: List[str]
@@ -181,15 +180,12 @@ class EpisodeScraperConfig(BaseModel):
 
 class CharacterScraperConfig(BaseModel):
     headless: bool = True
-    output_file: str
     parser_mode: str = "normal"
     scraper_method: str = "crawl4ai"
     urls: List[str]
 
 
 class CharacterReferenceConfig(BaseModel):
-    characters_file: str
     images_per_character: int = Field(default=5, ge=1, le=20)
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
-    output_dir: str
     search_engine: str = "duckduckgo"
