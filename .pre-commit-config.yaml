@@ -1,5 +1,5 @@
 fail_fast: false
-exclude: '^(bot/RANCZO-WIDEO/|bot/RANCZO-TRANSKRYPCJE/)'
+exclude: '^(bot/RANCZO-WIDEO/|bot/RANCZO-TRANSKRYPCJE/|scripts/)'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -37,6 +37,7 @@ repos:
       - id: chmod
         args: ["755"]
         files: (.*scripts\/.*.py$|\.sh$)
+        exclude: ^preprocessor/entrypoint\.sh$
       - id: remove-tabs
         args: [--whitespaces-count, '4']
   - repo: https://github.com/PyCQA/isort

@@ -1,12 +1,16 @@
-# Ranczo Search
+# Search
 
 CLI do przeszukiwania Elasticsearch. Wymaga ES na `localhost:9200` (lub inny `--host`) z zaindeksowanymi danymi.
 
-**Indeksy:** `ranczo_segments` • `ranczo_text_embeddings` • `ranczo_video_frames` • `ranczo_episode_names`
+**Multi-series:** Każdy serial ma własne indeksy (np. `ranczo_clips_*`, `kiepscy_clips_*`). Użyj `--series nazwa_serii` aby wybrać który serial przeszukać.
+
+**Indeksy (przykład dla ranczo):** `ranczo_clips_text_segments` • `ranczo_clips_text_embeddings` • `ranczo_clips_video_frames` • `ranczo_clips_episode_names`
 
 ---
 
 ## Tryby wyszukiwania
+
+**WAŻNE:** Wszystkie komendy wymagają parametru `--series nazwa_serii` (np. `--series ranczo`, `--series kiepscy`)
 
 | Flaga | Opis |
 |-------|------|
@@ -29,34 +33,39 @@ CLI do przeszukiwania Elasticsearch. Wymaga ES na `localhost:9200` (lub inny `--
 
 ```bash
 # Meta
-./run-preprocessor.sh search --stats
-./run-preprocessor.sh search --list-characters
+./run-preprocessor.sh search --series ranczo --stats
+./run-preprocessor.sh search --series ranczo --list-characters
+./run-preprocessor.sh search --series kiepscy --stats  # dla innego serialu
 
 # Text
-./run-preprocessor.sh search --text "Kto tu rządzi" --limit 5
-./run-preprocessor.sh search --text-semantic "wesele" --season 10
+./run-preprocessor.sh search --series ranczo --text "Kto tu rządzi" --limit 5
+./run-preprocessor.sh search --series ranczo --text-semantic "wesele" --season 10
 
 # Visual
-./run-preprocessor.sh search --text-to-video "pocałunek"
-./run-preprocessor.sh search --image /input_data/screenshot.jpg
-./run-preprocessor.sh search --hash /input_data/frame.jpg  # znajdź duplikaty
-./run-preprocessor.sh search --hash "a1b2c3d4e5f6"  # lub podaj hash bezpośrednio
+./run-preprocessor.sh search --series ranczo --text-to-video "pocałunek"
+./run-preprocessor.sh search --series ranczo --image /input_data/screenshot.jpg
+./run-preprocessor.sh search --series ranczo --hash /input_data/frame.jpg  # znajdź duplikaty
+./run-preprocessor.sh search --series ranczo --hash "a1b2c3d4e5f6"  # lub podaj hash bezpośrednio
 
 # Filtry i kombinacje
-./run-preprocessor.sh search --character "Lucy Wilska" --season 10
-./run-preprocessor.sh search --emotion "happiness" --character "Lucy Wilska"
-./run-preprocessor.sh search --emotion "sadness" --season 1 --episode 5
-./run-preprocessor.sh search --object "person:5+"  # 5+ osób
-./run-preprocessor.sh search --object "dog" --season 10
-./run-preprocessor.sh search --text-to-video "pocałunek" --character "Lucy Wilska"
-./run-preprocessor.sh search --image /input_data/frame.jpg --season 10 --episode 1
+./run-preprocessor.sh search --series ranczo --character "Lucy Wilska" --season 10
+./run-preprocessor.sh search --series ranczo --emotion "happiness" --character "Lucy Wilska"
+./run-preprocessor.sh search --series ranczo --emotion "sadness" --season 1 --episode 5
+./run-preprocessor.sh search --series ranczo --object "person:5+"  # 5+ osób
+./run-preprocessor.sh search --series ranczo --object "dog" --season 10
+./run-preprocessor.sh search --series ranczo --text-to-video "pocałunek" --character "Lucy Wilska"
+./run-preprocessor.sh search --series ranczo --image /input_data/frame.jpg --season 10 --episode 1
 
 # Episode
-./run-preprocessor.sh search --episode-name "Spadek"
-./run-preprocessor.sh search --episode-name-semantic "wesele"
+./run-preprocessor.sh search --series ranczo --episode-name "Spadek"
+./run-preprocessor.sh search --series ranczo --episode-name-semantic "wesele"
 
 # Output
-./run-preprocessor.sh search --text "Lucy" --json-output | jq '.hits[]'
+./run-preprocessor.sh search --series ranczo --text "Lucy" --json-output | jq '.hits[]'
+
+# Inne seriale
+./run-preprocessor.sh search --series kiepscy --text "Ferdek"
+./run-preprocessor.sh search --series kiepscy --character "Halina Kiepska" --emotion "anger"
 ```
 
 ---
@@ -65,6 +74,7 @@ CLI do przeszukiwania Elasticsearch. Wymaga ES na `localhost:9200` (lub inny `--
 
 | Filtr | Użycie |
 |-------|--------|
+| `--series NAME` | **WYMAGANY:** Nazwa serialu (np. ranczo, kiepscy) |
 | `--season N` | Sezon |
 | `--episode N` | Odcinek |
 | `--character NAME` | Postać (case-sensitive) |
@@ -164,11 +174,11 @@ curl http://localhost:9200
 # Oczekiwany output: {"name": "...", "cluster_name": "...", ...}
 
 # Test indeksów
-./run-preprocessor.sh search --stats
+./run-preprocessor.sh search --series ranczo --stats
 # Powinno pokazać liczby dokumentów w każdym indeksie
 
 # Brak wyników dla postaci (case-sensitive!)
-./run-preprocessor.sh search --list-characters | grep -i "lucy"
+./run-preprocessor.sh search --series ranczo --list-characters | grep -i "lucy"
 # Użyj dokładnej nazwy: "Lucy Wilska" nie "lucy wilska"
 
 # Błąd "Cannot connect to Elasticsearch"
@@ -181,8 +191,12 @@ nvidia-smi  # sprawdź dostępność GPU
 
 # Plik obrazka nie znaleziony
 # Ścieżki w kontenerze: /input_data/ nie ./input_data/
-./run-preprocessor.sh search --image /input_data/screenshot.jpg  # ✓
-./run-preprocessor.sh search --image ./input_data/screenshot.jpg  # ✗
+./run-preprocessor.sh search --series ranczo --image /input_data/screenshot.jpg  # ✓
+./run-preprocessor.sh search --series ranczo --image ./input_data/screenshot.jpg  # ✗
+
+# Brak parametru --series
+./run-preprocessor.sh search --text "Lucy"  # ✗ Błąd: --series jest wymagany
+./run-preprocessor.sh search --series ranczo --text "Lucy"  # ✓
 ```
 
 **Wymagania:**
