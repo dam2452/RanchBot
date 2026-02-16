@@ -208,25 +208,28 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     def __should_restore_from_cache(
         self, cache_path: Path, input_data: InputT, context: ExecutionContext,
     ) -> bool:
+        episode_id = 'all' if input_data is None else input_data.episode_id
         return self._check_cache_validity(
-            cache_path, context, input_data.episode_id, 'cached',
+            cache_path, context, episode_id, 'cached',
         )
 
     def __restore_result(
         self, cache_path: Path, input_data: InputT, context: ExecutionContext,
     ) -> OutputT:
-        context.logger.info(f'Loading {input_data.episode_id} from cache')
+        episode_id = 'all' if input_data is None else input_data.episode_id
+        context.logger.info(f'Loading {episode_id} from cache')
         return self._load_from_cache(cache_path, input_data, context)
 
     def __compute_new_result(
         self, input_data: InputT, context: ExecutionContext,
     ) -> OutputT:
-        context.logger.info(f'Processing {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
+        episode_id = 'all' if input_data is None else input_data.episode_id
+        context.logger.info(f'Processing {episode_id}')
+        context.mark_step_started(self.name, episode_id)
 
         result = self._process(input_data, context)
 
-        context.mark_step_completed(self.name, input_data.episode_id)
+        context.mark_step_completed(self.name, episode_id)
         return result
 
     def _check_cache_validity(

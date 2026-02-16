@@ -193,7 +193,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         final_path = episode_dir / filename
 
         with StepTempFile(final_path) as temp_path:
-            resized.save(temp_path, quality=90)
+            resized.save(temp_path, format='JPEG', quality=90)
 
     @staticmethod
     def __extract_frame_at_timestamp(video_file: Path, timestamp: float) -> Image.Image:
@@ -227,18 +227,20 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             )
 
         if display_aspect_ratio > target_aspect:
-            new_height = target_height
-            new_width = int(target_height * display_aspect_ratio)
+            new_width = target_width
+            new_height = int(target_width / display_aspect_ratio)
             resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            x_crop = (new_width - target_width) // 2
-            return resized.crop((x_crop, 0, x_crop + target_width, target_height))
+            result = Image.new('RGB', (target_width, target_height), (0, 0, 0))
+            y_offset = (target_height - new_height) // 2
+            result.paste(resized, (0, y_offset))
+            return result
 
-        new_width = target_width
-        new_height = int(target_width / display_aspect_ratio)
+        new_height = target_height
+        new_width = int(target_height * display_aspect_ratio)
         resized = frame.resize((new_width, new_height), Image.Resampling.LANCZOS)
         result = Image.new('RGB', (target_width, target_height), (0, 0, 0))
-        y_offset = (target_height - new_height) // 2
-        result.paste(resized, (0, y_offset))
+        x_offset = (target_width - new_width) // 2
+        result.paste(resized, (x_offset, 0))
         return result
 
     def __write_metadata(

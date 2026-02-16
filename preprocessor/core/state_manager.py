@@ -172,3 +172,16 @@ class StateManager:
         self.__state.last_checkpoint = datetime.now().isoformat()
         with open(self.__state_file, 'w', encoding='utf-8') as f:
             json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
+
+    def rebuild_state(self, completed_steps: List[StepCheckpoint]) -> ProcessingState:
+        now = datetime.now().isoformat()
+        self.__state = ProcessingState(
+            series_name=self.__series_name,
+            started_at=now,
+            last_checkpoint=now,
+            completed_steps=completed_steps,
+            in_progress=[],
+        )
+        self.__save_state()
+        console.print(f'[green]State rebuilt with {len(completed_steps)} completed steps[/green]')
+        return self.__state

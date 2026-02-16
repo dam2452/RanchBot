@@ -1,7 +1,11 @@
 import asyncio
+import json
 from pathlib import Path
 import sys
-from typing import Tuple
+from typing import (
+    List,
+    Tuple,
+)
 
 import click
 from click import Command
@@ -24,6 +28,8 @@ from preprocessor.cli.search_params import (
 )
 from preprocessor.cli.skip_list_builder import SkipListBuilder
 from preprocessor.config.series_config import SeriesConfig
+from preprocessor.core.state_reconstruction import StateReconstructor
+from preprocessor.services.episodes.types import EpisodeInfo
 from preprocessor.services.io.path_service import PathService
 from preprocessor.services.search.clients.elasticsearch_queries import ElasticsearchQueries
 from preprocessor.services.search.clients.embedding_service import EmbeddingService
@@ -75,6 +81,60 @@ def __run_all(series: str, force_rerun: bool, skip: Tuple[str, ...]) -> None:
         setup.logger.info("Pipeline completed successfully!")
     except KeyboardInterrupt:
         setup.logger.info("\nInterrupted by user")
+        raise
+    finally:
+        setup.logger.finalize()
+
+
+def __load_episodes_from_json(episodes_file: Path) -> List[EpisodeInfo]:
+    with open(episodes_file, 'r', encoding='utf-8') as f:
+        episodes_data = json.load(f)
+
+    episodes_list = []
+    for season_data in episodes_data.get('seasons', []):
+        season_num = season_data['season_number']
+        for ep_data in season_data.get('episodes', []):
+            episode_info = EpisodeInfo(
+                season=season_num,
+                relative_episode=ep_data['episode_in_season'],
+                absolute_episode=ep_data['overall_episode_number'],
+                title=ep_data.get('title', ''),
+                premiere_date=ep_data.get('premiere_date'),
+            )
+            episodes_list.append(episode_info)
+
+    return episodes_list
+
+
+@cli.command(name="sync-state")
+@click.option("--series", required=True, help="Series name (e.g., ranczo)")
+def __sync_state(series: str) -> None:
+    pipeline = build_pipeline(series)
+    setup = setup_pipeline_context(series, "sync_state", force_rerun=False, with_episode_manager=True)
+
+    try:
+        episodes_file = setup.context.base_output_dir / f'{series}_episodes.json'
+
+        if not episodes_file.exists():
+            setup.logger.error(f'Episodes file not found: {episodes_file}')
+            setup.logger.error('Run scraping steps first to generate episodes.json')
+            sys.exit(1)
+
+        setup.logger.info(f'Loading episodes from {episodes_file}')
+        episodes_list = __load_episodes_from_json(episodes_file)
+        setup.logger.info(f'Found {len(episodes_list)} episodes')
+
+        completed_steps = StateReconstructor.scan_filesystem(
+            pipeline=pipeline,
+            episodes_list=episodes_list,
+            base_output_dir=setup.context.base_output_dir,
+            series_name=series,
+        )
+
+        setup.context.state_manager.rebuild_state(completed_steps)
+        setup.logger.info('State synchronization completed!')
+    except Exception as e:
+        setup.logger.error(f'Failed to sync state: {e}')
         raise
     finally:
         setup.logger.finalize()
