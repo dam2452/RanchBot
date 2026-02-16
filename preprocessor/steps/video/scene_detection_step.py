@@ -72,7 +72,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
 
         return self.__construct_scene_collection(output_path, input_data, scenes)
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return [
             JsonFileOutput(
                 pattern="{season}/{episode}.json",

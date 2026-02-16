@@ -60,7 +60,7 @@ class TranscriptionStep(
 
         return self.__construct_result_artifact(output_path, input_data, result)
 
-    def _get_output_descriptors(self) -> List[JsonFileOutput]:
+    def get_output_descriptors(self) -> List[JsonFileOutput]:
         return [
             JsonFileOutput(
                 pattern="{season}/{episode}.json",

@@ -79,7 +79,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
             hash_count=len(hash_results),
         )
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return [
             JsonFileOutput(
                 subdir="hashes",

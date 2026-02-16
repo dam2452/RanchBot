@@ -76,7 +76,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
 
         return self.__construct_emotion_data(input_data, output_path)
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return [
             JsonFileOutput(
                 subdir="detections/emotions",

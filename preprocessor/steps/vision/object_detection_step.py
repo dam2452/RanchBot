@@ -54,7 +54,7 @@ class ObjectDetectionStep(
         # Main processing logic would go here
         return self.__construct_object_data(input_data, output_path)
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return [
             JsonFileOutput(
                 subdir="detections/objects",

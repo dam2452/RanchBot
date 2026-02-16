@@ -86,7 +86,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             metadata_path=metadata_file,
         )
 
-    def _get_output_descriptors(self) -> List[DirectoryOutput]:
+    def get_output_descriptors(self) -> List[DirectoryOutput]:
         return [create_frames_output()]
 
     def _get_cache_path(

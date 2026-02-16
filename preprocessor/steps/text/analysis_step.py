@@ -46,7 +46,7 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
 
         return self.__construct_analysis_results(input_data, output_path, result_data)
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return [
             JsonFileOutput(
                 pattern="{season}/{episode}.json",

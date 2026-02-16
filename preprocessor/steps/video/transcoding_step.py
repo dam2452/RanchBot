@@ -55,7 +55,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
         return self.__construct_result_artifact(output_path, input_data)
 
-    def _get_output_descriptors(self) -> List[FileOutput]:
+    def get_output_descriptors(self) -> List[FileOutput]:
         return [
             FileOutput(
                 pattern="{season}/{series_name}_{episode}.mp4",

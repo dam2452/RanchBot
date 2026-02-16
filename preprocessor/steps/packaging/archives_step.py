@@ -32,7 +32,7 @@ class ArchiveGenerationStep(
         # Archive generation logic would go here
         return self.__construct_archive_artifact(input_data, output_path)
 
-    def _get_output_descriptors(self) -> List[FileOutput]:
+    def get_output_descriptors(self) -> List[FileOutput]:
         return [
             FileOutput(
                 pattern="{season}/{episode}.zip",

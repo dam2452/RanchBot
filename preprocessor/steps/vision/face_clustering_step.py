@@ -51,7 +51,7 @@ class FaceClusteringStep(PipelineStep[FrameCollection, ClusterData, FaceClusteri
         output_path = self._get_cache_path(input_data, context)
         return self.__construct_cluster_data(input_data, output_path)
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return [
             JsonFileOutput(
                 subdir="clusters/faces",

@@ -99,7 +99,7 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
             f'{self.__class__.__name__} must implement _process()',
         )
 
-    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
         return []
 
     def _get_cache_path(self, input_data: InputT, context: ExecutionContext) -> Path:
@@ -120,7 +120,7 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         context: ExecutionContext,
         context_vars: Optional[Dict[str, str]] = None,
     ) -> Path:
-        descriptors = self._get_output_descriptors()
+        descriptors = self.get_output_descriptors()
         if not descriptors or descriptor_index >= len(descriptors):
             raise ValueError(
                 f'Step {self.name} has no output descriptor at index {descriptor_index}',
@@ -251,7 +251,7 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         context_vars: Optional[Dict[str, str]],
         episode_id: str,
     ) -> bool:
-        descriptors = self._get_output_descriptors()
+        descriptors = self.get_output_descriptors()
         if not descriptors:
             return True
 

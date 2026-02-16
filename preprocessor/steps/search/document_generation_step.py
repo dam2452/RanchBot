@@ -50,7 +50,7 @@ class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGen
             episode_id, episode_info, output_path, total_docs,
         )
 
-    def _get_output_descriptors(self) -> List[FileOutput]:
+    def get_output_descriptors(self) -> List[FileOutput]:
         return [
             FileOutput(
                 pattern="{season}/{episode}.ndjson",

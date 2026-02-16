@@ -74,7 +74,7 @@ class StateReconstructor:
 
     @staticmethod
     def __check_global_step_outputs(step_instance, base_output_dir: Path) -> bool:
-        descriptors = step_instance._get_output_descriptors()
+        descriptors = step_instance.get_output_descriptors()
         if not descriptors:
             return True
 
@@ -89,7 +89,7 @@ class StateReconstructor:
         base_output_dir: Path,
         context_vars: Dict[str, str],
     ) -> bool:
-        descriptors = step_instance._get_output_descriptors()
+        descriptors = step_instance.get_output_descriptors()
         if not descriptors:
             return True
 

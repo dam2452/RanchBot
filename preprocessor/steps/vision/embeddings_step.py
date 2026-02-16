@@ -77,7 +77,7 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
             input_data, output_path, len(results), self.config.model_name,
         )
 
-    def _get_output_descriptors(self) -> List[FileOutput]:
+    def get_output_descriptors(self) -> List[FileOutput]:
         return [
             FileOutput(
                 pattern="{season}/{episode}.json",
