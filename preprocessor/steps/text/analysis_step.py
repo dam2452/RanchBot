@@ -23,21 +23,8 @@ from preprocessor.services.text.text_statistics import TextStatistics
 
 class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, TextAnalysisConfig]):
     @property
-    def name(self) -> str:
-        return 'text_analysis'
-
-    @property
     def supports_batch_processing(self) -> bool:
         return True
-
-    def get_output_descriptors(self) -> List[OutputDescriptor]:
-        return [
-            JsonFileOutput(
-                pattern="{season}/{episode}.json",
-                subdir="text_analysis",
-                min_size_bytes=50,
-            ),
-        ]
 
     def execute_batch(
         self, input_data: List[TranscriptionData], context: ExecutionContext,
@@ -46,34 +33,47 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
-    def execute(
-            self, input_data: TranscriptionData, context: ExecutionContext,
+    def _process(
+        self, input_data: TranscriptionData, context: ExecutionContext,
     ) -> TextAnalysisResults:
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
-            return self.__load_cached_result(output_path, input_data)
-
-        context.logger.info(f'Analyzing text for {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
+        output_path = self._get_cache_path(input_data, context)
 
         txt_path = self.__resolve_text_file_path(input_data)
         stats = self.__analyze_text_statistics(txt_path)
         result_data = self.__build_result_payload(stats, txt_path, input_data)
 
-        self.__save_analysis_results(output_path, result_data)
-        context.mark_step_completed(self.name, input_data.episode_id)
+        FileOperations.atomic_write_json(output_path, result_data)
 
         return self.__construct_analysis_results(input_data, output_path, result_data)
+
+    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+        return [
+            JsonFileOutput(
+                pattern="{season}/{episode}.json",
+                subdir="text_analysis",
+                min_size_bytes=50,
+            ),
+        ]
+
+    def _get_cache_path(
+        self, input_data: TranscriptionData, context: ExecutionContext,
+    ) -> Path:
+        return self._get_standard_cache_path(input_data, context)
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: TranscriptionData, context: ExecutionContext,
+    ) -> TextAnalysisResults:
+        stats_data = FileOperations.load_json(cache_path)
+        return self.__construct_analysis_results(input_data, cache_path, stats_data)
 
     def __analyze_text_statistics(self, txt_path: Path) -> TextStatistics:
         return TextStatistics.from_file(txt_path, language=self.config.language)
 
     def __build_result_payload(
-            self,
-            stats: TextStatistics,
-            txt_path: Path,
-            input_data: TranscriptionData,
+        self,
+        stats: TextStatistics,
+        txt_path: Path,
+        input_data: TranscriptionData,
     ) -> Dict[str, Any]:
         return {
             'metadata': {
@@ -84,18 +84,6 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
             },
             **stats.to_dict(),
         }
-
-    def __resolve_output_path(
-        self, input_data: TranscriptionData, context: ExecutionContext,
-    ) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': input_data.episode_info.season_code(),
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
 
     @staticmethod
     def __resolve_text_file_path(input_data: TranscriptionData) -> Path:
@@ -109,24 +97,10 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
         return txt_path
 
     @staticmethod
-    def __load_cached_result(
-            output_path: Path,
-            input_data: TranscriptionData,
-    ) -> TextAnalysisResults:
-        stats_data = FileOperations.load_json(output_path)
-        return TextAnalysisStep.__construct_analysis_results(
-            input_data, output_path, stats_data,
-        )
-
-    @staticmethod
-    def __save_analysis_results(output_path: Path, result_data: Dict[str, Any]) -> None:
-        FileOperations.atomic_write_json(output_path, result_data)
-
-    @staticmethod
     def __construct_analysis_results(
-            input_data: TranscriptionData,
-            output_path: Path,
-            result_data: Dict[str, Any],
+        input_data: TranscriptionData,
+        output_path: Path,
+        result_data: Dict[str, Any],
     ) -> TextAnalysisResults:
         return TextAnalysisResults(
             episode_id=input_data.episode_id,

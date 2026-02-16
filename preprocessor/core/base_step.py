@@ -9,6 +9,7 @@ from concurrent.futures import (
     as_completed,
 )
 from pathlib import Path
+import re
 from typing import (
     Callable,
     Dict,
@@ -34,24 +35,84 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         self.__config: ConfigT = config
 
     @property
-    def config(self) -> ConfigT:
-        return self.__config
+    def name(self) -> str:
+        class_name = self.__class__.__name__
+        if class_name.endswith('Step'):
+            class_name = class_name[:-4]
+
+        snake_case = re.sub(r'(?<!^)(?=[A-Z])', '_', class_name).lower()
+        return snake_case
 
     @property
-    @abstractmethod
-    def name(self) -> str:
-        pass
+    def config(self) -> ConfigT:
+        return self.__config
 
     @property
     def is_global(self) -> bool:
         return False
 
-    def get_output_descriptors(self) -> List[OutputDescriptor]:
-        """
-        Override in subclass to define step outputs.
-        Used for automatic output validation and path resolution.
-        """
+    @property
+    def uses_caching(self) -> bool:
+        return True
+
+    @property
+    def supports_batch_processing(self) -> bool:
+        return False
+
+    def execute(self, input_data: InputT, context: ExecutionContext) -> OutputT:
+        if not self.uses_caching:
+            return self._process(input_data, context)
+
+        return self.__execute_managed_flow(input_data, context)
+
+    def execute_batch(
+        self, input_data: List[InputT], context: ExecutionContext,
+    ) -> List[OutputT]:
+        return [self.execute(item, context) for item in input_data]
+
+    def should_skip_execution(
+        self,
+        episode_id: str,
+        context: ExecutionContext,
+        context_vars: Optional[Dict[str, str]] = None,
+    ) -> bool:
+        if context.force_rerun:
+            return False
+
+        if not context.is_step_completed(self.name, episode_id):
+            return False
+
+        return self.__validate_all_descriptors(context, context_vars, episode_id)
+
+    def setup_resources(self, context: ExecutionContext) -> None:
+        pass
+
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        pass
+
+    def cleanup(self) -> None:
+        pass
+
+    @abstractmethod
+    def _process(self, input_data: InputT, context: ExecutionContext) -> OutputT:
+        raise NotImplementedError(
+            f'{self.__class__.__name__} must implement _process()',
+        )
+
+    def _get_output_descriptors(self) -> List[OutputDescriptor]:
         return []
+
+    def _get_cache_path(self, input_data: InputT, context: ExecutionContext) -> Path:
+        raise NotImplementedError(
+            f'{self.__class__.__name__} must implement _get_cache_path() when caching is enabled',
+        )
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: InputT, context: ExecutionContext,
+    ) -> OutputT:
+        raise NotImplementedError(
+            f'{self.__class__.__name__} must implement _load_from_cache() when caching is enabled',
+        )
 
     def _resolve_output_path(
         self,
@@ -59,11 +120,7 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         context: ExecutionContext,
         context_vars: Optional[Dict[str, str]] = None,
     ) -> Path:
-        """
-        Resolve output path from OutputDescriptor at given index.
-        Eliminates hardcoded subdirectories - uses descriptor definition.
-        """
-        descriptors = self.get_output_descriptors()
+        descriptors = self._get_output_descriptors()
         if not descriptors or descriptor_index >= len(descriptors):
             raise ValueError(
                 f'Step {self.name} has no output descriptor at index {descriptor_index}',
@@ -72,98 +129,20 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         descriptor = descriptors[descriptor_index]
         return descriptor.resolve_path(context.base_output_dir, context_vars)
 
-    def should_skip_execution(
-        self, episode_id: str, context: ExecutionContext, context_vars: Optional[Dict[str, str]] = None,
-    ) -> bool:
-        """
-        Default caching logic - checks state manager and output validity.
-        Subclasses can call this at the start of execute() to skip if already done.
-        """
-        if context.force_rerun:
-            return False
-
-        if not context.is_step_completed(self.name, episode_id):
-            return False
-
-        descriptors = self.get_output_descriptors()
-        if not descriptors:
-            return True
-
-        for descriptor in descriptors:
-            result = descriptor.validate(context.base_output_dir, context_vars)
-            if not result.is_valid:
-                context.logger.warning(
-                    f'{episode_id} - output invalid: {result.message}',
-                )
-                return False
-
-        return True
-
-    @abstractmethod
-    def execute(self, input_data: InputT, context: ExecutionContext) -> OutputT:
-        pass
-
-    @property
-    def supports_batch_processing(self) -> bool:
-        return False
-
-    def setup_resources(self, context: ExecutionContext) -> None:
-        pass
-
-    def execute_batch(
-        self, input_data: List[InputT], context: ExecutionContext,
-    ) -> List[OutputT]:
-        return [self.execute(item, context) for item in input_data]
-
-    def teardown_resources(self, context: ExecutionContext) -> None:
-        pass
-
-    def cleanup(self) -> None:
-        pass
-
-    def _check_cache_validity(
+    def _get_standard_cache_path(
         self,
-        output_path: Path,
+        input_data: InputT,
         context: ExecutionContext,
-        episode_id: str,
-        cache_description: str,
-    ) -> bool:
-        if output_path.exists() and not context.force_rerun:
-            if context.is_step_completed(self.name, episode_id):
-                context.logger.info(f'Skipping {episode_id} ({cache_description})')
-                return True
-        return False
-
-    def _check_output_validity(
-        self,
-        output_descriptor: OutputDescriptor,
-        context: ExecutionContext,
-        episode_id: str,
-        context_vars: Optional[Dict[str, str]] = None,
-    ) -> bool:
-        if context.force_rerun:
-            return False
-
-        if not context.is_step_completed(self.name, episode_id):
-            return False
-
-        validation_result = output_descriptor.validate(
-            context.base_output_dir, context_vars,
+        descriptor_index: int = 0,
+    ) -> Path:
+        return self._resolve_output_path(
+            descriptor_index,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+            },
         )
-
-        if validation_result.is_valid:
-            context.logger.info(
-                f'Skipping {episode_id} - output valid '
-                f'({validation_result.file_count} files, '
-                f'{validation_result.total_size_bytes} bytes)',
-            )
-            return True
-
-        context.logger.warning(
-            f'Output invalid for {episode_id}: {validation_result.message}',
-        )
-        return False
-
 
     @staticmethod
     def _execute_with_threadpool(
@@ -214,3 +193,80 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     ) -> None:
         with StepTempFile(final_path, temp_suffix) as temp_path:
             write_func(temp_path)
+
+    def __execute_managed_flow(
+        self, input_data: InputT, context: ExecutionContext,
+    ) -> OutputT:
+        cache_path = self._get_cache_path(input_data, context)
+
+        if self.__should_restore_from_cache(cache_path, input_data, context):
+            return self.__restore_result(cache_path, input_data, context)
+
+        return self.__compute_new_result(input_data, context)
+
+    def __should_restore_from_cache(
+        self, cache_path: Path, input_data: InputT, context: ExecutionContext,
+    ) -> bool:
+        return self._check_cache_validity(
+            cache_path, context, input_data.episode_id, 'cached',
+        )
+
+    def __restore_result(
+        self, cache_path: Path, input_data: InputT, context: ExecutionContext,
+    ) -> OutputT:
+        context.logger.info(f'Loading {input_data.episode_id} from cache')
+        return self._load_from_cache(cache_path, input_data, context)
+
+    def __compute_new_result(
+        self, input_data: InputT, context: ExecutionContext,
+    ) -> OutputT:
+        context.logger.info(f'Processing {input_data.episode_id}')
+        context.mark_step_started(self.name, input_data.episode_id)
+
+        result = self._process(input_data, context)
+
+        context.mark_step_completed(self.name, input_data.episode_id)
+        return result
+
+    def _check_cache_validity(
+        self,
+        output_path: Path,
+        context: ExecutionContext,
+        episode_id: str,
+        cache_description: str,
+    ) -> bool:
+        if output_path.exists() and not context.force_rerun:
+            if context.is_step_completed(self.name, episode_id):
+                context.logger.info(f'Skipping {episode_id} ({cache_description})')
+                return True
+        return False
+
+    def __validate_all_descriptors(
+        self,
+        context: ExecutionContext,
+        context_vars: Optional[Dict[str, str]],
+        episode_id: str,
+    ) -> bool:
+        descriptors = self._get_output_descriptors()
+        if not descriptors:
+            return True
+
+        return all(
+            self.__validate_single_descriptor(descriptor, context, context_vars, episode_id)
+            for descriptor in descriptors
+        )
+
+    @staticmethod
+    def __validate_single_descriptor(
+        descriptor: OutputDescriptor,
+        context: ExecutionContext,
+        context_vars: Optional[Dict[str, str]],
+        episode_id: str,
+    ) -> bool:
+        result = descriptor.validate(context.base_output_dir, context_vars)
+        if not result.is_valid:
+            context.logger.warning(
+                f'{episode_id} - output invalid: {result.message}',
+            )
+            return False
+        return True

@@ -1,8 +1,5 @@
 from pathlib import Path
-from typing import (
-    Optional,
-    Tuple,
-)
+from typing import Tuple
 
 from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.config.step_configs import CharacterReferenceConfig
@@ -23,21 +20,36 @@ class CharacterReferenceStep(
     def is_global(self) -> bool:
         return True
 
-    def execute(
+    def _get_cache_path(
         self, input_data: SourceVideo, context: ExecutionContext,
-    ) -> Optional[SourceVideo]:
-        characters_path, output_dir = self.__resolve_paths(context)
-        self.__validate_characters_file(characters_path)
+    ) -> Path:
+        _, output_dir = self.__resolve_paths(context)
+        return output_dir
 
-        if self.__should_skip_processing(output_dir, context):
-            context.logger.info(f"Character references already exist in: {output_dir}")
-            return input_data
-
-        self.__download_character_references(characters_path, output_dir, context)
-
+    def _load_from_cache(
+        self, cache_path: Path, input_data: SourceVideo, context: ExecutionContext,
+    ) -> SourceVideo:
+        context.logger.info(f"Character references already exist in: {cache_path}")
         return input_data
 
-    def __resolve_paths(self, context: ExecutionContext) -> Tuple[Path, Path]:
+    def _process(
+        self, input_data: SourceVideo, context: ExecutionContext,
+    ) -> SourceVideo:
+        characters_path, output_dir = self.__resolve_paths(context)
+        self.__validate_characters_file(characters_path)
+        self.__download_character_references(characters_path, output_dir, context)
+        return input_data
+
+    @staticmethod
+    def _should_use_cache(
+            cache_path: Path, _input_data: SourceVideo, context: ExecutionContext,
+    ) -> bool:
+        if context.force_rerun:
+            return False
+        return cache_path.exists() and any(cache_path.iterdir())
+
+    @staticmethod
+    def __resolve_paths(context: ExecutionContext) -> Tuple[Path, Path]:
         base_dir = get_base_output_dir(context.series_name)
         characters_path = base_dir / f"{context.series_name}_characters.json"
         output_dir = base_dir / "character_faces"
@@ -69,12 +81,6 @@ class CharacterReferenceStep(
             )
 
         context.logger.info(f"Character references saved to: {output_dir}")
-
-    @staticmethod
-    def __should_skip_processing(output_dir: Path, context: ExecutionContext) -> bool:
-        if context.force_rerun:
-            return False
-        return output_dir.exists() and any(output_dir.iterdir())
 
     @staticmethod
     def __validate_characters_file(characters_path: Path) -> None:

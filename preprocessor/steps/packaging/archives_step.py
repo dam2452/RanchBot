@@ -11,20 +11,9 @@ from preprocessor.core.context import ExecutionContext
 from preprocessor.core.output_descriptors import FileOutput
 
 
-class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, ArchiveConfig]):
-    def get_output_descriptors(self) -> List[FileOutput]:
-        return [
-            FileOutput(
-                pattern="{season}/{episode}.zip",
-                subdir="archives",
-                min_size_bytes=1024*100,
-            ),
-        ]
-
-    @property
-    def name(self) -> str:
-        return 'archive_generation'
-
+class ArchiveGenerationStep(
+    PipelineStep[ProcessedEpisode, ArchiveArtifact, ArchiveConfig],
+):
     @property
     def supports_batch_processing(self) -> bool:
         return True
@@ -36,35 +25,38 @@ class ArchiveGenerationStep(PipelineStep[ProcessedEpisode, ArchiveArtifact, Arch
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
-    def execute(
-            self, input_data: ProcessedEpisode, context: ExecutionContext,
+    def _process(
+        self, input_data: ProcessedEpisode, context: ExecutionContext,
     ) -> ArchiveArtifact:
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached archive'):
-            return self.__construct_archive_artifact(input_data, output_path)
-
-        context.logger.info(f'Generating archive for {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
-
-        context.mark_step_completed(self.name, input_data.episode_id)
+        output_path = self._get_cache_path(input_data, context)
+        # Archive generation logic would go here
         return self.__construct_archive_artifact(input_data, output_path)
 
-    def __resolve_output_path(
-            self, input_data: ProcessedEpisode, context: ExecutionContext,
+    def _get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{episode}.zip",
+                subdir="archives",
+                min_size_bytes=1024 * 100,
+            ),
+        ]
+
+    def _get_cache_path(
+        self, input_data: ProcessedEpisode, context: ExecutionContext,
     ) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': input_data.episode_info.season_code(),
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
+        return self._get_standard_cache_path(input_data, context)
+
+    def _load_from_cache(
+        self,
+        cache_path: Path,
+        input_data: ProcessedEpisode,
+        context: ExecutionContext,
+    ) -> ArchiveArtifact:
+        return self.__construct_archive_artifact(input_data, cache_path)
 
     @staticmethod
     def __construct_archive_artifact(
-            input_data: ProcessedEpisode, output_path: Path,
+        input_data: ProcessedEpisode, output_path: Path,
     ) -> ArchiveArtifact:
         return ArchiveArtifact(
             episode_id=input_data.episode_id,

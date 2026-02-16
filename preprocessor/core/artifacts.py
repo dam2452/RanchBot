@@ -130,6 +130,17 @@ class ArchiveArtifact(EpisodeArtifact):
 
 
 @dataclass(frozen=True)
+class CharacterMetadata(EpisodeArtifact):
+    path: Path
+    character_count: int
+
+
+@dataclass(frozen=True)
+class EpisodeMetadata(EpisodeArtifact):
+    path: Path
+
+
+@dataclass(frozen=True)
 class ValidationResult(Artifact):
     season: str
     validation_report_dir: Path

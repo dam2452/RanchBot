@@ -23,7 +23,8 @@ from preprocessor.services.io.files import FileOperations
 
 
 class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, CharacterDetectionConfig]):
-    def get_output_descriptors(self) -> List[OutputDescriptor]:
+    @staticmethod
+    def get_output_descriptors() -> List[OutputDescriptor]:
         """Define output file descriptors for character detection step."""
         return [
             JsonFileOutput(
@@ -61,7 +62,7 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         self, input_data: List[FrameCollection], context: ExecutionContext,
     ) -> List[DetectionResults]:
         return self._execute_with_threadpool(
-            input_data, context, self.config.max_parallel_episodes, self.__execute_single,
+            input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
     def teardown_resources(self, context: ExecutionContext) -> None:
@@ -70,44 +71,35 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             self.__face_app = None
             self.__character_vectors = {}
 
-    def __execute_single(
+    def _get_cache_path(
         self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': f'S{input_data.episode_info.season:02d}',
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: FrameCollection, context: ExecutionContext,
     ) -> DetectionResults:
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached character detections'):
-            return self.__load_cached_result(output_path, input_data)
-
-        context.logger.info(f'Detecting characters in {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
-
-        frame_files = self.__extract_frame_files(input_data)
-        if not frame_files:
-            return self.__construct_empty_result(output_path, input_data, context)
-
-        results = self.__process_character_detection(frame_files)
-        self.__save_detection_results(results, output_path, input_data, context, frame_files)
-
-        context.mark_step_completed(self.name, input_data.episode_id)
+        detection_data: Dict[str, Any] = FileOperations.load_json(cache_path)
         return DetectionResults(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
-            path=output_path,
+            path=cache_path,
             detection_type='character',
-            detection_count=len(results),
+            detection_count=len(detection_data.get('detections', [])),
         )
 
-    def execute(
+    def _process(
         self, input_data: FrameCollection, context: ExecutionContext,
     ) -> DetectionResults:
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached character detections'):
-            return self.__load_cached_result(output_path, input_data)
-
+        output_path = self._get_cache_path(input_data, context)
         self.__prepare_detection_environment(context)
-        context.logger.info(f'Detecting characters in {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
 
         frame_files = self.__extract_frame_files(input_data)
         if not frame_files:
@@ -116,7 +108,6 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         results = self.__process_character_detection(frame_files)
         self.__save_detection_results(results, output_path, input_data, context, frame_files)
 
-        context.mark_step_completed(self.name, input_data.episode_id)
         return DetectionResults(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
@@ -177,27 +168,6 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             'detections': results,
         }
         FileOperations.atomic_write_json(output_path, output_data)
-
-    def __resolve_output_path(self, input_data: FrameCollection, context: ExecutionContext) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': f'S{input_data.episode_info.season:02d}',
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
-
-    @staticmethod
-    def __load_cached_result(output_path: Path, input_data: FrameCollection) -> DetectionResults:
-        detection_data: Dict[str, Any] = FileOperations.load_json(output_path)
-        return DetectionResults(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            detection_type='character',
-            detection_count=len(detection_data.get('detections', [])),
-        )
 
     @staticmethod
     def __extract_frame_files(input_data: FrameCollection) -> List[Path]:

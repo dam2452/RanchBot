@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 from pathlib import Path
 from typing import (
     Any,
@@ -27,38 +28,9 @@ from preprocessor.services.video.emotion_utils import EmotionDetector
 
 
 class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDetectionConfig]):
-    def get_output_descriptors(self) -> List[OutputDescriptor]:
-        """Define output file descriptors for emotion detection step."""
-        return [
-            JsonFileOutput(
-                subdir="detections/emotions",
-                pattern="{season}/{episode}.json",
-                min_size_bytes=10,
-            ),
-        ]
-
-    def __resolve_output_path(self, input_data: FrameCollection, context: ExecutionContext) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': f'S{input_data.episode_info.season:02d}',
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
-
-
-
     def __init__(self, config: EmotionDetectionConfig) -> None:
         super().__init__(config)
         self.__model: Optional[HSEmotionRecognizer] = None
-
-    @property
-    def name(self) -> str:
-        return 'emotion_detection'
-
-    def cleanup(self) -> None:
-        self.__model = None
 
     @property
     def supports_batch_processing(self) -> bool:
@@ -69,58 +41,32 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
             context.logger.info('Loading HSEmotion model...')
             self.__model = EmotionDetector.init_model(context.logger)
 
-    def execute_batch(
-        self, input_data: List[FrameCollection], context: ExecutionContext,
-    ) -> List[EmotionData]:
-        return self._execute_with_threadpool(
-            input_data, context, self.config.max_parallel_episodes, self.__execute_single,
-        )
-
     def teardown_resources(self, context: ExecutionContext) -> None:
         if self.__model:
             context.logger.info('HSEmotion model unloaded')
             self.__model = None
 
-    def __execute_single(
+    def cleanup(self) -> None:
+        self.__model = None
+
+    def execute_batch(
+        self, input_data: List[FrameCollection], context: ExecutionContext,
+    ) -> List[EmotionData]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.execute,
+        )
+
+    def _process(
         self, input_data: FrameCollection, context: ExecutionContext,
     ) -> EmotionData:
         input_path = self.__resolve_input_path(input_data, context)
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached emotion detection'):
-            return self.__construct_emotion_data(input_data, output_path)
+        output_path = self._get_cache_path(input_data, context)
 
         if not input_path.exists():
             context.logger.warning(
                 f'No character detections found for emotion analysis: {input_path}',
             )
             return self.__construct_emotion_data(input_data, output_path)
-
-        context.logger.info(f'Detecting emotions for {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
-
-        detections_data = FileOperations.load_json(input_path)
-        self.__process_and_update_emotions(detections_data, input_data, context)
-        FileOperations.atomic_write_json(output_path, detections_data)
-
-        context.mark_step_completed(self.name, input_data.episode_id)
-        return self.__construct_emotion_data(input_data, output_path)
-
-    def execute(self, input_data: FrameCollection, context: ExecutionContext) -> EmotionData:
-        input_path = self.__resolve_input_path(input_data, context)
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached emotion detection'):
-            return self.__construct_emotion_data(input_data, output_path)
-
-        if not input_path.exists():
-            context.logger.warning(
-                f'No character detections found for emotion analysis: {input_path}',
-            )
-            return self.__construct_emotion_data(input_data, output_path)
-
-        context.logger.info(f'Detecting emotions for {input_data.episode_id}')
-        context.mark_step_started(self.name, input_data.episode_id)
 
         self.__prepare_emotion_model(context)
 
@@ -128,8 +74,30 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
         self.__process_and_update_emotions(detections_data, input_data, context)
         FileOperations.atomic_write_json(output_path, detections_data)
 
-        context.mark_step_completed(self.name, input_data.episode_id)
         return self.__construct_emotion_data(input_data, output_path)
+
+    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+        return [
+            JsonFileOutput(
+                subdir="detections/emotions",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ]
+
+    def _get_cache_path(
+        self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            self.__create_path_variables(input_data),
+        )
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: FrameCollection, context: ExecutionContext,
+    ) -> EmotionData:
+        return self.__construct_emotion_data(input_data, cache_path)
 
     def __prepare_emotion_model(self, context: ExecutionContext) -> None:
         if self.__model is None:
@@ -158,8 +126,16 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
 
         self.__apply_emotion_results(detections, emotion_results, face_metadata, context)
 
+    @staticmethod
+    def __create_path_variables(input_data: FrameCollection) -> Dict[str, str]:
+        return {
+            'season': f'S{input_data.episode_info.season:02d}',
+            'episode': input_data.episode_info.episode_code(),
+        }
+
+    @staticmethod
     def __resolve_input_path(
-        self, input_data: FrameCollection, context: ExecutionContext,
+        input_data: FrameCollection, context: ExecutionContext,
     ) -> Path:
         season_code = f'S{input_data.episode_info.season:02d}'
         episode_code = input_data.episode_info.episode_code()

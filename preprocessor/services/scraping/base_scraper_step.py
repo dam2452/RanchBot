@@ -26,6 +26,9 @@ class BaseScraperStep(PipelineStep[SourceVideo, SourceVideo, ConfigT], ABC):
     def is_global(self) -> bool:
         return True
 
+    def _process(self, input_data: SourceVideo, context: ExecutionContext) -> SourceVideo:
+        raise NotImplementedError("BaseScraperStep uses execute() instead of _process()")
+
     def execute(self, input_data: SourceVideo, context: ExecutionContext) -> Optional[SourceVideo]:
         output_path = self.__resolve_output_path(context)
 

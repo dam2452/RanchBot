@@ -92,7 +92,7 @@ class PipelineExecutor:
     def __run_global_step(self, step: PipelineStep) -> None:
         self.__context.logger.info(f"=== Running Global Step: {step.name} ===")
 
-        if self.__should_skip_step(step.name, 'all'):
+        if self.__should_skip_global_step(step.name):
             self.__context.logger.info(f"Skipping {step.name} (already completed)")
             return
 
@@ -103,6 +103,15 @@ class PipelineExecutor:
         except Exception as e:
             self.__context.logger.error(f"Global step {step.name} failed: {e}")
             raise
+
+    def __should_skip_global_step(self, step_name: str) -> bool:
+        if self.__context.force_rerun:
+            return False
+
+        if self.__context.state_manager is None:
+            return False
+
+        return self.__context.state_manager.is_step_completed(step_name, 'all')
 
     def __run_episode_step(
         self, step: PipelineStep, current_artifacts: List[Any],
@@ -141,13 +150,6 @@ class PipelineExecutor:
         for artifact in current_artifacts:
             episode_id = artifact.episode_id
 
-            if self.__should_skip_step(step.name, episode_id):
-                self.__context.logger.info(
-                    f"Skipping {step.name} for {episode_id} (already completed)",
-                )
-                next_artifacts.append(artifact)
-                continue
-
             try:
                 self.__mark_step_in_progress(step.name, episode_id)
                 result = step.execute(artifact, self.__context)
@@ -168,36 +170,29 @@ class PipelineExecutor:
     def __run_episode_step_batch(
         self, step: PipelineStep, current_artifacts: List[Any],
     ) -> List[Any]:
-        artifacts_to_process = []
-        next_artifacts = []
+        if not current_artifacts:
+            return []
 
-        for artifact in current_artifacts:
-            episode_id = artifact.episode_id
-            if self.__should_skip_step(step.name, episode_id):
-                self.__context.logger.info(
-                    f"Skipping {step.name} for {episode_id} (already completed)",
-                )
-                next_artifacts.append(artifact)
-            else:
-                artifacts_to_process.append(artifact)
-
-        if not artifacts_to_process:
-            return next_artifacts
-
+        workers = (
+            step.config.max_parallel_episodes
+            if hasattr(step.config, 'max_parallel_episodes')
+            else 'N'
+        )
         self.__context.logger.info(
-            f"Processing {len(artifacts_to_process)} episodes with batch processing",
+            f"Batch processing {len(current_artifacts)} episodes with {workers} workers",
         )
 
         try:
             if hasattr(step, 'setup_resources'):
                 step.setup_resources(self.__context)
 
-            for artifact in artifacts_to_process:
+            for artifact in current_artifacts:
                 self.__mark_step_in_progress(step.name, artifact.episode_id)
 
-            results = step.execute_batch(artifacts_to_process, self.__context)
+            results = step.execute_batch(current_artifacts, self.__context)
 
-            for artifact, result in zip(artifacts_to_process, results):
+            next_artifacts = []
+            for artifact, result in zip(current_artifacts, results):
                 self.__mark_step_completed(step.name, artifact.episode_id)
                 next_artifacts.append(result or artifact)
 
@@ -216,12 +211,3 @@ class PipelineExecutor:
         if self.__context.state_manager is None:
             return
         self.__context.state_manager.mark_step_started(step_name, episode_id)
-
-    def __should_skip_step(self, step_name: str, episode_id: str) -> bool:
-        if self.__context.force_rerun:
-            return False
-
-        if self.__context.state_manager is None:
-            return False
-
-        return self.__context.state_manager.is_step_completed(step_name, episode_id)

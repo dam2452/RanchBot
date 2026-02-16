@@ -22,21 +22,12 @@ from preprocessor.services.media.transcode_params import TranscodeParams
 
 
 class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeConfig]):
-    __CODEC_EFFICIENCY = {
+    __CODEC_EFFICIENCY: Dict[str, float] = {
         'h264': 1.0, 'avc': 1.0,
         'hevc': 2.0, 'h265': 2.0,
         'vp9': 2.85, 'av1': 4.0,
     }
-    __command_logged = False
-
-    def get_output_descriptors(self) -> List[FileOutput]:
-        return [
-            FileOutput(
-                pattern="{season}/{episode}.mp4",
-                subdir="transcoded_videos",
-                min_size_bytes=1024*1024,
-            ),
-        ]
+    __command_logged: bool = False
 
     @property
     def name(self) -> str:
@@ -46,16 +37,15 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
     def supports_batch_processing(self) -> bool:
         return True
 
-    def execute_batch(self, input_data: List[SourceVideo], context: ExecutionContext) -> List[TranscodedVideo]:
+    def execute_batch(
+        self, input_data: List[SourceVideo], context: ExecutionContext,
+    ) -> List[TranscodedVideo]:
         return self._execute_with_threadpool(
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
-    def execute(self, input_data: SourceVideo, context: ExecutionContext) -> TranscodedVideo:
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'output exists'):
-            return self.__construct_result_artifact(output_path, input_data)
+    def _process(self, input_data: SourceVideo, context: ExecutionContext) -> TranscodedVideo:
+        output_path = self._get_cache_path(input_data, context)
 
         probe_data = FFmpegWrapper.probe_video(input_data.path)
         params = self.__create_transcode_params(input_data, output_path, probe_data, context)
@@ -63,16 +53,46 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         self.__log_transcode_details(context, input_data, params, probe_data)
         self.__execute_ffmpeg_process(context, params, input_data.episode_id)
 
-        context.mark_step_completed(self.name, input_data.episode_id)
         return self.__construct_result_artifact(output_path, input_data)
 
+    def _get_output_descriptors(self) -> List[FileOutput]:
+        return [
+            FileOutput(
+                pattern="{season}/{series_name}_{episode}.mp4",
+                subdir="transcoded_videos",
+                min_size_bytes=1024 * 1024,
+            ),
+        ]
+
+    def _get_cache_path(self, input_data: SourceVideo, context: ExecutionContext) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode': input_data.episode_info.episode_code(),
+                'series_name': context.series_name,
+            },
+        )
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: SourceVideo, context: ExecutionContext,
+    ) -> TranscodedVideo:
+        return self.__construct_result_artifact(cache_path, input_data)
+
     def __create_transcode_params(
-            self, input_data: SourceVideo, output_path: Path, probe_data: Dict[str, Any], context: ExecutionContext,
+        self,
+        input_data: SourceVideo,
+        output_path: Path,
+        probe_data: Dict[str, Any],
+        context: ExecutionContext,
     ) -> TranscodeParams:
         target_fps = self.__resolve_target_framerate()
         is_upscaling, src_px, target_px = self.__analyze_resolution_scaling(probe_data)
 
-        bitrates = self.__compute_all_bitrate_settings(probe_data, context, is_upscaling, src_px, target_px)
+        bitrates = self.__compute_all_bitrate_settings(
+            probe_data, context, is_upscaling, src_px, target_px,
+        )
 
         return TranscodeParams(
             input_path=input_data.path,
@@ -103,8 +123,12 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         return src_px < target_px, src_px, target_px
 
     def __compute_all_bitrate_settings(
-            self, probe_data: Dict[str, Any], context: ExecutionContext,
-            is_up: bool, src_px: int, target_px: int,
+        self,
+        probe_data: Dict[str, Any],
+        context: ExecutionContext,
+        is_up: bool,
+        src_px: int,
+        target_px: int,
     ) -> Dict[str, float]:
         src_v = FFmpegWrapper.get_video_bitrate(probe_data)
         target_max = self.config.video_bitrate_mbps
@@ -116,7 +140,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         ratio = target_px / src_px
         exp = self.__calculate_scaling_exponent(ratio, is_up)
 
-        scaled_raw = norm_v * (ratio ** exp)
+        scaled_raw = norm_v * (ratio**exp)
         scaled_min = self.__apply_min_upscale_constraint(scaled_raw, target_max, is_up)
         final_v = min(scaled_min, target_max)
 
@@ -127,8 +151,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         return self.__scale_bitrate_limits(final_v / target_max)
 
     def __get_normalized_bitrate(
-        self, src_v: float, probe: Dict[str, Any], is_up: bool,
-        context: ExecutionContext,
+        self, src_v: float, probe: Dict[str, Any], is_up: bool, context: ExecutionContext,
     ) -> float:
         if not is_up:
             return src_v
@@ -140,7 +163,8 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         if mult != 1.0:
             norm = src_v * mult
             context.logger.info(
-                f'Codec: {src_codec.upper()}->{tgt_codec.upper()} ({mult}x) | {src_v:.2f}->{norm:.2f} Mbps',
+                f'Codec: {src_codec.upper()}->{tgt_codec.upper()} ({mult}x) | '
+                f'{src_v:.2f}->{norm:.2f} Mbps',
             )
             return norm
         return src_v
@@ -166,16 +190,8 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             "buf": self.config.calculate_bufsize_mbps(),
         }
 
-    @staticmethod
-    def __calculate_scaling_exponent(ratio: float, is_up: bool) -> float:
-        log_r = math.log10(max(ratio, 0.01))
-        if is_up:
-            return 0.8 + min(log_r, 1.0) * 0.35
-        return 0.8 + max(log_r, -2.0) * 0.175
-
     def __resolve_deinterlacing_strategy(
-        self, input_data: SourceVideo, context: ExecutionContext,
-        probe: Dict[str, Any],
+        self, input_data: SourceVideo, context: ExecutionContext, probe: Dict[str, Any],
     ) -> bool:
         if self.config.force_deinterlace:
             return True
@@ -194,7 +210,9 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             return adj
         return tgt_a
 
-    def __execute_ffmpeg_process(self, context: ExecutionContext, params: TranscodeParams, ep_id: str) -> None:
+    def __execute_ffmpeg_process(
+        self, context: ExecutionContext, params: TranscodeParams, ep_id: str,
+    ) -> None:
         with StepTempFile(params.output_path) as temp_path:
             temp_params = replace(params, output_path=temp_path)
             context.mark_step_started(self.name, ep_id, [str(temp_path)])
@@ -203,58 +221,14 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
                 context.logger.info('=' * 20 + ' FFmpeg ' + '=' * 20)
             FFmpegWrapper.transcode(temp_params)
 
-    @staticmethod
-    def __normalize_codec_name(codec: str) -> str:
-        name = codec.lower()
-        mapping = {'h264': ('h264', 'avc'), 'hevc': ('h265', 'hevc'), 'vp9': ('vp9',), 'av1': ('av1',)}
-        for norm, patterns in mapping.items():
-            if any(p in name for p in patterns):
-                return norm
-        return 'h264'
-
-    @staticmethod
-    def __get_codec_efficiency_multiplier(src: str, tgt: str) -> float:
-        return VideoTranscoderStep.__CODEC_EFFICIENCY.get(src, 1.0) / VideoTranscoderStep.__CODEC_EFFICIENCY.get(
-            tgt,
-            1.0,
-        )
-
-    def __resolve_output_path(self, input_data: SourceVideo, context: ExecutionContext) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': input_data.episode_info.season_code(),
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
-
     def __construct_result_artifact(self, path: Path, input_data: SourceVideo) -> TranscodedVideo:
         return TranscodedVideo(
-            path=path, episode_id=input_data.episode_id, episode_info=input_data.episode_info,
-            resolution=f'{self.config.resolution.width}x{self.config.resolution.height}', codec=self.config.codec,
+            path=path,
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            resolution=f'{self.config.resolution.width}x{self.config.resolution.height}',
+            codec=self.config.codec,
         )
-
-    @staticmethod
-    def __log_bitrate_workflow(ctx, src, norm, raw, s_min, final, limit, ratio, is_up):
-        dir_label = "upscaling" if is_up else ("downscaling" if ratio < 1.0 else "same")
-        min_msg = f' (MinBoost: {s_min:.2f})' if is_up and (s_min > raw) else ''
-        ctx.logger.info(f'[{dir_label}] {src:.2f}->{norm:.2f}->{raw:.2f}{min_msg} -> {final:.2f} Mbps (Max: {limit})')
-
-    @staticmethod
-    def __log_transcode_details(ctx, input_data, params, probe):
-        w, h = FFmpegWrapper.get_resolution(probe)
-        ctx.logger.info(
-            f'{input_data.episode_id}: {w}x{h} -> {params.resolution} [{"UP" if params.is_upscaling else "DOWN"}]',
-        )
-
-    @staticmethod
-    def __log_int_diagnostics(ctx, has_int, stats, order):
-        ctx.logger.info(f"Interlacing: {has_int} ({stats['ratio'] * 100:.1f}%) | {order}")
-
-    @staticmethod
-    def __resolve_target_framerate() -> float:
-        return 24.0
 
     @staticmethod
     def __should_log_command() -> bool:
@@ -262,3 +236,69 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             VideoTranscoderStep.__command_logged = True
             return True
         return False
+
+    @staticmethod
+    def __calculate_scaling_exponent(ratio: float, is_up: bool) -> float:
+        log_r = math.log10(max(ratio, 0.01))
+        if is_up:
+            return 0.8 + min(log_r, 1.0) * 0.35
+        return 0.8 + max(log_r, -2.0) * 0.175
+
+    @staticmethod
+    def __normalize_codec_name(codec: str) -> str:
+        name = codec.lower()
+        mapping = {
+            'h264': ('h264', 'avc'),
+            'hevc': ('h265', 'hevc'),
+            'vp9': ('vp9',),
+            'av1': ('av1',),
+        }
+        for norm, patterns in mapping.items():
+            if any(p in name for p in patterns):
+                return norm
+        return 'h264'
+
+    @staticmethod
+    def __get_codec_efficiency_multiplier(src: str, tgt: str) -> float:
+        eff = VideoTranscoderStep.__CODEC_EFFICIENCY
+        return eff.get(src, 1.0) / eff.get(tgt, 1.0)
+
+    @staticmethod
+    def __log_bitrate_workflow(
+        ctx: ExecutionContext,
+        src: float,
+        norm: float,
+        raw: float,
+        s_min: float,
+        final: float,
+        limit: float,
+        ratio: float,
+        is_up: bool,
+    ) -> None:
+        dir_label = "upscaling" if is_up else ("downscaling" if ratio < 1.0 else "same")
+        min_msg = f' (MinBoost: {s_min:.2f})' if is_up and (s_min > raw) else ''
+        ctx.logger.info(
+            f'[{dir_label}] {src:.2f}->{norm:.2f}->{raw:.2f}{min_msg} -> {final:.2f} Mbps '
+            f'(Max: {limit})',
+        )
+
+    @staticmethod
+    def __log_transcode_details(
+        ctx: ExecutionContext,
+        input_data: SourceVideo,
+        params: TranscodeParams,
+        probe: Dict[str, Any],
+    ) -> None:
+        w, h = FFmpegWrapper.get_resolution(probe)
+        up_label = "UP" if params.is_upscaling else "DOWN"
+        ctx.logger.info(
+            f'{input_data.episode_id}: {w}x{h} -> {params.resolution} [{up_label}]',
+        )
+
+    @staticmethod
+    def __log_int_diagnostics(ctx: ExecutionContext, has_int: bool, stats: Dict[str, float], order: str) -> None:
+        ctx.logger.info(f"Interlacing: {has_int} ({stats['ratio'] * 100:.1f}%) | {order}")
+
+    @staticmethod
+    def __resolve_target_framerate() -> float:
+        return 24.0

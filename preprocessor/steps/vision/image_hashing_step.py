@@ -27,17 +27,6 @@ from preprocessor.services.video.image_hasher import PerceptualHasher
 
 
 class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHashConfig]):
-    def get_output_descriptors(self) -> List[OutputDescriptor]:
-        """Define output file descriptors for image hashing step."""
-        return [
-            JsonFileOutput(
-                subdir="hashes",
-                pattern="{season}/{episode}.json",
-                min_size_bytes=50,
-            ),
-        ]
-
-
     def __init__(self, config: ImageHashConfig) -> None:
         super().__init__(config)
         self.__hasher: Optional[PerceptualHasher] = None
@@ -61,13 +50,10 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         self.__hasher = None
         self.__cleanup_memory()
 
-    def execute(
-            self, input_data: FrameCollection, context: ExecutionContext,
+    def _process(
+        self, input_data: FrameCollection, context: ExecutionContext,
     ) -> ImageHashCollection:
-        output_path = self.__resolve_output_path(input_data, context)
-
-        if self._check_cache_validity(output_path, context, input_data.episode_id, 'cached'):
-            return self.__load_cached_result(output_path, input_data)
+        output_path = self._get_cache_path(input_data, context)
 
         frame_metadata, frame_requests = self.__load_frame_metadata(input_data, context)
         if not frame_requests:
@@ -78,12 +64,12 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         context.logger.info(
             f'Computing hashes for {len(frame_requests)} frames in {input_data.episode_id}',
         )
-        context.mark_step_started(self.name, input_data.episode_id)
 
         hash_results = self.__compute_hashes(frame_requests, input_data)
-        self.__save_hash_results(hash_results, output_path, input_data, context, frame_metadata)
+        self.__save_hash_results(
+            hash_results, output_path, input_data, context, frame_metadata,
+        )
 
-        context.mark_step_completed(self.name, input_data.episode_id)
         self.__cleanup_memory()
 
         return ImageHashCollection(
@@ -93,21 +79,50 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
             hash_count=len(hash_results),
         )
 
+    def _get_output_descriptors(self) -> List[OutputDescriptor]:
+        return [
+            JsonFileOutput(
+                subdir="hashes",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=50,
+            ),
+        ]
+
+    def _get_cache_path(
+        self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> Path:
+        return self._resolve_output_path(
+            0,
+            context,
+            self.__create_path_variables(input_data),
+        )
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: FrameCollection, context: ExecutionContext,
+    ) -> ImageHashCollection:
+        hash_data: Dict[str, Any] = FileOperations.load_json(cache_path)
+        return ImageHashCollection(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=cache_path,
+            hash_count=len(hash_data.get('hashes', [])),
+        )
+
     def __prepare_hasher(self, context: ExecutionContext) -> None:
         if self.__hasher is None:
             context.logger.info(f'Loading image hasher on {self.config.device}...')
             self.__hasher = PerceptualHasher()
 
     def __compute_hashes(
-            self,
-            frame_requests: List[Dict[str, Any]],
-            input_data: FrameCollection,
+        self,
+        frame_requests: List[Dict[str, Any]],
+        input_data: FrameCollection,
     ) -> List[Dict[str, Any]]:
         hash_results: List[Dict[str, Any]] = []
         batch_size: int = self.config.batch_size
 
         for i in range(0, len(frame_requests), batch_size):
-            batch: List[Dict[str, Any]] = frame_requests[i:i + batch_size]
+            batch: List[Dict[str, Any]] = frame_requests[i : i + batch_size]
             pil_images = FrameLoader.load_from_requests(input_data.directory, batch)
             phashes: List[str] = self.__hasher.compute_phash_batch(pil_images)
 
@@ -122,32 +137,21 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
         return hash_results
 
-    def __resolve_output_path(self, input_data: FrameCollection, context: ExecutionContext) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': f'S{input_data.episode_info.season:02d}',
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
-
     @staticmethod
-    def __load_cached_result(output_path: Path, input_data: FrameCollection) -> ImageHashCollection:
-        hash_data: Dict[str, Any] = FileOperations.load_json(output_path)
-        return ImageHashCollection(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            hash_count=len(hash_data.get('hashes', [])),
-        )
+    def __create_path_variables(input_data: FrameCollection) -> Dict[str, str]:
+        return {
+            'season': f'S{input_data.episode_info.season:02d}',
+            'episode': input_data.episode_info.episode_code(),
+        }
 
     @staticmethod
     def __load_frame_metadata(
-            input_data: FrameCollection,
-            context: ExecutionContext,
+        input_data: FrameCollection,
+        context: ExecutionContext,
     ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-        frame_metadata: Dict[str, Any] = FileOperations.load_json(input_data.metadata_path)
+        frame_metadata: Dict[str, Any] = FileOperations.load_json(
+            input_data.metadata_path,
+        )
         frame_requests: List[Dict[str, Any]] = frame_metadata.get('frames', [])
 
         if not frame_requests:
@@ -157,8 +161,8 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
     @staticmethod
     def __construct_empty_result(
-            output_path: Path,
-            input_data: FrameCollection,
+        output_path: Path,
+        input_data: FrameCollection,
     ) -> ImageHashCollection:
         return ImageHashCollection(
             episode_id=input_data.episode_id,
@@ -169,11 +173,11 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
     @staticmethod
     def __save_hash_results(
-            hash_results: List[Dict[str, Any]],
-            output_path: Path,
-            input_data: FrameCollection,
-            context: ExecutionContext,
-            frame_metadata: Dict[str, Any],
+        hash_results: List[Dict[str, Any]],
+        output_path: Path,
+        input_data: FrameCollection,
+        context: ExecutionContext,
+        frame_metadata: Dict[str, Any],
     ) -> None:
         output_data: Dict[str, Any] = {
             'episode_id': input_data.episode_id,

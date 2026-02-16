@@ -26,9 +26,8 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
         super().__init__(config)
         self.__episode_manager: Optional[EpisodeManager] = None
 
-    @property
-    def name(self) -> str:
-        return 'transcription_import'
+    def _process(self, input_data: None, context: ExecutionContext) -> List[TranscriptionData]:
+        raise NotImplementedError("TranscriptionImportStep uses execute() instead of _process()")
 
     def execute(self, input_data: None, context: ExecutionContext) -> List[TranscriptionData]:
         self.__ensure_episode_manager(context)

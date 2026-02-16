@@ -18,7 +18,9 @@ from preprocessor.core.context import ExecutionContext
 from preprocessor.services.search.elasticsearch import ElasticsearchWrapper
 
 
-class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResult, ElasticsearchConfig]):
+class ElasticsearchIndexerStep(
+    PipelineStep[List[ElasticDocuments], IndexingResult, ElasticsearchConfig],
+):
     def __init__(self, config: ElasticsearchConfig) -> None:
         super().__init__(config)
         self.__es: Optional[ElasticsearchWrapper] = None
@@ -29,32 +31,25 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
 
     @property
     def is_global(self) -> bool:
-        """Indexing is a global step - processes all episodes at once."""
         return True
 
     @property
     def supports_batch_processing(self) -> bool:
         return True
 
+    @property
+    def uses_caching(self) -> bool:
+        return False
+
     def setup_resources(self, context: ExecutionContext) -> None:
         if self.__es is None:
-            context.logger.info(f'Initializing Elasticsearch client: {self.config.host}')
+            context.logger.info(
+                f'Initializing Elasticsearch client: {self.config.host}',
+            )
             self.__es = ElasticsearchWrapper(
                 host=self.config.host,
                 index_name=self.config.index_name,
             )
-
-    def execute_batch(
-        self, input_data: List[List[ElasticDocuments]], context: ExecutionContext,
-    ) -> List[IndexingResult]:
-        context.logger.info(f"Batch indexing {len(input_data)} document collections")
-
-        results = []
-        for docs in input_data:
-            result = asyncio.run(self.__execute_async(docs, context))
-            results.append(result)
-
-        return results
 
     def teardown_resources(self, context: ExecutionContext) -> None:
         if self.__es:
@@ -67,12 +62,28 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
             asyncio.run(self.__es.close())
             self.__es = None
 
-    def execute(
+    def execute_batch(
+        self,
+        input_data: List[List[ElasticDocuments]],
+        context: ExecutionContext,
+    ) -> List[IndexingResult]:
+        context.logger.info(
+            f"Batch indexing {len(input_data)} document collections",
+        )
+        results = []
+        for docs in input_data:
+            # Reusing _process logic via direct async call wrapper if needed,
+            # or calling execute which routes to _process
+            result = self.execute(docs, context)
+            results.append(result)
+        return results
+
+    def _process(
         self, input_data: List[ElasticDocuments], context: ExecutionContext,
     ) -> IndexingResult:
-        return asyncio.run(self.__execute_async(input_data, context))
+        return asyncio.run(self.__process_async(input_data, context))
 
-    async def __execute_async(
+    async def __process_async(
         self,
         input_data: List[ElasticDocuments],
         context: ExecutionContext,
@@ -81,11 +92,13 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
             return self.__construct_empty_result(context)
 
         docs_by_type = self.__group_documents_by_type(input_data)
-        total_indexed = await self.__process_all_document_types(docs_by_type, context)
+        total_indexed = await self.__index_grouped_documents(
+            docs_by_type, context,
+        )
 
         return self.__construct_indexing_result(total_indexed)
 
-    async def __process_all_document_types(
+    async def __index_grouped_documents(
         self,
         docs_by_type: Dict[str, List[Path]],
         context: ExecutionContext,
@@ -93,10 +106,14 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
         total_indexed: int = 0
         for doc_type, paths in docs_by_type.items():
             try:
-                indexed_count = await self.__process_document_type(doc_type, paths, context)
+                indexed_count = await self.__process_document_type(
+                    doc_type, paths, context,
+                )
                 total_indexed += indexed_count
             except Exception as e:
-                context.logger.error(f'Elasticsearch indexing failed for {doc_type}: {e}')
+                context.logger.error(
+                    f'Elasticsearch indexing failed for {doc_type}: {e}',
+                )
                 raise
         return total_indexed
 
@@ -113,7 +130,9 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
         await self.__setup_index(doc_type)
 
         documents = self.__load_documents_from_paths(paths)
-        return await self.__execute_bulk_indexing(documents, index_name, context)
+        return await self.__execute_bulk_indexing(
+            documents, index_name, context,
+        )
 
     async def __prepare_elasticsearch_client(self, index_name: str) -> None:
         if self.__es is None or self.__es.index_name != index_name:
@@ -129,7 +148,9 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
         if not self.config.append:
             await self.__es.delete_index()
 
-        mapping: Optional[Dict[str, Any]] = self.__get_mapping_for_type(doc_type)
+        mapping: Optional[Dict[str, Any]] = self.__get_mapping_for_type(
+            doc_type,
+        )
         if mapping:
             await self.__es.create_index(mapping)
 
@@ -158,12 +179,16 @@ class ElasticsearchIndexerStep(PipelineStep[List[ElasticDocuments], IndexingResu
             success=True,
         )
 
-    def __construct_empty_result(self, context: ExecutionContext) -> IndexingResult:
+    def __construct_empty_result(
+        self, context: ExecutionContext,
+    ) -> IndexingResult:
         context.logger.warning('No documents to index.')
         return self.__construct_indexing_result(0)
 
     @staticmethod
-    def __group_documents_by_type(input_data: List[ElasticDocuments]) -> Dict[str, List[Path]]:
+    def __group_documents_by_type(
+        input_data: List[ElasticDocuments],
+    ) -> Dict[str, List[Path]]:
         docs_by_type: Dict[str, List[Path]] = {}
         for doc_artifact in input_data:
             doc_type: str = doc_artifact.path.parent.name

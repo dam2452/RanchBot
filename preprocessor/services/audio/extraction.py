@@ -12,9 +12,8 @@ from preprocessor.core.context import ExecutionContext
 
 
 class AudioExtractionStep(PipelineStep[SourceVideo, AudioArtifact, AudioExtractionConfig]):
-    @property
-    def name(self) -> str:
-        return 'audio_extraction'
+    def _process(self, input_data: SourceVideo, context: ExecutionContext) -> AudioArtifact:
+        raise NotImplementedError("AudioExtractionStep uses execute() instead of _process()")
 
     def execute(self, input_data: SourceVideo, context: ExecutionContext) -> AudioArtifact:
         output_path = self.__resolve_output_path(input_data, context)

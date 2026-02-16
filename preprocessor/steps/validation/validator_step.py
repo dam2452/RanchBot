@@ -19,6 +19,10 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
     def supports_batch_processing(self) -> bool:
         return True
 
+    @property
+    def uses_caching(self) -> bool:
+        return False
+
     def execute_batch(
         self, input_data: List[ElasticDocuments], context: ExecutionContext,
     ) -> List[ValidationResult]:
@@ -26,7 +30,7 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
-    def execute(
+    def _process(
         self,
         input_data: ElasticDocuments,
         context: ExecutionContext,

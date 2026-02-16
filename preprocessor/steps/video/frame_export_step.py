@@ -7,7 +7,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Tuple,
 )
 
 from PIL import Image
@@ -38,9 +37,6 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             self.config.keyframe_strategy, self.config.frames_per_scene,
         )
 
-    def get_output_descriptors(self) -> List[DirectoryOutput]:
-        return [create_frames_output()]
-
     @property
     def name(self) -> str:
         return 'frame_export'
@@ -56,24 +52,23 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
-    def execute(
-            self, input_data: SceneCollection, context: ExecutionContext,
+    def _process(
+        self, input_data: SceneCollection, context: ExecutionContext,
     ) -> FrameCollection:
-        episode_dir, metadata_file = self.__resolve_output_paths(input_data, context)
-
-        if self._check_cache_validity(metadata_file, context, input_data.episode_id, 'cached'):
-            return self.__load_cached_result(metadata_file, episode_dir, input_data)
+        metadata_file = self._get_cache_path(input_data, context)
+        episode_dir = metadata_file.parent
 
         self.__prepare_episode_directory(episode_dir, context)
         frame_requests = self.__extract_frame_requests(input_data)
 
         if not frame_requests:
-            return self.__construct_empty_result(episode_dir, metadata_file, input_data, context)
+            return self.__construct_empty_result(
+                episode_dir, metadata_file, input_data, context,
+            )
 
         context.logger.info(
             f'Extracting {len(frame_requests)} keyframes from {input_data.video_path.name}',
         )
-        context.mark_step_started(self.name, input_data.episode_id)
 
         self.__process_frame_extraction(
             input_data.video_path,
@@ -84,7 +79,6 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             context,
         )
 
-        context.mark_step_completed(self.name, input_data.episode_id)
         return FrameCollection(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
@@ -93,7 +87,36 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             metadata_path=metadata_file,
         )
 
-    def __extract_frame_requests(self, input_data: SceneCollection) -> List[FrameRequest]:
+    def _get_output_descriptors(self) -> List[DirectoryOutput]:
+        return [create_frames_output()]
+
+    def _get_cache_path(
+        self, input_data: SceneCollection, context: ExecutionContext,
+    ) -> Path:
+        episode_dir = self._get_standard_cache_path(input_data, context)
+        metadata_filename = (
+            f'{context.series_name}_'
+            f'{input_data.episode_info.episode_code()}_frame_metadata.json'
+        )
+        return episode_dir / metadata_filename
+
+    def _load_from_cache(
+        self, cache_path: Path, input_data: SceneCollection, context: ExecutionContext,
+    ) -> FrameCollection:
+        episode_dir = cache_path.parent
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            metadata = json.load(f)
+        return FrameCollection(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            directory=episode_dir,
+            frame_count=metadata['statistics']['total_frames'],
+            metadata_path=cache_path,
+        )
+
+    def __extract_frame_requests(
+        self, input_data: SceneCollection,
+    ) -> List[FrameRequest]:
         video_path = input_data.video_path
         if not video_path.exists():
             raise FileNotFoundError(f'Video file not found for frame export: {video_path}')
@@ -101,20 +124,28 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         return self.__strategy.extract_frame_requests(video_path, data)
 
     def __process_frame_extraction(
-            self,
-            video_path: Path,
-            frame_requests: List[FrameRequest],
-            episode_dir: Path,
-            input_data: SceneCollection,
-            metadata_file: Path,
-            context: ExecutionContext,
+        self,
+        video_path: Path,
+        frame_requests: List[FrameRequest],
+        episode_dir: Path,
+        input_data: SceneCollection,
+        metadata_file: Path,
+        context: ExecutionContext,
     ) -> None:
         try:
             self.__extract_frames(
-                video_path, frame_requests, episode_dir, input_data.episode_info, context,
+                video_path,
+                frame_requests,
+                episode_dir,
+                input_data.episode_info,
+                context,
             )
             self.__write_metadata(
-                frame_requests, input_data.episode_info, video_path, context, metadata_file,
+                frame_requests,
+                input_data.episode_info,
+                video_path,
+                context,
+                metadata_file,
             )
         except Exception as e:
             context.logger.error(f'Failed to extract frames from {video_path}: {e}')
@@ -122,12 +153,12 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             raise
 
     def __extract_frames(
-            self,
-            video_file: Path,
-            frame_requests: List[FrameRequest],
-            episode_dir: Path,
-            episode_info,
-            context: ExecutionContext,
+        self,
+        video_file: Path,
+        frame_requests: List[FrameRequest],
+        episode_dir: Path,
+        episode_info,
+        context: ExecutionContext,
     ) -> None:
         video_metadata = self.__fetch_video_metadata(video_file)
         dar = self.__calculate_display_aspect_ratio(video_metadata)
@@ -136,19 +167,24 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         for req in frame_requests:
             frame_num = req['frame_number']
             self.__extract_and_save_frame(
-                vr, frame_num, episode_dir, episode_info, dar, context.series_name,
+                vr,
+                frame_num,
+                episode_dir,
+                episode_info,
+                dar,
+                context.series_name,
             )
 
         del vr
 
     def __extract_and_save_frame(
-            self,
-            vr: decord.VideoReader,
-            frame_num: int,
-            episode_dir: Path,
-            episode_info,
-            dar: float,
-            series_name: str,
+        self,
+        vr: decord.VideoReader,
+        frame_num: int,
+        episode_dir: Path,
+        episode_info,
+        dar: float,
+        series_name: str,
     ) -> None:
         frame_np = vr[frame_num].asnumpy()
         frame_pil = Image.fromarray(frame_np)
@@ -161,13 +197,17 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         with StepTempFile(final_path) as temp_path:
             resized.save(temp_path, quality=90)
 
-    def __resize_frame(self, frame: Image.Image, display_aspect_ratio: float) -> Image.Image:
+    def __resize_frame(
+        self, frame: Image.Image, display_aspect_ratio: float,
+    ) -> Image.Image:
         target_width = self.config.resolution.width
         target_height = self.config.resolution.height
         target_aspect = target_width / target_height
 
         if abs(display_aspect_ratio - target_aspect) < 0.01:
-            return frame.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            return frame.resize(
+                (target_width, target_height), Image.Resampling.LANCZOS,
+            )
 
         if display_aspect_ratio > target_aspect:
             new_height = target_height
@@ -185,12 +225,12 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         return result
 
     def __write_metadata(
-            self,
-            frame_requests: List[FrameRequest],
-            episode_info,
-            source_video: Path,
-            context: ExecutionContext,
-            metadata_file: Path,
+        self,
+        frame_requests: List[FrameRequest],
+        episode_info,
+        source_video: Path,
+        context: ExecutionContext,
+        metadata_file: Path,
     ) -> None:
         frame_types_count: Dict[str, int] = {}
         frames_with_paths: List[Dict[str, Any]] = []
@@ -230,60 +270,35 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
                 'frame_types': frame_types_count,
                 'total_scenes': len(scene_numbers),
                 'timestamp_range': {
-                    'start': min((f.get('timestamp', 0) for f in frame_requests), default=0),
-                    'end': max((f.get('timestamp', 0) for f in frame_requests), default=0),
+                    'start': min(
+                        (f.get('timestamp', 0) for f in frame_requests), default=0,
+                    ),
+                    'end': max(
+                        (f.get('timestamp', 0) for f in frame_requests), default=0,
+                    ),
                 },
             },
             'frames': frames_with_paths,
         }
         FileOperations.atomic_write_json(metadata_file, metadata, indent=2)
 
-    def __resolve_output_paths(
-            self,
-            input_data: SceneCollection,
-            context: ExecutionContext,
-    ) -> Tuple[Path, Path]:
-        episode_dir = self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': input_data.episode_info.season_code(),
-                'episode': input_data.episode_info.episode_code(),
-            },
-        )
-        metadata_filename = f'{context.series_name}_{input_data.episode_info.episode_code()}_frame_metadata.json'
-        metadata_file = episode_dir / metadata_filename
-        return episode_dir, metadata_file
-
     @staticmethod
-    def __load_cached_result(
-            metadata_file: Path,
-            episode_dir: Path,
-            input_data: SceneCollection,
-    ) -> FrameCollection:
-        with open(metadata_file, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-        return FrameCollection(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            directory=episode_dir,
-            frame_count=metadata['statistics']['total_frames'],
-            metadata_path=metadata_file,
-        )
-
-    @staticmethod
-    def __prepare_episode_directory(episode_dir: Path, context: ExecutionContext) -> None:
+    def __prepare_episode_directory(
+        episode_dir: Path, context: ExecutionContext,
+    ) -> None:
         if episode_dir.exists():
-            context.logger.info(f'Cleaning incomplete frames from previous run: {episode_dir}')
+            context.logger.info(
+                f'Cleaning incomplete frames from previous run: {episode_dir}',
+            )
             shutil.rmtree(episode_dir, ignore_errors=True)
         episode_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def __construct_empty_result(
-            episode_dir: Path,
-            metadata_file: Path,
-            input_data: SceneCollection,
-            context: ExecutionContext,
+        episode_dir: Path,
+        metadata_file: Path,
+        input_data: SceneCollection,
+        context: ExecutionContext,
     ) -> FrameCollection:
         context.logger.warning(f'No frames to extract for {input_data.episode_id}')
         return FrameCollection(
@@ -298,7 +313,8 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def __fetch_video_metadata(video_path: Path) -> Dict[str, Any]:
         cmd = [
             'ffprobe', '-v', 'error', '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height,sample_aspect_ratio,display_aspect_ratio',
+            '-show_entries',
+            'stream=width,height,sample_aspect_ratio,display_aspect_ratio',
             '-of', 'json', str(video_path),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
