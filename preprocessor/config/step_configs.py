@@ -69,10 +69,10 @@ class SceneDetectionConfig(BaseModel):
 class FrameExportConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    frames_per_scene: int = Field(default=3, ge=1)
+    frames_per_scene: int = Field(default=1, ge=1)
     keyframe_strategy: KeyframeStrategy = KeyframeStrategy.SCENE_CHANGES
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
-    resolution: Resolution = Field(default=Resolution.R720P)
+    resolution: Resolution = Field(default=Resolution.R1080P)
 
 
 class TranscriptionConfig(BaseModel):

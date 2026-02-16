@@ -18,6 +18,7 @@ from preprocessor.config.step_configs import (
     VideoEmbeddingConfig,
     WhisperTranscriptionConfig,
 )
+from preprocessor.services.media.resolution import Resolution
 
 
 class DefaultConfigFactory:
@@ -40,7 +41,7 @@ class DefaultConfigFactory:
             'separate_sounds': SoundSeparationConfig(),
             'analyze_text': TextAnalysisConfig(language='pl'),
             'detect_scenes': SceneDetectionConfig(threshold=0.5, min_scene_len=10),
-            'export_frames': FrameExportConfig(frames_per_scene=3),
+            'export_frames': FrameExportConfig(frames_per_scene=1, resolution=Resolution.R1080P),
             'text_embeddings': TextEmbeddingConfig(
                 model_name='Qwen/Qwen3-VL-Embedding-8B',
                 batch_size=8,
