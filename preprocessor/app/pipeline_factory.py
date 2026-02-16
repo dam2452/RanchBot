@@ -497,10 +497,10 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(image_hashes)
     pipeline.register(video_embeddings)
 
+    pipeline.register(object_detections)
     pipeline.register(character_detections)
     pipeline.register(emotion_data)
     pipeline.register(face_clusters)
-    pipeline.register(object_detections)
 
     pipeline.register(elastic_documents)
     pipeline.register(episode_archives)
