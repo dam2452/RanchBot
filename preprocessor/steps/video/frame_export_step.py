@@ -67,11 +67,11 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             )
 
         context.logger.info(
-            f'Extracting {len(frame_requests)} keyframes from {input_data.video_path.name}',
+            f'Extracting {len(frame_requests)} keyframes from {input_data.source_video_path.name}',
         )
 
         self.__process_frame_extraction(
-            input_data.video_path,
+            input_data.source_video_path,
             frame_requests,
             episode_dir,
             input_data,
@@ -117,7 +117,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def __extract_frame_requests(
         self, input_data: SceneCollection,
     ) -> List[FrameRequest]:
-        video_path = input_data.video_path
+        video_path = getattr(input_data, 'source_video_path', input_data.video_path)
         if not video_path.exists():
             raise FileNotFoundError(f'Video file not found for frame export: {video_path}')
         data = {'scene_timestamps': {'scenes': input_data.scenes}}

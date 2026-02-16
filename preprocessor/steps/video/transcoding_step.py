@@ -228,6 +228,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             episode_info=input_data.episode_info,
             resolution=f'{self.config.resolution.width}x{self.config.resolution.height}',
             codec=self.config.codec,
+            source_video_path=input_data.path,
         )
 
     @staticmethod

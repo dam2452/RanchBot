@@ -156,17 +156,18 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         )
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
+            futures_to_input = {
                 executor.submit(executor_fn, artifact, context): artifact
                 for artifact in input_data
             }
 
-            results = []
-            for future in as_completed(futures):
+            results_dict: Dict[int, OutputT] = {}
+            for future in as_completed(futures_to_input):
+                input_artifact = futures_to_input[future]
                 result = future.result()
-                results.append(result)
+                results_dict[id(input_artifact)] = result
 
-            return results
+            return [results_dict[id(artifact)] for artifact in input_data]
 
     @staticmethod
     def _execute_sequential(

@@ -141,6 +141,7 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
         return SceneCollection(
             path=output_path,
             video_path=input_data.path,
+            source_video_path=getattr(input_data, 'source_video_path', input_data.path),
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
             scenes=scenes,

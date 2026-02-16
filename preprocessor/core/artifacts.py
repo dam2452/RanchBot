@@ -36,6 +36,7 @@ class TranscodedVideo(EpisodeArtifact):
     codec: str
     path: Path
     resolution: str
+    source_video_path: Path
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ class SceneCollection(EpisodeArtifact):
     scenes: List[Dict[str, Any]]
     threshold: float
     video_path: Path
+    source_video_path: Path
 
 
 @dataclass(frozen=True)

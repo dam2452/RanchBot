@@ -8,7 +8,7 @@ from typing import (
 
 from preprocessor.config.step_configs import WhisperTranscriptionConfig
 from preprocessor.core.artifacts import (
-    AudioArtifact,
+    TranscodedVideo,
     TranscriptionData,
 )
 from preprocessor.core.base_step import PipelineStep
@@ -20,7 +20,7 @@ from preprocessor.services.transcription.whisper import Whisper
 
 
 class TranscriptionStep(
-    PipelineStep[AudioArtifact, TranscriptionData, WhisperTranscriptionConfig],
+    PipelineStep[TranscodedVideo, TranscriptionData, WhisperTranscriptionConfig],
 ):
     def __init__(self, config: WhisperTranscriptionConfig) -> None:
         super().__init__(config)
@@ -42,14 +42,14 @@ class TranscriptionStep(
         self.__unload_whisper()
 
     def execute_batch(
-            self, input_data: List[AudioArtifact], context: ExecutionContext,
+            self, input_data: List[TranscodedVideo], context: ExecutionContext,
     ) -> List[TranscriptionData]:
         return self._execute_with_threadpool(
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
     def _process(
-            self, input_data: AudioArtifact, context: ExecutionContext,
+            self, input_data: TranscodedVideo, context: ExecutionContext,
     ) -> TranscriptionData:
         output_path = self._get_cache_path(input_data, context)
 
@@ -70,14 +70,14 @@ class TranscriptionStep(
         ]
 
     def _get_cache_path(
-            self, input_data: AudioArtifact, context: ExecutionContext,
+            self, input_data: TranscodedVideo, context: ExecutionContext,
     ) -> Path:
         return self._get_standard_cache_path(input_data, context)
 
     def _load_from_cache(
             self,
             cache_path: Path,
-            input_data: AudioArtifact,
+            input_data: TranscodedVideo,
             context: ExecutionContext,
     ) -> TranscriptionData:
         return TranscriptionData(
@@ -109,7 +109,7 @@ class TranscriptionStep(
 
     def __transcribe_and_save(
             self,
-            input_data: AudioArtifact,
+            input_data: TranscodedVideo,
             output_path: Path,
             context: ExecutionContext,
     ) -> Dict[str, Any]:
@@ -134,7 +134,7 @@ class TranscriptionStep(
     def __construct_result_artifact(
             self,
             output_path: Path,
-            input_data: AudioArtifact,
+            input_data: TranscodedVideo,
             result: Dict[str, Any],
     ) -> TranscriptionData:
         return TranscriptionData(
