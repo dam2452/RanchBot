@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import (
     Any,
+    Dict,
     List,
 )
 
@@ -31,6 +32,69 @@ class PipelineExecutor:
                 except Exception as e:
                     self.__context.logger.error(f"Cleanup failed for step {step.name}: {e}")
 
+    def __discover_source_videos(
+        self, source_path: Path, episode_manager: EpisodeManager,
+    ) -> List[SourceVideo]:
+        video_files = VideoDiscovery.discover(source_path)
+        self.__context.logger.info(
+            f"Discovered {len(video_files)} video files in {source_path}",
+        )
+
+        source_videos: List[SourceVideo] = []
+        for video_file in video_files:
+            episode_info = episode_manager.parse_filename(video_file)
+            if not episode_info:
+                self.__context.logger.warning(f"Cannot parse: {video_file}")
+                continue
+
+            episode_id = episode_manager.get_episode_id_for_state(episode_info)
+            source_videos.append(
+                SourceVideo(
+                    path=video_file,
+                    episode_id=episode_id,
+                    episode_info=episode_info,
+                ),
+            )
+
+        return source_videos
+
+    def __execute_step_with_registry(
+        self,
+        pipeline: "PipelineDefinition",
+        step_id: str,
+        artifact_registry: Dict[str, List[Any]],
+    ) -> None:
+        step_def = pipeline.get_step(step_id)
+        self.__context.logger.info(f"Step: {step_id}")
+        self.__context.logger.info(f"{step_def.description}")
+
+        instance = step_def.step_class(step_def.config)
+
+        if instance.is_global:
+            self.__run_global_step(instance)
+        else:
+            input_artifacts = self.__get_input_artifacts(step_def, artifact_registry)
+            output_artifacts = self.__run_episode_step(instance, input_artifacts)
+            artifact_registry[step_id] = output_artifacts
+
+        self.__context.logger.info(f"Step '{step_id}' completed")
+
+    @staticmethod
+    def __get_input_artifacts(
+        step_def,
+        artifact_registry: Dict[str, List[Any]],
+    ) -> List[Any]:
+        if not step_def.dependency_ids:
+            return artifact_registry.get('__source__', [])
+
+        input_source_id = step_def.dependency_ids[0]
+        artifacts = artifact_registry.get(input_source_id, [])
+
+        if not artifacts:
+            return artifact_registry.get('__source__', [])
+
+        return artifacts
+
     def execute_step(
         self,
         pipeline: "PipelineDefinition",
@@ -57,31 +121,18 @@ class PipelineExecutor:
         source_path: Path,
         episode_manager: EpisodeManager,
     ) -> None:
+        artifact_registry: Dict[str, List[Any]] = {}
+        source_artifacts = self.__discover_source_videos(source_path, episode_manager)
+        artifact_registry['__source__'] = source_artifacts
+
         for step_id in step_ids:
             self.__context.logger.info(f"{'=' * 80}")
-            self.execute_step(pipeline, step_id, source_path, episode_manager)
+            self.__execute_step_with_registry(
+                pipeline, step_id, artifact_registry,
+            )
 
     def run(self, source_path: Path, episode_manager: EpisodeManager) -> None:
-        video_files = VideoDiscovery.discover(source_path)
-        self.__context.logger.info(
-            f"Discovered {len(video_files)} video files in {source_path}",
-        )
-
-        current_artifacts: List[Any] = []
-        for video_file in video_files:
-            episode_info = episode_manager.parse_filename(video_file)
-            if not episode_info:
-                self.__context.logger.warning(f"Cannot parse: {video_file}")
-                continue
-
-            episode_id = episode_manager.get_episode_id_for_state(episode_info)
-            current_artifacts.append(
-                SourceVideo(
-                    path=video_file,
-                    episode_id=episode_id,
-                    episode_info=episode_info,
-                ),
-            )
+        current_artifacts = self.__discover_source_videos(source_path, episode_manager)
 
         for step in self.__steps:
             if step.is_global:

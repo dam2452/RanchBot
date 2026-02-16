@@ -1,4 +1,5 @@
 from datetime import datetime
+from io import BytesIO
 import json
 from pathlib import Path
 import shutil
@@ -10,7 +11,6 @@ from typing import (
 )
 
 from PIL import Image
-import decord
 
 from preprocessor.config.step_configs import FrameExportConfig
 from preprocessor.config.types import FrameRequest
@@ -32,7 +32,6 @@ from preprocessor.services.video.strategies.strategy_factory import KeyframeStra
 class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExportConfig]):
     def __init__(self, config: FrameExportConfig) -> None:
         super().__init__(config)
-        decord.bridge.set_bridge('native')
         self.__strategy = KeyframeStrategyFactory.create(
             self.config.keyframe_strategy, self.config.frames_per_scene,
         )
@@ -120,7 +119,9 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         video_path = getattr(input_data, 'source_video_path', input_data.video_path)
         if not video_path.exists():
             raise FileNotFoundError(f'Video file not found for frame export: {video_path}')
-        data = {'scene_timestamps': {'scenes': input_data.scenes}}
+        data = {
+            'scene_timestamps': {'scenes': input_data.scenes},
+        }
         return self.__strategy.extract_frame_requests(video_path, data)
 
     def __process_frame_extraction(
@@ -162,40 +163,56 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     ) -> None:
         video_metadata = self.__fetch_video_metadata(video_file)
         dar = self.__calculate_display_aspect_ratio(video_metadata)
-        vr = decord.VideoReader(str(video_file), ctx=decord.cpu(0))
 
         for req in frame_requests:
-            frame_num = req['frame_number']
+            timestamp = req['timestamp']
             self.__extract_and_save_frame(
-                vr,
-                frame_num,
+                video_file,
+                timestamp,
                 episode_dir,
                 episode_info,
                 dar,
                 context.series_name,
             )
 
-        del vr
-
     def __extract_and_save_frame(
         self,
-        vr: decord.VideoReader,
-        frame_num: int,
+        video_file: Path,
+        timestamp: float,
         episode_dir: Path,
         episode_info,
         dar: float,
         series_name: str,
     ) -> None:
-        frame_np = vr[frame_num].asnumpy()
-        frame_pil = Image.fromarray(frame_np)
+        frame_pil = self.__extract_frame_at_timestamp(video_file, timestamp)
         resized = self.__resize_frame(frame_pil, dar)
 
         base_filename = f'{series_name}_{episode_info.episode_code()}'
-        filename = f'{base_filename}_frame_{frame_num:06d}.jpg'
+        timestamp_ms = int(timestamp * 1000)
+        filename = f'{base_filename}_frame_{timestamp_ms:08d}.jpg'
         final_path = episode_dir / filename
 
         with StepTempFile(final_path) as temp_path:
             resized.save(temp_path, quality=90)
+
+    @staticmethod
+    def __extract_frame_at_timestamp(video_file: Path, timestamp: float) -> Image.Image:
+        cmd = [
+            'ffmpeg',
+            '-ss', str(timestamp),
+            '-i', str(video_file),
+            '-frames:v', '1',
+            '-f', 'image2pipe',
+            '-vcodec', 'bmp',
+            '-',
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            check=True,
+            stdin=subprocess.DEVNULL,
+        )
+        return Image.open(BytesIO(result.stdout))
 
     def __resize_frame(
         self, frame: Image.Image, display_aspect_ratio: float,
@@ -241,8 +258,8 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             frame_types_count[frame_type] = frame_types_count.get(frame_type, 0) + 1
 
             frame_with_path = frame.copy()
-            frame_num = frame['frame_number']
-            frame_with_path['frame_path'] = f'{base_filename}_frame_{frame_num:06d}.jpg'
+            timestamp_ms = int(frame['timestamp'] * 1000)
+            frame_with_path['frame_path'] = f'{base_filename}_frame_{timestamp_ms:08d}.jpg'
             frames_with_paths.append(frame_with_path)
 
         scene_numbers = {
