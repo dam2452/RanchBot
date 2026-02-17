@@ -43,7 +43,7 @@ from bot.video.utils import get_video_duration
 class AdjustVideoClipHandler(BotMessageHandler):
     __RELATIVE_COMMANDS: List[str] = ["dostosuj", "adjust", "d"]
     __ABSOLUTE_COMMANDS: List[str] = ["adostosuj", "aadjust", "ad"]
-    __SCENE_COMMANDS: List[str] = ["dostosuj_sceny", "ds"]
+    __SCENE_COMMANDS: List[str] = ["sdostosuj", "sadjust", "ds"]
 
     def get_commands(self) -> List[str]:
         return (
@@ -125,7 +125,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         await self._log_system_message(logging.INFO, get_updated_segment_info_log(msg.get_chat_id()))
         return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
 
-    async def __handle_scene_adjustment(self, content: List[str], chat_id: int) -> None:
+    async def __handle_scene_adjustment(self, content: List[str], chat_id: int) -> None:  # pylint: disable=too-many-locals
         last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
         if not last_clip:
             await self.__reply_no_quotes_selected()
@@ -155,8 +155,11 @@ class AdjustVideoClipHandler(BotMessageHandler):
             await self._reply_error(get_ds_no_scene_cuts_message())
             return
 
-        new_start = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_start, n_before, "back")
-        new_end = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_end, n_after, "forward")
+        speech_start = float(segment_info.get("start_time", clip_start))
+        speech_end = float(segment_info.get("end_time", clip_end))
+
+        new_start = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_start, n_before, "back", speech_start, speech_end)
+        new_end = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_end, n_after, "forward", speech_start, speech_end)
 
         new_start = max(0.0, new_start)
         video_duration = await get_video_duration(segment_info.get("video_path"))

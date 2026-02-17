@@ -20,7 +20,6 @@ from bot.responses.sending_videos.snap_clip_handler_responses import (
     get_no_last_clip_message,
     get_no_scene_cuts_message,
     get_snap_success_log,
-    get_snap_success_message,
 )
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.types import ElasticsearchSegment
@@ -100,5 +99,4 @@ class SnapClipHandler(BotMessageHandler):
             is_adjusted=True,
         )
 
-        await self._reply(get_snap_success_message(clip_start, clip_end, snapped_start, snapped_end))
         return await self._log_system_message(logging.INFO, get_snap_success_log(msg.get_username()))
