@@ -35,6 +35,11 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
     def execute_batch(
         self, input_data: List[SourceVideo], context: ExecutionContext,
     ) -> List[TranscodedVideo]:
+        total = len(input_data)
+        parallel = min(self.config.max_parallel_episodes, total)
+        context.logger.info(
+            f'Transcoding {total} videos (processing {parallel} in parallel)',
+        )
         return self._execute_with_threadpool(
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )

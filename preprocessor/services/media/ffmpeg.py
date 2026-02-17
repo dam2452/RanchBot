@@ -277,14 +277,8 @@ class FFmpegWrapper:
         return timestamps
 
     @staticmethod
-    def __log_ffmpeg_command(command: List[str]) -> None:
-        print('ffmpeg \\')
-        for i, arg in enumerate(command[1:], 1):
-            if i == len(command) - 1:
-                print(f'  {arg}')
-            else:
-                print(f'  {arg} \\')
-        print()
+    def __log_ffmpeg_command(command: List[str]) -> str:
+        return ' '.join(command)
 
     @staticmethod
     def __build_audio_and_output_params(
@@ -306,7 +300,7 @@ class FFmpegWrapper:
             input_path: Path, codec: str, preset: str, target_fps: Optional[float],
     ) -> List[str]:
         command = [
-            'ffmpeg', '-v', 'error', '-stats', '-hide_banner', '-y',
+            'ffmpeg', '-v', 'error', '-hide_banner', '-y',
             '-sws_flags', 'accurate_rnd+full_chroma_int+full_chroma_inp',
             '-i', str(input_path),
             '-c:v', codec,
