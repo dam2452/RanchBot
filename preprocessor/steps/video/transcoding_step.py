@@ -183,11 +183,22 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         self, input_data: SourceVideo, context: ExecutionContext, probe: Dict[str, Any],
     ) -> bool:
         if self.config.force_deinterlace:
+            context.logger.info('Deinterlacing: FORCED')
             return True
         has_int, stats = FFmpegWrapper.detect_interlacing(input_data.path)
         if not stats:
             return False
-        self.__log_int_diagnostics(context, has_int, stats, FFmpegWrapper.get_field_order(probe))
+
+        field_order = FFmpegWrapper.get_field_order(probe)
+        ratio_pct = stats['ratio'] * 100
+
+        if has_int:
+            context.logger.info(
+                f"Interlacing detected ({ratio_pct:.1f}%) | {field_order} → APPLYING deinterlace filter",
+            )
+        else:
+            context.logger.info(f"Interlacing: No ({ratio_pct:.1f}%) | {field_order}")
+
         return has_int
 
     def __compute_audio_bitrate(self, probe: Dict[str, Any], context: ExecutionContext) -> int:
@@ -259,7 +270,3 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         ctx.logger.info(
             f'{input_data.episode_id}: {w}x{h} -> {params.resolution} [{up_label}]',
         )
-
-    @staticmethod
-    def __log_int_diagnostics(ctx: ExecutionContext, has_int: bool, stats: Dict[str, float], order: str) -> None:
-        ctx.logger.info(f"Interlacing: {has_int} ({stats['ratio'] * 100:.1f}%) | {order}")

@@ -191,7 +191,9 @@ class FFmpegWrapper:
         )
 
         log_output = FFmpegWrapper.__log_ffmpeg_command(command) if params.log_command else None
-        subprocess.run(command, check=True, capture_output=False)
+        subprocess.run(
+            command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
         return log_output
 
     @staticmethod
