@@ -29,7 +29,8 @@ class DefaultConfigFactory:
                 max_bitrate_file_size_mb=50.0,
                 max_bitrate_duration_seconds=100.0,
                 keyframe_interval_seconds=0.5,
-                min_upscale_bitrate_ratio=0.52,
+                min_bitrate_mbps=2.0,
+                bitrate_boost_ratio=1.1,
             ),
             'transcribe': WhisperTranscriptionConfig(
                 model='large-v3-turbo',

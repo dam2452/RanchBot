@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 import json
 from pathlib import Path
-import subprocess
 from typing import (
     Any,
     Dict,
@@ -16,6 +15,7 @@ from preprocessor.config.types.keys import (
     FfprobeStreamKeys,
     ValidationMetadataKeys,
 )
+from preprocessor.services.media.ffmpeg import FFmpegWrapper
 
 
 @dataclass
@@ -112,11 +112,4 @@ class FileValidator:
 
     @staticmethod
     def __run_ffprobe(path: Path) -> Dict[str, Any]:
-        res = subprocess.run(
-            [
-                'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
-                'stream=codec_name,width,height,duration:format=duration,size', '-of', 'json', str(path),
-            ],
-            capture_output=True, text=True, check=True,
-        )
-        return json.loads(res.stdout)
+        return FFmpegWrapper.probe_video(path)

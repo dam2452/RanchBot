@@ -1,6 +1,4 @@
 from pathlib import Path
-import subprocess
-from typing import List
 
 from preprocessor.config.step_configs import AudioExtractionConfig
 from preprocessor.core.artifacts import (
@@ -9,6 +7,7 @@ from preprocessor.core.artifacts import (
 )
 from preprocessor.core.base_step import PipelineStep
 from preprocessor.core.context import ExecutionContext
+from preprocessor.services.media.ffmpeg import FFmpegWrapper
 
 
 class AudioExtractionStep(PipelineStep[SourceVideo, AudioArtifact, AudioExtractionConfig]):
@@ -51,26 +50,19 @@ class AudioExtractionStep(PipelineStep[SourceVideo, AudioArtifact, AudioExtracti
     def __extract_audio(
             self, input_path: Path, output_path: Path, context: ExecutionContext,
     ) -> None:
-        command = self.__build_ffmpeg_command(input_path, output_path)
-
         try:
-            subprocess.run(command, check=True)
-        except subprocess.CalledProcessError as e:
+            FFmpegWrapper.extract_audio(
+                input_path,
+                output_path,
+                codec='pcm_s16le',
+                sample_rate=self.config.sample_rate,
+                channels=self.config.channels,
+            )
+        except Exception as e:
             context.logger.error(f'FFmpeg audio extraction failed: {e}')
             if output_path.exists():
                 output_path.unlink()
             raise
-
-    def __build_ffmpeg_command(self, input_path: Path, output_path: Path) -> List[str]:
-        return [
-            'ffmpeg', '-y', '-v', 'error',
-            '-i', str(input_path),
-            '-vn',  # Disable video processing
-            '-acodec', 'pcm_s16le',
-            '-ar', str(self.config.sample_rate),
-            '-ac', str(self.config.channels),
-            str(output_path),
-        ]
 
     def __create_artifact(self, input_data: SourceVideo, output_path: Path) -> AudioArtifact:
         return AudioArtifact(

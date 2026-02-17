@@ -9,3 +9,5 @@ class FrameRequest(TypedDict):
     timestamp: float
     type: str
     scene_number: NotRequired[int]
+    original_timestamp: NotRequired[float]
+    snapped_to_keyframe: NotRequired[bool]

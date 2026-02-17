@@ -1,3 +1,4 @@
+from io import BytesIO
 import json
 from pathlib import Path
 import re
@@ -10,6 +11,8 @@ from typing import (
     Tuple,
     Union,
 )
+
+from PIL import Image
 
 from preprocessor.services.media.transcode_params import TranscodeParams
 
@@ -163,7 +166,7 @@ class FFmpegWrapper:
         return json.loads(result.stdout)
 
     @staticmethod
-    def transcode(params: TranscodeParams) -> None:
+    def transcode(params: TranscodeParams) -> Optional[str]:
         width, height = params.get_resolution_tuple()
         vf_filter = FFmpegWrapper.__build_video_filter(
             width, height, params.deinterlace, params.is_upscaling,
@@ -187,10 +190,91 @@ class FFmpegWrapper:
             ),
         )
 
-        if params.log_command:
-            FFmpegWrapper.__log_ffmpeg_command(command)
-
+        log_output = FFmpegWrapper.__log_ffmpeg_command(command) if params.log_command else None
         subprocess.run(command, check=True, capture_output=False)
+        return log_output
+
+    @staticmethod
+    def get_audio_streams(video_path: Path) -> List[Dict[str, Any]]:
+        cmd = [
+            'ffprobe', '-v', 'error', '-select_streams', 'a',
+            '-show_entries', 'stream=index,bit_rate,codec_name,channels,sample_rate',
+            '-of', 'json', str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout).get('streams', [])
+
+    @staticmethod
+    def extract_audio(
+        video_path: Path,
+        output_path: Path,
+        audio_stream_index: Optional[int] = None,
+        codec: str = 'pcm_s16le',
+        sample_rate: int = 48000,
+        channels: int = 1,
+    ) -> None:
+        cmd = ['ffmpeg', '-y', '-i', str(video_path)]
+
+        if audio_stream_index is not None:
+            cmd.extend(['-map', f'0:{audio_stream_index}'])
+
+        cmd.extend([
+            '-acodec', codec,
+            '-ar', str(sample_rate),
+            '-ac', str(channels),
+            str(output_path),
+        ])
+
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+    @staticmethod
+    def normalize_audio(input_path: Path, output_path: Path) -> None:
+        cmd = [
+            'ffmpeg', '-y', '-i', str(input_path),
+            '-af', 'dynaudnorm',
+            str(output_path),
+        ]
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+    @staticmethod
+    def extract_frame_at_timestamp(video_path: Path, timestamp: float) -> Image.Image:
+        cmd = [
+            'ffmpeg',
+            '-ss', str(timestamp),
+            '-i', str(video_path),
+            '-frames:v', '1',
+            '-f', 'image2pipe',
+            '-vcodec', 'bmp',
+            '-',
+        ]
+        result = subprocess.run(cmd, capture_output=True, check=True)
+        return Image.open(BytesIO(result.stdout))
+
+    @staticmethod
+    def get_keyframe_timestamps(video_path: Path) -> List[float]:
+        cmd = [
+            'ffprobe',
+            '-skip_frame', 'nokey',
+            '-select_streams', 'v:0',
+            '-show_entries', 'frame=pkt_pts_time',
+            '-of', 'json',
+            str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        data: Dict[str, Any] = json.loads(result.stdout)
+        frames: List[Dict[str, Any]] = data.get('frames', [])
+
+        timestamps = []
+        for frame in frames:
+            pts = frame.get('pkt_pts_time')
+            if pts:
+                timestamps.append(float(pts))
+
+        return timestamps
 
     @staticmethod
     def __log_ffmpeg_command(command: List[str]) -> None:

@@ -1,10 +1,8 @@
 import bisect
 from datetime import datetime
-from io import BytesIO
 import json
 from pathlib import Path
 import shutil
-import subprocess
 from typing import (
     Any,
     Dict,
@@ -27,6 +25,7 @@ from preprocessor.core.output_descriptors import (
 )
 from preprocessor.core.temp_files import StepTempFile
 from preprocessor.services.io.files import FileOperations
+from preprocessor.services.media.ffmpeg import FFmpegWrapper
 from preprocessor.services.video.strategies.strategy_factory import KeyframeStrategyFactory
 
 
@@ -213,22 +212,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
 
     @staticmethod
     def __extract_frame_at_timestamp(video_file: Path, timestamp: float) -> Image.Image:
-        cmd = [
-            'ffmpeg',
-            '-ss', str(timestamp),
-            '-i', str(video_file),
-            '-frames:v', '1',
-            '-f', 'image2pipe',
-            '-vcodec', 'bmp',
-            '-',
-        ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            check=True,
-            stdin=subprocess.DEVNULL,
-        )
-        return Image.open(BytesIO(result.stdout))
+        return FFmpegWrapper.extract_frame_at_timestamp(video_file, timestamp)
 
     def __resize_frame(
         self, frame: Image.Image, display_aspect_ratio: float,
@@ -346,19 +330,13 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
 
     @staticmethod
     def __fetch_video_metadata(video_path: Path) -> Dict[str, Any]:
-        cmd = [
-            'ffprobe', '-v', 'error', '-select_streams', 'v:0',
-            '-show_entries',
-            'stream=width,height,sample_aspect_ratio,display_aspect_ratio',
-            '-of', 'json', str(video_path),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        probe_data: Dict[str, Any] = json.loads(result.stdout)
+        probe_data = FFmpegWrapper.probe_video(video_path)
         streams: List[Dict[str, Any]] = probe_data.get('streams', [])
 
-        if not streams:
+        video_streams = [s for s in streams if s.get('codec_type') == 'video']
+        if not video_streams:
             raise ValueError(f'No video streams found in {video_path}')
-        return streams[0]
+        return video_streams[0]
 
     @staticmethod
     def __calculate_display_aspect_ratio(metadata: Dict[str, Any]) -> float:
@@ -382,31 +360,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
 
     @staticmethod
     def __get_all_keyframes(video_file: Path) -> List[float]:
-        cmd = [
-            'ffprobe',
-            '-skip_frame', 'nokey',
-            '-select_streams', 'v:0',
-            '-show_entries', 'frame=pkt_pts_time',
-            '-of', 'json',
-            str(video_file),
-        ]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=True,
-            stdin=subprocess.DEVNULL,
-        )
-        data: Dict[str, Any] = json.loads(result.stdout)
-        frames: List[Dict[str, Any]] = data.get('frames', [])
-
-        keyframes = [
-            float(frame['pkt_pts_time'])
-            for frame in frames
-            if 'pkt_pts_time' in frame
-        ]
-
-        return sorted(keyframes)
+        return sorted(FFmpegWrapper.get_keyframe_timestamps(video_file))
 
     @staticmethod
     def __snap_to_keyframe(

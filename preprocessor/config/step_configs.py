@@ -17,12 +17,13 @@ from preprocessor.services.media.resolution import Resolution
 class TranscodeConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    bitrate_boost_ratio: float = Field(default=1.1, ge=1.0, le=2.0)
     force_deinterlace: bool = False
     keyframe_interval_seconds: float = Field(gt=0)
     max_bitrate_duration_seconds: float = Field(gt=0)
     max_bitrate_file_size_mb: float = Field(gt=0)
     max_parallel_episodes: int = Field(default=3, ge=1, le=10)
-    min_upscale_bitrate_ratio: float = Field(default=0.52, ge=0, le=1)
+    min_bitrate_mbps: float = Field(default=2.0, gt=0)
     resolution: Resolution = Field(default=Resolution.R720P)
 
     @property
@@ -141,7 +142,10 @@ class ElasticsearchConfig(BaseModel):
 
 
 class AudioExtractionConfig(BaseModel):
+    channels: int = Field(default=1, ge=1, le=2)
+    format: str = 'wav'
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
+    sample_rate: int = Field(default=48000, ge=8000, le=96000)
 
 
 class CharacterDetectionConfig(BaseModel):

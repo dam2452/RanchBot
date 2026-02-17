@@ -1,11 +1,9 @@
 from dataclasses import replace
-import math
 from pathlib import Path
 from typing import (
     Any,
     Dict,
     List,
-    Tuple,
 )
 
 from preprocessor.config.step_configs import TranscodeConfig
@@ -27,6 +25,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         'hevc': 2.0, 'h265': 2.0,
         'vp9': 2.85, 'av1': 4.0,
     }
+    __TARGET_FRAMERATE: float = 25.0
     __command_logged: bool = False
 
     @property
@@ -83,12 +82,9 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         probe_data: Dict[str, Any],
         context: ExecutionContext,
     ) -> TranscodeParams:
-        target_fps = self.__resolve_target_framerate()
-        is_upscaling, src_px, target_px = self.__analyze_resolution_scaling(probe_data)
-
-        bitrates = self.__compute_all_bitrate_settings(
-            probe_data, context, is_upscaling, src_px, target_px,
-        )
+        target_fps = self.__TARGET_FRAMERATE
+        bitrates = self.__compute_all_bitrate_settings(probe_data, context)
+        is_upscaling = self.__is_upscaling(probe_data)
 
         return TranscodeParams(
             input_path=input_data.path,
@@ -108,50 +104,47 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             log_command=self.__should_log_command(),
         )
 
-    def __analyze_resolution_scaling(self, probe_data: Dict[str, Any]) -> Tuple[bool, int, int]:
+    def __is_upscaling(self, probe_data: Dict[str, Any]) -> bool:
         w, h = FFmpegWrapper.get_resolution(probe_data)
         sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
-
         eff_w = int(w * sar_num / sar_denom)
         src_px = eff_w * h
         target_px = self.config.resolution.width * self.config.resolution.height
-
-        return src_px < target_px, src_px, target_px
+        return src_px < target_px
 
     def __compute_all_bitrate_settings(
-        self,
-        probe_data: Dict[str, Any],
-        context: ExecutionContext,
-        is_up: bool,
-        src_px: int,
-        target_px: int,
+        self, probe_data: Dict[str, Any], context: ExecutionContext,
     ) -> Dict[str, float]:
-        src_v = FFmpegWrapper.get_video_bitrate(probe_data)
-        target_max = self.config.video_bitrate_mbps
+        src_bitrate = FFmpegWrapper.get_video_bitrate(probe_data)
+        min_bitrate = self.config.min_bitrate_mbps
+        max_bitrate = self.config.video_bitrate_mbps
 
-        if not src_v:
-            return self.__build_fallback_bitrates(target_max)
+        if not src_bitrate:
+            return self.__build_fallback_bitrates(max_bitrate)
 
-        norm_v = self.__get_normalized_bitrate(src_v, probe_data, is_up, context)
-        ratio = target_px / src_px
-        exp = self.__calculate_scaling_exponent(ratio, is_up)
+        normalized_bitrate = self.__get_normalized_bitrate(src_bitrate, probe_data, context)
 
-        scaled_raw = norm_v * (ratio**exp)
-        scaled_min = self.__apply_min_upscale_constraint(scaled_raw, target_max, is_up)
-        final_v = min(scaled_min, target_max)
+        if normalized_bitrate < min_bitrate:
+            final_bitrate = min_bitrate
+            adjustment = f"boosted to minimum ({min_bitrate} Mbps)"
+        elif normalized_bitrate > max_bitrate:
+            final_bitrate = max_bitrate
+            adjustment = f"capped to maximum ({max_bitrate} Mbps)"
+        else:
+            final_bitrate = normalized_bitrate * self.config.bitrate_boost_ratio
+            boost_percent = (self.config.bitrate_boost_ratio - 1.0) * 100
+            adjustment = f"boosted by {boost_percent:.0f}%"
 
-        self.__log_bitrate_workflow(
-            context, src_v, norm_v, scaled_raw, scaled_min, final_v, target_max, ratio, is_up,
+        context.logger.info(
+            f'Bitrate: {src_bitrate:.2f} → {normalized_bitrate:.2f} → {final_bitrate:.2f} Mbps '
+            f'({adjustment})',
         )
 
-        return self.__scale_bitrate_limits(final_v / target_max)
+        return self.__scale_bitrate_limits(final_bitrate / max_bitrate)
 
     def __get_normalized_bitrate(
-        self, src_v: float, probe: Dict[str, Any], is_up: bool, context: ExecutionContext,
+        self, src_v: float, probe: Dict[str, Any], context: ExecutionContext,
     ) -> float:
-        if not is_up:
-            return src_v
-
         src_codec = self.__normalize_codec_name(FFmpegWrapper.get_video_codec(probe))
         tgt_codec = self.__normalize_codec_name(self.config.codec)
         mult = self.__get_codec_efficiency_multiplier(src_codec, tgt_codec)
@@ -159,16 +152,11 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         if mult != 1.0:
             norm = src_v * mult
             context.logger.info(
-                f'Codec: {src_codec.upper()}->{tgt_codec.upper()} ({mult}x) | '
+                f'Codec: {src_codec.upper()}->{tgt_codec.upper()} ({mult:.2f}x) | '
                 f'{src_v:.2f}->{norm:.2f} Mbps',
             )
             return norm
         return src_v
-
-    def __apply_min_upscale_constraint(self, scaled: float, target_max: float, is_up: bool) -> float:
-        if not is_up:
-            return scaled
-        return max(scaled, target_max * self.config.min_upscale_bitrate_ratio)
 
     def __scale_bitrate_limits(self, scale: float) -> Dict[str, float]:
         return {
@@ -213,9 +201,10 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             temp_params = replace(params, output_path=temp_path)
             context.mark_step_started(self.name, ep_id, [str(temp_path)])
 
-            if temp_params.log_command:
+            command_log = FFmpegWrapper.transcode(temp_params)
+            if command_log:
                 context.logger.info('=' * 20 + ' FFmpeg ' + '=' * 20)
-            FFmpegWrapper.transcode(temp_params)
+                context.logger.info(command_log)
 
     def __construct_result_artifact(self, path: Path, input_data: SourceVideo) -> TranscodedVideo:
         return TranscodedVideo(
@@ -233,13 +222,6 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
             VideoTranscoderStep.__command_logged = True
             return True
         return False
-
-    @staticmethod
-    def __calculate_scaling_exponent(ratio: float, is_up: bool) -> float:
-        log_r = math.log10(max(ratio, 0.01))
-        if is_up:
-            return 0.8 + min(log_r, 1.0) * 0.35
-        return 0.8 + max(log_r, -2.0) * 0.175
 
     @staticmethod
     def __normalize_codec_name(codec: str) -> str:
@@ -261,25 +243,6 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         return eff.get(src, 1.0) / eff.get(tgt, 1.0)
 
     @staticmethod
-    def __log_bitrate_workflow(
-        ctx: ExecutionContext,
-        src: float,
-        norm: float,
-        raw: float,
-        s_min: float,
-        final: float,
-        limit: float,
-        ratio: float,
-        is_up: bool,
-    ) -> None:
-        dir_label = "upscaling" if is_up else ("downscaling" if ratio < 1.0 else "same")
-        min_msg = f' (MinBoost: {s_min:.2f})' if is_up and (s_min > raw) else ''
-        ctx.logger.info(
-            f'[{dir_label}] {src:.2f}->{norm:.2f}->{raw:.2f}{min_msg} -> {final:.2f} Mbps '
-            f'(Max: {limit})',
-        )
-
-    @staticmethod
     def __log_transcode_details(
         ctx: ExecutionContext,
         input_data: SourceVideo,
@@ -295,7 +258,3 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
     @staticmethod
     def __log_int_diagnostics(ctx: ExecutionContext, has_int: bool, stats: Dict[str, float], order: str) -> None:
         ctx.logger.info(f"Interlacing: {has_int} ({stats['ratio'] * 100:.1f}%) | {order}")
-
-    @staticmethod
-    def __resolve_target_framerate() -> float:
-        return 25.0

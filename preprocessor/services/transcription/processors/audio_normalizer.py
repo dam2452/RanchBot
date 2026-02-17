@@ -1,6 +1,4 @@
-import json
 from pathlib import Path
-import subprocess
 from typing import (
     List,
     Optional,
@@ -8,6 +6,7 @@ from typing import (
 
 from preprocessor.services.core.base_processor import BaseProcessor
 from preprocessor.services.core.logging import ErrorHandlingLogger
+from preprocessor.services.media.ffmpeg import FFmpegWrapper
 
 
 class AudioNormalizer:
@@ -52,12 +51,7 @@ class AudioNormalizer:
             self.__logger.error(f'Error processing video {video}: {e}')
 
     def __get_best_audio_stream(self, video: Path) -> Optional[int]:
-        cmd = [
-            'ffprobe', '-v', 'error', '-select_streams', 'a',
-            '-show_entries', 'stream=index,bit_rate', '-of', 'json', str(video),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        streams = json.loads(result.stdout).get('streams', [])
+        streams = FFmpegWrapper.get_audio_streams(video)
 
         if not streams:
             self.__logger.error(f'No audio streams found in file: {video}')
@@ -67,19 +61,13 @@ class AudioNormalizer:
         return best_stream['index']
 
     def __execute_normalization_pipeline(self, video: Path, audio_idx: int, output: Path) -> None:
-        self.__extract_audio(video, audio_idx, output)
+        FFmpegWrapper.extract_audio(
+            video, output, audio_stream_index=audio_idx,
+            codec='pcm_s16le', sample_rate=48000, channels=1,
+        )
 
         tmp_output = output.with_name(output.stem + '_temp.wav')
-        normalize_cmd = ['ffmpeg', '-y', '-i', str(output), '-af', 'dynaudnorm', str(tmp_output)]
-        subprocess.run(normalize_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        FFmpegWrapper.normalize_audio(output, tmp_output)
 
         tmp_output.replace(output)
         self.__logger.info(f'Normalization complete: {output.name}')
-
-    @staticmethod
-    def __extract_audio(video: Path, audio_idx: int, output: Path) -> None:
-        cmd = [
-            'ffmpeg', '-y', '-i', str(video), '-map', f'0:{audio_idx}',
-            '-acodec', 'pcm_s16le', '-ar', '48000', '-ac', '1', str(output),
-        ]
-        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
