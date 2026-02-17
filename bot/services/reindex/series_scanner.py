@@ -70,7 +70,8 @@ class SeriesScanner:
 
         return mp4_map
 
-    def __extract_episode_code(self, filename: str) -> str:
+    @staticmethod
+    def __extract_episode_code(filename: str) -> str:
         match = re.search(r'(S\d{2}E\d{2})', filename, re.IGNORECASE)
         if match:
             return match.group(1).upper()

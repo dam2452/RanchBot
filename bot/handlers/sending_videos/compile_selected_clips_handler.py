@@ -82,7 +82,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
 
         await self._compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_compiled_clip_sent_message(self._message.get_username()),
         )

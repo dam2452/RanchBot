@@ -35,7 +35,7 @@ class SendClipHandler(BotMessageHandler):
         ]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message,1, get_give_clip_name_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, get_give_clip_name_message(), math.inf)
 
     async def __check_clip_existence(self) -> bool:
         content = self._message.get_text().split()
@@ -89,7 +89,7 @@ class SendClipHandler(BotMessageHandler):
             suggestions=["Wybrać krótszy fragment"],
         )
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_clip_sent_message(clip.name, self._message.get_username()),
         )

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from pathlib import Path
 import tempfile
 from typing import (
@@ -10,9 +11,13 @@ from typing import (
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.interfaces.message import AbstractMessage
+from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.types import ClipSegment
-from bot.utils.constants import SegmentKeys
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 from bot.utils.log import log_system_message
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
@@ -48,17 +53,28 @@ class ClipsCompiler:
             concat_file_path.unlink(missing_ok=True)
 
     @staticmethod
-    async def __compile_clips(selected_clips: List[ClipSegment], logger: logging.Logger) -> Optional[Path]:
+    async def __compile_clips(
+        selected_clips: List[ClipSegment],
+        logger: logging.Logger,
+        series_name: Optional[str],
+    ) -> Optional[Path]:
         temp_files = []
         try:
             for segment in selected_clips:
                 start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE_COMPILE
                 end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER_COMPILE
 
+                if series_name and segment.get(EpisodeMetadataKeys.EPISODE_METADATA):
+                    start_time, end_time = await SceneSnapService.snap_clip_times(
+                        series_name, segment, start_time, end_time, logger,
+                    )
+
                 extracted_clip_path = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, logger)
                 temp_files.append(extracted_clip_path)
 
-            compiled_output_path = Path(tempfile.mktemp(suffix=".mp4"))
+            fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
+            os.close(fd)
+            compiled_output_path = Path(tmp_path)
             await ClipsCompiler.__do_compile_clips(temp_files, compiled_output_path, logger)
             return compiled_output_path
         except Exception as e:
@@ -92,11 +108,11 @@ class ClipsCompiler:
         message: AbstractMessage,
         selected_segments: List[ClipSegment],
         logger: logging.Logger,
+        series_name: Optional[str] = None,
     ) -> Path:
-        compiled_output = await ClipsCompiler.__compile_clips(selected_segments, logger)
+        compiled_output = await ClipsCompiler.__compile_clips(selected_segments, logger, series_name)
         await ClipsCompiler.__insert_to_last_clips(message, compiled_output)
         return compiled_output
-
 
 
 async def process_compiled_clip(

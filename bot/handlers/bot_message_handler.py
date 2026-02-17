@@ -11,6 +11,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Union,
 )
 
 from bot.adapters.rest.models import ResponseStatus as RS
@@ -130,7 +131,7 @@ class BotMessageHandler(ABC):
             message: AbstractMessage,
             min_args: int,
             error_message: str,
-            max_args: Optional[int] = None,
+            max_args: Optional[Union[int, float]] = None,
     ) -> bool:
         if max_args is None:
             max_args = min_args
@@ -148,7 +149,7 @@ class BotMessageHandler(ABC):
             status: RS = RS.SUCCESS,
     ) -> None:
         if self._message.should_reply_json():
-            response_data = {
+            response_data: Dict[str, Any] = {
                 "status": status,
                 "message": message,
             }
@@ -193,8 +194,14 @@ class BotMessageHandler(ABC):
 
         return message
 
-    async def _compile_and_send_video(self, selected_segments: List[ClipSegment], total_duration: float, clip_type: ClipType) -> None:
-        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
+    async def _compile_and_send_video(
+        self,
+        selected_segments: List[ClipSegment],
+        total_duration: float,
+        clip_type: ClipType,
+        series_name: Optional[str] = None,
+    ) -> None:
+        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger, series_name)
         await process_compiled_clip(self._message, compiled_output, clip_type)
 
         try:

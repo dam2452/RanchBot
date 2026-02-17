@@ -87,7 +87,7 @@ class EpisodeListHandler(BotMessageHandler):
             for part in self.__split_message(response):
                 await self._responder.send_markdown(part)
 
-        await self._log_system_message(
+        return await self._log_system_message(
             logging.INFO,
             get_log_episode_list_sent_message(season, self._message.get_username()),
         )

@@ -30,6 +30,7 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
 from bot.search.transcription_finder import TranscriptionFinder
+from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.types import ElasticsearchSegment
 from bot.utils.constants import SegmentKeys
@@ -62,7 +63,7 @@ class InlineClipHandler(BotMessageHandler):
         query = " ".join(self._message.get_text().split()[1:])
         user_id = self._message.get_user_id()
 
-        saved_clip, segments, season_info, _ = await self.__fetch_data(user_id, query)
+        saved_clip, segments, season_info, _, active_series = await self.__fetch_data(user_id, query)
 
         if not saved_clip and not segments:
             await self._responder.send_text(f'Nie znaleziono klipów dla zapytania: "{query}"')
@@ -70,7 +71,7 @@ class InlineClipHandler(BotMessageHandler):
 
         temp_dir = Path(tempfile.mkdtemp())
         try:
-            video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True)
+            video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True, active_series=active_series)
 
             if not video_files:
                 await self._responder.send_text(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
@@ -91,13 +92,13 @@ class InlineClipHandler(BotMessageHandler):
         if not query:
             return []
 
-        saved_clip, segments, season_info, is_admin = await self.__fetch_data(user_id, query)
+        saved_clip, segments, season_info, is_admin, active_series = await self.__fetch_data(user_id, query)
 
         if not saved_clip and not segments:
             await log_system_message(logging.INFO, f"No results for inline query: '{query}'", self._logger)
             return [generate_error_result(f'Nie znaleziono klipu dla: "{query}"')]
 
-        results = await self.__create_inline_results(saved_clip, segments, season_info, bot, is_admin)
+        results = await self.__create_inline_results(saved_clip, segments, season_info, bot, is_admin, active_series)
 
         if not results:
             await log_system_message(logging.ERROR, f"Failed to generate any results for: '{query}'", self._logger)
@@ -106,7 +107,7 @@ class InlineClipHandler(BotMessageHandler):
         await DatabaseManager.log_command_usage(user_id)
         return results
 
-    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[ElasticsearchSegment], Optional[Dict[str, Any]], bool]:
+    async def __fetch_data(self, user_id: int, query: str) -> Tuple[Optional[VideoClip], List[ElasticsearchSegment], Optional[Dict[str, Any]], bool, str]:
         active_series = await self._get_user_active_series(user_id)
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
@@ -121,10 +122,16 @@ class InlineClipHandler(BotMessageHandler):
         season_info = season_info_result if not isinstance(season_info_result, Exception) else None
         is_admin = is_admin_result if not isinstance(is_admin_result, Exception) else False
 
-        return saved_clip, segments[: 4 if saved_clip else 5] if segments else [], season_info, is_admin
+        return saved_clip, segments[: 4 if saved_clip else 5] if segments else [], season_info, is_admin, active_series
 
     async def __extract_clips_to_files(
-        self, saved_clip: Optional[VideoClip], segments: List[ElasticsearchSegment], season_info: Optional[Dict[str, Any]], temp_dir: Path, is_admin: bool,
+        self,
+        saved_clip: Optional[VideoClip],
+        segments: List[ElasticsearchSegment],
+        season_info: Optional[Dict[str, Any]],
+        temp_dir: Path,
+        is_admin: bool,
+        active_series: str,
     ) -> List[Path]:
         video_files = []
 
@@ -136,6 +143,10 @@ class InlineClipHandler(BotMessageHandler):
         for idx, segment in enumerate(segments, start=2 if saved_clip else 1):
             start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
             end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+
+            start_time, end_time = await SceneSnapService.snap_clip_times(
+                active_series, segment, start_time, end_time, self._logger,
+            )
 
             if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
                 continue
@@ -153,7 +164,13 @@ class InlineClipHandler(BotMessageHandler):
         return video_files
 
     async def __create_inline_results(
-        self, saved_clip: Optional[VideoClip], segments: List[ElasticsearchSegment], season_info: Optional[Dict[str, Any]], bot: Bot, is_admin: bool,
+        self,
+        saved_clip: Optional[VideoClip],
+        segments: List[ElasticsearchSegment],
+        season_info: Optional[Dict[str, Any]],
+        bot: Bot,
+        is_admin: bool,
+        active_series: str,
     ) -> List[InlineQueryResult]:
         results = []
 
@@ -175,15 +192,21 @@ class InlineClipHandler(BotMessageHandler):
 
         if segments and season_info:
             segment_results = await asyncio.gather(
-                *[self.__upload_segment(seg, i, bot, is_admin) for i, seg in enumerate(segments, 1)], return_exceptions=True,
+                *[self.__upload_segment(seg, i, bot, is_admin, active_series) for i, seg in enumerate(segments, 1)], return_exceptions=True,
             )
             results.extend([r for r in segment_results if not isinstance(r, Exception) and r])
 
         return results
 
-    async def __upload_segment(self, segment: ElasticsearchSegment, index: int, bot: Bot, is_admin: bool) -> Optional[InlineQueryResultCachedVideo]:
+    async def __upload_segment(
+        self, segment: ElasticsearchSegment, index: int, bot: Bot, is_admin: bool, active_series: str,
+    ) -> Optional[InlineQueryResultCachedVideo]:
         start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
         end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+
+        start_time, end_time = await SceneSnapService.snap_clip_times(
+            active_series, segment, start_time, end_time, self._logger,
+        )
 
         if not is_admin and (end_time - start_time) > settings.MAX_CLIP_DURATION:
             return None

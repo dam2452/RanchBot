@@ -30,6 +30,8 @@ from bot.handlers import (
     SelectClipHandler,
     SendClipHandler,
     SerialContextHandler,
+    SnapClipHandler,
+    TranscriptionHandler,
 )
 from bot.middlewares import (
     BotMiddleware,
@@ -59,6 +61,8 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             SelectClipHandler,
             SendClipHandler,
             SerialContextHandler,
+            SnapClipHandler,
+            TranscriptionHandler,
         ]
 
     def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:

@@ -66,16 +66,16 @@ class TranscriptionFinder:
             size: int = 1,
     ) -> Optional[Union[List[ObjectApiResponse], ObjectApiResponse]]:
         def __merge_overlapping_segment(
-            segment: SegmentWithScore,
-            unique_segments: List[SegmentWithScore],
-            start_time: float,
-            end_time: float,
+            incoming: SegmentWithScore,
+            collected: List[SegmentWithScore],
+            incoming_start: float,
+            incoming_end: float,
         ) -> bool:
-            for i, existing_segment in enumerate(unique_segments):
+            for i, existing_segment in enumerate(collected):
                 existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
                 existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
-                seg_metadata = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+                seg_metadata = incoming.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
                 existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
 
                 seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
@@ -87,20 +87,20 @@ class TranscriptionFinder:
                 if (
                     seg_season == existing_season and
                     seg_episode == existing_episode and
-                    start_time <= existing_end and
-                    end_time >= existing_start
+                    incoming_start <= existing_end and
+                    incoming_end >= existing_start
                 ):
-                    unique_segments[i][SegmentKeys.START_TIME] = min(
+                    collected[i][SegmentKeys.START_TIME] = min(
                         existing_segment[SegmentKeys.START_TIME],
-                        segment[SegmentKeys.START_TIME],
+                        incoming[SegmentKeys.START_TIME],
                     )
-                    unique_segments[i][SegmentKeys.END_TIME] = max(
+                    collected[i][SegmentKeys.END_TIME] = max(
                         existing_segment[SegmentKeys.END_TIME],
-                        segment[SegmentKeys.END_TIME],
+                        incoming[SegmentKeys.END_TIME],
                     )
-                    unique_segments[i][ElasticsearchKeys.SCORE] = max(
+                    collected[i][ElasticsearchKeys.SCORE] = max(
                         existing_segment[ElasticsearchKeys.SCORE],
-                        segment[ElasticsearchKeys.SCORE],
+                        incoming[ElasticsearchKeys.SCORE],
                     )
                     return True
             return False

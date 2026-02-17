@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 class BaseTest:
     client: requests.Session
     token: str
+    default_admin: int
 
     @pytest_asyncio.fixture(autouse=True)
     async def setup_client(self, test_client, auth_token):

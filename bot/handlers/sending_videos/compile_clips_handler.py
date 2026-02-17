@@ -27,7 +27,10 @@ from bot.responses.sending_videos.compile_clips_handler_responses import (
 )
 from bot.settings import settings
 from bot.types import ClipSegment
-from bot.utils.constants import SegmentKeys
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 
 
 class CompileClipsHandler(BotMessageHandler):
@@ -50,7 +53,7 @@ class CompileClipsHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message,1, get_invalid_args_count_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message(), math.inf)
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()
@@ -95,9 +98,10 @@ class CompileClipsHandler(BotMessageHandler):
         if await self._check_clip_duration_limit(user_id, total_duration):
             return await self.__reply_clip_duration_exceeded()
 
-        await self._compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED)
+        active_series = await self._get_user_active_series(user_id)
+        await self._compile_and_send_video(selected_segments, total_duration, ClipType.COMPILED, active_series)
 
-        await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
+        return await self._log_system_message(logging.INFO, get_log_compilation_success_message(username))
 
     async def __parse_segments(
         self, content: List[str], segments: List[ClipSegment],
@@ -110,6 +114,7 @@ class CompileClipsHandler(BotMessageHandler):
                         SegmentKeys.VIDEO_PATH: s[SegmentKeys.VIDEO_PATH],
                         SegmentKeys.START_TIME: s[SegmentKeys.START_TIME],
                         SegmentKeys.END_TIME: s[SegmentKeys.END_TIME],
+                        EpisodeMetadataKeys.EPISODE_METADATA: s.get(EpisodeMetadataKeys.EPISODE_METADATA, {}),
                     }
                     for s in segments
                 )
@@ -148,6 +153,7 @@ class CompileClipsHandler(BotMessageHandler):
                     SegmentKeys.VIDEO_PATH: segment[SegmentKeys.VIDEO_PATH],
                     SegmentKeys.START_TIME: segment[SegmentKeys.START_TIME],
                     SegmentKeys.END_TIME: segment[SegmentKeys.END_TIME],
+                    EpisodeMetadataKeys.EPISODE_METADATA: segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}),
                 })
             except IndexError:
                 pass
@@ -170,6 +176,7 @@ class CompileClipsHandler(BotMessageHandler):
             SegmentKeys.VIDEO_PATH: segment[SegmentKeys.VIDEO_PATH],
             SegmentKeys.START_TIME: segment[SegmentKeys.START_TIME],
             SegmentKeys.END_TIME: segment[SegmentKeys.END_TIME],
+            EpisodeMetadataKeys.EPISODE_METADATA: segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}),
         }
 
     @staticmethod

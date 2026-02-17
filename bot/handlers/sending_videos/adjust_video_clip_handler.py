@@ -1,6 +1,8 @@
 import json
 import logging
 from typing import (
+    Any,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -17,6 +19,8 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
+    get_ds_invalid_args_message,
+    get_ds_no_scene_cuts_message,
     get_invalid_args_count_message,
     get_invalid_interval_log,
     get_invalid_interval_message,
@@ -30,8 +34,8 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_successful_adjustment_message,
     get_updated_segment_info_log,
 )
+from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
-from bot.types import ElasticsearchSegment
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import get_video_duration
 
@@ -39,10 +43,14 @@ from bot.video.utils import get_video_duration
 class AdjustVideoClipHandler(BotMessageHandler):
     __RELATIVE_COMMANDS: List[str] = ["dostosuj", "adjust", "d"]
     __ABSOLUTE_COMMANDS: List[str] = ["adostosuj", "aadjust", "ad"]
-
+    __SCENE_COMMANDS: List[str] = ["dostosuj_sceny", "ds"]
 
     def get_commands(self) -> List[str]:
-        return AdjustVideoClipHandler.__RELATIVE_COMMANDS + AdjustVideoClipHandler.__ABSOLUTE_COMMANDS
+        return (
+            AdjustVideoClipHandler.__RELATIVE_COMMANDS
+            + AdjustVideoClipHandler.__ABSOLUTE_COMMANDS
+            + AdjustVideoClipHandler.__SCENE_COMMANDS
+        )
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -53,18 +61,24 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         msg = self._message
         content = msg.get_text().split()
+        command = content[0].lstrip('/')
+
+        if command in AdjustVideoClipHandler.__SCENE_COMMANDS:
+            await self.__handle_scene_adjustment(content, msg.get_chat_id())
+            return None
+
         segment_info, last_clip = await self.__get_segment_and_clip(content, msg.get_chat_id())
         if segment_info is None:
-            return
+            return None
 
         original_start_time = float(segment_info.get("start_time", 0))
         original_end_time = float(segment_info.get("end_time", 0))
 
         additional_start_offset, additional_end_offset = await self.__parse_offsets(content)
         if additional_start_offset is None:
-            return
+            return None
 
-        is_consecutive_adjustment = content[0].lstrip('/') in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
+        is_consecutive_adjustment = command in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
 
         if is_consecutive_adjustment:
             original_start_time = last_clip.adjusted_start_time or original_start_time
@@ -111,6 +125,85 @@ class AdjustVideoClipHandler(BotMessageHandler):
         await self._log_system_message(logging.INFO, get_updated_segment_info_log(msg.get_chat_id()))
         return await self._log_system_message(logging.INFO, get_successful_adjustment_message(msg.get_username()))
 
+    async def __handle_scene_adjustment(self, content: List[str], chat_id: int) -> None:
+        last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
+        if not last_clip:
+            await self.__reply_no_quotes_selected()
+            return
+
+        segment_info = last_clip.segment
+        if isinstance(segment_info, str):
+            segment_info = json.loads(segment_info)
+
+        n_before, n_after = await self.__parse_scene_offsets(content)
+        if n_before is None:
+            return
+
+        clip_start, clip_end = AdjustVideoClipHandler.__resolve_clip_bounds(last_clip, segment_info)
+
+        active_series = await self._get_user_active_series(self._message.get_user_id())
+        episode_metadata = segment_info.get("episode_metadata", {})
+        season = episode_metadata.get("season")
+        episode_number = episode_metadata.get("episode_number")
+
+        if season is None or episode_number is None:
+            await self._reply_error(get_ds_no_scene_cuts_message())
+            return
+
+        scene_cuts = await SceneSnapService.fetch_scene_cuts(active_series, season, episode_number, self._logger)
+        if not scene_cuts:
+            await self._reply_error(get_ds_no_scene_cuts_message())
+            return
+
+        new_start = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_start, n_before, "back")
+        new_end = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_end, n_after, "forward")
+
+        new_start = max(0.0, new_start)
+        video_duration = await get_video_duration(segment_info.get("video_path"))
+        new_end = min(new_end, video_duration)
+
+        if new_start >= new_end:
+            await self._reply_error(get_invalid_interval_message())
+            await self._log_system_message(logging.INFO, get_invalid_interval_log())
+            return
+
+        if await self._handle_clip_duration_limit_exceeded(new_end - new_start):
+            return
+
+        output_filename = await ClipsExtractor.extract_clip(segment_info.get("video_path"), new_start, new_end, self._logger)
+
+        await self._responder.send_video(
+            output_filename,
+            duration=new_end - new_start,
+            suggestions=["Zmniejszyć liczbę cięć", "Wybrać krótszy fragment"],
+        )
+
+        await DatabaseManager.insert_last_clip(
+            chat_id=chat_id,
+            segment=segment_info,
+            compiled_clip=None,
+            clip_type=ClipType.ADJUSTED,
+            adjusted_start_time=new_start,
+            adjusted_end_time=new_end,
+            is_adjusted=True,
+        )
+
+        await self._log_system_message(logging.INFO, get_updated_segment_info_log(chat_id))
+        await self._log_system_message(logging.INFO, get_successful_adjustment_message(self._message.get_username()))
+
+    @staticmethod
+    def __resolve_clip_bounds(
+            last_clip: LastClip,
+            segment_info: Dict[str, Any],
+    ) -> Tuple[float, float]:
+        clip_start = last_clip.adjusted_start_time
+        clip_end = last_clip.adjusted_end_time
+        if clip_start is not None and clip_end is not None:
+            return clip_start, clip_end
+        speech_start = float(segment_info.get("start_time", 0))
+        speech_end = float(segment_info.get("end_time", 0))
+        return max(0.0, speech_start - settings.EXTEND_BEFORE), speech_end + settings.EXTEND_AFTER
+
     async def __reply_no_previous_searches(self) -> None:
         await self._reply_error(get_no_previous_searches_message())
         await self._log_system_message(logging.INFO, get_no_previous_searches_log())
@@ -129,7 +222,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             abs(additional_start_offset) + abs(additional_end_offset) > settings.MAX_ADJUSTMENT_DURATION
         )
 
-    async def __get_segment_and_clip(self, content: List[str], chat_id: int) -> Tuple[Optional[ElasticsearchSegment], Optional[LastClip]]:
+    async def __get_segment_and_clip(self, content: List[str], chat_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[LastClip]]:
         segment_info = {}
         last_clip = None
 
@@ -168,3 +261,13 @@ class AdjustVideoClipHandler(BotMessageHandler):
             return None, None
 
         return float(content[-2]), float(content[-1])
+
+    async def __parse_scene_offsets(self, content: List[str]) -> Tuple[Optional[int], Optional[int]]:
+        try:
+            n_before = int(content[-2])
+            n_after = int(content[-1])
+        except ValueError:
+            await self._reply_invalid_args_count(get_ds_invalid_args_message())
+            return None, None
+
+        return n_before, n_after
