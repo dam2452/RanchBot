@@ -21,8 +21,8 @@ from bot.utils.log import log_system_message
 
 _SCENE_INFO_FIELD = "scene_info"
 _SCENE_NUMBER_FIELD = "scene_info.scene_number"
-_SCENE_START_SECONDS = "scene_info.start.seconds"
-_SCENE_END_SECONDS = "scene_info.end.seconds"
+_SCENE_START_TIME = "scene_info.scene_start_time"
+_SCENE_END_TIME = "scene_info.scene_end_time"
 _UNIQUE_SCENES_AGG = "unique_scenes"
 _SCENE_DATA_AGG = "scene_data"
 
@@ -61,8 +61,8 @@ class SceneSnapService:
                                 ElasticsearchQueryKeys.SIZE: 1,
                                 ElasticsearchQueryKeys.SOURCE: {
                                     ElasticsearchQueryKeys.INCLUDES: [
-                                        _SCENE_START_SECONDS,
-                                        _SCENE_END_SECONDS,
+                                        _SCENE_START_TIME,
+                                        _SCENE_END_TIME,
                                     ],
                                 },
                             },
@@ -80,8 +80,8 @@ class SceneSnapService:
             if not hits:
                 continue
             scene_info = hits[0][ElasticsearchKeys.SOURCE].get(_SCENE_INFO_FIELD, {})
-            start = scene_info.get("start", {}).get("seconds")
-            end = scene_info.get("end", {}).get("seconds")
+            start = scene_info.get("scene_start_time")
+            end = scene_info.get("scene_end_time")
             if start is not None:
                 raw_cuts.append(float(start))
             if end is not None:
