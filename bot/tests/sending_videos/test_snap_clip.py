@@ -32,7 +32,7 @@ class TestSnapClipHandler(BaseTest):
         self.send_command(f"/klip {video_name}")
         self.send_command("/d -1.5 1.5")
         response = self.send_command("/snap")
-        self.assert_response_contains(response, ["✅ Klip wyrównany do cięć scen."])
+        self.assert_command_result_file_matches(response, "snap_geniusz.mp4")
 
     @pytest.mark.asyncio
     async def test_snap_alias_dopasuj(self):
@@ -40,7 +40,7 @@ class TestSnapClipHandler(BaseTest):
         self.send_command(f"/klip {video_name}")
         self.send_command("/d -1.5 1.5")
         response = self.send_command("/dopasuj")
-        self.assert_response_contains(response, ["✅ Klip wyrównany do cięć scen."])
+        self.assert_command_result_file_matches(response, "snap_dopasuj_geniusz.mp4")
 
     @pytest.mark.asyncio
     async def test_snap_alias_sp(self):
@@ -48,4 +48,4 @@ class TestSnapClipHandler(BaseTest):
         self.send_command(f"/klip {video_name}")
         self.send_command("/d -1.5 1.5")
         response = self.send_command("/sp")
-        self.assert_response_contains(response, ["✅ Klip wyrównany do cięć scen."])
+        self.assert_command_result_file_matches(response, "snap_sp_geniusz.mp4")
