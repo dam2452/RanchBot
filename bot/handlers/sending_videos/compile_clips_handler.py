@@ -172,12 +172,13 @@ class CompileClipsHandler(BotMessageHandler):
             raise self.NoMatchingSegmentsException()
 
         segment = segments[idx - 1]
-        return {
+        result: ClipSegment = {
             SegmentKeys.VIDEO_PATH: segment[SegmentKeys.VIDEO_PATH],
             SegmentKeys.START_TIME: segment[SegmentKeys.START_TIME],
             SegmentKeys.END_TIME: segment[SegmentKeys.END_TIME],
             EpisodeMetadataKeys.EPISODE_METADATA: segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}),
         }
+        return result
 
     @staticmethod
     async def _check_clip_duration_limit(user_id: int, total_duration: float) -> bool:

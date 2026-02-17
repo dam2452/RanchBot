@@ -119,7 +119,9 @@ class BotMessageHandler(ABC):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         pass
 
-    async def _handle_clip_duration_limit_exceeded(self, clip_duration: float) -> bool:
+    async def _handle_clip_duration_limit_exceeded(self, clip_duration: Optional[float]) -> bool:
+        if clip_duration is None:
+            return False
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
             await self._responder.send_markdown(get_limit_exceeded_clip_duration_message())
             await self._log_system_message(logging.INFO, get_log_clip_duration_exceeded_message(self._message.get_user_id()))

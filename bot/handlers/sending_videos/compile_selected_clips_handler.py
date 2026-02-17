@@ -72,10 +72,10 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             selected_segments.append({
                 "video_path": temp_file.name,
                 "start": 0,
-                "end": clip.duration,
+                "end": clip.duration or 0.0,
             })
 
-        total_duration = sum(clip.duration for clip in selected_clips)
+        total_duration = sum(clip.duration or 0.0 for clip in selected_clips)
 
         if await self._handle_clip_duration_limit_exceeded(total_duration):
             return None

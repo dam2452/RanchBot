@@ -54,7 +54,7 @@ class VideoClip(Serializable):
     video_data: bytes
     start_time: float
     end_time: float
-    duration: float
+    duration: Optional[float]
     season: Optional[int]
     episode_number: Optional[int]
     is_compilation: bool

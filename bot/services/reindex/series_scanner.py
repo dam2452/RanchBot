@@ -4,6 +4,7 @@ import re
 from typing import (
     Dict,
     List,
+    Optional,
 )
 
 from bot.settings import settings
@@ -71,7 +72,7 @@ class SeriesScanner:
         return mp4_map
 
     @staticmethod
-    def __extract_episode_code(filename: str) -> str:
+    def __extract_episode_code(filename: str) -> Optional[str]:
         match = re.search(r'(S\d{2}E\d{2})', filename, re.IGNORECASE)
         if match:
             return match.group(1).upper()

@@ -152,7 +152,7 @@ class ReindexService:
                 _, indexed_in_episode = await self.__process_single_episode(
                     zip_path,
                     series_name,
-                    mp4_map, #Expected type 'dict[str, str]', got 'dict[str, Path]' instead
+                    mp4_map,
                     idx,
                     total_episodes,
                     progress_callback,
@@ -273,7 +273,7 @@ class ReindexService:
         self,
         zip_path: Path,
         series_name: str,
-        mp4_map: Dict[str, str],
+        mp4_map: Dict[str, Path],
         idx: int,
         total_episodes: int,
         progress_callback: Callable[[str, int, int], Awaitable[None]],

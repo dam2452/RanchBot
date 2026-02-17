@@ -3,10 +3,14 @@ import logging
 from typing import (
     List,
     Tuple,
+    Union,
 )
 
 from bot.search.elastic_search_manager import ElasticSearchManager
-from bot.types import ElasticsearchSegment
+from bot.types import (
+    ClipSegment,
+    ElasticsearchSegment,
+)
 from bot.utils.constants import (
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
@@ -131,7 +135,7 @@ class SceneSnapService:
     @staticmethod
     async def snap_clip_times(
         series_name: str,
-        segment: ElasticsearchSegment,
+        segment: Union[ElasticsearchSegment, ClipSegment],
         clip_start: float,
         clip_end: float,
         logger: logging.Logger,

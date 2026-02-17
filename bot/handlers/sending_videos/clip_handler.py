@@ -1,10 +1,6 @@
 import logging
 import math
-from typing import (
-    Any,
-    Dict,
-    List,
-)
+from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
@@ -23,6 +19,7 @@ from bot.responses.sending_videos.clip_handler_responses import (
 from bot.search.transcription_finder import TranscriptionFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
+from bot.types import SegmentWithScore
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
 
@@ -59,7 +56,7 @@ class ClipHandler(BotMessageHandler):
         if not segments:
             return await self.__reply_no_segments_found(quote)
 
-        segment: Dict[str, Any] = segments[0] if isinstance(segments, list) else segments
+        segment: SegmentWithScore = segments[0] if isinstance(segments, list) else segments
         start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
         end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 

@@ -175,11 +175,12 @@ class InlineClipHandler(BotMessageHandler):
         results = []
 
         if saved_clip:
+            duration_str = f"{saved_clip.duration:.1f}s" if saved_clip.duration is not None else "?"
             if saved_clip.is_compilation:
-                description = f"Kompilacja | Czas: {saved_clip.duration:.1f}s"
+                description = f"Kompilacja | Czas: {duration_str}"
             else:
                 episode_code = f"S{saved_clip.season:02d}E{saved_clip.episode_number:02d}"
-                description = f"{episode_code} | Czas: {saved_clip.duration:.1f}s"
+                description = f"{episode_code} | Czas: {duration_str}"
 
             results.append(
                 await self.__upload_clip_with_cleanup(
