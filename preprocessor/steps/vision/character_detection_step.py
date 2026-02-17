@@ -23,30 +23,10 @@ from preprocessor.services.io.files import FileOperations
 
 
 class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, CharacterDetectionConfig]):
-    @staticmethod
-    def get_output_descriptors() -> List[OutputDescriptor]:
-        """Define output file descriptors for character detection step."""
-        return [
-            JsonFileOutput(
-                subdir="detections/characters",
-                pattern="{season}/{episode}.json",
-                min_size_bytes=10,
-            ),
-        ]
-
-
     def __init__(self, config: CharacterDetectionConfig) -> None:
         super().__init__(config)
         self.__face_app = None
         self.__character_vectors: Dict[str, np.ndarray] = {}
-
-    @property
-    def name(self) -> str:
-        return 'character_detection'
-
-    def cleanup(self) -> None:
-        self.__face_app = None
-        self.__character_vectors = {}
 
     @property
     def supports_batch_processing(self) -> bool:
@@ -58,6 +38,16 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             self.__face_app = FaceDetector.init()
             self.__load_character_references(context)
 
+    def teardown_resources(self, context: ExecutionContext) -> None:
+        if self.__face_app:
+            context.logger.info('Face Detection model unloaded')
+            self.__face_app = None
+            self.__character_vectors = {}
+
+    def cleanup(self) -> None:
+        self.__face_app = None
+        self.__character_vectors = {}
+
     def execute_batch(
         self, input_data: List[FrameCollection], context: ExecutionContext,
     ) -> List[DetectionResults]:
@@ -65,11 +55,38 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             input_data, context, self.config.max_parallel_episodes, self.execute,
         )
 
-    def teardown_resources(self, context: ExecutionContext) -> None:
-        if self.__face_app:
-            context.logger.info('Face Detection model unloaded')
-            self.__face_app = None
-            self.__character_vectors = {}
+    def _process(
+        self, input_data: FrameCollection, context: ExecutionContext,
+    ) -> DetectionResults:
+        output_path = self._get_cache_path(input_data, context)
+        self.__prepare_detection_environment(context)
+
+        frame_files = self.__extract_frame_files(input_data)
+        if not frame_files:
+            return self.__construct_empty_result(output_path, input_data, context)
+
+        results = self.__process_character_detection(frame_files)
+        self.__save_detection_results(
+            results, output_path, input_data, context, frame_files,
+        )
+
+        return DetectionResults(
+            episode_id=input_data.episode_id,
+            episode_info=input_data.episode_info,
+            path=output_path,
+            detection_type='character',
+            detection_count=len(results),
+        )
+
+    def get_output_descriptors(self) -> List[OutputDescriptor]:
+        """Define output file descriptors for character detection step."""
+        return [
+            JsonFileOutput(
+                subdir="detections/characters",
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ]
 
     def _get_cache_path(
         self, input_data: FrameCollection, context: ExecutionContext,
@@ -77,10 +94,7 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         return self._resolve_output_path(
             0,
             context,
-            {
-                'season': f'S{input_data.episode_info.season:02d}',
-                'episode': input_data.episode_info.episode_code(),
-            },
+            self.__create_path_variables(input_data),
         )
 
     def _load_from_cache(
@@ -95,27 +109,6 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             detection_count=len(detection_data.get('detections', [])),
         )
 
-    def _process(
-        self, input_data: FrameCollection, context: ExecutionContext,
-    ) -> DetectionResults:
-        output_path = self._get_cache_path(input_data, context)
-        self.__prepare_detection_environment(context)
-
-        frame_files = self.__extract_frame_files(input_data)
-        if not frame_files:
-            return self.__construct_empty_result(output_path, input_data, context)
-
-        results = self.__process_character_detection(frame_files)
-        self.__save_detection_results(results, output_path, input_data, context, frame_files)
-
-        return DetectionResults(
-            episode_id=input_data.episode_id,
-            episode_info=input_data.episode_info,
-            path=output_path,
-            detection_type='character',
-            detection_count=len(results),
-        )
-
     def __prepare_detection_environment(self, context: ExecutionContext) -> None:
         if self.__face_app is None:
             context.logger.info('Initializing face detection model...')
@@ -123,9 +116,13 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             self.__load_character_references(context)
 
     def __load_character_references(self, context: ExecutionContext) -> None:
-        characters_dir: Path = Path('preprocessor/output_data') / context.series_name / 'characters'
+        characters_dir: Path = (
+            Path('preprocessor/output_data') / context.series_name / 'characters'
+        )
         if not characters_dir.exists():
-            characters_dir = Path('preprocessor/input_data') / context.series_name / 'characters'
+            characters_dir = (
+                Path('preprocessor/input_data') / context.series_name / 'characters'
+            )
 
         if characters_dir.exists():
             context.logger.info(f'Loading character references from {characters_dir}')
@@ -135,7 +132,9 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         else:
             context.logger.warning(f'Characters directory not found: {characters_dir}')
 
-    def __process_character_detection(self, frame_files: List[Path]) -> List[Dict[str, Any]]:
+    def __process_character_detection(
+        self, frame_files: List[Path],
+    ) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
         for frame_path in frame_files:
             detections: List[Dict[str, Any]] = FaceDetector.detect_characters_in_frame(
@@ -168,6 +167,13 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             'detections': results,
         }
         FileOperations.atomic_write_json(output_path, output_data)
+
+    @staticmethod
+    def __create_path_variables(input_data: FrameCollection) -> Dict[str, str]:
+        return {
+            'season': f'S{input_data.episode_info.season:02d}',
+            'episode': input_data.episode_info.episode_code(),
+        }
 
     @staticmethod
     def __extract_frame_files(input_data: FrameCollection) -> List[Path]:

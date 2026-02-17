@@ -21,7 +21,7 @@ class ValidationResult:
 
 
 class OutputDescriptor(ABC):
-    def __init__(self, pattern: str, subdir: str) -> None:
+    def __init__(self, pattern: str, subdir: str = "") -> None:
         self._pattern = pattern
         self._subdir = subdir
 
@@ -51,7 +51,7 @@ class FileOutput(OutputDescriptor):
     def __init__(
             self,
             pattern: str,
-            subdir: str,
+            subdir: str = "",
             min_size_bytes: int = 1,
             expected_count: int = 1,
     ) -> None:
@@ -100,7 +100,7 @@ class DirectoryOutput(OutputDescriptor):
     def __init__(
             self,
             pattern: str,
-            subdir: str,
+            subdir: str = "",
             expected_file_pattern: Optional[str] = None,
             min_files: int = 1,
             min_size_per_file_bytes: int = 1,
@@ -172,7 +172,7 @@ class JsonFileOutput(FileOutput):
     def __init__(
             self,
             pattern: str,
-            subdir: str,
+            subdir: str = "",
             min_size_bytes: int = 2,
             schema_validator: Optional[Callable[[Dict], bool]] = None,
     ) -> None:
@@ -231,9 +231,6 @@ class JsonFileOutput(FileOutput):
 
 
 class GlobalOutput(OutputDescriptor):
-    def __init__(self, pattern: str, subdir: str = '') -> None:
-        super().__init__(pattern, subdir)
-
     def resolve_path(self, base_dir: Path, context_vars: Optional[Dict[str, str]] = None) -> Path:
         formatted_pattern = self.format_pattern(context_vars)
         if self._subdir:

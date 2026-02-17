@@ -13,8 +13,9 @@ from preprocessor.services.video.strategies.base_strategy import BaseKeyframeStr
 
 
 class SceneChangesStrategy(BaseKeyframeStrategy):
-    def __init__(self, frames_per_scene: int) -> None:
+    def __init__(self, frames_per_scene: int, scene_change_offset_seconds: float = 0.5) -> None:
         self.__frames_per_scene = frames_per_scene
+        self.__offset = scene_change_offset_seconds
 
     def extract_frame_requests(
         self, video_path: Path, data: Dict[str, Any],
@@ -37,7 +38,7 @@ class SceneChangesStrategy(BaseKeyframeStrategy):
     def __process_single_scene(
         self, scene: Dict[str, Any], scene_index: int,
     ) -> List[FrameRequest]:
-        start_seconds = scene.get('start', {}).get('seconds', 0.0)
+        start_seconds = scene.get('start', {}).get('seconds', 0.0) + self.__offset
         end_seconds = scene.get('end', {}).get('seconds', start_seconds)
         duration = end_seconds - start_seconds
 

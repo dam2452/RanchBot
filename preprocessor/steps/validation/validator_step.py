@@ -12,10 +12,6 @@ from preprocessor.services.validation.validator import Validator
 
 class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, ValidationConfig]):
     @property
-    def name(self) -> str:
-        return "validate"
-
-    @property
     def supports_batch_processing(self) -> bool:
         return True
 

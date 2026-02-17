@@ -30,10 +30,6 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
     __command_logged: bool = False
 
     @property
-    def name(self) -> str:
-        return 'video_transcode'
-
-    @property
     def supports_batch_processing(self) -> bool:
         return True
 
@@ -302,4 +298,4 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
     @staticmethod
     def __resolve_target_framerate() -> float:
-        return 24.0
+        return 25.0

@@ -27,10 +27,6 @@ class SceneDetectorStep(PipelineStep[TranscodedVideo, SceneCollection, SceneDete
         self.__model_loaded = False
 
     @property
-    def name(self) -> str:
-        return 'scene_detection'
-
-    @property
     def supports_batch_processing(self) -> bool:
         return True
 

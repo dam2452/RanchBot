@@ -32,10 +32,6 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         self.__hasher: Optional[PerceptualHasher] = None
 
     @property
-    def name(self) -> str:
-        return 'image_hashing'
-
-    @property
     def supports_batch_processing(self) -> bool:
         return True
 

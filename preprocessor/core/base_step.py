@@ -127,6 +127,11 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
             )
 
         descriptor = descriptors[descriptor_index]
+
+        if not descriptor.subdir:
+            formatted_pattern = descriptor.format_pattern(context_vars)
+            return context.base_output_dir / self.name / formatted_pattern
+
         return descriptor.resolve_path(context.base_output_dir, context_vars)
 
     def _get_standard_cache_path(
@@ -162,10 +167,16 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
             }
 
             results_dict: Dict[int, OutputT] = {}
-            for future in as_completed(futures_to_input):
-                input_artifact = futures_to_input[future]
-                result = future.result()
-                results_dict[id(input_artifact)] = result
+            try:
+                for future in as_completed(futures_to_input):
+                    input_artifact = futures_to_input[future]
+                    result = future.result()
+                    results_dict[id(input_artifact)] = result
+            except KeyboardInterrupt:
+                context.logger.warning("Batch processing interrupted - cancelling remaining tasks")
+                for future in futures_to_input:
+                    future.cancel()
+                raise
 
             return [results_dict[id(artifact)] for artifact in input_data]
 

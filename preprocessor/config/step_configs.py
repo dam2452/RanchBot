@@ -72,7 +72,8 @@ class FrameExportConfig(BaseModel):
     frames_per_scene: int = Field(default=1, ge=1)
     keyframe_strategy: KeyframeStrategy = KeyframeStrategy.SCENE_CHANGES
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
-    resolution: Resolution = Field(default=Resolution.R1080P)
+    resolution: Resolution = Field(default=Resolution.R720P)
+    scene_change_offset_seconds: float = Field(default=0.5, ge=0)
 
 
 class TranscriptionConfig(BaseModel):

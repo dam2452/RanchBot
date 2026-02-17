@@ -21,10 +21,6 @@ from preprocessor.services.io.files import FileOperations
 
 class DocumentGeneratorStep(PipelineStep[Artifact, ElasticDocuments, DocumentGenerationConfig]):
     @property
-    def name(self) -> str:
-        return 'document_generation'
-
-    @property
     def supports_batch_processing(self) -> bool:
         return True
 

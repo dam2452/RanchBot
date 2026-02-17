@@ -84,7 +84,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # SCRAPING PHASE
     # =========================================================
     episodes_metadata = StepBuilder(
-        id="scrape_episodes",
         phase=SCRAPING,
         step_class=EpisodeScraperStep,
         description="Scrapes episode metadata from wiki",
@@ -106,7 +105,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     characters_metadata = StepBuilder(
-        id="scrape_characters",
         phase=SCRAPING,
         step_class=CharacterScraperStep,
         description="Scrapes character data from wiki",
@@ -127,7 +125,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     character_references = StepBuilder(
-        id="process_references",
         phase=SCRAPING,
         step_class=CharacterReferenceStep,
         description="Downloads and processes character reference images",
@@ -162,14 +159,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     transcoded_videos = StepBuilder(
-        id="transcode",
         phase=PROCESSING,
         step_class=VideoTranscoderStep,
         description=f"Conversion to h264_nvenc {series_config.processing.transcode.resolution} with adaptive bitrate",
         produces=[
             FileOutput(
                 pattern="{season}/{episode}.mp4",
-                subdir="transcoded_videos",
                 min_size_bytes=1024 * 1024,
             ),
         ],
@@ -184,14 +179,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     scene_data = StepBuilder(
-        id="detect_scenes",
         phase=PROCESSING,
         step_class=SceneDetectorStep,
         description="Detects scene changes using TransNetV2",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="scene_detections",
                 min_size_bytes=10,
             ),
         ],
@@ -205,7 +198,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # Frame export output descriptor matches FrameExporterStep.get_output_descriptors()
     # Defined here for pipeline validation before step instantiation
     exported_frames = StepBuilder(
-        id="export_frames",
         phase=PROCESSING,
         step_class=FrameExporterStep,
         description="Exports frames (PNG) at scene boundaries",
@@ -220,14 +212,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # PROCESSING PHASE: TEXT & AUDIO
     # =========================================================
     transcription_data = StepBuilder(
-        id="transcribe",
         phase=PROCESSING,
         step_class=TranscriptionStep,
         description=f"Audio transcription using {series_config.processing.transcription.mode}",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="transcriptions",
                 min_size_bytes=50,
             ),
         ],
@@ -242,14 +232,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     separated_audio = StepBuilder(
-        id="separate_sounds",
         phase=PROCESSING,
         step_class=SoundSeparationStep,
         description="Separates dialogue from sound effects",
         produces=[
             DirectoryOutput(
                 pattern="{season}/{episode}",
-                subdir="separated_audio",
                 expected_file_pattern="*.wav",
                 min_files=1,
                 min_size_per_file_bytes=1024,
@@ -260,14 +248,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     text_stats = StepBuilder(
-        id="analyze_text",
         phase=PROCESSING,
         step_class=TextAnalysisStep,
         description="Analyzes text statistics (word frequency, sentiment)",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="text_analysis",
                 min_size_bytes=50,
             ),
         ],
@@ -282,7 +268,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[
             FileOutput(
                 pattern="{season}/{episode}.npy",
-                subdir="embeddings/text",
                 min_size_bytes=1024,
             ),
         ],
@@ -300,14 +285,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # PROCESSING PHASE: VISION
     # =========================================================
     image_hashes = StepBuilder(
-        id="image_hashing",
         phase=PROCESSING,
         step_class=ImageHashStep,
         description="Perceptual frame hashing (phash, dhash, wavelet)",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="hashes",
                 min_size_bytes=50,
             ),
         ],
@@ -322,7 +305,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[
             FileOutput(
                 pattern="{season}/{episode}.npy",
-                subdir="embeddings/vision",
                 min_size_bytes=1024,
             ),
         ],
@@ -335,14 +317,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     character_detections = StepBuilder(
-        id="detect_characters",
         phase=PROCESSING,
         step_class=CharacterDetectorStep,
         description="Recognizes characters in frames using InsightFace",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="detections/characters",
                 min_size_bytes=10,
             ),
         ],
@@ -351,14 +331,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     emotion_data = StepBuilder(
-        id="detect_emotions",
         phase=PROCESSING,
         step_class=EmotionDetectionStep,
         description="Detects emotions on faces using EmoNet",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="detections/emotions",
                 min_size_bytes=10,
             ),
         ],
@@ -367,14 +345,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     face_clusters = StepBuilder(
-        id="cluster_faces",
         phase=PROCESSING,
         step_class=FaceClusteringStep,
         description="Face clustering using HDBSCAN",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="clusters/faces",
                 min_size_bytes=10,
             ),
         ],
@@ -383,14 +359,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     object_detections = StepBuilder(
-        id="detect_objects",
         phase=PROCESSING,
         step_class=ObjectDetectionStep,
         description="General object detection using D-FINE",
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="detections/objects",
                 min_size_bytes=10,
             ),
         ],
@@ -402,14 +376,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # INDEXING PHASE
     # =========================================================
     elastic_documents = StepBuilder(
-        id="generate_elastic_docs",
         phase=INDEXING,
         step_class=DocumentGeneratorStep,
         description="Combines all data into Elasticsearch documents",
         produces=[
             FileOutput(
                 pattern="{season}/{episode}.ndjson",
-                subdir="elastic_documents",
                 min_size_bytes=100,
             ),
         ],
@@ -425,14 +397,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     episode_archives = StepBuilder(
-        id="generate_archives",
         phase=INDEXING,
         step_class=ArchiveGenerationStep,
         description="Creates ZIP archives per episode (all artifacts)",
         produces=[
             FileOutput(
                 pattern="{season}/{episode}.zip",
-                subdir="archives",
                 min_size_bytes=1024 * 100,
             ),
         ],
@@ -441,7 +411,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     )
 
     indexed_data = StepBuilder(
-        id="index_to_elasticsearch",
         phase=INDEXING,
         step_class=ElasticsearchIndexerStep,
         description="Indexes documents into Elasticsearch",
@@ -465,7 +434,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[
             DirectoryOutput(
                 pattern="{season}",
-                subdir="validation_reports",
                 expected_file_pattern="*.json",
                 min_files=1,
                 min_size_per_file_bytes=50,

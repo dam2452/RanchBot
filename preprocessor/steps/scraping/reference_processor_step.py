@@ -13,10 +13,6 @@ class CharacterReferenceStep(
     PipelineStep[SourceVideo, SourceVideo, CharacterReferenceConfig],
 ):
     @property
-    def name(self) -> str:
-        return "process_character_references"
-
-    @property
     def is_global(self) -> bool:
         return True
 

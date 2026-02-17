@@ -32,9 +32,9 @@
   },
   "series_name": "ranczo",
   "skip_steps": [
-    "scrape_episodes",
-    "scrape_characters",
-    "process_references",
-    "transcribe"
+    "episode_scraper",
+    "character_scraper",
+    "character_reference",
+    "transcription"
   ]
 }

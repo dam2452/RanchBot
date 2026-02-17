@@ -1,3 +1,4 @@
+import bisect
 from datetime import datetime
 from io import BytesIO
 import json
@@ -33,12 +34,10 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def __init__(self, config: FrameExportConfig) -> None:
         super().__init__(config)
         self.__strategy = KeyframeStrategyFactory.create(
-            self.config.keyframe_strategy, self.config.frames_per_scene,
+            self.config.keyframe_strategy,
+            self.config.frames_per_scene,
+            self.config.scene_change_offset_seconds,
         )
-
-    @property
-    def name(self) -> str:
-        return 'frame_export'
 
     @property
     def supports_batch_processing(self) -> bool:
@@ -66,11 +65,11 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             )
 
         context.logger.info(
-            f'Extracting {len(frame_requests)} keyframes from {input_data.source_video_path.name}',
+            f'Extracting {len(frame_requests)} keyframes from {input_data.video_path.name}',
         )
 
         self.__process_frame_extraction(
-            input_data.source_video_path,
+            input_data.video_path,
             frame_requests,
             episode_dir,
             input_data,
@@ -116,7 +115,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
     def __extract_frame_requests(
         self, input_data: SceneCollection,
     ) -> List[FrameRequest]:
-        video_path = getattr(input_data, 'source_video_path', input_data.video_path)
+        video_path = input_data.video_path
         if not video_path.exists():
             raise FileNotFoundError(f'Video file not found for frame export: {video_path}')
         data = {
@@ -148,8 +147,9 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
                 context,
                 metadata_file,
             )
-        except Exception as e:
-            context.logger.error(f'Failed to extract frames from {video_path}: {e}')
+        except (Exception, KeyboardInterrupt) as e:
+            error_type = "interrupted" if isinstance(e, KeyboardInterrupt) else "failed"
+            context.logger.error(f'Frame extraction {error_type} for {video_path}: {e}')
             shutil.rmtree(episode_dir, ignore_errors=True)
             raise
 
@@ -164,11 +164,27 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         video_metadata = self.__fetch_video_metadata(video_file)
         dar = self.__calculate_display_aspect_ratio(video_metadata)
 
+        context.logger.info(f'Finding I-frames (keyframes) in {video_file.name}')
+        keyframes = self.__get_all_keyframes(video_file)
+        context.logger.info(f'Found {len(keyframes)} I-frames')
+
         for req in frame_requests:
-            timestamp = req['timestamp']
+            target_timestamp = req['timestamp']
+            snapped_timestamp = self.__snap_to_keyframe(keyframes, target_timestamp)
+
+            if abs(snapped_timestamp - target_timestamp) > 0.1:
+                context.logger.debug(
+                    f'Snapped {target_timestamp:.3f}s -> {snapped_timestamp:.3f}s '
+                    f'(I-frame, delta: {snapped_timestamp - target_timestamp:.3f}s)',
+                )
+
+            req['timestamp'] = snapped_timestamp
+            req['original_timestamp'] = target_timestamp
+            req['snapped_to_keyframe'] = True
+
             self.__extract_and_save_frame(
                 video_file,
-                timestamp,
+                snapped_timestamp,
                 episode_dir,
                 episode_info,
                 dar,
@@ -363,3 +379,46 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             sar = 1.0
 
         return width / height * sar
+
+    @staticmethod
+    def __get_all_keyframes(video_file: Path) -> List[float]:
+        cmd = [
+            'ffprobe',
+            '-skip_frame', 'nokey',
+            '-select_streams', 'v:0',
+            '-show_entries', 'frame=pkt_pts_time',
+            '-of', 'json',
+            str(video_file),
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+            stdin=subprocess.DEVNULL,
+        )
+        data: Dict[str, Any] = json.loads(result.stdout)
+        frames: List[Dict[str, Any]] = data.get('frames', [])
+
+        keyframes = [
+            float(frame['pkt_pts_time'])
+            for frame in frames
+            if 'pkt_pts_time' in frame
+        ]
+
+        return sorted(keyframes)
+
+    @staticmethod
+    def __snap_to_keyframe(
+        keyframes: List[float],
+        target_timestamp: float,
+    ) -> float:
+        if not keyframes:
+            return target_timestamp
+
+        idx = bisect.bisect_left(keyframes, target_timestamp)
+
+        if idx < len(keyframes):
+            return keyframes[idx]
+
+        return keyframes[-1]

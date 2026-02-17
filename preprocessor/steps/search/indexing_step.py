@@ -26,10 +26,6 @@ class ElasticsearchIndexerStep(
         self.__es: Optional[ElasticsearchWrapper] = None
 
     @property
-    def name(self) -> str:
-        return 'elasticsearch_indexing'
-
-    @property
     def is_global(self) -> bool:
         return True
 

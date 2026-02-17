@@ -11,8 +11,8 @@
     "scraping.character_references.search_engine_example": "google (je\u015bli masz SerpAPI)",
     "scraping.episodes.parser_mode_example": "premium (je\u015bli masz Gemini API)",
     "skip_steps_example": [
-      "scrape_episodes",
-      "transcribe"
+      "episode_scraper",
+      "transcription"
     ]
   },
   "_required_fields": {

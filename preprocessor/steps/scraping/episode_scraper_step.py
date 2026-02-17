@@ -6,10 +6,6 @@ from preprocessor.services.scraping.episode_scraper import EpisodeScraper
 
 
 class EpisodeScraperStep(BaseScraperStep[EpisodeScraperConfig]):
-    @property
-    def name(self) -> str:
-        return "scrape_episodes"
-
     def _get_scraper_class(self) -> Type[EpisodeScraper]:
         return EpisodeScraper
 
