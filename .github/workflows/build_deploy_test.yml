@@ -86,6 +86,7 @@ jobs:
           echo "Bot is healthy and ready"
 
       - name: Set up Python
+        if: ${{ inputs.disable_tests != true }}
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
