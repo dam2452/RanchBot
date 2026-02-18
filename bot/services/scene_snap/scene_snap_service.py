@@ -32,17 +32,10 @@ class SceneSnapService:
     __KEYFRAME_INTERVAL = 0.5
 
     @staticmethod
-    def __apply_keyframe_offset(
-        boundary: float,
-        is_start: bool,
-        speech_start: float,
-        speech_end: float,
-    ) -> float:
+    def __apply_keyframe_offset(boundary: float, is_start: bool) -> float:
         if is_start:
-            adjusted = boundary + SceneSnapService.__KEYFRAME_INTERVAL
-            return adjusted if adjusted <= speech_start else boundary
-        adjusted = boundary - SceneSnapService.__KEYFRAME_INTERVAL
-        return adjusted if adjusted >= speech_end else boundary
+            return boundary + SceneSnapService.__KEYFRAME_INTERVAL
+        return boundary - SceneSnapService.__KEYFRAME_INTERVAL
 
     @staticmethod
     def __build_scene_cuts_query(season: int, episode_number: int) -> dict:
@@ -141,17 +134,18 @@ class SceneSnapService:
             return clip_start, clip_end
 
         valid_starts = [c for c in scene_cuts if c <= speech_start]
-        snapped_start = min(valid_starts, key=lambda c: abs(c - clip_start)) if valid_starts else clip_start
+        if valid_starts:
+            nearest_start = min(valid_starts, key=lambda c: abs(c - clip_start))
+            snapped_start = SceneSnapService.__apply_keyframe_offset(nearest_start, is_start=True)
+        else:
+            snapped_start = clip_start
 
         valid_ends = [c for c in scene_cuts if c >= speech_end]
-        snapped_end = min(valid_ends, key=lambda c: abs(c - clip_end)) if valid_ends else clip_end
-
-        snapped_start = SceneSnapService.__apply_keyframe_offset(
-            snapped_start, is_start=True, speech_start=speech_start, speech_end=speech_end,
-        )
-        snapped_end = SceneSnapService.__apply_keyframe_offset(
-            snapped_end, is_start=False, speech_start=speech_start, speech_end=speech_end,
-        )
+        if valid_ends:
+            nearest_end = min(valid_ends, key=lambda c: abs(c - clip_end))
+            snapped_end = SceneSnapService.__apply_keyframe_offset(nearest_end, is_start=False)
+        else:
+            snapped_end = clip_end
 
         return snapped_start, snapped_end
 
@@ -192,8 +186,6 @@ class SceneSnapService:
         reference_time: float,
         offset_count: int,
         direction: str,
-        speech_start: float,
-        speech_end: float,
     ) -> float:
         if not scene_cuts:
             return reference_time
@@ -205,9 +197,7 @@ class SceneSnapService:
             else:
                 target_idx = idx - offset_count
                 boundary = scene_cuts[max(0, target_idx)]
-            return SceneSnapService.__apply_keyframe_offset(
-                boundary, is_start=True, speech_start=speech_start, speech_end=speech_end,
-            )
+            return SceneSnapService.__apply_keyframe_offset(boundary, is_start=True)
 
         idx = bisect.bisect_left(scene_cuts, reference_time)
         if idx >= len(scene_cuts):
@@ -215,6 +205,4 @@ class SceneSnapService:
         else:
             target_idx = idx + offset_count
             boundary = scene_cuts[min(len(scene_cuts) - 1, target_idx)]
-        return SceneSnapService.__apply_keyframe_offset(
-            boundary, is_start=False, speech_start=speech_start, speech_end=speech_end,
-        )
+        return SceneSnapService.__apply_keyframe_offset(boundary, is_start=False)

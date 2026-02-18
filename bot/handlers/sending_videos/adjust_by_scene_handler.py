@@ -126,15 +126,8 @@ class AdjustBySceneHandler(BotMessageHandler):
         if not scene_cuts:
             return None
 
-        speech_start = float(segment_info.get(SegmentKeys.START_TIME, clip_start))
-        speech_end = float(segment_info.get(SegmentKeys.END_TIME, clip_end))
-
-        new_start = SceneSnapService.find_boundary_by_cut_offset(
-            scene_cuts, clip_start, n_before, "back", speech_start, speech_end,
-        )
-        new_end = SceneSnapService.find_boundary_by_cut_offset(
-            scene_cuts, clip_end, n_after, "forward", speech_start, speech_end,
-        )
+        new_start = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_start, n_before, "back")
+        new_end = SceneSnapService.find_boundary_by_cut_offset(scene_cuts, clip_end, n_after, "forward")
         return new_start, new_end
 
     @staticmethod
