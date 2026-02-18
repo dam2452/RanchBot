@@ -19,7 +19,8 @@ from bot.responses.not_sending_videos.transcription_handler_responses import (
     get_no_quote_provided_message,
     get_transcription_response,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.scene_finder import SceneFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.types import TranscriptionContext
 from bot.utils.constants import (
@@ -44,7 +45,7 @@ class TranscriptionHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(self._message.get_user_id())
 
-        result = await TranscriptionFinder.find_segment_with_context(quote, self._logger, active_series, context_size=15)
+        result = await TextSegmentsFinder.find_segment_with_context(quote, self._logger, active_series, context_size=15)
 
         if not result:
             return await self.__reply_no_segments_found(quote)
@@ -81,7 +82,7 @@ class TranscriptionHandler(BotMessageHandler):
         if season is None or episode_number is None:
             return None, None
 
-        scene_cuts = await SceneSnapService.fetch_scene_cuts(active_series, season, episode_number, self._logger)
+        scene_cuts = await SceneFinder.fetch_scene_cuts(active_series, season, episode_number, self._logger)
         if not scene_cuts:
             return None, None
 

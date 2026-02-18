@@ -15,7 +15,7 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.tests.settings import settings as s
 
 logging.basicConfig(level=logging.DEBUG)
@@ -30,7 +30,7 @@ class BaseTest:
     async def setup_client(self, test_client, auth_token):
         self.client = test_client
         self.token = auth_token
-        self.default_admin = int(s.TEST_ADMINS.split(",")[0])
+        self.default_admin = int(s.TEST_ADMINS.split(",")[0])  # pylint: disable=no-member
 
     @staticmethod
     def __sanitize_text(text: str) -> str:
@@ -235,5 +235,5 @@ class BaseTest:
     @staticmethod
     async def get_season_info() -> Dict[str, int]:
         series_name = str(s.ES_TRANSCRIPTION_INDEX).replace("_text_segments", "")
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=logger, series_name=series_name)
+        season_info = await TextSegmentsFinder.get_season_details_from_elastic(logger=logger, series_name=series_name)
         return season_info

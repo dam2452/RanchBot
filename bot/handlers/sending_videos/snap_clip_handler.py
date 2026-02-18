@@ -16,6 +16,7 @@ from bot.responses.sending_videos.snap_clip_handler_responses import (
     get_no_scene_cuts_message,
     get_snap_success_log,
 )
+from bot.search.scene_finder import SceneFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.utils.constants import (
     EpisodeMetadataKeys,
@@ -58,7 +59,7 @@ class SnapClipHandler(BotMessageHandler):
         if season is None or episode_number is None:
             return await self._reply_error(get_no_adjusted_times_message())
 
-        scene_cuts = await SceneSnapService.fetch_scene_cuts(active_series, season, episode_number, self._logger)
+        scene_cuts = await SceneFinder.fetch_scene_cuts(active_series, season, episode_number, self._logger)
         if not scene_cuts:
             return await self._reply_error(get_no_scene_cuts_message())
 

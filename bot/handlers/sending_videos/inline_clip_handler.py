@@ -29,7 +29,7 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.types import ElasticsearchSegment
@@ -111,8 +111,8 @@ class InlineClipHandler(BotMessageHandler):
         active_series = await self._get_user_active_series(user_id)
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
-            TranscriptionFinder.find_segment_by_quote(query, self._logger, active_series, size=5),
-            TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series),
+            TextSegmentsFinder.find_segment_by_quote(query, self._logger, active_series, size=5),
+            TextSegmentsFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series),
             DatabaseManager.is_admin_or_moderator(user_id),
             return_exceptions=True,
         )

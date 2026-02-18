@@ -16,7 +16,7 @@ from bot.responses.sending_videos.clip_handler_responses import (
     get_no_quote_provided_message,
     get_no_segments_found_message,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
@@ -51,7 +51,7 @@ class ClipHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series)
+        segments = await TextSegmentsFinder.find_segment_by_quote(quote, self._logger, active_series)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 

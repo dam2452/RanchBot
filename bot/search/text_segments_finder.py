@@ -31,7 +31,7 @@ from bot.utils.constants import (
 from bot.utils.log import log_system_message
 
 
-class TranscriptionFinder:
+class TextSegmentsFinder:
     @staticmethod
     def is_segment_overlap(
             previous_segment: ElasticsearchSegment,
@@ -190,7 +190,6 @@ class TranscriptionFinder:
 
         return None
 
-
     @staticmethod
     async def find_segment_with_context(
             quote: str, logger: logging.Logger, series_name: str, context_size: int = 30,
@@ -207,7 +206,7 @@ class TranscriptionFinder:
         if index is None:
             index = f"{series_name}_text_segments"
 
-        segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
+        segment = await TextSegmentsFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
         if not segment:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None
@@ -219,13 +218,13 @@ class TranscriptionFinder:
         )
         segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
 
-        context_segments = await TranscriptionFinder._fetch_context_segments(
+        context_segments = await TextSegmentsFinder._fetch_context_segments(
             es, index, episode_data, segment_id, context_size,
         )
 
         segment_start = segment.get(SegmentKeys.START_TIME, segment.get(SegmentKeys.START))
         segment_end = segment.get(SegmentKeys.END_TIME, segment.get(SegmentKeys.END))
-        unique_context_segments = TranscriptionFinder.__build_unique_segments(
+        unique_context_segments = TextSegmentsFinder.__build_unique_segments(
             context_segments, segment_id, segment, segment_start, segment_end,
         )
 

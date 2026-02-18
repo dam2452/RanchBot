@@ -25,6 +25,7 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_successful_adjustment_message,
     get_updated_segment_info_log,
 )
+from bot.search.scene_finder import SceneFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.types import ElasticsearchSegment
@@ -122,7 +123,7 @@ class AdjustBySceneHandler(BotMessageHandler):
         if season is None or episode_number is None:
             return None
 
-        scene_cuts = await SceneSnapService.fetch_scene_cuts(active_series, season, episode_number, self._logger)
+        scene_cuts = await SceneFinder.fetch_scene_cuts(active_series, season, episode_number, self._logger)
         if not scene_cuts:
             return None
 

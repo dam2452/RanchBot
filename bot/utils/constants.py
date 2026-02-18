@@ -72,6 +72,7 @@ class ElasticsearchQueryKeys:
     GT: Final[str] = "gt"
     SOURCE: Final[str] = "_source"
     KEY: Final[str] = "_key"
+    EXISTS: Final[str] = "exists"
 
 
 class DatabaseKeys:

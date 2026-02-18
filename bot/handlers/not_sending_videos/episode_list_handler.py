@@ -17,7 +17,7 @@ from bot.responses.not_sending_videos.episode_list_handler_responses import (
     get_log_no_episodes_found_message,
     get_no_episodes_found_message,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.types import SeasonInfoDict
 
 isSeasonCustomFn = Callable[[SeasonInfoDict], bool]
@@ -40,7 +40,7 @@ class EpisodeListHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(self._message.get_user_id())
         index = f"{active_series}_text_segments"
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series)
+        season_info = await TextSegmentsFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series)
 
         if season_arg is None:
             await self.__handle_season_list(season_info)
@@ -71,7 +71,7 @@ class EpisodeListHandler(BotMessageHandler):
             except ValueError:
                 return await self._reply_error(get_invalid_args_count_message())
 
-        episodes = await TranscriptionFinder.find_episodes_by_season(season, self._logger, index=index)
+        episodes = await TextSegmentsFinder.find_episodes_by_season(season, self._logger, index=index)
 
         if not episodes:
             return await self.__reply_no_episodes_found(season)

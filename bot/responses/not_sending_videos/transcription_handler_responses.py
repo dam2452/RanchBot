@@ -8,11 +8,6 @@ from bot.utils.constants import (
 )
 
 
-def _format_time(seconds: float) -> str:
-    minutes, secs = divmod(seconds, 60)
-    return f"{int(minutes):02d}:{int(secs):02d}"
-
-
 def get_no_quote_provided_message() -> str:
     return "🔎 Podaj cytat, który chcesz znaleźć. Przykład: /transkrypcja Nie szkoda panu tego pięknego gabinetu?"
 
@@ -23,6 +18,10 @@ def get_transcription_response(
     snapped_start: Optional[float] = None,
     snapped_end: Optional[float] = None,
 ) -> str:
+    def __format_time(seconds: float) -> str:
+        minutes, secs = divmod(seconds, 60)
+        return f"{int(minutes):02d}:{int(secs):02d}"
+
     start_time = float(result[TranscriptionContextKeys.OVERALL_START_TIME])
     end_time = float(result[TranscriptionContextKeys.OVERALL_END_TIME])
 
@@ -49,11 +48,11 @@ def get_transcription_response(
     response = (
         f"📺 *{episode_title}* 📺\n"
         f"🎬 *{episode_display} ({absolute_episode_display})* 🎬\n"
-        f"⏰ *Czas: {_format_time(start_time)} - {_format_time(end_time)}* ⏰\n"
+        f"⏰ *Czas: {__format_time(start_time)} - {__format_time(end_time)}* ⏰\n"
     )
 
     if snapped_start is not None and snapped_end is not None:
-        response += f"🎞 *Scena: {_format_time(snapped_start)} - {_format_time(snapped_end)}* 🎞\n"
+        response += f"🎞 *Scena: {__format_time(snapped_start)} - {__format_time(snapped_end)}* 🎞\n"
 
     response += "\n```"
 
