@@ -12,7 +12,6 @@ from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
 from bot.interfaces.message import AbstractMessage
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
-from bot.settings import settings
 from bot.types import ClipSegment
 from bot.utils.constants import (
     EpisodeMetadataKeys,
@@ -61,8 +60,8 @@ class ClipsCompiler:
         temp_files = []
         try:
             for segment in selected_clips:
-                start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE_COMPILE
-                end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER_COMPILE
+                start_time = segment[SegmentKeys.START_TIME]
+                end_time = segment[SegmentKeys.END_TIME]
 
                 if series_name and segment.get(EpisodeMetadataKeys.EPISODE_METADATA):
                     start_time, end_time = await SceneSnapService.snap_clip_times(
