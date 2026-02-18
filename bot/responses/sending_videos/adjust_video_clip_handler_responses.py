@@ -58,9 +58,9 @@ def get_max_clip_duration_message() -> str:
     return "❌ Przekroczono maksymalny czas trwania klipu.❌"
 
 
-def get_ds_invalid_args_message() -> str:
-    return "📝 Podaj dwie liczby całkowite: /ds <ile_cięć_wstecz> <ile_cięć_naprzód>. Przykład: /ds 1 1"
+def get_sd_invalid_args_message() -> str:
+    return "📝 Podaj dwie liczby całkowite: /sd <ile_cięć_wstecz> <ile_cięć_naprzód>. Przykład: /sd 1 1"
 
 
-def get_ds_no_scene_cuts_message() -> str:
+def get_sd_no_scene_cuts_message() -> str:
     return "⚠️ Brak danych o cięciach scen dla tego epizodu."
