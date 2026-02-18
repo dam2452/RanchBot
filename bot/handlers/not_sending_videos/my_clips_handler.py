@@ -12,7 +12,7 @@ from bot.responses.not_sending_videos.my_clips_handler_responses import (
     get_log_saved_clips_sent_message,
     get_no_saved_clips_message,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 
 
 class MyClipsHandler(BotMessageHandler):
@@ -31,7 +31,7 @@ class MyClipsHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(user_id)
 
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(
+        season_info = await TextSegmentsFinder.get_season_details_from_elastic(
             logger=self._logger,
             series_name=active_series,
         )

@@ -15,7 +15,7 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.tests.settings import settings as s
 
 logging.basicConfig(level=logging.DEBUG)
@@ -24,12 +24,13 @@ logger = logging.getLogger(__name__)
 class BaseTest:
     client: requests.Session
     token: str
+    default_admin: int
 
     @pytest_asyncio.fixture(autouse=True)
     async def setup_client(self, test_client, auth_token):
         self.client = test_client
         self.token = auth_token
-        self.default_admin = int(s.TEST_ADMINS.split(",")[0])
+        self.default_admin = int(s.TEST_ADMINS.split(",")[0])  # pylint: disable=no-member
 
     @staticmethod
     def __sanitize_text(text: str) -> str:
@@ -120,7 +121,12 @@ class BaseTest:
         expected_hash = expected_hashes[expected_filename]
         received_hash = self.__compute_file_hash(received_file_path)
 
-        assert expected_hash == received_hash, "File hash mismatch"
+        assert expected_hash == received_hash, (
+            f"File hash mismatch for '{expected_filename}'.\n"
+            f"  Expected: {expected_hash}\n"
+            f"  Received: {received_hash}\n"
+            f"  Update expected_file_hashes.json with the received hash."
+        )
 
         received_file_path.unlink()
         logger.info(f"File test passed for: {expected_filename}")
@@ -229,5 +235,5 @@ class BaseTest:
     @staticmethod
     async def get_season_info() -> Dict[str, int]:
         series_name = str(s.ES_TRANSCRIPTION_INDEX).replace("_text_segments", "")
-        season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=logger, series_name=series_name)
+        season_info = await TextSegmentsFinder.get_season_details_from_elastic(logger=logger, series_name=series_name)
         return season_info

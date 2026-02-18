@@ -52,7 +52,8 @@ class ZipExtractor:
 
         return documents
 
-    def __detect_type_from_filename(self, filename: str) -> Optional[str]:
+    @staticmethod
+    def __detect_type_from_filename(filename: str) -> Optional[str]:
         _type_mapping = {
             'text_segments': 'text_segments',
             'text_embeddings': 'text_embeddings',

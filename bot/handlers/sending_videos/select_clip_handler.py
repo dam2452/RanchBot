@@ -18,6 +18,7 @@ from bot.responses.sending_videos.select_clip_handler_responses import (
     get_log_segment_selected_message,
     get_no_previous_search_message,
 )
+from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
@@ -54,6 +55,11 @@ class SelectClipHandler(BotMessageHandler):
         start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
         end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
+        active_series = await self._get_user_active_series(self._message.get_user_id())
+        start_time, end_time = await SceneSnapService.snap_clip_times(
+            active_series, segment, start_time, end_time, self._logger,
+        )
+
         if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
             return None
 
@@ -75,8 +81,8 @@ class SelectClipHandler(BotMessageHandler):
             segment=segment,
             compiled_clip=None,
             clip_type=ClipType.SELECTED,
-            adjusted_start_time=None,
-            adjusted_end_time=None,
+            adjusted_start_time=start_time,
+            adjusted_end_time=end_time,
             is_adjusted=False,
         )
 

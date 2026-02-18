@@ -31,7 +31,7 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_updated_segment_info_log,
 )
 from bot.settings import settings
-from bot.types import ElasticsearchSegment
+from bot.types import SegmentWithTimes
 from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import get_video_duration
 
@@ -40,9 +40,11 @@ class AdjustVideoClipHandler(BotMessageHandler):
     __RELATIVE_COMMANDS: List[str] = ["dostosuj", "adjust", "d"]
     __ABSOLUTE_COMMANDS: List[str] = ["adostosuj", "aadjust", "ad"]
 
-
     def get_commands(self) -> List[str]:
-        return AdjustVideoClipHandler.__RELATIVE_COMMANDS + AdjustVideoClipHandler.__ABSOLUTE_COMMANDS
+        return (
+            AdjustVideoClipHandler.__RELATIVE_COMMANDS
+            + AdjustVideoClipHandler.__ABSOLUTE_COMMANDS
+        )
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -53,18 +55,20 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         msg = self._message
         content = msg.get_text().split()
+        command = content[0].lstrip('/')
+
         segment_info, last_clip = await self.__get_segment_and_clip(content, msg.get_chat_id())
         if segment_info is None:
-            return
+            return None
 
-        original_start_time = float(segment_info.get("start_time", 0))
-        original_end_time = float(segment_info.get("end_time", 0))
+        original_start_time = segment_info["start_time"]
+        original_end_time = segment_info["end_time"]
 
         additional_start_offset, additional_end_offset = await self.__parse_offsets(content)
         if additional_start_offset is None:
-            return
+            return None
 
-        is_consecutive_adjustment = content[0].lstrip('/') in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
+        is_consecutive_adjustment = command in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
 
         if is_consecutive_adjustment:
             original_start_time = last_clip.adjusted_start_time or original_start_time
@@ -129,34 +133,35 @@ class AdjustVideoClipHandler(BotMessageHandler):
             abs(additional_start_offset) + abs(additional_end_offset) > settings.MAX_ADJUSTMENT_DURATION
         )
 
-    async def __get_segment_and_clip(self, content: List[str], chat_id: int) -> Tuple[Optional[ElasticsearchSegment], Optional[LastClip]]:
-        segment_info = {}
-        last_clip = None
-
+    async def __get_segment_and_clip(self, content: List[str], chat_id: int) -> Tuple[Optional[SegmentWithTimes], Optional[LastClip]]:
         if len(content) == 4:
-            last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id)
-            if not last_search:
-                await self.__reply_no_previous_searches()
-                return None, None
-            try:
-                index = int(content[1]) - 1
-                segments = json.loads(last_search.segments)
-                segment_info = segments[index]
-            except (ValueError, IndexError):
-                await self.__reply_invalid_segment_index()
-                return None, None
-        elif len(content) == 3:
-            last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
-            if not last_clip:
-                await self.__reply_no_quotes_selected()
-                return None, None
+            segment = await self.__get_segment_from_search(content, chat_id)
+            return segment, None
+        return await self.__get_segment_from_last_clip(chat_id)
 
-            segment_info = last_clip.segment
-            if isinstance(segment_info, str):
-                segment_info = json.loads(segment_info)
+    async def __get_segment_from_search(self, content: List[str], chat_id: int) -> Optional[SegmentWithTimes]:
+        last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+        if not last_search:
+            await self.__reply_no_previous_searches()
+            return None
+        try:
+            index = int(content[1]) - 1
+            segments = json.loads(last_search.segments)
+            return segments[index]
+        except (ValueError, IndexError):
+            await self.__reply_invalid_segment_index()
+            return None
 
-            await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
+    async def __get_segment_from_last_clip(self, chat_id: int) -> Tuple[Optional[SegmentWithTimes], Optional[LastClip]]:
+        last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
+        if not last_clip:
+            await self.__reply_no_quotes_selected()
+            return None, None
 
+        raw_segment = last_clip.segment
+        segment_info: SegmentWithTimes = json.loads(raw_segment) if isinstance(raw_segment, str) else raw_segment
+
+        await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
         return segment_info, last_clip
 
     async def __parse_offsets(self, content: List[str]) -> Tuple[Optional[float], Optional[float]]:

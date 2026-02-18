@@ -13,6 +13,8 @@
 - **`/episodes <season>`**/ **`/o <season>`**: 🎞️ List of episodes.
 - **`/cut <season_episode> <start_time> <end_time>`**: ✂️ Cutting a clip.
 - **`/adjust <extend_before> <extend_after>`**/ **`/d <extend_before> <extend_after>`**: ⏳ Adjusting a clip.
+- **`/snap`**/ **`/dopasuj`**/ **`/sp`**: 🎯 Snap last clip to scene cuts.
+- **`/transcription <quote>`**/ **`/t <quote>`**: 📝 Transcription with context for a quote.
 - **`/compile all`**/ **`/kom all`**: 🎬 Compiling all clips.
 - **`/compile <range>`**/ **`/kom <range>`**: 🎬 Compiling a range of clips.
 - **`/compile <clip_number1> <clip_number2> ...`**/ **`/kom <clip_number1> <clip_number2> ...`**: 🎬 Compiling selected clips.
@@ -45,6 +47,8 @@
 - **`/episodes <season>`**/ **`/o <season>`**: 🎞️ Displays a list of episodes for the given season. Example: `/episodes 2`.
 - **`/cut <season_episode> <start_time> <end_time>`**: ✂️ Cuts a segment from a clip. Example: `/cut S02E10 20:30.11 21:32.50`.
 - **`/adjust <extend_before> <extend_after>`**/ **`/d <extend_before> <extend_after>`**: ⏳ Adjusts the selected clip by extending the start and end time. Example: `/adjust -5.5 1.2`.
+- **`/snap`**/ **`/dopasuj`**/ **`/sp`**: 🎯 Snaps the last clip to the nearest scene cuts. No change → informs user.
+- **`/transcription <quote>`**/ **`/t <quote>`**: 📝 Displays transcription with context for the found quote. Example: `/transcription genius`.
 - **`/compile all`**/ **`/kom all`**: 🎬 Compiles all clips.
 - **`/compile <range>`**/ **`/kom <range>`**: 🎬 Compiles clips within a range. Example: `/compile 1-4`.
 - **`/compile <clip_number1> <clip_number2> ...`**/ **`/kom <clip_number1> <clip_number2> ...`**: 🎬 Compiles selected clips. Example: `/compile 1 5 7`.

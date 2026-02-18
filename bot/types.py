@@ -66,7 +66,7 @@ class ElasticsearchSegment(TypedDict):
 
 
 class TranscriptionContext(TypedDict):
-    target: ElasticsearchSegment
+    target: Union[ElasticsearchSegment, SegmentWithScore]
     context: List[BaseSegment]
     overall_start_time: float
     overall_end_time: float
@@ -76,6 +76,7 @@ class ClipSegment(TypedDict):
     video_path: Union[str, Any]
     start_time: float
     end_time: float
+    episode_metadata: NotRequired[EpisodeMetadata]
 
 
 class SearchSegment(TypedDict):

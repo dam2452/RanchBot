@@ -29,7 +29,8 @@ class TelegramResponder(AbstractResponder):
     async def send_markdown(self, text: str) -> Optional[Message]:
         return await self._message.answer(text, parse_mode="Markdown", reply_to_message_id=self._message.message_id, disable_notification=True)
 
-    async def edit_text(self, message: Message, text: str) -> None:
+    @staticmethod
+    async def edit_text(message: Message, text: str) -> None:
         try:
             await message.edit_text(text, parse_mode="Markdown")
         except Exception:

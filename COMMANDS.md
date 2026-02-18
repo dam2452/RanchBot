@@ -12,6 +12,8 @@
 - **`/odcinki <sezon>`** / **`/o <sezon>`**: 🎞️ Lista odcinków.
 - **`/wytnij <sezon_odcinek> <czas_start> <czas_koniec>`**: ✂️ Wycinanie klipu.
 - **`/dostosuj <przedłużenie_przed> <przedłużenie_po>`** / **`/d <przedłużenie_przed> <przedłużenie_po>`**: ⏳ Dostosowanie klipu.
+- **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównanie ostatniego klipu do cięć scen.
+- **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Transkrypcja z kontekstem dla cytatu.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Kompilacja wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Kompilacja z zakresu klipów.
 - **`/kompiluj <numer_klipu1> <numer_klipu2> ...`** / **`/kom <numer_klipu1> <numer_klipu2> ...`**: 🎬 Kompilacja z wybranych klipów.
@@ -44,6 +46,8 @@
 - **`/odcinki <sezon>`**/ **`/o <sezon>`**: 🎞️ Wyświetla listę odcinków dla podanego sezonu. Przykład: `/odcinki 2`.
 - **`/wytnij <sezon_odcinek> <czas_start> <czas_koniec>`**: ✂️ Wycina fragment klipu. Przykład: `/wytnij S02E10 20:30.11 21:32.50`.
 - **`/dostosuj <przedłużenie_przed> <przedłużenie_po>`**/ **`/d <przedłużenie_przed> <przedłużenie_po>`**: ⏳ Dostosowuje wybrany klip, rozszerzając czas rozpoczęcia i zakończenia. Przykład: `/dostosuj -5.5 1.2`.
+- **`/snap`**/ **`/dopasuj`**/ **`/sp`**: 🎯 Wyrównuje ostatni klip do najbliższych cięć scen. Bez zmiany → informuje.
+- **`/transkrypcja <cytat>`**/ **`/t <cytat>`**: 📝 Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: `/transkrypcja geniusz`.
 - **`/kompiluj wszystko`**/ **`/kom wszystko`**: 🎬 Tworzy kompilację ze wszystkich klipów.
 - **`/kompiluj <zakres>`**/ **`/kom <zakres>`**: 🎬 Tworzy kompilację z zakresu klipów. Przykład: `/kompiluj 1-4`.
 - **`/kompiluj <numer_klipu1> <numer_klipu2> ...`**/ **`/kom <numer_klipu1> <numer_klipu2> ...`**: 🎬 Tworzy kompilację z wybranych klipów. Przykład: `/kompiluj 1 5 7`.

@@ -24,7 +24,7 @@ from bot.responses.sending_videos.manual_clip_handler_responses import (
     get_log_video_file_not_exist_message,
     get_video_file_not_exist_message,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.utils.functions import (
     InvalidTimeStringException,
     minutes_str_to_seconds,
@@ -78,7 +78,7 @@ class ManualClipHandler(BotMessageHandler):
         if await self._handle_clip_duration_limit_exceeded(clip_duration):
             return None
 
-        video_path_str = await TranscriptionFinder.find_video_path_by_episode(
+        video_path_str = await TextSegmentsFinder.find_video_path_by_episode(
             episode.season,
             episode.number,
             self._logger,
