@@ -254,6 +254,8 @@ class FFmpegWrapper:
             '-',
         ]
         result = subprocess.run(cmd, capture_output=True, check=True)
+        if not result.stdout:
+            raise ValueError(f'No frame data extracted at timestamp {timestamp}s from {video_path}')
         return Image.open(BytesIO(result.stdout))
 
     @staticmethod
@@ -262,7 +264,7 @@ class FFmpegWrapper:
             'ffprobe',
             '-skip_frame', 'nokey',
             '-select_streams', 'v:0',
-            '-show_entries', 'frame=pkt_pts_time',
+            '-show_entries', 'frame=pts_time,pkt_pts_time',
             '-of', 'json',
             str(video_path),
         ]
@@ -272,7 +274,7 @@ class FFmpegWrapper:
 
         timestamps = []
         for frame in frames:
-            pts = frame.get('pkt_pts_time')
+            pts = frame.get('pts_time') or frame.get('pkt_pts_time')
             if pts:
                 timestamps.append(float(pts))
 

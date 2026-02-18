@@ -1,4 +1,5 @@
 import bisect
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import json
 from pathlib import Path
@@ -181,14 +182,29 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             req['original_timestamp'] = target_timestamp
             req['snapped_to_keyframe'] = True
 
-            self.__extract_and_save_frame(
-                video_file,
-                snapped_timestamp,
-                episode_dir,
-                episode_info,
-                dar,
-                context.series_name,
-            )
+        seen_ms: set[int] = set()
+        unique_timestamps: List[float] = []
+        for req in frame_requests:
+            ts_ms = int(req['timestamp'] * 1000)
+            if ts_ms not in seen_ms:
+                seen_ms.add(ts_ms)
+                unique_timestamps.append(req['timestamp'])
+
+        with ThreadPoolExecutor(max_workers=self.config.max_parallel_frames) as executor:
+            futures = [
+                executor.submit(
+                    self.__extract_and_save_frame,
+                    video_file,
+                    timestamp,
+                    episode_dir,
+                    episode_info,
+                    dar,
+                    context.series_name,
+                )
+                for timestamp in unique_timestamps
+            ]
+            for future in futures:
+                future.result()
 
     def __extract_and_save_frame(
         self,

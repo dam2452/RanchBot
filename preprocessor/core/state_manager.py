@@ -14,6 +14,7 @@ from typing import (
     Optional,
 )
 
+from preprocessor.core.temp_files import StepTempFile
 from preprocessor.services.ui.console import console
 
 
@@ -170,8 +171,9 @@ class StateManager:
             return
 
         self.__state.last_checkpoint = datetime.now().isoformat()
-        with open(self.__state_file, 'w', encoding='utf-8') as f:
-            json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
+        with StepTempFile(self.__state_file) as temp_path:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
 
     def rebuild_state(self, completed_steps: List[StepCheckpoint]) -> ProcessingState:
         now = datetime.now().isoformat()
