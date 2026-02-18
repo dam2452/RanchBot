@@ -121,7 +121,12 @@ class BaseTest:
         expected_hash = expected_hashes[expected_filename]
         received_hash = self.__compute_file_hash(received_file_path)
 
-        assert expected_hash == received_hash, "File hash mismatch"
+        assert expected_hash == received_hash, (
+            f"File hash mismatch for '{expected_filename}'.\n"
+            f"  Expected: {expected_hash}\n"
+            f"  Received: {received_hash}\n"
+            f"  Update expected_file_hashes.json with the received hash."
+        )
 
         received_file_path.unlink()
         logger.info(f"File test passed for: {expected_filename}")

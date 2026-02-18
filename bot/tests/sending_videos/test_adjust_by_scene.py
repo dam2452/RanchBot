@@ -15,7 +15,8 @@ class TestAdjustBySceneHandler(BaseTest):
     async def test_sd_no_scene_cuts(self):
         video_name = "geniusz"
         self.send_command(f"/klip {video_name}")
-        self.expect_command_result_contains("/sd 1 1", [msg.get_sd_no_scene_cuts_message()])
+        response = self.send_command("/sd 1 1")
+        self.assert_command_result_file_matches(response, "sd_geniusz.mp4")
 
     @pytest.mark.asyncio
     async def test_sd_invalid_args(self):

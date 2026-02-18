@@ -15,7 +15,8 @@ class TestSnapClipHandler(BaseTest):
     async def test_snap_no_adjusted_times(self):
         video_name = "geniusz"
         self.send_command(f"/klip {video_name}")
-        self.expect_command_result_contains("/snap", [msg.get_no_adjusted_times_message()])
+        response = self.send_command("/snap")
+        self.assert_command_result_file_matches(response, "snap_geniusz_no_adjust.mp4")
 
     @pytest.mark.asyncio
     async def test_snap_already_snapped(self):
