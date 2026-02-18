@@ -16,12 +16,12 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
-    get_ds_invalid_args_message,
-    get_ds_no_scene_cuts_message,
     get_invalid_interval_log,
     get_invalid_interval_message,
     get_no_quotes_selected_log,
     get_no_quotes_selected_message,
+    get_sd_invalid_args_message,
+    get_sd_no_scene_cuts_message,
     get_successful_adjustment_message,
     get_updated_segment_info_log,
 )
@@ -46,7 +46,7 @@ class AdjustBySceneHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, get_ds_invalid_args_message(), 3)
+        return await self._validate_argument_count(self._message, 2, get_sd_invalid_args_message(), 3)
 
     async def _do_handle(self) -> None:
         msg = self._message
@@ -70,7 +70,7 @@ class AdjustBySceneHandler(BotMessageHandler):
 
         scene_bounds = await self.__compute_scene_bounds(segment_info, clip_start, clip_end, n_before, n_after, active_series)
         if scene_bounds is None:
-            return await self._reply_error(get_ds_no_scene_cuts_message())
+            return await self._reply_error(get_sd_no_scene_cuts_message())
 
         new_start, new_end = scene_bounds
         new_start = max(0.0, new_start)
@@ -147,7 +147,7 @@ class AdjustBySceneHandler(BotMessageHandler):
         try:
             return int(content[-2]), int(content[-1])
         except ValueError:
-            await self._reply_invalid_args_count(get_ds_invalid_args_message())
+            await self._reply_invalid_args_count(get_sd_invalid_args_message())
             return None, None
 
     async def __reply_no_last_clip(self) -> None:
