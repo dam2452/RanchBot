@@ -11,7 +11,7 @@
   "pipeline_mode": "full",
   "processing": {
     "frame_export": {
-      "frames_per_scene": 3
+      "frames_per_scene": 1
     },
     "scene_detection": {
       "min_scene_len": 10,
