@@ -67,33 +67,28 @@ class TranscriptionHandler(BotMessageHandler):
     async def __snap_context_to_scene(
         self, result: TranscriptionContext, active_series: str,
     ) -> Tuple[Optional[float], Optional[float]]:
-        try:
-            overall_start = float(result[TranscriptionContextKeys.OVERALL_START_TIME])
-            overall_end = float(result[TranscriptionContextKeys.OVERALL_END_TIME])
+        overall_start = float(result[TranscriptionContextKeys.OVERALL_START_TIME])
+        overall_end = float(result[TranscriptionContextKeys.OVERALL_END_TIME])
 
-            target = result.get(TranscriptionContextKeys.TARGET, {})
-            episode_metadata = target.get(
-                EpisodeMetadataKeys.EPISODE_METADATA,
-                target.get(EpisodeMetadataKeys.EPISODE_INFO, {}),
-            )
-            season = episode_metadata.get(EpisodeMetadataKeys.SEASON)
-            episode_number = episode_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+        target = result.get(TranscriptionContextKeys.TARGET, {})
+        episode_metadata = target.get(
+            EpisodeMetadataKeys.EPISODE_METADATA,
+            target.get(EpisodeMetadataKeys.EPISODE_INFO, {}),
+        )
+        season = episode_metadata.get(EpisodeMetadataKeys.SEASON)
+        episode_number = episode_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
 
-            if season is None or episode_number is None:
-                return None, None
-
-            scene_cuts = await SceneSnapService.fetch_scene_cuts(active_series, season, episode_number, self._logger)
-            if not scene_cuts:
-                return None, None
-
-            snapped_start, snapped_end = SceneSnapService.snap_boundaries(
-                overall_start, overall_end, overall_start, overall_end, scene_cuts,
-            )
-            return snapped_start, snapped_end
-
-        except Exception as e:
-            await self._log_system_message(logging.WARNING, f"Scene snap for transcription failed: {e}")
+        if season is None or episode_number is None:
             return None, None
+
+        scene_cuts = await SceneSnapService.fetch_scene_cuts(active_series, season, episode_number, self._logger)
+        if not scene_cuts:
+            return None, None
+
+        snapped_start, snapped_end = SceneSnapService.snap_boundaries(
+            overall_start, overall_end, overall_start, overall_end, scene_cuts,
+        )
+        return snapped_start, snapped_end
 
     async def __reply_no_segments_found(self, quote: str) -> None:
         await self._reply_error(get_no_segments_found_message(quote))

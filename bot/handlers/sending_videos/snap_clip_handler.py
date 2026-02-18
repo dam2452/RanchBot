@@ -1,12 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    List,
-    Union,
-)
+from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
@@ -22,7 +17,6 @@ from bot.responses.sending_videos.snap_clip_handler_responses import (
     get_snap_success_log,
 )
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
-from bot.types import ElasticsearchSegment
 from bot.utils.constants import (
     EpisodeMetadataKeys,
     SegmentKeys,
@@ -49,11 +43,7 @@ class SnapClipHandler(BotMessageHandler):
             return await self._reply_error(get_no_adjusted_times_message())
 
         segment_raw = last_clip.segment
-        segment: Union[ElasticsearchSegment, Dict[str, Any]]
-        if isinstance(segment_raw, str):
-            segment = json.loads(segment_raw)
-        else:
-            segment = segment_raw
+        segment = json.loads(segment_raw) if isinstance(segment_raw, str) else segment_raw
 
         speech_start = float(segment.get(SegmentKeys.START_TIME, last_clip.adjusted_start_time))
         speech_end = float(segment.get(SegmentKeys.END_TIME, last_clip.adjusted_end_time))

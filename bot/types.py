@@ -66,7 +66,7 @@ class ElasticsearchSegment(TypedDict):
 
 
 class TranscriptionContext(TypedDict):
-    target: Union[ElasticsearchSegment, "SegmentWithScore"]
+    target: Union[ElasticsearchSegment, SegmentWithScore]
     context: List[BaseSegment]
     overall_start_time: float
     overall_end_time: float

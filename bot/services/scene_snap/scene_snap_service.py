@@ -1,6 +1,8 @@
 import bisect
 import logging
 from typing import (
+    Any,
+    Dict,
     List,
     Tuple,
     Union,
@@ -19,31 +21,31 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_SCENE_INFO_FIELD = "scene_info"
-_SCENE_NUMBER_FIELD = "scene_info.scene_number"
-_SCENE_START_TIME = "scene_info.scene_start_time"
-_SCENE_END_TIME = "scene_info.scene_end_time"
-_UNIQUE_SCENES_AGG = "unique_scenes"
-_SCENE_DATA_AGG = "scene_data"
-_KEYFRAME_INTERVAL = 0.5
-
 
 class SceneSnapService:
+    __SCENE_INFO_FIELD = "scene_info"
+    __SCENE_NUMBER_FIELD = "scene_info.scene_number"
+    __SCENE_START_TIME = "scene_info.scene_start_time"
+    __SCENE_END_TIME = "scene_info.scene_end_time"
+    __UNIQUE_SCENES_AGG = "unique_scenes"
+    __SCENE_DATA_AGG = "scene_data"
+    __KEYFRAME_INTERVAL = 0.5
+
     @staticmethod
-    def _apply_keyframe_offset(
+    def __apply_keyframe_offset(
         boundary: float,
         is_start: bool,
         speech_start: float,
         speech_end: float,
     ) -> float:
         if is_start:
-            adjusted = boundary + _KEYFRAME_INTERVAL
+            adjusted = boundary + SceneSnapService.__KEYFRAME_INTERVAL
             return adjusted if adjusted <= speech_start else boundary
-        adjusted = boundary - _KEYFRAME_INTERVAL
+        adjusted = boundary - SceneSnapService.__KEYFRAME_INTERVAL
         return adjusted if adjusted >= speech_end else boundary
 
     @staticmethod
-    def _build_scene_cuts_query(season: int, episode_number: int) -> dict:
+    def __build_scene_cuts_query(season: int, episode_number: int) -> dict:
         return {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
@@ -59,24 +61,24 @@ class SceneSnapService:
                                 f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number,
                             },
                         },
-                        {"exists": {"field": _SCENE_INFO_FIELD}},
+                        {"exists": {"field": SceneSnapService.__SCENE_INFO_FIELD}},
                     ],
                 },
             },
             ElasticsearchQueryKeys.AGGS: {
-                _UNIQUE_SCENES_AGG: {
+                SceneSnapService.__UNIQUE_SCENES_AGG: {
                     ElasticsearchQueryKeys.TERMS: {
-                        ElasticsearchQueryKeys.FIELD: _SCENE_NUMBER_FIELD,
+                        ElasticsearchQueryKeys.FIELD: SceneSnapService.__SCENE_NUMBER_FIELD,
                         ElasticsearchQueryKeys.SIZE: 2000,
                     },
                     ElasticsearchQueryKeys.AGGS: {
-                        _SCENE_DATA_AGG: {
+                        SceneSnapService.__SCENE_DATA_AGG: {
                             ElasticsearchQueryKeys.TOP_HITS: {
                                 ElasticsearchQueryKeys.SIZE: 1,
                                 ElasticsearchQueryKeys.SOURCE: {
                                     ElasticsearchQueryKeys.INCLUDES: [
-                                        _SCENE_START_TIME,
-                                        _SCENE_END_TIME,
+                                        SceneSnapService.__SCENE_START_TIME,
+                                        SceneSnapService.__SCENE_END_TIME,
                                     ],
                                 },
                             },
@@ -87,13 +89,13 @@ class SceneSnapService:
         }
 
     @staticmethod
-    def _extract_cuts_from_buckets(buckets: list) -> List[float]:
-        raw_cuts: List[float] = []
+    def __extract_cuts_from_buckets(buckets: List[Dict[str, Any]]) -> List[float]:
+        raw_cuts = []
         for bucket in buckets:
-            hits = bucket[_SCENE_DATA_AGG][ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+            hits = bucket[SceneSnapService.__SCENE_DATA_AGG][ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
             if not hits:
                 continue
-            scene_info = hits[0][ElasticsearchKeys.SOURCE].get(_SCENE_INFO_FIELD, {})
+            scene_info = hits[0][ElasticsearchKeys.SOURCE].get(SceneSnapService.__SCENE_INFO_FIELD, {})
             start = scene_info.get("scene_start_time")
             end = scene_info.get("scene_end_time")
             if start is not None:
@@ -112,10 +114,10 @@ class SceneSnapService:
         try:
             es = await ElasticSearchManager.connect_to_elasticsearch(logger)
             index = f"{series_name}_text_segments"
-            query = SceneSnapService._build_scene_cuts_query(season, episode_number)
+            query = SceneSnapService.__build_scene_cuts_query(season, episode_number)
             response = await es.search(index=index, body=query)
-            buckets = response[ElasticsearchKeys.AGGREGATIONS][_UNIQUE_SCENES_AGG][ElasticsearchKeys.BUCKETS]
-            raw_cuts = SceneSnapService._extract_cuts_from_buckets(buckets)
+            buckets = response[ElasticsearchKeys.AGGREGATIONS][SceneSnapService.__UNIQUE_SCENES_AGG][ElasticsearchKeys.BUCKETS]
+            raw_cuts = SceneSnapService.__extract_cuts_from_buckets(buckets)
             scene_cuts = sorted(set(raw_cuts))
             await log_system_message(
                 logging.INFO,
@@ -144,8 +146,12 @@ class SceneSnapService:
         valid_ends = [c for c in scene_cuts if c >= speech_end]
         snapped_end = min(valid_ends, key=lambda c: abs(c - clip_end)) if valid_ends else clip_end
 
-        snapped_start = SceneSnapService._apply_keyframe_offset(snapped_start, True, speech_start, speech_end)
-        snapped_end = SceneSnapService._apply_keyframe_offset(snapped_end, False, speech_start, speech_end)
+        snapped_start = SceneSnapService.__apply_keyframe_offset(
+            snapped_start, is_start=True, speech_start=speech_start, speech_end=speech_end,
+        )
+        snapped_end = SceneSnapService.__apply_keyframe_offset(
+            snapped_end, is_start=False, speech_start=speech_start, speech_end=speech_end,
+        )
 
         return snapped_start, snapped_end
 
@@ -199,7 +205,9 @@ class SceneSnapService:
             else:
                 target_idx = idx - offset_count
                 boundary = scene_cuts[max(0, target_idx)]
-            return SceneSnapService._apply_keyframe_offset(boundary, True, speech_start, speech_end)
+            return SceneSnapService.__apply_keyframe_offset(
+                boundary, is_start=True, speech_start=speech_start, speech_end=speech_end,
+            )
 
         idx = bisect.bisect_left(scene_cuts, reference_time)
         if idx >= len(scene_cuts):
@@ -207,4 +215,6 @@ class SceneSnapService:
         else:
             target_idx = idx + offset_count
             boundary = scene_cuts[min(len(scene_cuts) - 1, target_idx)]
-        return SceneSnapService._apply_keyframe_offset(boundary, False, speech_start, speech_end)
+        return SceneSnapService.__apply_keyframe_offset(
+            boundary, is_start=False, speech_start=speech_start, speech_end=speech_end,
+        )
