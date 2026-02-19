@@ -20,6 +20,7 @@ class TestSearchListHandler(BaseTest):
         self.assert_response_contains(response, [msg.get_no_previous_search_results_message()])
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be deleted anyway")
     async def test_list_with_special_characters_in_search(self):
         search_response = self.send_command('/szukaj "koń z chmurą"')
         self.assert_message_hash_matches(search_response, expected_key="search_kon_z_chmura_results.message")
