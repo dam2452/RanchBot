@@ -15,8 +15,8 @@ from preprocessor.config.step_configs import (
     TextAnalysisConfig,
     TextEmbeddingConfig,
     TranscodeConfig,
+    TranscriptionConfig,
     VideoEmbeddingConfig,
-    WhisperTranscriptionConfig,
 )
 from preprocessor.services.media.resolution import Resolution
 
@@ -32,7 +32,8 @@ class DefaultConfigFactory:
                 min_bitrate_mbps=2.0,
                 bitrate_boost_ratio=1.1,
             ),
-            'transcribe': WhisperTranscriptionConfig(
+            'transcribe': TranscriptionConfig(
+                mode='whisper',
                 model='large-v3-turbo',
                 language='pl',
                 device='cuda',

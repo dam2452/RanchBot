@@ -38,9 +38,9 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
     ) -> TextAnalysisResults:
         output_path = self._get_cache_path(input_data, context)
 
-        txt_path = self.__resolve_text_file_path(input_data)
-        stats = self.__analyze_text_statistics(txt_path)
-        result_data = self.__build_result_payload(stats, txt_path, input_data)
+        text = self.__extract_transcription_text(input_data)
+        stats = self.__analyze_text_statistics(text)
+        result_data = self.__build_result_payload(stats, input_data)
 
         FileOperations.atomic_write_json(output_path, result_data)
 
@@ -66,35 +66,29 @@ class TextAnalysisStep(PipelineStep[TranscriptionData, TextAnalysisResults, Text
         stats_data = FileOperations.load_json(cache_path)
         return self.__construct_analysis_results(input_data, cache_path, stats_data)
 
-    def __analyze_text_statistics(self, txt_path: Path) -> TextStatistics:
-        return TextStatistics.from_file(txt_path, language=self.config.language)
+    def __analyze_text_statistics(self, text: str) -> TextStatistics:
+        return TextStatistics.from_text(text, language=self.config.language)
 
     def __build_result_payload(
         self,
         stats: TextStatistics,
-        txt_path: Path,
         input_data: TranscriptionData,
     ) -> Dict[str, Any]:
         return {
             'metadata': {
                 'episode_id': input_data.episode_id,
                 'language': self.config.language,
-                'source_file': txt_path.name,
+                'source_file': input_data.path.name,
                 'analyzed_at': datetime.now().isoformat(),
             },
             **stats.to_dict(),
         }
 
     @staticmethod
-    def __resolve_text_file_path(input_data: TranscriptionData) -> Path:
-        txt_path = input_data.path
-        if input_data.format != 'txt':
-            txt_path = input_data.path.with_suffix('.txt')
-
-        if not txt_path.exists():
-            raise FileNotFoundError(f'Transcription text file not found: {txt_path}')
-
-        return txt_path
+    def __extract_transcription_text(input_data: TranscriptionData) -> str:
+        data = FileOperations.load_json(input_data.path)
+        segments = data.get('segments', [])
+        return ' '.join(seg.get('text', '').strip() for seg in segments if seg.get('text'))
 
     @staticmethod
     def __construct_analysis_results(

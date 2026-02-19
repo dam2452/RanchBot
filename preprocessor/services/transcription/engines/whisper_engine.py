@@ -10,7 +10,7 @@ from faster_whisper import WhisperModel
 import torch
 
 from preprocessor.services.transcription.engines.base_engine import TranscriptionEngine
-from preprocessor.services.transcription.whisper import WhisperUtils
+from preprocessor.services.transcription.utils import WhisperUtils
 from preprocessor.services.ui.console import console
 
 
@@ -20,10 +20,14 @@ class WhisperEngine(TranscriptionEngine):
             model_name: str = 'large-v3-turbo',
             language: str = 'Polish',
             device: str = 'cuda',
+            beam_size: int = 10,
+            temperature: float = 0.0,
     ) -> None:
         self.__model_name = model_name
         self.__language = language
         self.__device = device
+        self.__beam_size = beam_size
+        self.__temperature = temperature
 
         if device != 'cuda':
             raise ValueError(f'Whisper acceleration requires CUDA, got: {device}')
@@ -57,9 +61,10 @@ class WhisperEngine(TranscriptionEngine):
         segments, info = self.__model.transcribe(
             str(audio_path),
             language=language_code,
-            beam_size=10,
+            beam_size=self.__beam_size,
             word_timestamps=True,
             condition_on_previous_text=False,
+            temperature=self.__temperature,
         )
 
         result = WhisperUtils.build_transcription_result(segments, language=info.language)

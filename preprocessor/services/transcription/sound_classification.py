@@ -14,7 +14,7 @@ def is_sound_event(word: Dict[str, Any]) -> bool:
     if word.get(WordKeys.TYPE) == WordTypeValues.AUDIO_EVENT:
         return True
 
-    text = word.get(WordKeys.TEXT, '').strip()
+    text = word.get(WordKeys.TEXT, word.get(WordKeys.WORD, '')).strip()
     return bool(re.match(r'^\(.*\)$', text))
 
 

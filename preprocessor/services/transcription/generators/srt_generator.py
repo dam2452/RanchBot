@@ -9,7 +9,8 @@ from preprocessor.services.transcription.generators.base_generator import BaseTr
 
 
 class SrtGenerator(BaseTranscriptionGenerator):
-    def convert_to_srt_format(self, data: Dict[str, Any]) -> str:
+    @staticmethod
+    def convert_to_srt_format(data: Dict[str, Any]) -> str:
         segments = data.get('segments', [])
         srt_lines = []
         index = 1
@@ -19,8 +20,8 @@ class SrtGenerator(BaseTranscriptionGenerator):
             if not text:
                 continue
 
-            start_time = self.__format_timestamp(seg.get('start', 0.0))
-            end_time = self.__format_timestamp(seg.get('end', 0.0))
+            start_time = SrtGenerator.__format_timestamp(seg.get('start', 0.0))
+            end_time = SrtGenerator.__format_timestamp(seg.get('end', 0.0))
 
             srt_lines.extend([str(index), f'{start_time} --> {end_time}', text, ''])
             index += 1

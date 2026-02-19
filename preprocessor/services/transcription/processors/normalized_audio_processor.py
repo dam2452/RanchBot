@@ -11,7 +11,7 @@ from faster_whisper import WhisperModel
 import torch
 
 from preprocessor.services.core.logging import ErrorHandlingLogger
-from preprocessor.services.transcription.whisper import WhisperUtils
+from preprocessor.services.transcription.utils import WhisperUtils
 
 
 class NormalizedAudioProcessor:

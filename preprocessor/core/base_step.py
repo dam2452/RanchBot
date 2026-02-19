@@ -251,9 +251,10 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         cache_description: str,
     ) -> bool:
         if output_path.exists() and not context.force_rerun:
-            if context.is_step_completed(self.name, episode_id):
-                context.logger.info(f'Skipping {episode_id} ({cache_description})')
-                return True
+            if not context.is_step_completed(self.name, episode_id):
+                context.mark_step_completed(self.name, episode_id)
+            context.logger.info(f'Skipping {episode_id} ({cache_description})')
+            return True
         return False
 
     def __validate_all_descriptors(

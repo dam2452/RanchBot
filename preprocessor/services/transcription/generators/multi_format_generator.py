@@ -59,7 +59,6 @@ class MultiFormatGenerator:
         metadata = EpisodeManager.get_metadata(episode_info)
         full_data = {'episode_info': metadata, **transcription}
 
-        # Generowanie formatów
         self.__save_json(full_data, episode_info, base_dir, 'full')
         self.__save_json(transcription, episode_info, base_dir, 'segmented')
         self.__save_json(transcription, episode_info, base_dir, 'simple')
@@ -107,7 +106,7 @@ class MultiFormatGenerator:
             get_base_output_dir(self.__series_name) /
             settings.output_subdirs.transcriptions /
             ep_info.season_code() /
-            ep_info.episode_num() / 'raw'
+            ep_info.episode_code() / 'raw'
         )
 
     def __load_json(self, path: Path) -> Optional[Dict[str, Any]]:

@@ -9,6 +9,9 @@
   "processing": {
     "transcode": {
       "force_deinterlace": false
+    },
+    "transcription": {
+      "mode": "11labs"
     }
   },
   "scraping": {

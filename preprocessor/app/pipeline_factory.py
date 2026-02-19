@@ -5,7 +5,6 @@ from preprocessor.app.step_builder import (
     Phase,
     StepBuilder,
 )
-from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.config.series_config import SeriesConfig
 from preprocessor.config.step_configs import (
     ArchiveConfig,
@@ -22,13 +21,15 @@ from preprocessor.config.step_configs import (
     ObjectDetectionConfig,
     ResolutionAnalysisConfig,
     SceneDetectionConfig,
+    SoundEventsConfig,
     SoundSeparationConfig,
     TextAnalysisConfig,
+    TextCleaningConfig,
     TextEmbeddingConfig,
     TranscodeConfig,
+    TranscriptionConfig,
     ValidationConfig,
     VideoEmbeddingConfig,
-    WhisperTranscriptionConfig,
 )
 from preprocessor.core.output_descriptors import (
     DirectoryOutput,
@@ -47,6 +48,8 @@ from preprocessor.steps.search.document_generation_step import DocumentGenerator
 from preprocessor.steps.search.indexing_step import ElasticsearchIndexerStep
 from preprocessor.steps.text.analysis_step import TextAnalysisStep
 from preprocessor.steps.text.embeddings_step import TextEmbeddingStep
+from preprocessor.steps.text.sound_events_step import SoundEventsStep
+from preprocessor.steps.text.text_cleaning_step import TextCleaningStep
 from preprocessor.steps.text.transcription_step import TranscriptionStep
 from preprocessor.steps.validation.validator_step import ValidationStep
 from preprocessor.steps.video.frame_export_step import FrameExporterStep
@@ -66,18 +69,7 @@ INDEXING = Phase("INDEXING", color="yellow")
 VALIDATION = Phase("VALIDATION", color="magenta")
 
 
-def _get_output_path_from_descriptor(step: StepBuilder, series_name: str, descriptor_idx: int = 0) -> str:
-    """Get resolved output path from step's OutputDescriptor."""
-    descriptors = step.get_output_descriptors()
-    if not descriptors or descriptor_idx >= len(descriptors):
-        raise ValueError(f'Step {step.id} has no descriptor at index {descriptor_idx}')
-
-    descriptor = descriptors[descriptor_idx]
-    base_dir = get_base_output_dir(series_name)
-    return str(descriptor.resolve_path(base_dir, {'series': series_name}))
-
-
-def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals  # Pipeline factory creates 21 step objects - each step needs clear naming for readability
+def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals
     series_config = SeriesConfig.load(series_name)
 
     # =========================================================
@@ -218,18 +210,45 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         description=f"Audio transcription using {series_config.processing.transcription.mode}",
         produces=[
             JsonFileOutput(
-                pattern="{season}/{episode}.json",
+                pattern="{season}/{episode}/{episode}.json",
                 min_size_bytes=50,
             ),
         ],
         needs=[transcoded_videos],
-        config=WhisperTranscriptionConfig(
+        config=TranscriptionConfig(
+            mode=series_config.processing.transcription.mode,
             model=series_config.processing.transcription.model,
             language=series_config.processing.transcription.language,
             device=series_config.processing.transcription.device,
-            beam_size=10,
-            temperature=0.0,
         ),
+    )
+
+    text_cleaning = StepBuilder(
+        phase=PROCESSING,
+        step_class=TextCleaningStep,
+        description="Removes sound events from transcription segments",
+        produces=[
+            JsonFileOutput(
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ],
+        needs=[transcription_data],
+        config=TextCleaningConfig(),
+    )
+
+    sound_events = StepBuilder(
+        phase=PROCESSING,
+        step_class=SoundEventsStep,
+        description="Extracts sound event segments from transcription",
+        produces=[
+            JsonFileOutput(
+                pattern="{season}/{episode}.json",
+                min_size_bytes=10,
+            ),
+        ],
+        needs=[transcription_data],
+        config=SoundEventsConfig(),
     )
 
     separated_audio = StepBuilder(
@@ -258,7 +277,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
                 min_size_bytes=50,
             ),
         ],
-        needs=[transcription_data],
+        needs=[text_cleaning],
         config=TextAnalysisConfig(language=series_config.processing.transcription.language),
     )
 
@@ -459,6 +478,8 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(exported_frames)
 
     pipeline.register(transcription_data)
+    pipeline.register(text_cleaning)
+    pipeline.register(sound_events)
     pipeline.register(separated_audio)
     pipeline.register(text_stats)
 

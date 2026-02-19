@@ -54,6 +54,12 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes  # Data st
         stats.__process_calculations()
         return stats
 
+    @classmethod
+    def from_text(cls, text: str, language: str = 'pl') -> 'TextStatistics':
+        stats = cls(text=text, language=language)
+        stats.__process_calculations()
+        return stats
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'basic_statistics': {
@@ -85,7 +91,7 @@ class TextStatistics:  # pylint: disable=too-many-instance-attributes  # Data st
             'trigrams': self.trigrams,
         }
 
-    def __process_calculations(self) -> None:  # pylint: disable=unused-private-member  # Called in from_file (line 54) - false positive
+    def __process_calculations(self) -> None:  # pylint: disable=unused-private-member  # Called in from_file and from_text via name mangling - false positive
         self.__calculate_structural_stats()
         self.__calculate_character_distribution()
         self.__calculate_lexical_stats()

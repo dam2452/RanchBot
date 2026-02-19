@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import (
     Any,
@@ -6,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from preprocessor.config.step_configs import WhisperTranscriptionConfig
+from preprocessor.config.step_configs import TranscriptionConfig
 from preprocessor.core.artifacts import (
     TranscodedVideo,
     TranscriptionData,
@@ -16,30 +17,34 @@ from preprocessor.core.context import ExecutionContext
 from preprocessor.core.output_descriptors import JsonFileOutput
 from preprocessor.services.episodes.episode_manager import EpisodeManager
 from preprocessor.services.io.files import FileOperations
-from preprocessor.services.transcription.whisper import Whisper
+from preprocessor.services.transcription.engines.base_engine import TranscriptionEngine
+from preprocessor.services.transcription.engines.elevenlabs_engine import ElevenLabsEngine
+from preprocessor.services.transcription.engines.whisper_engine import WhisperEngine
+from preprocessor.services.transcription.generators.json_generator import JsonGenerator
+from preprocessor.services.transcription.generators.srt_generator import SrtGenerator
+from preprocessor.services.transcription.generators.txt_generator import TxtGenerator
 
 
 class TranscriptionStep(
-    PipelineStep[TranscodedVideo, TranscriptionData, WhisperTranscriptionConfig],
+    PipelineStep[TranscodedVideo, TranscriptionData, TranscriptionConfig],
 ):
-    def __init__(self, config: WhisperTranscriptionConfig) -> None:
+    def __init__(self, config: TranscriptionConfig) -> None:
         super().__init__(config)
-        self.__whisper: Optional[Whisper] = None
+        self.__engine: Optional[TranscriptionEngine] = None
 
     @property
     def supports_batch_processing(self) -> bool:
         return True
 
     def setup_resources(self, context: ExecutionContext) -> None:
-        if self.__whisper is None:
-            self.__load_whisper(context)
+        if self.__engine is None:
+            self.__engine = self.__create_engine(context)
 
     def teardown_resources(self, context: ExecutionContext) -> None:
-        if self.__whisper:
-            self.__unload_whisper(context)
-
-    def cleanup(self) -> None:
-        self.__unload_whisper()
+        if self.__engine:
+            self.__engine.cleanup()
+            self.__engine = None
+            context.logger.info('Transcription engine unloaded')
 
     def execute_batch(
             self, input_data: List[TranscodedVideo], context: ExecutionContext,
@@ -53,18 +58,19 @@ class TranscriptionStep(
     ) -> TranscriptionData:
         output_path = self._get_cache_path(input_data, context)
 
-        if self.__whisper is None:
-            self.__load_whisper(context)
+        if self.__engine is None:
+            self.__engine = self.__create_engine(context)
 
         result = self.__transcribe_and_save(input_data, output_path, context)
+        self.__save_additional_formats(output_path, result)
 
         return self.__construct_result_artifact(output_path, input_data, result)
 
     def get_output_descriptors(self) -> List[JsonFileOutput]:
         return [
             JsonFileOutput(
-                pattern="{season}/{episode}.json",
-                subdir="transcriptions",
+                pattern="{season}/{episode}/{episode}.json",
+                subdir="",
                 min_size_bytes=50,
             ),
         ]
@@ -80,6 +86,7 @@ class TranscriptionStep(
             input_data: TranscodedVideo,
             context: ExecutionContext,
     ) -> TranscriptionData:
+        self.__ensure_additional_formats(cache_path)
         return TranscriptionData(
             episode_id=input_data.episode_id,
             episode_info=input_data.episode_info,
@@ -89,23 +96,19 @@ class TranscriptionStep(
             format='json',
         )
 
-    def __load_whisper(self, context: Optional[ExecutionContext] = None) -> None:
-        if context:
-            context.logger.info(f'Loading Whisper model: {self.config.model}')
+    def __create_engine(self, context: ExecutionContext) -> TranscriptionEngine:
+        if self.config.mode == '11labs':
+            context.logger.info('Creating ElevenLabs transcription engine')
+            return ElevenLabsEngine(logger=context.logger)
 
-        self.__whisper = Whisper(
-            model=self.config.model,
+        context.logger.info(f'Loading Whisper model: {self.config.model}')
+        return WhisperEngine(
+            model_name=self.config.model,
             language=self.config.language,
             device=self.config.device,
             beam_size=self.config.beam_size,
+            temperature=self.config.temperature,
         )
-
-    def __unload_whisper(self, context: Optional[ExecutionContext] = None) -> None:
-        if self.__whisper:
-            self.__whisper.cleanup()
-            self.__whisper = None
-            if context:
-                context.logger.info('Whisper model unloaded')
 
     def __transcribe_and_save(
             self,
@@ -114,10 +117,10 @@ class TranscriptionStep(
             context: ExecutionContext,
     ) -> Dict[str, Any]:
         try:
-            if self.__whisper is None:
-                raise RuntimeError("Whisper model not initialized")
+            if self.__engine is None:
+                raise RuntimeError('Transcription engine not initialized')
 
-            result: Dict[str, Any] = self.__whisper.transcribe(input_data.path)
+            result: Dict[str, Any] = self.__engine.transcribe(input_data.path)
             result['episode_info'] = EpisodeManager.get_metadata(
                 input_data.episode_info,
             )
@@ -125,11 +128,40 @@ class TranscriptionStep(
             return result
         except Exception as e:
             context.logger.error(
-                f'Whisper transcription failed for {input_data.episode_id}: {e}',
+                f'Transcription failed for {input_data.episode_id}: {e}',
             )
             if output_path.exists():
                 output_path.unlink()
             raise
+
+    @staticmethod
+    def __save_additional_formats(output_path: Path, data: Dict[str, Any]) -> None:
+        stem = output_path.stem
+        parent = output_path.parent
+
+        simple = JsonGenerator.convert_to_simple_format(data)
+        (parent / f'{stem}_simple.json').write_text(
+            json.dumps(simple, indent=2, ensure_ascii=False), encoding='utf-8',
+        )
+        (parent / f'{stem}.srt').write_text(
+            SrtGenerator.convert_to_srt_format(data), encoding='utf-8',
+        )
+        (parent / f'{stem}.txt').write_text(
+            TxtGenerator.convert_to_txt_format(data), encoding='utf-8',
+        )
+
+    @staticmethod
+    def __ensure_additional_formats(cache_path: Path) -> None:
+        stem = cache_path.stem
+        parent = cache_path.parent
+        missing = any(
+            not (parent / name).exists()
+            for name in (f'{stem}_simple.json', f'{stem}.srt', f'{stem}.txt')
+        )
+        if not missing:
+            return
+        data = FileOperations.load_json(cache_path)
+        TranscriptionStep.__save_additional_formats(cache_path, data)
 
     def __construct_result_artifact(
             self,

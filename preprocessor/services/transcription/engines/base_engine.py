@@ -10,6 +10,9 @@ from typing import (
 
 
 class TranscriptionEngine(ABC):
+    def cleanup(self) -> None:
+        pass
+
     @abstractmethod
     def get_name(self) -> str:
         pass

@@ -79,17 +79,11 @@ class FrameExportConfig(BaseModel):
 
 
 class TranscriptionConfig(BaseModel):
-    language: str = 'pl'
-    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
-    model: str = 'large-v3'
-    output_formats: List[str] = ['json', 'srt', 'txt']
-
-
-class WhisperTranscriptionConfig(BaseModel):
     beam_size: int = Field(default=10, ge=1)
     device: str = 'cuda'
     language: str = 'pl'
     max_parallel_episodes: int = Field(default=2, ge=1, le=4)
+    mode: str = 'whisper'
     model: str = 'large-v3-turbo'
     temperature: float = Field(default=0.0, ge=0.0, le=1.0)
 
@@ -97,6 +91,18 @@ class WhisperTranscriptionConfig(BaseModel):
 class TextAnalysisConfig(BaseModel):
     language: str = 'pl'
     max_parallel_episodes: int = Field(default=8, ge=1, le=16)
+
+
+class SegmentFilterConfig(BaseModel):
+    max_parallel_episodes: int = Field(default=8, ge=1, le=16)
+
+
+class TextCleaningConfig(SegmentFilterConfig):
+    pass
+
+
+class SoundEventsConfig(SegmentFilterConfig):
+    pass
 
 
 class TextEmbeddingConfig(BaseModel):

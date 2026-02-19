@@ -10,7 +10,6 @@ from preprocessor.services.transcription.utils import (
     TranscriptionUtils,
     WhisperUtils,
 )
-from preprocessor.services.transcription.whisper import Whisper
 
 __all__ = [
     'JsonGenerator',
@@ -21,5 +20,4 @@ __all__ = [
     'is_sound_event',
     'TranscriptionUtils',
     'WhisperUtils',
-    'Whisper',
 ]
