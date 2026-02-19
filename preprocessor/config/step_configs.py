@@ -132,6 +132,7 @@ class DocumentGenerationConfig(BaseModel):
 
 class ImageHashConfig(BaseModel):
     batch_size: int = Field(default=32, ge=1)
+    device: str = 'cuda'
     max_parallel_episodes: int = Field(default=2, ge=1, le=4)
 
 

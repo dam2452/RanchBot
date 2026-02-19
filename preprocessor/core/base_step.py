@@ -70,6 +70,15 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
     ) -> List[OutputT]:
         return [self.execute(item, context) for item in input_data]
 
+    def load_all_from_cache(
+        self, input_list: List[InputT], context: ExecutionContext,
+    ) -> List[OutputT]:
+        results = []
+        for inp in input_list:
+            result = self._load_from_cache(self._get_cache_path(inp, context), inp, context)
+            results.append(result if result else inp)
+        return results
+
     def should_skip_execution(
         self,
         episode_id: str,

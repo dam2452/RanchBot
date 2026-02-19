@@ -61,8 +61,9 @@ class PerceptualHasher:
 
                 for feature_vec in features:
                     hash_bits = (feature_vec > feature_vec.median()).int()
-                    hash_str = ''.join([str(bit.item()) for bit in hash_bits[:self.__hash_size * self.__hash_size]])
-                    hashes.append(hash_str)
+                    n_bits = self.__hash_size * self.__hash_size
+                    bits_str = ''.join(str(b.item()) for b in hash_bits[:n_bits])
+                    hashes.append(format(int(bits_str, 2), f'0{n_bits // 4}x'))
 
         return hashes
 

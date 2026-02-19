@@ -181,6 +181,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             req['timestamp'] = snapped_timestamp
             req['original_timestamp'] = target_timestamp
             req['snapped_to_keyframe'] = True
+            req['frame_number'] = int(snapped_timestamp * 1000)
 
         seen_ms: set[int] = set()
         unique_timestamps: List[float] = []

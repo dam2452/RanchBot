@@ -63,7 +63,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
         hash_results = self.__compute_hashes(frame_requests, input_data)
         self.__save_hash_results(
-            hash_results, output_path, input_data, context, frame_metadata,
+            hash_results, output_path, input_data, context, frame_metadata, self.config.device,
         )
 
         self.__cleanup_memory()
@@ -107,7 +107,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
     def __prepare_hasher(self, context: ExecutionContext) -> None:
         if self.__hasher is None:
             context.logger.info(f'Loading image hasher on {self.config.device}...')
-            self.__hasher = PerceptualHasher()
+            self.__hasher = PerceptualHasher(device=self.config.device)
 
     def __compute_hashes(
         self,
@@ -174,13 +174,14 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
         input_data: FrameCollection,
         context: ExecutionContext,
         frame_metadata: Dict[str, Any],
+        device: str,
     ) -> None:
         output_data: Dict[str, Any] = {
             'episode_id': input_data.episode_id,
             'series_name': context.series_name,
             'generated_at': frame_metadata.get('generated_at'),
             'hash_settings': {
-                'device': 'cpu',
+                'device': device,
                 'batch_size': len(hash_results) // 10 if hash_results else 1,
             },
             'hashes': hash_results,
