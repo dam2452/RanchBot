@@ -18,10 +18,27 @@ def get_current_version():
     return parse_version(version_file.read_text(encoding='utf-8'))
 
 
-def get_main_version():
+def get_git_hash(ref):
+    try:
+        return subprocess.run(
+            ['git', 'rev-parse', ref],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def get_target_version():
+    head      = get_git_hash('HEAD')
+    main_hash = get_git_hash('origin/main')
+
+    ref = 'origin/main~1' if head and head == main_hash else 'origin/main'
+
     try:
         result = subprocess.run(
-            ['git', 'show', 'origin/main:VERSION'],
+            ['git', 'show', f'{ref}:VERSION'],
             capture_output=True,
             text=True,
             check=True,
@@ -33,19 +50,19 @@ def get_main_version():
 
 def main():
     current_version = get_current_version()
-    main_version = get_main_version()
+    target_version = get_target_version()
 
     if current_version is None:
         print('❌ ERROR: Cannot parse current VERSION file')
         sys.exit(1)
 
-    if main_version is None:
+    if target_version is None:
         sys.exit(0)
 
-    if current_version <= main_version:
+    if current_version <= target_version:
         print('❌ ERROR: Version must be bumped!')
         print(f'   Current version: {".".join(str(x) for x in current_version)}')
-        print(f'   Main version:    {".".join(str(x) for x in main_version)}')
+        print(f'   Target version:  {".".join(str(x) for x in target_version)}')
         sys.exit(1)
 
     sys.exit(0)
