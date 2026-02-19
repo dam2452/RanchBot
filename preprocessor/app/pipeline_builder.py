@@ -193,9 +193,27 @@ class PipelineExecutor:
 
         return True
 
+    def __all_episodes_completed(
+        self, step: PipelineStep, artifacts: List[Any],
+    ) -> bool:
+        if self.__context.force_rerun or not step.uses_caching:
+            return False
+        if self.__context.state_manager is None:
+            return False
+        return all(
+            self.__context.state_manager.is_step_completed(step.name, art.episode_id)
+            for art in artifacts
+        )
+
     def __run_episode_step_sequential(
         self, step: PipelineStep, current_artifacts: List[Any],
     ) -> List[Any]:
+        if self.__all_episodes_completed(step, current_artifacts):
+            self.__context.logger.info(
+                f'Step {step.name}: all {len(current_artifacts)} episodes already completed',
+            )
+            return step.load_all_from_cache(current_artifacts, self.__context)
+
         next_artifacts = []
 
         for artifact in current_artifacts:
@@ -223,6 +241,12 @@ class PipelineExecutor:
     ) -> List[Any]:
         if not current_artifacts:
             return []
+
+        if self.__all_episodes_completed(step, current_artifacts):
+            self.__context.logger.info(
+                f'Step {step.name}: all {len(current_artifacts)} episodes already completed',
+            )
+            return step.load_all_from_cache(current_artifacts, self.__context)
 
         workers = (
             step.config.max_parallel_episodes
