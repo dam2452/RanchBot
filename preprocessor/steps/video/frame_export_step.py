@@ -133,7 +133,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         context: ExecutionContext,
     ) -> None:
         try:
-            self.__extract_frames(
+            fps = self.__extract_frames(
                 video_path,
                 frame_requests,
                 episode_dir,
@@ -146,6 +146,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
                 video_path,
                 context,
                 metadata_file,
+                fps,
             )
         except (Exception, KeyboardInterrupt) as e:
             error_type = "interrupted" if isinstance(e, KeyboardInterrupt) else "failed"
@@ -160,76 +161,86 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         episode_dir: Path,
         episode_info,
         context: ExecutionContext,
-    ) -> None:
+    ) -> float:
         video_metadata = self.__fetch_video_metadata(video_file)
         dar = self.__calculate_display_aspect_ratio(video_metadata)
+        fps = self.__get_fps(video_metadata)
 
-        context.logger.info(f'Finding I-frames (keyframes) in {video_file.name}')
         keyframes = self.__get_all_keyframes(video_file)
-        context.logger.info(f'Found {len(keyframes)} I-frames')
+        context.logger.info(f'Found {len(keyframes)} I-frames in {video_file.name}')
 
-        for req in frame_requests:
-            target_timestamp = req['timestamp']
-            snapped_timestamp = self.__snap_to_keyframe(keyframes, target_timestamp)
-
-            if abs(snapped_timestamp - target_timestamp) > 0.1:
-                context.logger.debug(
-                    f'Snapped {target_timestamp:.3f}s -> {snapped_timestamp:.3f}s '
-                    f'(I-frame, delta: {snapped_timestamp - target_timestamp:.3f}s)',
-                )
-
-            req['timestamp'] = snapped_timestamp
-            req['original_timestamp'] = target_timestamp
-            req['snapped_to_keyframe'] = True
-            req['frame_number'] = int(snapped_timestamp * 1000)
-
-        seen_ms: set[int] = set()
-        unique_timestamps: List[float] = []
-        for req in frame_requests:
-            ts_ms = int(req['timestamp'] * 1000)
-            if ts_ms not in seen_ms:
-                seen_ms.add(ts_ms)
-                unique_timestamps.append(req['timestamp'])
+        unique_requests = self.__snap_and_deduplicate(frame_requests, keyframes, fps, context)
 
         with ThreadPoolExecutor(max_workers=self.config.max_parallel_frames) as executor:
             futures = [
                 executor.submit(
-                    self.__extract_and_save_frame,
-                    video_file,
-                    timestamp,
-                    episode_dir,
-                    episode_info,
-                    dar,
-                    context.series_name,
+                    self.__extract_resize_save_frame,
+                    video_file, req['timestamp'], req['frame_number'],
+                    episode_dir, episode_info, dar, context.series_name,
                 )
-                for timestamp in unique_timestamps
+                for req in unique_requests
             ]
             for future in futures:
                 future.result()
 
-    def __extract_and_save_frame(
+        return fps
+
+    def __snap_and_deduplicate(
+        self,
+        frame_requests: List[FrameRequest],
+        keyframes: List[float],
+        fps: float,
+        context: ExecutionContext,
+    ) -> List[FrameRequest]:
+        for req in frame_requests:
+            target = req['timestamp']
+            snapped = self.__snap_to_keyframe(keyframes, target)
+            if abs(snapped - target) > 0.1:
+                context.logger.debug(
+                    f'Snapped {target:.3f}s -> {snapped:.3f}s (delta: {snapped - target:.3f}s)',
+                )
+            req['timestamp'] = snapped
+            req['original_timestamp'] = target
+            req['snapped_to_keyframe'] = True
+            req['frame_number'] = round(snapped * fps)
+
+        seen: set[int] = set()
+        unique: List[FrameRequest] = []
+        for req in frame_requests:
+            if req['frame_number'] not in seen:
+                seen.add(req['frame_number'])
+                unique.append(req)
+        return unique
+
+    def __extract_resize_save_frame(
         self,
         video_file: Path,
         timestamp: float,
+        frame_number: int,
         episode_dir: Path,
         episode_info,
         dar: float,
         series_name: str,
     ) -> None:
-        frame_pil = self.__extract_frame_at_timestamp(video_file, timestamp)
-        resized = self.__resize_frame(frame_pil, dar)
+        image = FFmpegWrapper.extract_frame_at_timestamp(video_file, timestamp)
+        self.__resize_and_save_frame(image, frame_number, episode_dir, episode_info, dar, series_name)
 
+    def __resize_and_save_frame(
+        self,
+        image: Image.Image,
+        frame_number: int,
+        episode_dir: Path,
+        episode_info,
+        dar: float,
+        series_name: str,
+    ) -> None:
+        resized = self.__resize_frame(image, dar)
         base_filename = f'{series_name}_{episode_info.episode_code()}'
-        timestamp_ms = int(timestamp * 1000)
-        filename = f'{base_filename}_frame_{timestamp_ms:08d}.jpg'
+        filename = f'{base_filename}_frame_{frame_number:06d}.jpg'
         final_path = episode_dir / filename
 
         with StepTempFile(final_path) as temp_path:
             resized.save(temp_path, format='JPEG', quality=90)
-
-    @staticmethod
-    def __extract_frame_at_timestamp(video_file: Path, timestamp: float) -> Image.Image:
-        return FFmpegWrapper.extract_frame_at_timestamp(video_file, timestamp)
 
     def __resize_frame(
         self, frame: Image.Image, display_aspect_ratio: float,
@@ -267,6 +278,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
         source_video: Path,
         context: ExecutionContext,
         metadata_file: Path,
+        fps: float,
     ) -> None:
         frame_types_count: Dict[str, int] = {}
         frames_with_paths: List[Dict[str, Any]] = []
@@ -277,8 +289,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             frame_types_count[frame_type] = frame_types_count.get(frame_type, 0) + 1
 
             frame_with_path = frame.copy()
-            timestamp_ms = int(frame['timestamp'] * 1000)
-            frame_with_path['frame_path'] = f'{base_filename}_frame_{timestamp_ms:08d}.jpg'
+            frame_with_path['frame_path'] = f'{base_filename}_frame_{frame["frame_number"]:06d}.jpg'
             frames_with_paths.append(frame_with_path)
 
         scene_numbers = {
@@ -298,6 +309,7 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             'processing_parameters': {
                 'frame_width': self.config.resolution.width,
                 'frame_height': self.config.resolution.height,
+                'fps': fps,
                 'keyframe_strategy': self.config.keyframe_strategy.value,
                 'frames_per_scene': self.config.frames_per_scene,
             },
@@ -344,6 +356,13 @@ class FrameExporterStep(PipelineStep[SceneCollection, FrameCollection, FrameExpo
             frame_count=0,
             metadata_path=metadata_file,
         )
+
+    @staticmethod
+    def __get_fps(stream: Dict[str, Any]) -> float:
+        r_frame_rate: str = stream.get('r_frame_rate', '25/1')
+        parts = r_frame_rate.split('/')
+        num, denom = int(parts[0]), int(parts[1]) if len(parts) > 1 else 1
+        return num / denom if denom != 0 else 25.0
 
     @staticmethod
     def __fetch_video_metadata(video_path: Path) -> Dict[str, Any]:

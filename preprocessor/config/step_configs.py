@@ -72,8 +72,8 @@ class FrameExportConfig(BaseModel):
 
     frames_per_scene: int = Field(default=1, ge=1)
     keyframe_strategy: KeyframeStrategy = KeyframeStrategy.SCENE_CHANGES
-    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
-    max_parallel_frames: int = Field(default=4, ge=1, le=16)
+    max_parallel_episodes: int = Field(default=4, ge=1, le=16)
+    max_parallel_frames: int = Field(default=12, ge=1, le=32)
     resolution: Resolution = Field(default=Resolution.R720P)
     scene_change_offset_seconds: float = Field(default=0.5, ge=0)
 
@@ -157,8 +157,8 @@ class AudioExtractionConfig(BaseModel):
 
 
 class CharacterDetectionConfig(BaseModel):
-    max_parallel_episodes: int = Field(default=2, ge=1, le=4)
-    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
+    threshold: float = Field(default=0.55, ge=0.0, le=1.0)
 
 
 class EmotionDetectionConfig(BaseModel):
@@ -170,7 +170,10 @@ class FaceClusteringConfig(BaseModel):
 
 
 class ObjectDetectionConfig(BaseModel):
+    batch_size: int = Field(default=8, ge=1)
+    conf_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
     max_parallel_episodes: int = Field(default=2, ge=1, le=4)
+    model_name: str = 'ustc-community/dfine-xlarge-obj2coco'
 
 
 class ArchiveConfig(BaseModel):
@@ -202,3 +205,7 @@ class CharacterReferenceConfig(BaseModel):
     images_per_character: int = Field(default=5, ge=1, le=20)
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
     search_engine: str = "duckduckgo"
+
+
+class CharacterReferenceProcessorConfig(BaseModel):
+    similarity_threshold: float = Field(default=0.45, ge=0.0, le=1.0)

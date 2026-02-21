@@ -79,6 +79,16 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
             results.append(result if result else inp)
         return results
 
+    def all_outputs_exist(
+        self, input_list: List[InputT], context: ExecutionContext,
+    ) -> bool:
+        if context.force_rerun:
+            return False
+        try:
+            return all(self._get_cache_path(inp, context).exists() for inp in input_list)
+        except NotImplementedError:
+            return False
+
     def should_skip_execution(
         self,
         episode_id: str,

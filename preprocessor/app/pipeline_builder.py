@@ -198,12 +198,13 @@ class PipelineExecutor:
     ) -> bool:
         if self.__context.force_rerun or not step.uses_caching:
             return False
-        if self.__context.state_manager is None:
-            return False
-        return all(
-            self.__context.state_manager.is_step_completed(step.name, art.episode_id)
-            for art in artifacts
-        )
+        if self.__context.state_manager is not None:
+            if all(
+                self.__context.state_manager.is_step_completed(step.name, art.episode_id)
+                for art in artifacts
+            ):
+                return True
+        return step.all_outputs_exist(artifacts, self.__context)
 
     def __run_episode_step_sequential(
         self, step: PipelineStep, current_artifacts: List[Any],
@@ -220,9 +221,11 @@ class PipelineExecutor:
             episode_id = artifact.episode_id
 
             try:
-                self.__mark_step_in_progress(step.name, episode_id)
+                if not step.uses_caching:
+                    self.__mark_step_in_progress(step.name, episode_id)
                 result = step.execute(artifact, self.__context)
-                self.__mark_step_completed(step.name, episode_id)
+                if not step.uses_caching:
+                    self.__mark_step_completed(step.name, episode_id)
 
                 if result:
                     next_artifacts.append(result)
@@ -261,14 +264,16 @@ class PipelineExecutor:
             if hasattr(step, 'setup_resources'):
                 step.setup_resources(self.__context)
 
-            for artifact in current_artifacts:
-                self.__mark_step_in_progress(step.name, artifact.episode_id)
+            if not step.uses_caching:
+                for artifact in current_artifacts:
+                    self.__mark_step_in_progress(step.name, artifact.episode_id)
 
             results = step.execute_batch(current_artifacts, self.__context)
 
             next_artifacts = []
             for artifact, result in zip(current_artifacts, results):
-                self.__mark_step_completed(step.name, artifact.episode_id)
+                if not step.uses_caching:
+                    self.__mark_step_completed(step.name, artifact.episode_id)
                 next_artifacts.append(result or artifact)
 
             return next_artifacts

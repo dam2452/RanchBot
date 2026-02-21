@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 from typing import (
     Any,
@@ -20,54 +21,102 @@ from preprocessor.config.settings_instance import settings
 
 
 class EmbeddingService:
-    def __init__(self) -> None:
+    def __init__(self, model_name: Optional[str] = None, device: str = 'cuda') -> None:
+        self.__model_name: str = model_name or settings.embedding_model.model_name
+        self.__device = device
         self.__model: Optional[AutoModelForVision2Seq] = None
         self.__processor: Optional[AutoProcessor] = None
-        self.__device: str = 'cuda'
+
+    def ensure_loaded(self) -> None:
+        if self.__model is None:
+            self.__load_resources()
 
     def cleanup(self) -> None:
         if self.__model is not None:
             del self.__model
             del self.__processor
             self.__model = self.__processor = None
+            gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-    def get_image_embedding(self, image_path: Union[str, Path]) -> List[float]:
+    def get_image_embeddings_batch(self, image_paths: List[Union[str, Path]]) -> List[List[float]]:
         model, processor, device = self.__get_model()
-        messages = [{
-            'role': 'user', 'content': [
-                {'type': 'image', 'image': str(image_path)},
-                {'type': 'text', 'text': 'Describe this image.'},
-            ],
-        }]
 
-        image_inputs, video_inputs = process_vision_info(messages)
-        prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        messages_batch = [
+            [{
+                'role': 'user', 'content': [
+                    {'type': 'image', 'image': str(path)},
+                    {'type': 'text', 'text': 'Describe this image.'},
+                ],
+            }]
+            for path in image_paths
+        ]
+
+        all_image_inputs: List[Any] = []
+        prompts: List[str] = []
+        for messages in messages_batch:
+            image_inputs, _ = process_vision_info(messages)
+            all_image_inputs.extend(image_inputs)
+            prompts.append(
+                processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True),
+            )
 
         inputs = processor(
-            text=[prompt], images=image_inputs, videos=video_inputs, padding=True,
+            text=prompts,
+            images=all_image_inputs,
+            padding=True,
             return_tensors='pt',
         ).to(device)
-        return self.__compute_normalized_embedding(model, inputs)
 
-    def get_text_embedding(self, text: str) -> List[float]:
+        return self.__compute_batch_embeddings(model, inputs, len(image_paths))
+
+    def get_text_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         model, processor, device = self.__get_model()
-        messages = [{'role': 'user', 'content': [{'type': 'text', 'text': text}]}]
 
-        inputs = processor.apply_chat_template(
-            messages, add_generation_prompt=True, tokenize=True,
+        messages_batch = [
+            [{'role': 'user', 'content': [{'type': 'text', 'text': text}]}]
+            for text in texts
+        ]
+        prompts: List[str] = [
+            processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            for msgs in messages_batch
+        ]
+
+        inputs = processor(
+            text=prompts,
+            padding=True,
             return_tensors='pt',
         ).to(device)
-        return self.__compute_normalized_embedding(model, {'input_ids': inputs})
+
+        return self.__compute_batch_embeddings(model, inputs, len(texts))
 
     @staticmethod
-    def __compute_normalized_embedding(model: Any, inputs: Dict[str, Any]) -> List[float]:
+    def __compute_batch_embeddings(
+        model: Any,
+        inputs: Dict[str, Any],
+        count: int,
+    ) -> List[List[float]]:
         with torch.no_grad():
             output = model(**inputs, output_hidden_states=True)
-            embedding = output.hidden_states[-1][:, -1, :].squeeze(0)
-            embedding = torch.nn.functional.normalize(embedding, p=2, dim=0)
-        return embedding.float().cpu().numpy().tolist()
+            hidden = output.hidden_states[-1]
+
+            attention_mask = inputs.get('attention_mask')
+            if attention_mask is not None:
+                last_positions = attention_mask.sum(dim=1) - 1
+                embeddings = torch.stack([
+                    hidden[i, last_positions[i], :] for i in range(count)
+                ])
+            else:
+                embeddings = hidden[:, -1, :]
+
+            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=-1)
+
+        result = [emb.float().cpu().numpy().tolist() for emb in embeddings]
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return result
 
     def __get_model(self) -> Tuple[AutoModelForVision2Seq, AutoProcessor, str]:
         if self.__model is None:
@@ -79,6 +128,7 @@ class EmbeddingService:
         if not torch.cuda.is_available():
             raise RuntimeError('CUDA required for multimodal embeddings.')
 
-        model_name = settings.embedding_model.model_name
-        self.__model = AutoModelForVision2Seq.from_pretrained(model_name, dtype=torch.bfloat16, device_map='auto')
-        self.__processor = AutoProcessor.from_pretrained(model_name)
+        self.__model = AutoModelForVision2Seq.from_pretrained(
+            self.__model_name, dtype=torch.bfloat16, device_map='auto',
+        )
+        self.__processor = AutoProcessor.from_pretrained(self.__model_name)

@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 from pathlib import Path
 from typing import (
     Any,
@@ -7,6 +8,7 @@ from typing import (
 
 import numpy as np
 
+from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.config.step_configs import CharacterDetectionConfig
 from preprocessor.core.artifacts import (
     DetectionResults,
@@ -116,13 +118,10 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
             self.__load_character_references(context)
 
     def __load_character_references(self, context: ExecutionContext) -> None:
-        characters_dir: Path = (
-            Path('preprocessor/output_data') / context.series_name / 'characters'
-        )
+        base_dir = get_base_output_dir(context.series_name)
+        characters_dir: Path = base_dir / 'character_references_processed'
         if not characters_dir.exists():
-            characters_dir = (
-                Path('preprocessor/input_data') / context.series_name / 'characters'
-            )
+            characters_dir = base_dir / 'character_faces'
 
         if characters_dir.exists():
             context.logger.info(f'Loading character references from {characters_dir}')
@@ -202,6 +201,6 @@ class CharacterDetectorStep(PipelineStep[FrameCollection, DetectionResults, Char
         counts: Dict[str, int] = {}
         for res in results:
             for face in res.get('faces', []):
-                name: str = face.get('character_name', 'unknown')
+                name: str = face.get('name', 'unknown')
                 counts[name] = counts.get(name, 0) + 1
         return counts

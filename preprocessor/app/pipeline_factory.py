@@ -10,6 +10,7 @@ from preprocessor.config.step_configs import (
     ArchiveConfig,
     CharacterDetectionConfig,
     CharacterReferenceConfig,
+    CharacterReferenceProcessorConfig,
     CharacterScraperConfig,
     DocumentGenerationConfig,
     ElasticsearchConfig,
@@ -56,6 +57,7 @@ from preprocessor.steps.video.frame_export_step import FrameExporterStep
 from preprocessor.steps.video.scene_detection_step import SceneDetectorStep
 from preprocessor.steps.video.transcoding_step import VideoTranscoderStep
 from preprocessor.steps.vision.character_detection_step import CharacterDetectorStep
+from preprocessor.steps.vision.character_reference_processor_step import CharacterReferenceProcessorStep
 from preprocessor.steps.vision.embeddings_step import VideoEmbeddingStep
 from preprocessor.steps.vision.emotion_detection_step import EmotionDetectionStep
 from preprocessor.steps.vision.face_clustering_step import FaceClusteringStep
@@ -69,7 +71,7 @@ INDEXING = Phase("INDEXING", color="yellow")
 VALIDATION = Phase("VALIDATION", color="magenta")
 
 
-def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals
+def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals,too-many-statements
     series_config = SeriesConfig.load(series_name)
 
     # =========================================================
@@ -119,7 +121,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     character_references = StepBuilder(
         phase=SCRAPING,
         step_class=CharacterReferenceStep,
-        description="Downloads and processes character reference images",
+        description="Downloads character reference images from the web",
         produces=[
             DirectoryOutput(
                 pattern="character_faces",
@@ -134,6 +136,23 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
             search_engine=series_config.scraping.character_references.search_engine,
             images_per_character=series_config.scraping.character_references.images_per_character,
         ),
+    )
+
+    character_reference_vectors = StepBuilder(
+        phase=SCRAPING,
+        step_class=CharacterReferenceProcessorStep,
+        description="Processes character reference images into face embedding vectors",
+        produces=[
+            DirectoryOutput(
+                pattern="character_references_processed",
+                subdir="",
+                expected_file_pattern="**/face_vector.npy",
+                min_files=1,
+                min_size_per_file_bytes=100,
+            ),
+        ],
+        needs=[character_references],
+        config=CharacterReferenceProcessorConfig(),
     )
 
     # =========================================================
@@ -346,8 +365,8 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
                 min_size_bytes=10,
             ),
         ],
-        needs=[exported_frames],
-        config=CharacterDetectionConfig(threshold=0.7),
+        needs=[exported_frames, character_reference_vectors],
+        config=CharacterDetectionConfig(threshold=0.45, max_parallel_episodes=4),
     )
 
     emotion_data = StepBuilder(
@@ -471,6 +490,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(episodes_metadata)
     pipeline.register(characters_metadata)
     pipeline.register(character_references)
+    pipeline.register(character_reference_vectors)
 
     pipeline.register(resolution_analysis)
     pipeline.register(transcoded_videos)

@@ -109,6 +109,10 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
             context.logger.info(f'Loading image hasher on {self.config.device}...')
             self.__hasher = PerceptualHasher(device=self.config.device)
 
+    @staticmethod
+    def __parse_frame_number(request: Dict[str, Any]) -> int:
+        return int(request['frame_number'])
+
     def __compute_hashes(
         self,
         frame_requests: List[Dict[str, Any]],
@@ -124,6 +128,7 @@ class ImageHashStep(PipelineStep[FrameCollection, ImageHashCollection, ImageHash
 
             for request, phash in zip(batch, phashes):
                 result: Dict[str, Any] = request.copy()
+                result['frame_number'] = self.__parse_frame_number(request)
                 result['perceptual_hash'] = phash
                 hash_results.append(result)
 

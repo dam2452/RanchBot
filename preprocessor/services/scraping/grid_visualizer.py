@@ -9,6 +9,7 @@ from typing import (
     Optional,
     Tuple,
 )
+import unicodedata
 
 import cv2
 import numpy as np
@@ -191,7 +192,7 @@ class CharacterGridVisualizer:
 
         char_name = char_dir.name.replace('_', ' ').title()
         cv2.putText(
-            canvas, char_name,
+            canvas, self.__ascii_safe(char_name),
             (self.__dims.padding * 2, y_offset + self.__dims.face_size // 2),
             cv2.FONT_HERSHEY_SIMPLEX, 0.55, (30, 40, 50), 1, cv2.LINE_AA,
         )
@@ -317,6 +318,11 @@ class CharacterGridVisualizer:
         if not metadata_all:
             return 0.0
         return float(np.mean([m.get('average_similarity', 0) for m in metadata_all]))
+
+    @staticmethod
+    def __ascii_safe(text: str) -> str:
+        text = text.translate(str.maketrans('łŁ', 'lL'))
+        return unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode('ascii')
 
     @staticmethod
     def safe_resize(img: np.ndarray, target_size: Tuple[int, int]) -> Optional[np.ndarray]:

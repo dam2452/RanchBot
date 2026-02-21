@@ -170,7 +170,7 @@ class EmotionDetectionStep(PipelineStep[FrameCollection, EmotionData, EmotionDet
         context.logger.info(f'Collecting {total_faces} faces for batch emotion analysis')
 
         for detection_idx, detection in enumerate(detections):
-            frame_file = detection.get('frame_file')
+            frame_file = detection.get('frame')
             if not frame_file:
                 continue
 

@@ -258,6 +258,7 @@ class FFmpegWrapper:
             raise ValueError(f'No frame data extracted at timestamp {timestamp}s from {video_path}')
         return Image.open(BytesIO(result.stdout))
 
+
     @staticmethod
     def get_keyframe_timestamps(video_path: Path) -> List[float]:
         cmd = [

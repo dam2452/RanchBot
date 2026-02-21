@@ -104,12 +104,14 @@ class CharacterReferenceProcessor(BaseProcessor):
             console.print(f'[yellow]Skipping {char_name}: no faces detected[/yellow]')
             return
 
-        selected_faces = self.__find_common_face(all_faces)
-        if not selected_faces:
+        result = self.__find_common_face(all_faces)
+        if not result:
             console.print(f'[yellow]Skipping {char_name}: could not identify common face[/yellow]')
             return
 
-        self.__save_processed_references(char_name, selected_faces, ref_images)
+        selected_faces, avg_similarity = result
+        faces_per_image = [len(faces) for faces in all_faces]
+        self.__save_processed_references(char_name, selected_faces, ref_images, avg_similarity, faces_per_image)
         console.print(f'[green]Processed {char_name}[/green]')
 
     def __generate_validation_grid(self) -> None:
@@ -154,16 +156,16 @@ class CharacterReferenceProcessor(BaseProcessor):
     def __find_common_face(
             self,
             all_faces: List[List[FaceData]],
-    ) -> Optional[List[FaceData]]:
+    ) -> Optional[Tuple[List[FaceData], float]]:
         first_faces = all_faces[0]
         candidates = self.__find_face_candidates(first_faces, all_faces[1:], all_faces)
 
         if len(candidates) == 1:
-            return candidates[0].faces
+            return candidates[0].faces, candidates[0].avg_similarity
 
         if len(candidates) > 1 and not self.__interactive:
             candidates.sort(key=lambda c: c.avg_similarity, reverse=True)
-            return candidates[0].faces
+            return candidates[0].faces, candidates[0].avg_similarity
 
         return None
 
@@ -199,7 +201,12 @@ class CharacterReferenceProcessor(BaseProcessor):
         return best_match, best_sim
 
     def __save_processed_references(
-            self, char_name: str, selected_faces: List[FaceData], ref_images: List[Path],
+            self,
+            char_name: str,
+            selected_faces: List[FaceData],
+            ref_images: List[Path],
+            avg_similarity: float,
+            faces_per_image: List[int],
     ) -> None:
         char_out = self.__output_dir / char_name
         char_out.mkdir(parents=True, exist_ok=True)
@@ -217,20 +224,34 @@ class CharacterReferenceProcessor(BaseProcessor):
         mean_vector = np.mean(face_vectors, axis=0)
         np.save(char_out / 'face_vector.npy', mean_vector)
 
-        metadata = self.__create_metadata(char_name, selected_faces, ref_images, mean_vector)
+        metadata = self.__create_metadata(
+            char_name, selected_faces, ref_images, mean_vector, avg_similarity, faces_per_image,
+        )
         with open(char_out / 'metadata.json', 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    def __create_metadata(self, name: str, faces: List[FaceData], refs: List[Path], mean_vec: np.ndarray) -> Dict[
-        str, Any,
-    ]:
+    def __create_metadata(
+            self,
+            name: str,
+            faces: List[FaceData],
+            refs: List[Path],
+            mean_vec: np.ndarray,
+            avg_similarity: float,
+            faces_per_image: List[int],
+    ) -> Dict[str, Any]:
         return {
             'character_name': name.replace('_', ' ').title(),
             'source_images': [str(img) for img in refs],
             'processed_at': datetime.now().isoformat(),
+            'average_similarity': avg_similarity,
             'processing_params': {
                 'similarity_threshold': self.__similarity_threshold,
                 'face_model': settings.face_recognition.model_name,
+            },
+            'detection_stats': {
+                'total_faces_detected': faces_per_image,
+                'candidates_found': 1,
+                'selection_method': 'automatic',
             },
             'selected_face_indices': [f.source_image_idx for f in faces],
             'face_vector_dim': int(mean_vec.shape[0]),
