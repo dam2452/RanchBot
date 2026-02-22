@@ -4,6 +4,7 @@ import re
 from typing import (
     Any,
     Dict,
+    List,
     Optional,
 )
 
@@ -45,6 +46,29 @@ class EpisodeManager:
 
         self.__log_missing_season_warning(season, relative_episode)
         return self.__create_fallback_episode_info(season, relative_episode)
+
+    def get_all_episodes(self) -> List[EpisodeInfo]:
+        if not self.__episodes_data:
+            return []
+
+        result: List[EpisodeInfo] = []
+        for season_data in self.__episodes_data.get(EpisodesDataKeys.SEASONS, []):
+            season = season_data.get(EpisodesDataKeys.SEASON_NUMBER, 0)
+            episodes = sorted(
+                season_data.get(EpisodesDataKeys.EPISODES, []),
+                key=lambda ep: ep.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0),
+            )
+            for idx, ep_data in enumerate(episodes, start=1):
+                result.append(
+                    self.__create_episode_info(
+                        season=season,
+                        relative_episode=idx,
+                        title=ep_data.get(EpisodeMetadataKeys.TITLE),
+                        premiere_date=ep_data.get(EpisodeMetadataKeys.PREMIERE_DATE),
+                        viewership=ep_data.get(EpisodeMetadataKeys.VIEWERSHIP),
+                    ),
+                )
+        return result
 
     def parse_filename(self, file_path: Path) -> Optional[EpisodeInfo]:
         full_path_str = str(file_path)

@@ -40,13 +40,23 @@ class PipelineExecutor:
             f"Discovered {len(video_files)} video files in {source_path}",
         )
 
+        if video_files:
+            return self.__build_source_videos_from_files(video_files, episode_manager)
+
+        self.__context.logger.info(
+            "No input files found — building episode list from episodes.json",
+        )
+        return self.__build_source_videos_from_episodes(episode_manager)
+
+    def __build_source_videos_from_files(
+        self, video_files: List[Path], episode_manager: EpisodeManager,
+    ) -> List[SourceVideo]:
         source_videos: List[SourceVideo] = []
         for video_file in video_files:
             episode_info = episode_manager.parse_filename(video_file)
             if not episode_info:
                 self.__context.logger.warning(f"Cannot parse: {video_file}")
                 continue
-
             episode_id = episode_manager.get_episode_id_for_state(episode_info)
             source_videos.append(
                 SourceVideo(
@@ -55,8 +65,29 @@ class PipelineExecutor:
                     episode_info=episode_info,
                 ),
             )
-
         return source_videos
+
+    def __build_source_videos_from_episodes(
+        self, episode_manager: EpisodeManager,
+    ) -> List[SourceVideo]:
+        all_episodes = episode_manager.get_all_episodes()
+        if not all_episodes:
+            self.__context.logger.warning(
+                "No episodes in episodes.json and no input files — nothing to process",
+            )
+            return []
+
+        self.__context.logger.info(
+            f"Building source from {len(all_episodes)} episodes in episodes.json",
+        )
+        return [
+            SourceVideo(
+                path=Path(''),
+                episode_id=episode_manager.get_episode_id_for_state(ep),
+                episode_info=ep,
+            )
+            for ep in all_episodes
+        ]
 
     def __execute_step_with_registry(
         self,

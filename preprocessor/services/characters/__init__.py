@@ -1,3 +1,4 @@
+from preprocessor.services.characters.face_clusterer import FaceClusterer
 from preprocessor.services.characters.face_detection import FaceDetector
 from preprocessor.services.characters.image_search import (
     BaseImageSearch,
@@ -5,4 +6,10 @@ from preprocessor.services.characters.image_search import (
     GoogleImageSearch,
 )
 
-__all__ = ['BaseImageSearch', 'DuckDuckGoImageSearch', 'FaceDetector', 'GoogleImageSearch']
+__all__ = [
+    'BaseImageSearch',
+    'DuckDuckGoImageSearch',
+    'FaceClusterer',
+    'FaceDetector',
+    'GoogleImageSearch',
+]

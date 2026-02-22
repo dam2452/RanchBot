@@ -110,12 +110,35 @@ class TextEmbeddingConfig(BaseModel):
     device: str = 'cuda'
     max_parallel_episodes: int = Field(default=1, ge=1, le=2)
     model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
-    text_chunk_overlap: int = Field(default=1, ge=0)
-    text_sentences_per_chunk: int = Field(default=5, ge=1)
+    text_chunk_overlap: int = Field(default=3, ge=0)
+    text_sentences_per_chunk: int = Field(default=8, ge=1)
 
 
 class VideoEmbeddingConfig(BaseModel):
     batch_size: int = Field(default=8, ge=1)
+    device: str = 'cuda'
+    max_parallel_episodes: int = Field(default=1, ge=1, le=2)
+    model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
+
+
+class SoundEventEmbeddingConfig(BaseModel):
+    batch_size: int = Field(default=64, ge=1)
+    device: str = 'cuda'
+    max_parallel_episodes: int = Field(default=1, ge=1, le=2)
+    model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
+    segments_per_embedding: int = Field(default=5, ge=1)
+
+
+class FullEpisodeEmbeddingConfig(BaseModel):
+    device: str = 'cuda'
+    max_chars_per_chunk: int = Field(default=6000, ge=100)
+    max_parallel_episodes: int = Field(default=1, ge=1, le=2)
+    min_chunk_length: int = Field(default=100, ge=1)
+    model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'
+    overlap_chars: int = Field(default=4500, ge=0)
+
+
+class EpisodeNameEmbeddingConfig(BaseModel):
     device: str = 'cuda'
     max_parallel_episodes: int = Field(default=1, ge=1, le=2)
     model_name: str = 'Qwen/Qwen3-VL-Embedding-8B'

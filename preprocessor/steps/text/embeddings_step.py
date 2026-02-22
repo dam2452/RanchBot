@@ -258,12 +258,20 @@ class TextEmbeddingStep(PipelineStep[TranscriptionData, EmbeddingCollection, Tex
     @staticmethod
     def __split_into_sentences(text: str) -> List[str]:
         normalized_text: str = re.sub(r'\.{2,}', '.', text)
+        normalized_text = re.sub(r'!{2,}', '!', normalized_text)
+        normalized_text = re.sub(r'\?{2,}', '?', normalized_text)
         sentences: List[str] = re.split(r'([.!?]+(?:\s+|$))', normalized_text)
-        result: List[str] = []
+        raw: List[str] = []
         for i in range(0, len(sentences) - 1, 2):
             s: str = (sentences[i] + sentences[i + 1]).strip()
             if s:
-                result.append(s)
+                raw.append(s)
         if len(sentences) % 2 == 1 and sentences[-1].strip():
-            result.append(sentences[-1].strip())
+            raw.append(sentences[-1].strip())
+        result: List[str] = []
+        for sentence in raw:
+            if len(sentence) < 30 and result:
+                result[-1] = result[-1] + ' ' + sentence
+            else:
+                result.append(sentence)
         return result

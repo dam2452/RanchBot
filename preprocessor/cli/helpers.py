@@ -57,9 +57,16 @@ class PipelineContextFactory:
     def __create_episode_manager(
         series: str, input_base: Path, logger: ErrorHandlingLogger,
     ) -> Optional[EpisodeManager]:
-        episodes_json: Optional[Path] = input_base / series / 'episodes.json'
-        if not episodes_json.exists():
+        input_episodes = input_base / series / 'episodes.json'
+        output_episodes = PathService.get_output_base() / series / f'{series}_episodes.json'
+
+        if input_episodes.exists():
+            episodes_json: Optional[Path] = input_episodes
+        elif output_episodes.exists():
+            episodes_json = output_episodes
+        else:
             episodes_json = None
+
         return EpisodeManager(episodes_json, series, logger)
 
     @staticmethod

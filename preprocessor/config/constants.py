@@ -44,11 +44,11 @@ OUTPUT_FILE_PATTERNS = {
 class EpisodesDataKeys:
     EPISODES = 'episodes'
     SEASONS = 'seasons'
-    SEASON_NUMBER = 'season'
+    SEASON_NUMBER = 'season_number'
 
 
 class EpisodeMetadataKeys:
-    EPISODE_NUMBER = 'episode_number'
+    EPISODE_NUMBER = 'episode_in_season'
     PREMIERE_DATE = 'premiere_date'
     TITLE = 'title'
     VIEWERSHIP = 'viewership'

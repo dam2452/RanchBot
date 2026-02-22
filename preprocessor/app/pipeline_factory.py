@@ -15,13 +15,16 @@ from preprocessor.config.step_configs import (
     DocumentGenerationConfig,
     ElasticsearchConfig,
     EmotionDetectionConfig,
+    EpisodeNameEmbeddingConfig,
     EpisodeScraperConfig,
     FaceClusteringConfig,
     FrameExportConfig,
+    FullEpisodeEmbeddingConfig,
     ImageHashConfig,
     ObjectDetectionConfig,
     ResolutionAnalysisConfig,
     SceneDetectionConfig,
+    SoundEventEmbeddingConfig,
     SoundEventsConfig,
     SoundSeparationConfig,
     TextAnalysisConfig,
@@ -49,6 +52,9 @@ from preprocessor.steps.search.document_generation_step import DocumentGenerator
 from preprocessor.steps.search.indexing_step import ElasticsearchIndexerStep
 from preprocessor.steps.text.analysis_step import TextAnalysisStep
 from preprocessor.steps.text.embeddings_step import TextEmbeddingStep
+from preprocessor.steps.text.episode_name_embedding_step import EpisodeNameEmbeddingStep
+from preprocessor.steps.text.full_episode_embedding_step import FullEpisodeEmbeddingStep
+from preprocessor.steps.text.sound_event_embedding_step import SoundEventEmbeddingStep
 from preprocessor.steps.text.sound_events_step import SoundEventsStep
 from preprocessor.steps.text.text_cleaning_step import TextCleaningStep
 from preprocessor.steps.text.transcription_step import TranscriptionStep
@@ -315,8 +321,60 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
             model_name="Qwen/Qwen3-VL-Embedding-8B",
             batch_size=8,
             device="cuda",
-            text_sentences_per_chunk=5,
-            text_chunk_overlap=1,
+            text_sentences_per_chunk=8,
+            text_chunk_overlap=3,
+        ),
+    )
+
+    sound_event_embeddings = StepBuilder(
+        phase=PROCESSING,
+        step_class=SoundEventEmbeddingStep,
+        description="Generates sound event embeddings using Qwen3-VL-Embedding",
+        produces=[
+            FileOutput(
+                pattern="{season}/{episode}.json",
+                min_size_bytes=1024,
+            ),
+        ],
+        needs=[sound_events],
+        config=SoundEventEmbeddingConfig(
+            model_name="Qwen/Qwen3-VL-Embedding-8B",
+            batch_size=64,
+            device="cuda",
+        ),
+    )
+
+    full_episode_embeddings = StepBuilder(
+        phase=PROCESSING,
+        step_class=FullEpisodeEmbeddingStep,
+        description="Generates full episode embedding using Qwen3-VL-Embedding",
+        produces=[
+            FileOutput(
+                pattern="{season}/{episode}.json",
+                min_size_bytes=1024,
+            ),
+        ],
+        needs=[text_cleaning],
+        config=FullEpisodeEmbeddingConfig(
+            model_name="Qwen/Qwen3-VL-Embedding-8B",
+            device="cuda",
+        ),
+    )
+
+    episode_name_embeddings = StepBuilder(
+        phase=PROCESSING,
+        step_class=EpisodeNameEmbeddingStep,
+        description="Generates episode title embedding using Qwen3-VL-Embedding",
+        produces=[
+            FileOutput(
+                pattern="{season}/{episode}.json",
+                min_size_bytes=1024,
+            ),
+        ],
+        needs=[text_cleaning],
+        config=EpisodeNameEmbeddingConfig(
+            model_name="Qwen/Qwen3-VL-Embedding-8B",
+            device="cuda",
         ),
     )
 
@@ -504,6 +562,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(text_stats)
 
     pipeline.register(text_embeddings)
+    pipeline.register(sound_event_embeddings)
+    pipeline.register(full_episode_embeddings)
+    pipeline.register(episode_name_embeddings)
     pipeline.register(image_hashes)
     pipeline.register(video_embeddings)
 

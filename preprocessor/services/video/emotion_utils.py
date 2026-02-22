@@ -5,8 +5,12 @@ from typing import (
     Tuple,
 )
 
-from hsemotion_onnx.facial_emotions import HSEmotionRecognizer
+from hsemotion_onnx.facial_emotions import (
+    HSEmotionRecognizer,
+    get_model_path,
+)
 import numpy as np
+import onnxruntime as ort
 
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.core.logging import ErrorHandlingLogger
@@ -34,11 +38,35 @@ class EmotionDetector:
 
         try:
             fer = HSEmotionRecognizer(model_name=model_name)
+            EmotionDetector.__patch_gpu_session(fer, model_name, logger)
             if logger:
                 logger.info(f'HSEmotion model loaded: {model_name}')
             return fer
         except Exception as e:
             raise RuntimeError(f'Failed to load HSEmotion model {model_name}: {e}') from e
+
+    @staticmethod
+    def __patch_gpu_session(
+            fer: HSEmotionRecognizer,
+            model_name: str,
+            logger: Optional[ErrorHandlingLogger],
+    ) -> None:
+        available_providers = ort.get_available_providers()
+        if 'CUDAExecutionProvider' not in available_providers:
+            if logger:
+                logger.warning(
+                    'CUDAExecutionProvider not available — HSEmotion running on CPU. '
+                    'Install onnxruntime-gpu to enable GPU acceleration.',
+                )
+            return
+
+        model_path = get_model_path(model_name)
+        fer.ort_session = ort.InferenceSession(
+            model_path,
+            providers=['CUDAExecutionProvider', 'CPUExecutionProvider'],
+        )
+        if logger:
+            logger.info('HSEmotion session patched to use GPU (CUDAExecutionProvider)')
 
     @staticmethod
     def detect_batch(
