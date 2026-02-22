@@ -6,8 +6,7 @@ from dataclasses import (
 from datetime import datetime
 import json
 from pathlib import Path
-import signal
-import sys
+import threading
 from typing import (
     Any,
     Dict,
@@ -15,122 +14,79 @@ from typing import (
     Optional,
 )
 
-from preprocessor.utils.console import console
+from preprocessor.core.temp_files import StepTempFile
+from preprocessor.services.ui.console import console
 
 
-@dataclass
+@dataclass(frozen=True)
 class StepCheckpoint:
-    step: str
-    episode: str
     completed_at: str
-
-
-@dataclass
-class InProgressStep:
+    episode: str
     step: str
+
+
+@dataclass(frozen=True)
+class InProgressStep:
     episode: str
     started_at: str
+    step: str
     temp_files: List[str] = field(default_factory=list)
 
 
 @dataclass
 class ProcessingState:
+    last_checkpoint: str
     series_name: str
     started_at: str
-    last_checkpoint: str
     completed_steps: List[StepCheckpoint] = field(default_factory=list)
-    in_progress: Optional[InProgressStep] = None
+    in_progress: List[InProgressStep] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "series_name": self.series_name,
-            "started_at": self.started_at,
-            "last_checkpoint": self.last_checkpoint,
-            "completed_steps": [asdict(step) for step in self.completed_steps],
-            "in_progress": asdict(self.in_progress) if self.in_progress else None,
+            'series_name': self.series_name,
+            'started_at': self.started_at,
+            'last_checkpoint': self.last_checkpoint,
+            'completed_steps': [asdict(step) for step in self.completed_steps],
+            'in_progress': [asdict(step) for step in self.in_progress],
         }
 
     @classmethod
-    def _from_dict(cls, data: Dict[str, Any]) -> "ProcessingState":
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProcessingState':
         completed_steps = [
-            StepCheckpoint(**step) for step in data.get("completed_steps", [])
+            StepCheckpoint(**step) for step in data.get('completed_steps', [])
         ]
-        in_progress_data = data.get("in_progress")
-        in_progress = InProgressStep(**in_progress_data) if in_progress_data else None
+        in_progress_data = data.get('in_progress', [])
+        in_progress = (
+            [InProgressStep(**step) for step in in_progress_data]
+            if isinstance(in_progress_data, list)
+            else []
+        )
 
         return cls(
-            series_name=data["series_name"],
-            started_at=data["started_at"],
-            last_checkpoint=data["last_checkpoint"],
+            series_name=data['series_name'],
+            started_at=data['started_at'],
+            last_checkpoint=data['last_checkpoint'],
             completed_steps=completed_steps,
             in_progress=in_progress,
         )
 
 
 class StateManager:
-    STATE_FILE: str = ".preprocessing_state.json"
+    __STATE_FILE_TEMPLATE: str = '.preprocessing_state_{series}.json'
+    __lock = threading.Lock()
 
-    def __init__(self, series_name: str, working_dir: Path = Path(".")) -> None:
-        self.__series_name: str = series_name
-        self.__state_file: Path = working_dir / self.STATE_FILE
+    def __init__(self, series_name: str, working_dir: Path = Path('.')) -> None:
+        self.__series_name = series_name
+
+        state_filename = self.__STATE_FILE_TEMPLATE.format(series=series_name)
+        self.__state_file: Path = working_dir / state_filename
         self.__state: Optional[ProcessingState] = None
-        self.__cleanup_registered: bool = False
-        self.__interrupted: bool = False
 
-    def load_or_create_state(self) -> ProcessingState:
-        if self.__state_file.exists():
-            console.print(f"[yellow]Found existing state file: {self.__state_file}[/yellow]")
-            with open(self.__state_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                self.__state = ProcessingState._from_dict(data)
-                console.print(f"[green]Loaded state for series: {self.__state.series_name}[/green]")
-                console.print(f"[green]Completed steps: {len(self.__state.completed_steps)}[/green]")
-                return self.__state
-        else:
-            console.print("[blue]Creating new processing state...[/blue]")
-            now = datetime.now().isoformat()
-            self.__state = ProcessingState(
-                series_name=self.__series_name,
-                started_at=now,
-                last_checkpoint=now,
-            )
-            self.__save_state()
-            return self.__state
-
-    def __save_state(self) -> None:
-        if self.__state is None:
-            return
-
-        self.__state.last_checkpoint = datetime.now().isoformat()
-        with open(self.__state_file, "w", encoding="utf-8") as f:
-            json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
-
-    def mark_step_started(self, step: str, episode: str, temp_files: Optional[List[str]] = None) -> None:
-        if self.__state is None:
-            raise RuntimeError("State not initialized")
-
-        self.__state.in_progress = InProgressStep(
-            step=step,
-            episode=episode,
-            started_at=datetime.now().isoformat(),
-            temp_files=temp_files or [],
-        )
-        self.__save_state()
-        console.print(f"[cyan]Started: {step} for {episode}[/cyan]")
-
-    def mark_step_completed(self, step: str, episode: str) -> None:
-        if self.__state is None:
-            raise RuntimeError("State not initialized")
-
-        checkpoint = StepCheckpoint(
-            step=step,
-            episode=episode,
-            completed_at=datetime.now().isoformat(),
-        )
-        self.__state.completed_steps.append(checkpoint)
-        self.__state.in_progress = None
-        self.__save_state()
-        console.print(f"[green]✓ Completed: {step} for {episode}[/green]")
+    def cleanup(self) -> None:
+        with self.__lock:
+            if self.__state_file.exists():
+                console.print(f'[blue]Cleaning up state file: {self.__state_file}[/blue]')
+                self.__state_file.unlink()
 
     def is_step_completed(self, step: str, episode: str) -> bool:
         if self.__state is None:
@@ -141,54 +97,93 @@ class StateManager:
             for s in self.__state.completed_steps
         )
 
-    def __rollback_in_progress(self) -> None:
-        if self.__state is None or self.__state.in_progress is None:
-            return
-
-        console.print(f"[yellow]Rolling back in-progress step: {self.__state.in_progress.step}[/yellow]")
-
-        for temp_file in self.__state.in_progress.temp_files:
-            temp_path = Path(temp_file)
-            if temp_path.exists():
-                try:
-                    temp_path.unlink()
-                    console.print(f"[yellow]Removed temp file: {temp_file}[/yellow]")
-                except OSError as e:
-                    console.print(f"[red]Failed to remove {temp_file}: {e}[/red]")
-
-        self.__state.in_progress = None
-        self.__save_state()
-
-    def cleanup(self) -> None:
+    def load_or_create_state(self) -> ProcessingState:
         if self.__state_file.exists():
-            console.print(f"[blue]Cleaning up state file: {self.__state_file}[/blue]")
-            self.__state_file.unlink()
+            return self.__load_existing_state()
+        return self.__create_new_state()
 
-    def register_interrupt_handler(self) -> None:
-        if self.__cleanup_registered:
+    def mark_step_completed(self, step: str, episode: str) -> None:
+        with self.__lock:
+            self.__ensure_state_initialized()
+
+            checkpoint = StepCheckpoint(
+                step=step,
+                episode=episode,
+                completed_at=datetime.now().isoformat(),
+            )
+
+            self.__state.completed_steps.append(checkpoint)
+            self.__state.in_progress = [
+                s for s in self.__state.in_progress
+                if not (s.step == step and s.episode == episode)
+            ]
+            self.__save_state()
+
+            console.print(f'[green]Completed: {step} for {episode}[/green]')
+
+    def mark_step_started(
+            self, step: str, episode: str, temp_files: Optional[List[str]] = None,
+    ) -> None:
+        with self.__lock:
+            self.__ensure_state_initialized()
+
+            in_progress_step = InProgressStep(
+                step=step,
+                episode=episode,
+                started_at=datetime.now().isoformat(),
+                temp_files=temp_files or [],
+            )
+            self.__state.in_progress.append(in_progress_step)
+            self.__save_state()
+
+            console.print(f'[cyan]Started: {step} for {episode}[/cyan]')
+
+    def __load_existing_state(self) -> ProcessingState:
+        console.print(f'[yellow]Found existing state file: {self.__state_file}[/yellow]')
+
+        with open(self.__state_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        self.__state = ProcessingState.from_dict(data)
+
+        console.print(f'[green]Loaded state for series: {self.__state.series_name}[/green]')
+        console.print(f'[green]Completed steps: {len(self.__state.completed_steps)}[/green]')
+        return self.__state
+
+    def __create_new_state(self) -> ProcessingState:
+        console.print('[blue]Creating new processing state...[/blue]')
+        now = datetime.now().isoformat()
+
+        self.__state = ProcessingState(
+            series_name=self.__series_name,
+            started_at=now,
+            last_checkpoint=now,
+        )
+        self.__save_state()
+        return self.__state
+
+    def __ensure_state_initialized(self) -> None:
+        if self.__state is None:
+            raise RuntimeError('State not initialized. Call load_or_create_state() first.')
+
+    def __save_state(self) -> None:
+        if self.__state is None:
             return
 
-        def _signal_handler(_sig: int, _frame: Any) -> None:
-            if self.__interrupted:
-                console.print("\n[red]Force quit! Not cleaning up.[/red]")
-                sys.exit(1)
+        self.__state.last_checkpoint = datetime.now().isoformat()
+        with StepTempFile(self.__state_file) as temp_path:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(self.__state.to_dict(), f, indent=2, ensure_ascii=False)
 
-            self.__interrupted = True
-            console.print("\n[yellow]Interrupt received (Ctrl+C)...[/yellow]")
-            console.print("[yellow]Rolling back incomplete work...[/yellow]")
-            self.__rollback_in_progress()
-            console.print("[green]Cleanup complete. You can resume later.[/green]")
-            console.print("[blue]To resume: run the same command again[/blue]")
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, _signal_handler)
-        signal.signal(signal.SIGTERM, _signal_handler)
-        self.__cleanup_registered = True
-        console.print("[blue]Interrupt handler registered (Ctrl+C to safely stop)[/blue]")
-
-    def get_resume_info(self) -> Optional[str]:
-        if self.__state is None or not self.__state.completed_steps:
-            return None
-
-        last_step = self.__state.completed_steps[-1]
-        return f"Resuming from: {last_step.step} ({last_step.episode}) at {last_step.completed_at}"
+    def rebuild_state(self, completed_steps: List[StepCheckpoint]) -> ProcessingState:
+        now = datetime.now().isoformat()
+        self.__state = ProcessingState(
+            series_name=self.__series_name,
+            started_at=now,
+            last_checkpoint=now,
+            completed_steps=completed_steps,
+            in_progress=[],
+        )
+        self.__save_state()
+        console.print(f'[green]State rebuilt with {len(completed_steps)} completed steps[/green]')
+        return self.__state

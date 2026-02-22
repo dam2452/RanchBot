@@ -1,0 +1,35 @@
+{
+  "_comment": "Konfiguracja dla Kiepscy - tylko zmiany wzgl\u0119dem defaults.json",
+  "display_name": "\u015awiat wed\u0142ug Kiepskich",
+  "indexing": {
+    "elasticsearch": {
+      "index_name": "kiepscy"
+    }
+  },
+  "processing": {
+    "transcode": {
+      "force_deinterlace": false
+    },
+    "transcription": {
+      "mode": "11labs"
+    }
+  },
+  "scraping": {
+    "character_references": {
+      "search_engine": "google"
+    },
+    "characters": {
+      "parser_mode": "premium",
+      "urls": [
+        "https://pl.wikipedia.org/wiki/Lista_postaci_serialu_%C5%9Awiat_wed%C5%82ug_Kiepskich"
+      ]
+    },
+    "episodes": {
+      "parser_mode": "premium",
+      "urls": [
+        "https://pl.wikipedia.org/wiki/Lista_odcink%C3%B3w_serialu_%C5%9Awiat_wed%C5%82ug_Kiepskich"
+      ]
+    }
+  },
+  "series_name": "kiepscy"
+}

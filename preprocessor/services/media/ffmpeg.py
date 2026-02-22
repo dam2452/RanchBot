@@ -1,0 +1,413 @@
+from io import BytesIO
+import json
+from pathlib import Path
+import re
+import subprocess
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
+
+from PIL import Image
+
+from preprocessor.services.media.transcode_params import TranscodeParams
+
+
+class FFmpegWrapper:
+    __ADAPTIVE_QUANTIZATION_STRENGTH = '15'
+    __AUDIO_CHANNELS = '2'
+    __AUDIO_SAMPLE_RATE = '48000'
+    __B_FRAMES = '2'
+    __B_ADAPT_MODE = '1'
+    __LEVEL = '4.1'
+    __PIX_FMT = 'yuv420p'
+    __PROFILE = 'high'
+    __RC_LOOKAHEAD = '32'
+    __TWO_PASS = '1'
+
+    @staticmethod
+    def detect_interlacing(
+            video_path: Path,
+            analysis_time: Optional[int] = 60,
+            threshold: float = 0.15,
+    ) -> Tuple[bool, Optional[Dict[str, Union[int, float]]]]:
+        cmd = ['ffmpeg']
+
+        if analysis_time is not None:
+            cmd.extend(['-t', str(analysis_time)])
+
+        cmd.extend([
+            '-i', str(video_path),
+            '-vf', 'idet',
+            '-an',
+            '-f', 'null',
+            '-',
+        ])
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            check=False,
+        )
+
+        if result.returncode != 0:
+            return False, None
+
+        stats = FFmpegWrapper.__parse_idet_output(result.stderr)
+        if stats is None:
+            return False, None
+
+        total_interlaced = stats['tff'] + stats['bff']
+        total_frames = total_interlaced + stats['progressive']
+
+        if total_frames == 0:
+            return False, None
+
+        ratio = total_interlaced / total_frames
+        stats['ratio'] = ratio
+
+        return ratio > threshold, stats
+
+    @staticmethod
+    def get_audio_bitrate(probe_data: Dict[str, Any]) -> Optional[int]:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'audio')
+        if not stream:
+            return None
+
+        bit_rate = stream.get('bit_rate')
+        if not bit_rate:
+            return None
+
+        return int(int(bit_rate) / 1000)
+
+    @staticmethod
+    def get_framerate(probe_data: Dict[str, Any]) -> float:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            raise ValueError('No video streams found')
+
+        r_frame_rate = stream.get('r_frame_rate')
+        if not r_frame_rate:
+            raise ValueError('Frame rate not found')
+
+        num, denom = [int(x) for x in r_frame_rate.split('/')]
+        return num / denom
+
+    @staticmethod
+    def get_video_bitrate(probe_data: Dict[str, Any]) -> Optional[float]:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return None
+
+        bit_rate = stream.get('bit_rate')
+        if not bit_rate:
+            return None
+
+        return round(int(bit_rate) / 1000000, 2)
+
+    @staticmethod
+    def get_resolution(probe_data: Dict[str, Any]) -> Tuple[int, int]:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            raise ValueError('No video streams found')
+
+        width = stream.get('width')
+        height = stream.get('height')
+        if not width or not height:
+            raise ValueError('Resolution not found')
+
+        return int(width), int(height)
+
+    @staticmethod
+    def get_sample_aspect_ratio(probe_data: Dict[str, Any]) -> Tuple[int, int]:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return 1, 1
+
+        sar = stream.get('sample_aspect_ratio', '1:1')
+        if sar == '0:1' or not sar:
+            return 1, 1
+
+        try:
+            num, denom = [int(x) for x in sar.split(':')]
+            return num, denom
+        except (ValueError, AttributeError):
+            return 1, 1
+
+    @staticmethod
+    def get_field_order(probe_data: Dict[str, Any]) -> str:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return 'unknown'
+        return stream.get('field_order', 'unknown')
+
+    @staticmethod
+    def get_video_codec(probe_data: Dict[str, Any]) -> str:
+        stream = FFmpegWrapper.__get_stream_by_type(probe_data, 'video')
+        if not stream:
+            return 'h264'
+        return stream.get('codec_name', 'h264').lower()
+
+    @staticmethod
+    def probe_video(video_path: Path) -> Dict[str, Any]:
+        cmd = [
+            'ffprobe', '-v', 'error', '-show_streams', '-show_format',
+            '-of', 'json', str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+
+    @staticmethod
+    def transcode(params: TranscodeParams) -> Optional[str]:
+        width, height = params.get_resolution_tuple()
+        vf_filter = FFmpegWrapper.__build_video_filter(
+            width, height, params.deinterlace, params.is_upscaling,
+        )
+        command = FFmpegWrapper.__build_base_command(
+            params.input_path, params.codec, params.preset, params.target_fps,
+        )
+        command.extend(
+            FFmpegWrapper.__build_encoding_params(
+                params.video_bitrate,
+                params.minrate,
+                params.maxrate,
+                params.bufsize,
+                params.gop_size,
+                params.is_upscaling,
+            ),
+        )
+        command.extend(
+            FFmpegWrapper.__build_audio_and_output_params(
+                params.audio_bitrate, vf_filter, params.output_path,
+            ),
+        )
+
+        log_output = FFmpegWrapper.__log_ffmpeg_command(command) if params.log_command else None
+        subprocess.run(
+            command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        return log_output
+
+    @staticmethod
+    def get_audio_streams(video_path: Path) -> List[Dict[str, Any]]:
+        cmd = [
+            'ffprobe', '-v', 'error', '-select_streams', 'a',
+            '-show_entries', 'stream=index,bit_rate,codec_name,channels,sample_rate',
+            '-of', 'json', str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout).get('streams', [])
+
+    @staticmethod
+    def extract_audio(
+        video_path: Path,
+        output_path: Path,
+        audio_stream_index: Optional[int] = None,
+        codec: str = 'pcm_s16le',
+        sample_rate: int = 48000,
+        channels: int = 1,
+    ) -> None:
+        cmd = ['ffmpeg', '-y', '-i', str(video_path)]
+
+        if audio_stream_index is not None:
+            cmd.extend(['-map', f'0:{audio_stream_index}'])
+
+        cmd.extend([
+            '-acodec', codec,
+            '-ar', str(sample_rate),
+            '-ac', str(channels),
+            str(output_path),
+        ])
+
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+    @staticmethod
+    def normalize_audio(input_path: Path, output_path: Path) -> None:
+        cmd = [
+            'ffmpeg', '-y', '-i', str(input_path),
+            '-af', 'dynaudnorm',
+            str(output_path),
+        ]
+        subprocess.run(
+            cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+    @staticmethod
+    def extract_frame_at_timestamp(video_path: Path, timestamp: float) -> Image.Image:
+        cmd = [
+            'ffmpeg',
+            '-ss', str(timestamp),
+            '-i', str(video_path),
+            '-frames:v', '1',
+            '-f', 'image2pipe',
+            '-vcodec', 'bmp',
+            '-',
+        ]
+        result = subprocess.run(cmd, capture_output=True, check=True)
+        if not result.stdout:
+            raise ValueError(f'No frame data extracted at timestamp {timestamp}s from {video_path}')
+        return Image.open(BytesIO(result.stdout))
+
+
+    @staticmethod
+    def get_keyframe_timestamps(video_path: Path) -> List[float]:
+        cmd = [
+            'ffprobe',
+            '-skip_frame', 'nokey',
+            '-select_streams', 'v:0',
+            '-show_entries', 'frame=pts_time,pkt_pts_time',
+            '-of', 'json',
+            str(video_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        data: Dict[str, Any] = json.loads(result.stdout)
+        frames: List[Dict[str, Any]] = data.get('frames', [])
+
+        timestamps = []
+        for frame in frames:
+            pts = frame.get('pts_time') or frame.get('pkt_pts_time')
+            if pts:
+                timestamps.append(float(pts))
+
+        return timestamps
+
+    @staticmethod
+    def __log_ffmpeg_command(command: List[str]) -> str:
+        return ' '.join(command)
+
+    @staticmethod
+    def __build_audio_and_output_params(
+            audio_bitrate: str, vf_filter: str, output_path: Path,
+    ) -> List[str]:
+        return [
+            '-c:a', 'aac',
+            '-b:a', audio_bitrate,
+            '-ac', FFmpegWrapper.__AUDIO_CHANNELS,
+            '-ar', FFmpegWrapper.__AUDIO_SAMPLE_RATE,
+            '-vf', vf_filter,
+            '-movflags', '+faststart',
+            '-f', 'mp4',
+            str(output_path),
+        ]
+
+    @staticmethod
+    def __build_base_command(
+            input_path: Path, codec: str, preset: str, target_fps: Optional[float],
+    ) -> List[str]:
+        command = [
+            'ffmpeg', '-v', 'error', '-hide_banner', '-y',
+            '-sws_flags', 'accurate_rnd+full_chroma_int+full_chroma_inp',
+            '-i', str(input_path),
+            '-c:v', codec,
+            '-preset', preset,
+            '-profile:v', FFmpegWrapper.__PROFILE,
+            '-level', FFmpegWrapper.__LEVEL,
+            '-pix_fmt', FFmpegWrapper.__PIX_FMT,
+            '-colorspace', 'bt709',
+            '-color_primaries', 'bt709',
+            '-color_trc', 'bt709',
+            '-color_range', 'tv',
+            '-video_track_timescale', '90000',
+        ]
+
+        if target_fps:
+            command.extend(['-r', str(target_fps)])
+
+        return command
+
+    @staticmethod
+    def __build_encoding_params(
+            video_bitrate: str,
+            minrate: str,
+            maxrate: str,
+            bufsize: str,
+            gop_size: int,
+            is_upscaling: bool = False,
+    ) -> List[str]:
+        params = [
+            '-rc', 'vbr_hq',
+            '-b:v', video_bitrate,
+            '-minrate', minrate,
+            '-maxrate', maxrate,
+            '-bufsize', bufsize,
+            '-bf', FFmpegWrapper.__B_FRAMES,
+            '-b_adapt', FFmpegWrapper.__B_ADAPT_MODE,
+            '-2pass', FFmpegWrapper.__TWO_PASS,
+            '-multipass', 'fullres',
+            '-g', str(gop_size),
+            '-spatial-aq', '1',
+            '-temporal-aq', '1',
+        ]
+
+        if is_upscaling:
+            params.extend([
+                '-rc-lookahead', '60',
+                '-aq-strength', '15',
+                '-b_ref_mode', 'middle',
+            ])
+        else:
+            params.extend([
+                '-rc-lookahead', FFmpegWrapper.__RC_LOOKAHEAD,
+                '-aq-strength', FFmpegWrapper.__ADAPTIVE_QUANTIZATION_STRENGTH,
+            ])
+
+        params.extend([
+            '-strict_gop', '1',
+            '-forced-idr', '1',
+            '-no-scenecut', '1',
+        ])
+
+        return params
+
+    @staticmethod
+    def __build_video_filter(
+            width: int, height: int, deinterlace: bool = False, is_upscaling: bool = False,
+    ) -> str:
+        filters = []
+
+        if deinterlace:
+            filters.append('bwdif=mode=0:parity=-1:deint=1')
+            filters.append('setfield=prog')
+
+        scaler_flags = 'lanczos' if is_upscaling else 'bicubic'
+
+        filters.append(
+            f"scale='iw*sar:ih',scale={width}:{height}:"
+            f"force_original_aspect_ratio=decrease:flags={scaler_flags},"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1",
+        )
+
+        return ','.join(filters)
+
+    @staticmethod
+    def __get_stream_by_type(probe_data: Dict[str, Any], codec_type: str) -> Optional[Dict[str, Any]]:
+        streams = [s for s in probe_data.get('streams', []) if s.get('codec_type') == codec_type]
+        return streams[0] if streams else None
+
+    @staticmethod
+    def __parse_idet_output(stderr: str) -> Optional[Dict[str, Union[int, float]]]:
+        matches = re.findall(
+            r'Multi frame detection:\s+TFF:\s*(\d+)\s+BFF:\s*(\d+)\s+Progressive:\s*(\d+)',
+            stderr,
+        )
+
+        if not matches:
+            return None
+
+        tff, bff, progressive = matches[-1]
+
+        return {
+            'tff': int(tff),
+            'bff': int(bff),
+            'progressive': int(progressive),
+        }

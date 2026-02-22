@@ -1,0 +1,49 @@
+{
+  "_comment": "Domy\u015blna konfiguracja - wszystkie serie dziedzicz\u0105 te ustawienia",
+  "_note": "Seria mo\u017ce nadpisa\u0107 dowolne pole w swoim pliku JSON",
+  "indexing": {
+    "elasticsearch": {
+      "append": false,
+      "dry_run": false,
+      "host": "localhost:9200"
+    }
+  },
+  "pipeline_mode": "full",
+  "processing": {
+    "frame_export": {
+      "frames_per_scene": 1
+    },
+    "scene_detection": {
+      "min_scene_len": 10,
+      "threshold": 0.5
+    },
+    "transcode": {
+      "bitrate_boost_ratio": 1.1,
+      "force_deinterlace": false,
+      "keyframe_interval_seconds": 0.5,
+      "max_bitrate_duration_seconds": 100.0,
+      "max_bitrate_file_size_mb": 50.0,
+      "min_bitrate_mbps": 2.0,
+      "resolution": "720p"
+    },
+    "transcription": {
+      "device": "cuda",
+      "language": "pl",
+      "mode": "whisper",
+      "model": "large-v3-turbo"
+    }
+  },
+  "scraping": {
+    "character_references": {
+      "images_per_character": 5,
+      "search_engine": "duckduckgo"
+    },
+    "characters": {
+      "parser_mode": "normal"
+    },
+    "episodes": {
+      "parser_mode": "normal"
+    }
+  },
+  "skip_steps": []
+}
