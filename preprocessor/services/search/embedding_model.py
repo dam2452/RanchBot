@@ -12,10 +12,10 @@ class EmbeddingModelWrapper:
     def __init__(
             self,
             model_name: str,
-            device: str = 'cuda',
+            _device: str = 'cuda',
             _batch_size: int = 8,
     ) -> None:
-        self.__service = EmbeddingService(model_name=model_name, device=device)
+        self.__service = EmbeddingService(model_name=model_name)
 
     def load_model(self) -> None:
         self.__service.ensure_loaded()
