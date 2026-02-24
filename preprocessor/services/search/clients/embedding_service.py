@@ -51,7 +51,7 @@ class EmbeddingService:
     def __embed(self, inputs: List[Dict[str, Any]]) -> List[List[float]]:
         if self.__llm is None:
             self.__load_resources()
-        outputs = self.__llm.encode(inputs)  # type: ignore[union-attr]
+        outputs = self.__llm.embed(inputs)  # type: ignore[union-attr]
         return [output.outputs.embedding for output in outputs]
 
     def __load_resources(self) -> None:
