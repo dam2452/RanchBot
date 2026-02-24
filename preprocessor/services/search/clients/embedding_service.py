@@ -62,10 +62,13 @@ class EmbeddingService:
         em = settings.embedding_model
         self.__llm = LLM(
             model=self.__model_name,
+            runner="pooling",
+            trust_remote_code=True,
             max_model_len=em.max_model_len,
             gpu_memory_utilization=em.gpu_memory_utilization,
             enable_chunked_prefill=em.enable_chunked_prefill,
             enforce_eager=em.enforce_eager,
             max_num_batched_tokens=em.max_num_batched_tokens,
             tensor_parallel_size=em.tensor_parallel_size,
+            disable_log_stats=True,
         )
