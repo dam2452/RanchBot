@@ -1,7 +1,5 @@
 import logging
 from typing import (
-    Any,
-    Dict,
     List,
     Optional,
     Tuple,
@@ -116,7 +114,7 @@ class TextSegmentsFinder:
 
         index = f"{series_name}_text_segments"
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: {
@@ -233,7 +231,7 @@ class TextSegmentsFinder:
         overall_start_time = min(seg[SegmentKeys.START] for seg in unique_context_segments)
         overall_end_time = max(seg[SegmentKeys.END] for seg in unique_context_segments)
 
-        result: TranscriptionContext = {
+        result = {
             TranscriptionContextKeys.TARGET: segment,
             TranscriptionContextKeys.CONTEXT: unique_context_segments,
             TranscriptionContextKeys.OVERALL_START_TIME: overall_start_time,
@@ -254,7 +252,7 @@ class TextSegmentsFinder:
             f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
         )
 
-        context_query_before: Dict[str, Any] = {
+        context_query_before = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
@@ -274,7 +272,7 @@ class TextSegmentsFinder:
             ElasticsearchQueryKeys.SIZE: context_size,
         }
 
-        context_query_after: Dict[str, Any] = {
+        context_query_after = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
@@ -297,14 +295,14 @@ class TextSegmentsFinder:
         context_response_before = await es.search(index=index, body=context_query_before)
         context_response_after = await es.search(index=index, body=context_query_after)
 
-        context_segments_before: List[BaseSegment] = [{
+        context_segments_before = [{
             SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
             SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
             SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
         } for hit in context_response_before[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
 
-        context_segments_after: List[BaseSegment] = [{
+        context_segments_after = [{
             SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
             SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
@@ -351,7 +349,7 @@ class TextSegmentsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
@@ -384,7 +382,7 @@ class TextSegmentsFinder:
         await log_system_message(logging.INFO, f"Searching for episodes in season {season}", logger)
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season},
@@ -451,7 +449,7 @@ class TextSegmentsFinder:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         index = f"{series_name}_text_segments"
 
-        agg_query: Dict[str, Any] = {
+        agg_query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
                 ElasticsearchAggregationKeys.SEASONS: {
@@ -475,7 +473,7 @@ class TextSegmentsFinder:
         response = await es.search(index=index, body=agg_query)
         buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.SEASONS][ElasticsearchKeys.BUCKETS]
 
-        season_dict: SeasonInfoDict = {}
+        season_dict = {}
         for bucket in buckets:
             season_key = str(bucket[ElasticsearchKeys.KEY])
             episodes_count = bucket[ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE]

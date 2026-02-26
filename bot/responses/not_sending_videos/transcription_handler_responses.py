@@ -6,6 +6,7 @@ from bot.utils.constants import (
     SegmentKeys,
     TranscriptionContextKeys,
 )
+from bot.utils.functions import format_seconds_to_mmss
 
 
 def get_no_quote_provided_message() -> str:
@@ -18,10 +19,6 @@ def get_transcription_response(
     snapped_start: Optional[float] = None,
     snapped_end: Optional[float] = None,
 ) -> str:
-    def __format_time(seconds: float) -> str:
-        minutes, secs = divmod(seconds, 60)
-        return f"{int(minutes):02d}:{int(secs):02d}"
-
     start_time = float(result[TranscriptionContextKeys.OVERALL_START_TIME])
     end_time = float(result[TranscriptionContextKeys.OVERALL_END_TIME])
 
@@ -48,11 +45,11 @@ def get_transcription_response(
     response = (
         f"📺 *{episode_title}* 📺\n"
         f"🎬 *{episode_display} ({absolute_episode_display})* 🎬\n"
-        f"⏰ *Czas: {__format_time(start_time)} - {__format_time(end_time)}* ⏰\n"
+        f"⏰ *Czas: {format_seconds_to_mmss(start_time)} - {format_seconds_to_mmss(end_time)}* ⏰\n"
     )
 
     if snapped_start is not None and snapped_end is not None:
-        response += f"🎞 *Scena: {__format_time(snapped_start)} - {__format_time(snapped_end)}* 🎞\n"
+        response += f"🎞 *Scena: {format_seconds_to_mmss(snapped_start)} - {format_seconds_to_mmss(snapped_end)}* 🎞\n"
 
     response += "\n```"
 

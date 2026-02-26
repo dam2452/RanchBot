@@ -47,7 +47,7 @@ class AdjustBySceneHandler(BotMessageHandler):
         return [self.__check_argument_count]
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, get_sd_invalid_args_message(), 3)
+        return await self._validate_argument_count(self._message, 2, get_sd_invalid_args_message())
 
     async def _do_handle(self) -> None:
         msg = self._message

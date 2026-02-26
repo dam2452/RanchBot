@@ -10,7 +10,6 @@ from bot.database.database_manager import DatabaseManager
 from bot.database.models import (
     ClipType,
     LastClip,
-    SearchHistory,
 )
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
@@ -140,7 +139,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         return await self.__get_segment_from_last_clip(chat_id)
 
     async def __get_segment_from_search(self, content: List[str], chat_id: int) -> Optional[SegmentWithTimes]:
-        last_search: SearchHistory = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id)
         if not last_search:
             await self.__reply_no_previous_searches()
             return None
@@ -159,7 +158,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             return None, None
 
         raw_segment = last_clip.segment
-        segment_info: SegmentWithTimes = json.loads(raw_segment) if isinstance(raw_segment, str) else raw_segment
+        segment_info = json.loads(raw_segment) if isinstance(raw_segment, str) else raw_segment
 
         await self._log_system_message(logging.INFO, f"Segment Info: {segment_info}")
         return segment_info, last_clip
