@@ -88,7 +88,7 @@ class CompileClipsHandler(BotMessageHandler):
 
         total_duration = 0
         for segment in selected_segments:
-            duration = (segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER) - (segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
+            duration = (segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER_COMPILE) - (segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE_COMPILE)
             total_duration += duration
             await self._log_system_message(
                 logging.INFO,
