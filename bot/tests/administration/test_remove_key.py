@@ -29,10 +29,7 @@ class TestRemoveKeyHandler(BaseTest):
 
     @pytest.mark.asyncio
     async def test_remove_key_no_argument(self):
-        self.expect_command_result_contains(
-            '/removekey',
-            [msg.get_remove_key_usage_message()],
-        )
+        self.expect_command_result_contains('/removekey', [msg.get_no_key_provided_message()])
 
     @pytest.mark.asyncio
     async def test_remove_key_with_special_characters(self):

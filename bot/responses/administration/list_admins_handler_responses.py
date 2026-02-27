@@ -1,11 +1,12 @@
 from typing import List
 
 from bot.database.models import UserProfile
+from bot.responses.bot_response import BotResponse
 from bot.utils.functions import format_user_list
 
 
 def get_no_admins_found_message() -> str:
-    return "📭 Nie znaleziono adminów.📭"
+    return BotResponse.warning("BRAK ADMINÓW", "Nie znaleziono adminów")
 
 
 def get_log_no_admins_found_message() -> str:

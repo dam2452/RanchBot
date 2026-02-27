@@ -10,4 +10,4 @@ class TestReindexHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_reindex_without_args(self):
         response = self.send_command('/reindex')
-        self.assert_response_contains(response, [msg.get_reindex_usage_message()])
+        self.assert_response_contains(response, [msg.get_no_target_provided_message()])

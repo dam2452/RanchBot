@@ -33,8 +33,11 @@ class ClipHandler(BotMessageHandler):
             self.__validate_length,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_quote_provided_message()
+
     async def __validate_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_no_quote_provided_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def __validate_length(self) -> bool:
         msg = self._message

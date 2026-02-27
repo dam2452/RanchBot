@@ -69,8 +69,11 @@ class StartHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_invalid_command_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 0, get_invalid_command_message(), 1)
+        return await self._validate_argument_count(self._message, 0, 1)
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()

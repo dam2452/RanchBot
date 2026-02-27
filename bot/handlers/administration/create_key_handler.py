@@ -8,7 +8,7 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.administration.create_key_handler_responses import (
     get_create_key_success_message,
-    get_create_key_usage_message,
+    get_invalid_args_message,
     get_key_already_exists_message,
 )
 
@@ -24,8 +24,11 @@ class CreateKeyHandler(BotMessageHandler):
             self.__check_key_is_unique,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_invalid_args_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, get_create_key_usage_message())
+        return await self._validate_argument_count(self._message, 2)
 
     async def __check_days_is_digit(self) -> bool:
         args = self._message.get_text().split()
@@ -33,8 +36,8 @@ class CreateKeyHandler(BotMessageHandler):
             if int(args[1]) <= 0:
                 raise ValueError()
         except (IndexError, ValueError):
-            await self._reply_error(get_create_key_usage_message())
-            await self._log_system_message(logging.INFO, get_create_key_usage_message())
+            await self._reply_error(self._get_usage_message())
+            await self._log_system_message(logging.INFO, self._get_usage_message())
             return False
         return True
 

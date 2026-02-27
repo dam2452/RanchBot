@@ -2,10 +2,11 @@ from pathlib import Path
 from typing import List
 
 from bot.database.models import UserProfile
+from bot.responses.bot_response import BotResponse
 
 
 def get_general_error_message() -> str:
-    return "⚠️ Wystąpił błąd podczas przetwarzania żądania. Prosimy spróbować ponownie później.⚠️"
+    return BotResponse.error("BŁĄD PRZETWARZANIA", "Spróbuj ponownie później")
 
 
 def get_invalid_args_count_message(action_name: str, user_id: int) -> str:
@@ -27,7 +28,7 @@ def get_users_string(users: List[UserProfile]) -> str:
 
 
 def get_no_segments_found_message(quote: str) -> str:
-    return f"❌ Nie znaleziono pasujących cytatów dla: '{quote}'.❌"
+    return BotResponse.error("BRAK WYNIKÓW", f"Nie znaleziono cytatów dla: '{quote}'")
 
 
 def get_log_no_segments_found_message(quote: str) -> str:
@@ -35,7 +36,7 @@ def get_log_no_segments_found_message(quote: str) -> str:
 
 
 def get_extraction_failure_message() -> str:
-    return "⚠️ Nie udało się wyodrębnić klipu wideo.⚠️"
+    return BotResponse.error("BŁĄD EKSTRAKCJI KLIPU", "Nie udało się wyodrębnić klipu wideo")
 
 
 def get_log_extraction_failure_message(exception: Exception) -> str:
@@ -43,14 +44,16 @@ def get_log_extraction_failure_message(exception: Exception) -> str:
 
 
 def get_limit_exceeded_message() -> str:
-    return "❌ Przekroczono limit wiadomości. Spróbuj ponownie później.❌"
+    return BotResponse.error("LIMIT WIADOMOŚCI", "Przekroczono limit, spróbuj ponownie później")
 
 
 def get_message_too_long_message() -> str:
-    return "❌ Wiadomość jest zbyt długa.❌"
+    return BotResponse.error("WIADOMOŚĆ ZA DŁUGA", "Skróć treść wiadomości")
+
 
 def get_log_clip_duration_exceeded_message(user_id: int) -> str:
     return f"Clip duration limit exceeded for user '{user_id}'"
+
 
 def get_clip_size_log_message(file_path: Path, file_size: float) -> str:
     return f"{file_path} Rozmiar klipu: {file_size:.2f} MB"

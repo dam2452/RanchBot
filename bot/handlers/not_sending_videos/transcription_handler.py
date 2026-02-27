@@ -36,8 +36,11 @@ class TranscriptionHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_no_quote_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_no_quote_provided_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()

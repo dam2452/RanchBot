@@ -1,11 +1,8 @@
+from bot.responses.bot_response import BotResponse
 from bot.utils.functions import (
     convert_number_to_emoji,
     format_segment,
 )
-
-
-def get_invalid_args_count_message() -> str:
-    return "🔍 Podaj cytat, który chcesz znaleźć. Przykład: /szukaj geniusz"
 
 
 def format_search_response(unique_segments_count: int, segments, quote: str) -> str:
@@ -29,3 +26,13 @@ def format_search_response(unique_segments_count: int, segments, quote: str) -> 
 
 def get_log_search_results_sent_message(quote: str, username: str) -> str:
     return f"Search results for quote '{quote}' sent to user '{username}'."
+
+
+def get_no_quote_provided_message() -> str:
+    return BotResponse.usage(
+        command="szukaj",
+        error_title="BRAK CYTATU",
+        usage_syntax="<cytat>",
+        params=[("<cytat>", "fragment tekstu do wyszukania (pokazuje 5 wyników)")],
+        example="/szukaj kozioł",
+    )

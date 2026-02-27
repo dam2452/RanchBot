@@ -1,3 +1,4 @@
+from bot.responses.bot_response import BotResponse
 from bot.video.episode import Episode
 
 
@@ -21,44 +22,47 @@ def get_log_clip_extracted_message(episode: Episode, start_seconds: float, end_s
     return f"Clip extracted and sent for command: /wytnij {episode} {start_seconds} {end_seconds}"
 
 
-def get_invalid_args_count_message() -> str:
-    return (
-        "📋 **Poprawne użycie komendy**: /wytnij `<sezon_odcinek>` `<czas_start>` `<czas_koniec>`.\n"
-        "Przykład: /wytnij S07E06 36:47.50 36:49.00\n"
-        "Upewnij się, że podałeś poprawnie wszystkie trzy elementy: sezon_odcinek, czas_start i czas_koniec."
-    )
-
-
 def get_incorrect_season_episode_format_message() -> str:
-    return (
-        "❌ **Błędny format sezonu i odcinka!** Użyj formatu **SxxEyy**.\n"
-        "Przykład: **S02E10**, gdzie **S02** oznacza sezon 2, a **E10** oznacza odcinek 10.\n"
-        "🔎 **Zwróć uwagę na dwukropek** między literami S i E oraz na cyfry."
+    return BotResponse.error(
+        "NIEPRAWIDŁOWY FORMAT ODCINKA",
+        "Użyj formatu SxxEyy, np. S02E10 (S02 = sezon 2, E10 = odcinek 10)",
     )
 
 
 def get_video_file_not_exist_message() -> str:
-    return (
-        "❌ **Nie znaleziono pliku wideo** dla podanego sezonu i odcinka.\n"
-        "Sprawdź, czy podałeś poprawny sezon i odcinek, np. **S02E10**."
+    return BotResponse.error(
+        "PLIK WIDEO NIE ISTNIEJE",
+        "Sprawdź poprawność sezonu i odcinka, np. S02E10",
     )
 
 
 def get_incorrect_time_format_message() -> str:
-    return (
-        "❌ **Błędny format czasu!** Użyj formatu **MM:SS\u200B.ms**.\n\n"
-        "Przykład: **20:30.11**, gdzie **20:30.11** oznacza 20 minut, 30 sekund i 11 milisekund.\n\n"
-        "🔎 **Zwróć uwagę na dwukropek** między minutami i sekundami oraz **kropkę** przed milisekundami."
+    return BotResponse.error(
+        "NIEPRAWIDŁOWY FORMAT CZASU",
+        "Użyj formatu MM:SS.ms\nPrzykład: 20:30.11 (20 minut, 30 sekund, 11 ms)",
     )
 
 
 def get_end_time_earlier_than_start_message() -> str:
-    return (
-        "❌ Czas zakończenia musi być późniejszy niż czas rozpoczęcia!\n"
-        "Upewnij się, że czas_start jest wcześniejszy niż czas_koniec.\n"
-        "Przykład: 20:30.11 (czas_start) powinno być wcześniejsze niż 21:32.50 (czas_koniec)."
+    return BotResponse.error(
+        "CZAS ZAKOŃCZENIA PRZED STARTEM",
+        "Czas start musi być wcześniejszy niż koniec\nPrzykład: 20:30.11 (start) wcześniejszy niż 21:32.50 (koniec)",
     )
 
 
 def get_limit_exceeded_clip_duration_message() -> str:
-    return "❌ Przekroczono limit długości klipu! ❌ \n"
+    return BotResponse.error("LIMIT DŁUGOŚCI KLIPU", "Przekroczono maksymalną długość klipu")
+
+
+def get_no_args_provided_message() -> str:
+    return BotResponse.usage(
+        command="wytnij",
+        error_title="BRAK ARGUMENTÓW",
+        usage_syntax="<sezon_odcinek> <czas_start> <czas_koniec>",
+        params=[
+            ("<sezon_odcinek>", "format SxxEyy, np. S07E06"),
+            ("<czas_start>", "format MM:SS.ms, np. 36:47.50"),
+            ("<czas_koniec>", "format MM:SS.ms, np. 36:49.00"),
+        ],
+        example="/wytnij S07E06 36:47.50 36:49.00",
+    )

@@ -11,11 +11,11 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.select_clip_handler_responses import (
-    get_invalid_args_count_message,
     get_invalid_segment_number_message,
     get_log_invalid_segment_number_message,
     get_log_no_previous_search_message,
     get_log_segment_selected_message,
+    get_no_clip_number_provided_message,
     get_no_previous_search_message,
 )
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
@@ -33,8 +33,11 @@ class SelectClipHandler(BotMessageHandler):
             self.__check_argument_count,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_clip_number_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message())
+        return await self._validate_argument_count(self._message, 1)
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()

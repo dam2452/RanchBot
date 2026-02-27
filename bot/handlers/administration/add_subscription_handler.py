@@ -8,7 +8,7 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.administration.add_subscription_handler_responses import (
-    get_no_user_id_provided_message,
+    get_invalid_args_message,
     get_subscription_error_log_message,
     get_subscription_error_message,
     get_subscription_extended_message,
@@ -26,15 +26,18 @@ class AddSubscriptionHandler(BotMessageHandler):
             self.__validate_user_id_and_days,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_invalid_args_message()
+
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 2, get_no_user_id_provided_message(),
+            self._message, 2,
         )
 
     async def __validate_user_id_and_days(self) -> bool:
         content = self._message.get_text().split()
         if not content[1].isdigit() or not content[2].isdigit():
-            await self._reply_invalid_args_count(get_no_user_id_provided_message())
+            await self._reply_invalid_args_count(self._get_usage_message())
             return False
         return True
 

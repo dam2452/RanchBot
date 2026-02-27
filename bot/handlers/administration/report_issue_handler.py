@@ -26,8 +26,11 @@ class ReportIssueHandler(BotMessageHandler):
             self.__check_report_length,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_report_content_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_no_report_content_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def __check_report_length(self) -> bool:
         report_content = self._message.get_text().split(maxsplit=1)[1]

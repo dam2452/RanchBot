@@ -26,8 +26,11 @@ class UpdateUserNoteHandler(BotMessageHandler):
             self.__check_user_id,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_note_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, get_no_note_provided_message(), math.inf)
+        return await self._validate_argument_count(self._message, 2, math.inf)
 
     async def __check_user_id(self) -> bool:
         user_id_str = self._message.get_text().split(maxsplit=2)[1]

@@ -1,13 +1,12 @@
-def get_invalid_args_count_message() -> str:
-    return "📋 Podaj numer cytatu, który chcesz wybrać. Przykład: /wybierz 1"
+from bot.responses.bot_response import BotResponse
 
 
 def get_no_previous_search_message() -> str:
-    return "🔍 Najpierw wykonaj wyszukiwanie za pomocą /szukaj."
+    return BotResponse.warning("BRAK POPRZEDNICH WYNIKÓW", "Najpierw wykonaj wyszukiwanie za pomocą /szukaj")
 
 
 def get_invalid_segment_number_message() -> str:
-    return "❌ Nieprawidłowy numer cytatu.❌"
+    return BotResponse.error("NIEPRAWIDŁOWY NUMER CYTATU", "Nieprawidłowy numer cytatu")
 
 
 def get_log_no_previous_search_message() -> str:
@@ -23,4 +22,14 @@ def get_log_segment_selected_message(segment_id: str, username: str) -> str:
 
 
 def get_limit_exceeded_clip_duration_message() -> str:
-    return "❌ Przekroczono limit długości klipu.❌"
+    return BotResponse.error("LIMIT DŁUGOŚCI KLIPU", "Przekroczono limit długości klipu")
+
+
+def get_no_clip_number_provided_message() -> str:
+    return BotResponse.usage(
+        command="wybierz",
+        error_title="BRAK NUMERU KLIPU",
+        usage_syntax="<numer_klipu>",
+        params=[("<numer_klipu>", "numer klipu z wyników /szukaj (1-5)")],
+        example="/wybierz 2",
+    )

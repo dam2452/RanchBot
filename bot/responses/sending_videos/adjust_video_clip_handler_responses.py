@@ -1,5 +1,8 @@
+from bot.responses.bot_response import BotResponse
+
+
 def get_no_previous_searches_message() -> str:
-    return "🔍 Najpierw wykonaj wyszukiwanie za pomocą /szukaj."
+    return BotResponse.warning("BRAK POPRZEDNICH WYNIKÓW", "Najpierw wykonaj wyszukiwanie /szukaj <cytat>")
 
 
 def get_no_previous_searches_log() -> str:
@@ -7,19 +10,15 @@ def get_no_previous_searches_log() -> str:
 
 
 def get_no_quotes_selected_message() -> str:
-    return "⚠️ Najpierw wybierz cytat za pomocą /klip.⚠️"
+    return BotResponse.warning("BRAK WYBRANEGO CYTATU", "Najpierw wybierz cytat: /szukaj, następnie /wybierz")
 
 
 def get_no_quotes_selected_log() -> str:
     return "No segment selected by user."
 
 
-def get_invalid_args_count_message() -> str:
-    return "📝 Podaj czas w formacie `<float> <float>` lub `<index> <float> <float>`. Przykład: /dostosuj 10.5 -15.2 lub /dostosuj 1 10.5 -15.2"
-
-
 def get_invalid_interval_message() -> str:
-    return "⚠️ Czas zakończenia musi być późniejszy niż czas rozpoczęcia.⚠️"
+    return BotResponse.error("NIEPRAWIDŁOWY ZAKRES CZASU", "Czas zakończenia musi być późniejszy niż czas rozpoczęcia")
 
 
 def get_invalid_interval_log() -> str:
@@ -27,7 +26,7 @@ def get_invalid_interval_log() -> str:
 
 
 def get_invalid_segment_index_message() -> str:
-    return "⚠️ Podano nieprawidłowy indeks cytatu.⚠️"
+    return BotResponse.error("NIEPRAWIDŁOWY INDEKS SEGMENTU", "Podany indeks segmentu jest poza zakresem")
 
 
 def get_invalid_segment_log() -> str:
@@ -35,7 +34,7 @@ def get_invalid_segment_log() -> str:
 
 
 def get_extraction_failure_message(exception: Exception) -> str:
-    return f"⚠️ Nie udało się zmienić klipu wideo: {exception}"
+    return BotResponse.error("BŁĄD EKSTRAKCJI", f"Nie udało się zmienić klipu wideo: {exception}")
 
 
 def get_extraction_failure_log(exception: Exception) -> str:
@@ -51,16 +50,39 @@ def get_successful_adjustment_message(username: str) -> str:
 
 
 def get_max_extension_limit_message() -> str:
-    return "❌ Przekroczono limit rozszerzenia dla komendy dostosuj. ❌"
+    return BotResponse.error("LIMIT ROZSZERZENIA", "Przekroczono limit rozszerzenia klipu")
 
 
 def get_max_clip_duration_message() -> str:
-    return "❌ Przekroczono maksymalny czas trwania klipu.❌"
-
-
-def get_sd_invalid_args_message() -> str:
-    return "📝 Podaj dwie liczby całkowite: /sd <ile_cięć_wstecz> <ile_cięć_naprzód>. Przykład: /sd 1 1"
+    return BotResponse.error("LIMIT DŁUGOŚCI KLIPU", "Przekroczono maksymalną długość klipu")
 
 
 def get_sd_no_scene_cuts_message() -> str:
-    return "⚠️ Brak danych o cięciach scen dla tego epizodu."
+    return BotResponse.warning("BRAK DANYCH O CIĘCIACH SCEN", "Brak danych o cięciach scen dla tego odcinka")
+
+
+def get_invalid_args_count_message() -> str:
+    return BotResponse.usage(
+        command="dostosuj",
+        error_title="BRAK ARGUMENTÓW",
+        usage_syntax="[numer_klipu] <przed> <po>",
+        params=[
+            ("[numer_klipu]", "opcjonalny numer klipu z listy /szukaj"),
+            ("<przed>", "rozszerzenie startu w sekundach (może być ujemne)"),
+            ("<po>", "rozszerzenie końca w sekundach (może być ujemne)"),
+        ],
+        example="/dostosuj -1.5 2.0",
+    )
+
+
+def get_sd_invalid_args_count_message() -> str:
+    return BotResponse.usage(
+        command="sd",
+        error_title="BRAK ARGUMENTÓW",
+        usage_syntax="<ile_cięć_wstecz> <ile_cięć_naprzód>",
+        params=[
+            ("<ile_cięć_wstecz>", "liczba cięć scen do cofnięcia"),
+            ("<ile_cięć_naprzód>", "liczba cięć scen do przejścia"),
+        ],
+        example="/sd 1 1",
+    )

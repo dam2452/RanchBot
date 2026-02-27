@@ -48,8 +48,11 @@ class AdjustVideoClipHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_invalid_args_count_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, get_invalid_args_count_message(), 3)
+        return await self._validate_argument_count(self._message, 2, 3)
 
     async def _do_handle(self) -> None:
         msg = self._message
@@ -168,7 +171,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
             float(content[-2])
             float(content[-1])
         except ValueError:
-            await self._reply_invalid_args_count(get_invalid_args_count_message())
+            await self._reply_invalid_args_count(self._get_usage_message())
             return None, None
 
         return float(content[-2]), float(content[-1])

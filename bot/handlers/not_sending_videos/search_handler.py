@@ -15,8 +15,8 @@ from bot.responses.bot_message_handler_responses import (
 )
 from bot.responses.not_sending_videos.search_handler_responses import (
     format_search_response,
-    get_invalid_args_count_message,
     get_log_search_results_sent_message,
+    get_no_quote_provided_message,
 )
 from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.settings import settings
@@ -32,8 +32,11 @@ class SearchHandler(BotMessageHandler):
             self.__check_quote_length,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_quote_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def __check_quote_length(self) -> bool:
         args = self._message.get_text().split()

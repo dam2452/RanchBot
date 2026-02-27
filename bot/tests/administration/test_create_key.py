@@ -24,7 +24,7 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [msg.get_create_key_usage_message()],
+            [msg.get_invalid_args_message()],
         )
 
     @pytest.mark.asyncio
@@ -35,7 +35,7 @@ class TestCreateKeyHandler(BaseTest):
         self.send_command(f'/removekey {key_name}')
         self.expect_command_result_contains(
             f'/addkey {days} {key_name}',
-            [msg.get_create_key_usage_message()],
+            [msg.get_invalid_args_message()],
         )
 
     @pytest.mark.asyncio
@@ -45,7 +45,7 @@ class TestCreateKeyHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addkey {invalid_days} {key_name}',
-            [msg.get_create_key_usage_message()],
+            [msg.get_invalid_args_message()],
         )
 
     @pytest.mark.asyncio

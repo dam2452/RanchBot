@@ -6,9 +6,9 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.administration.remove_key_handler_responses import (
+    get_no_key_provided_message,
     get_remove_key_failure_message,
     get_remove_key_success_message,
-    get_remove_key_usage_message,
 )
 
 
@@ -21,8 +21,11 @@ class RemoveKeyHandler(BotMessageHandler):
             self.__check_argument_count,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_key_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_remove_key_usage_message())
+        return await self._validate_argument_count(self._message, 1)
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split(maxsplit=1)

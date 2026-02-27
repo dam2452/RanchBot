@@ -23,9 +23,10 @@ class TestAdjustVideoClipHandler(BaseTest):
         video_name = "geniusz"
         self.assert_command_result_file_matches(self.send_command(f"/klip {video_name}"), f"clip_{video_name}.mp4")
 
-        self.__execute_both_variants("-abc", msg.get_invalid_args_count_message())
-        self.__execute_both_variants("-abc 1.2", msg.get_invalid_args_count_message())
-        self.__execute_both_variants("-abc 1.2 1.2 1.2 1.2", msg.get_invalid_args_count_message())
+        _usage = msg.get_invalid_args_count_message()
+        self.__execute_both_variants("-abc", _usage)
+        self.__execute_both_variants("-abc 1.2", _usage)
+        self.__execute_both_variants("-abc 1.2 1.2 1.2 1.2", _usage)
 
     @pytest.mark.asyncio
     async def test_invalid_interval(self):

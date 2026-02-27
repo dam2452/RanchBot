@@ -16,12 +16,12 @@ from bot.responses.sending_videos.manual_clip_handler_responses import (
     get_end_time_earlier_than_start_message,
     get_incorrect_season_episode_format_message,
     get_incorrect_time_format_message,
-    get_invalid_args_count_message,
     get_log_clip_extracted_message,
     get_log_end_time_earlier_than_start_message,
     get_log_incorrect_season_episode_format_message,
     get_log_incorrect_time_format_message,
     get_log_video_file_not_exist_message,
+    get_no_args_provided_message,
     get_video_file_not_exist_message,
 )
 from bot.search.text_segments_finder import TextSegmentsFinder
@@ -61,8 +61,11 @@ class ManualClipHandler(BotMessageHandler):
 
         return True
 
+    def _get_usage_message(self) -> str:
+        return get_no_args_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 3, get_invalid_args_count_message())
+        return await self._validate_argument_count(self._message, 3)
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()

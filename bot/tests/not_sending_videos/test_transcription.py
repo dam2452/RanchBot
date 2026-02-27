@@ -1,5 +1,6 @@
 import pytest
 
+from bot.responses.bot_message_handler_responses import get_no_segments_found_message
 import bot.responses.not_sending_videos.transcription_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
@@ -15,7 +16,7 @@ class TestTranscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_transcription_nonexistent_quote(self):
         response = self.send_command('/transkrypcja asdfghijk')
-        self.assert_response_contains(response, ["❌ Nie znaleziono pasujących cytatów dla: asdfghijk\\.❌"])
+        self.assert_response_contains(response, [get_no_segments_found_message("asdfghijk")])
 
     @pytest.mark.asyncio
     async def test_transcription_no_arguments(self):
@@ -35,7 +36,7 @@ class TestTranscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_transcription_with_invalid_characters(self):
         response = self.send_command('/transkrypcja $$$%%%^^^')
-        self.assert_response_contains(response, ["❌ Nie znaleziono pasujących cytatów dla: $$$%%%^^^\\.❌"])
+        self.assert_response_contains(response, [get_no_segments_found_message("$$$%%%^^^")])
 
     @pytest.mark.asyncio
     async def test_transcription_not_found_in_context(self):

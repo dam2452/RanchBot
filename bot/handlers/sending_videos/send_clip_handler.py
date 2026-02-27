@@ -16,11 +16,11 @@ from bot.responses.sending_videos.send_clip_handler_responses import (
     get_clip_not_found_message,
     get_empty_clip_file_message,
     get_empty_file_error_message,
-    get_give_clip_name_message,
     get_log_clip_not_found_message,
     get_log_clip_sent_message,
     get_log_empty_clip_file_message,
     get_log_empty_file_error_message,
+    get_no_clip_number_provided_message,
 )
 
 
@@ -34,8 +34,11 @@ class SendClipHandler(BotMessageHandler):
             self.__check_clip_existence,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_clip_number_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_give_clip_name_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def __check_clip_existence(self) -> bool:
         content = self._message.get_text().split()

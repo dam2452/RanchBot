@@ -22,7 +22,9 @@ class TestAdjustBySceneHandler(BaseTest):
     async def test_sd_invalid_args(self):
         video_name = "geniusz"
         self.send_command(f"/klip {video_name}")
-        self.expect_command_result_contains("/sd abc xyz", [msg.get_sd_invalid_args_message()])
+        self.expect_command_result_contains(
+            "/sd abc xyz", [msg.get_sd_invalid_args_count_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_sd_success(self):
