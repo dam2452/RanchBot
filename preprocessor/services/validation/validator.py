@@ -8,7 +8,6 @@ from typing import (
 )
 
 from rich.console import Console
-from rich.progress import track
 
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.episodes import EpisodeManager
@@ -70,7 +69,7 @@ class Validator:
         episode_dirs = sorted([d for d in season_path.iterdir() if d.is_dir() and d.name.startswith('E')])
         results: Dict[str, EpisodeStats] = {}
 
-        for ep_dir in track(episode_dirs, description='Collecting episode stats'):
+        for ep_dir in episode_dirs:
             stats = self.__process_single_episode_dir(ep_dir)
             if stats:
                 results[stats.episode_info.episode_code()] = stats

@@ -164,13 +164,9 @@ class VideoEmbeddingStep(PipelineStep[FrameCollection, EmbeddingCollection, Vide
     def __fetch_image_hashes(
         input_data: FrameCollection, context: ExecutionContext,
     ) -> Dict[int, str]:
-        filename_base = (
-            f'{context.series_name}_{input_data.episode_info.episode_code()}'
-        )
-        hash_filename: str = f'{filename_base}_image_hashes.json'
-        hash_path: Path = context.get_output_path(
-            input_data.episode_info, 'image_hashes', hash_filename,
-        )
+        season = f'S{input_data.episode_info.season:02d}'
+        episode = input_data.episode_info.episode_code()
+        hash_path: Path = context.base_output_dir / 'hashes' / season / f'{episode}.json'
 
         if not hash_path.exists():
             return {}

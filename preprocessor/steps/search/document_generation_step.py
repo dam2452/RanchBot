@@ -329,7 +329,7 @@ class DocumentGeneratorStep(
                 "episode_id": episode_id,
                 "episode_metadata": episode_metadata,
                 "embedding_id": i,
-                "segment_range": segment_range[0] if segment_range else 0,
+                "segment_range": segment_range,
                 "text": emb.get("text", ""),
                 "text_embedding": embedding,
                 "video_path": video_path,
@@ -487,8 +487,6 @@ class DocumentGeneratorStep(
             if not embedding:
                 continue
             segment_range = emb.get("segment_range", [])
-            if isinstance(segment_range, list) and len(segment_range) == 2:
-                segment_range = {"gte": segment_range[0], "lte": segment_range[1]}
             docs.append({
                 "episode_id": episode_id,
                 "episode_metadata": episode_metadata,
