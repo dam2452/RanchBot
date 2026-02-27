@@ -37,7 +37,7 @@ repos:
       - id: chmod
         args: ["755"]
         files: (.*scripts\/.*.py$|\.sh$)
-        exclude: ^preprocessor/entrypoint\.sh$
+        exclude: (^preprocessor/entrypoint\.sh$|^preprocessor/scripts/)
       - id: remove-tabs
         args: [--whitespaces-count, '4']
   - repo: https://github.com/PyCQA/isort
