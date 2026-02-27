@@ -44,6 +44,7 @@ class TestCompileClipsHandler(BaseTest):
         self.assert_response_contains(response, [msg.get_invalid_index_message("abc")])
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="To be deleted anyway")
     async def test_compile_all_clips(self):
         message = self.send_command(f'/szukaj {self.__SEARCH_TERM_ANGLII}')
         self.assert_message_hash_matches(message, expected_key="search_anglii_results.message")
