@@ -69,8 +69,8 @@ class TranscriptionStep(
     def get_output_descriptors(self) -> List[JsonFileOutput]:
         return [
             JsonFileOutput(
-                pattern="{season}/{episode}/{episode}.json",
-                subdir="",
+                pattern="{season}/{episode_num}/{episode}.json",
+                subdir="transcriptions/raw",
                 min_size_bytes=50,
             ),
         ]
@@ -78,7 +78,15 @@ class TranscriptionStep(
     def _get_cache_path(
             self, input_data: TranscodedVideo, context: ExecutionContext,
     ) -> Path:
-        return self._get_standard_cache_path(input_data, context)
+        return self._resolve_output_path(
+            0,
+            context,
+            {
+                'season': input_data.episode_info.season_code(),
+                'episode_num': input_data.episode_info.episode_num(),
+                'episode': input_data.episode_info.episode_code(),
+            },
+        )
 
     def _load_from_cache(
             self,

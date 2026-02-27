@@ -57,3 +57,15 @@ class EpisodeMetadataKeys:
 class FfprobeKeys:
     FORMAT = 'format'
     STREAMS = 'streams'
+
+
+ELASTIC_DOC_TYPES = [
+    ("text_segments", "text_segments"),
+    ("sound_events", "sound_events"),
+    ("text_embeddings", "text_embeddings"),
+    ("video_frames", "video_frames"),
+    ("episode_names", "episode_name"),
+    ("text_statistics", "text_statistics"),
+    ("full_episode_embeddings", "full_episode_embedding"),
+    ("sound_event_embeddings", "sound_event_embeddings"),
+]

@@ -61,7 +61,7 @@ class DefaultConfigFactory:
             'emotion_detection': EmotionDetectionConfig(),
             'face_clustering': FaceClusteringConfig(),
             'object_detection': ObjectDetectionConfig(),
-            'generate_elastic_documents': DocumentGenerationConfig(generate_segments=True),
+            'generate_elastic_documents': DocumentGenerationConfig(),
             'generate_archives': ArchiveConfig(),
             'index': ElasticsearchConfig(
                 index_name=f'{series_name}_clips',

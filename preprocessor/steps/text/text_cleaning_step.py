@@ -13,6 +13,10 @@ class TextCleaningStep(SegmentFilterStep[TextCleaningConfig]):
     def _output_format(self) -> str:
         return 'clean'
 
+    @property
+    def _output_subdir(self) -> str:
+        return 'transcriptions/clean'
+
     def _process_segment(self, segment: Dict[str, Any]) -> List[Dict[str, Any]]:
         kind = self._classify(segment)
         if kind == 'dialogue':

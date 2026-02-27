@@ -235,7 +235,8 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         description=f"Audio transcription using {series_config.processing.transcription.mode}",
         produces=[
             JsonFileOutput(
-                pattern="{season}/{episode}/{episode}.json",
+                pattern="{season}/{episode_num}/{episode}.json",
+                subdir="transcriptions/raw",
                 min_size_bytes=50,
             ),
         ],
@@ -255,6 +256,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
+                subdir="transcriptions/clean",
                 min_size_bytes=10,
             ),
         ],
@@ -269,6 +271,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
+                subdir="transcriptions/sound_events",
                 min_size_bytes=10,
             ),
         ],
@@ -312,11 +315,12 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         description="Generates text embeddings using Qwen3-VL-Embedding",
         produces=[
             FileOutput(
-                pattern="{season}/{episode}.npy",
+                pattern="{season}/{episode}.json",
+                subdir="embeddings/text",
                 min_size_bytes=1024,
             ),
         ],
-        needs=[text_stats],
+        needs=[text_cleaning],
         config=TextEmbeddingConfig(
             model_name="Qwen/Qwen3-VL-Embedding-8B",
             batch_size=8,
@@ -478,8 +482,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         description="Combines all data into Elasticsearch documents",
         produces=[
             FileOutput(
-                pattern="{season}/{episode}.ndjson",
-                min_size_bytes=100,
+                pattern="{season}/{episode}_text_segments.jsonl",
+                subdir="elastic_documents/text_segments",
+                min_size_bytes=10,
             ),
         ],
         needs=[
@@ -490,7 +495,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
             face_clusters,
             object_detections,
         ],
-        config=DocumentGenerationConfig(generate_segments=True),
+        config=DocumentGenerationConfig(),
     )
 
     episode_archives = StepBuilder(

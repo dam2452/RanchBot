@@ -50,6 +50,7 @@ class StateReconstructor:
                     context_vars = {
                         'season': episode_info.season_code(),
                         'episode': episode_info.episode_code(),
+                        'episode_num': episode_info.episode_num(),
                         'series_name': series_name,
                     }
 

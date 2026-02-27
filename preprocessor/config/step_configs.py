@@ -149,7 +149,6 @@ class SoundSeparationConfig(BaseModel):
 
 
 class DocumentGenerationConfig(BaseModel):
-    generate_segments: bool = True
     max_parallel_episodes: int = Field(default=8, ge=1, le=16)
 
 
@@ -200,6 +199,7 @@ class ObjectDetectionConfig(BaseModel):
 
 
 class ArchiveConfig(BaseModel):
+    allow_partial: bool = False
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
 
 

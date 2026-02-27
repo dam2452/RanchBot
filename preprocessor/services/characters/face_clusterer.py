@@ -25,7 +25,7 @@ class FaceClusterer:
         face_data: List[Dict[str, Any]] = []
 
         for frame_path in frame_files:
-            img = cv2.imread(str(frame_path))  # pylint: disable=no-member
+            img = cv2.imread(str(frame_path))
             if img is None:
                 continue
 

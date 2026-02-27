@@ -13,6 +13,10 @@ class SoundEventsStep(SegmentFilterStep[SoundEventsConfig]):
     def _output_format(self) -> str:
         return 'sound_events'
 
+    @property
+    def _output_subdir(self) -> str:
+        return 'transcriptions/sound_events'
+
     def _process_segment(self, segment: Dict[str, Any]) -> List[Dict[str, Any]]:
         kind = self._classify(segment)
         if kind == 'sound_event':

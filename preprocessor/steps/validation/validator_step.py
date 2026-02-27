@@ -31,18 +31,19 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
         input_data: ElasticDocuments,
         context: ExecutionContext,
     ) -> ValidationResult:
-        context.logger.info(f"Starting validation for season {context.season}")
+        season = input_data.episode_info.season_code()
+        context.logger.info(f"Starting validation for season {season}")
 
-        validator = self.__create_validator(context)
+        validator = self.__create_validator(season, context)
         self.__run_validation(validator)
 
         context.logger.info("Validation completed successfully")
 
-        return self.__construct_validation_result(context, validator)
+        return self.__construct_validation_result(season, validator)
 
-    def __create_validator(self, context: ExecutionContext) -> Validator:
+    def __create_validator(self, season: str, context: ExecutionContext) -> Validator:
         return Validator(
-            season=context.season,
+            season=season,
             series_name=context.series_name,
             anomaly_threshold=self.config.anomaly_threshold,
             base_output_dir=context.base_output_dir,
@@ -57,10 +58,10 @@ class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, Validation
 
     @staticmethod
     def __construct_validation_result(
-        context: ExecutionContext,
+        season: str,
         validator: Validator,
     ) -> ValidationResult:
         return ValidationResult(
-            season=context.season,
+            season=season,
             validation_report_dir=validator.validation_reports_dir,
         )

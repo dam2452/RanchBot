@@ -40,6 +40,11 @@ class SegmentFilterStep(
     def _output_format(self) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def _output_subdir(self) -> str:
+        pass
+
     @abstractmethod
     def _process_segment(self, segment: Dict[str, Any]) -> List[Dict[str, Any]]:
         pass
@@ -68,7 +73,7 @@ class SegmentFilterStep(
         return [
             JsonFileOutput(
                 pattern="{season}/{episode}.json",
-                subdir="",
+                subdir=self._output_subdir,
                 min_size_bytes=10,
             ),
         ]

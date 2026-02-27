@@ -107,7 +107,7 @@ class TranscriptionImportStep(PipelineStep[None, List[TranscriptionData], Transc
 
     def __get_output_path(self, episode_info: EpisodeInfo, context: ExecutionContext) -> Path:
         filename = self.__episode_manager.path_manager.build_filename(episode_info, extension='json')
-        return context.get_output_path(episode_info, 'transcriptions', filename)
+        return context.get_output_path(episode_info, 'transcriptions/raw', filename)
 
     @staticmethod
     def __convert_11labs_full(data: Dict[str, Any], source_file: Path) -> Dict[str, Any]:

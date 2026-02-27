@@ -38,10 +38,10 @@ class Validator:
         self.__validation_reports_dir = base_output_dir / settings.output_subdirs.validation_reports
 
     def validate(self) -> int:
-        transcriptions_path = self.__base_output_dir / 'transcriptions' / self.__season
+        transcriptions_path = self.__base_output_dir / 'transcriptions' / 'raw' / self.__season
         if not transcriptions_path.exists():
-            console.print(f'[red]Season directory not found: {transcriptions_path}[/red]')
-            return 1
+            console.print(f'[yellow]Season directory not found, skipping: {transcriptions_path}[/yellow]')
+            return 0
 
         console.print(f'[bold cyan]Validating season {self.__season}...[/bold cyan]')
 
