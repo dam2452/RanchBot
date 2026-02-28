@@ -1,3 +1,4 @@
+import difflib
 from typing import (
     Dict,
     List,
@@ -28,19 +29,25 @@ def map_emotion_to_en(label: str) -> Optional[str]:
     if lower in EMOTION_PL_MAP:
         return lower
     reverse = {v: k for k, v in EMOTION_PL_MAP.items()}
-    return reverse.get(lower)
+    if lower in reverse:
+        return reverse[lower]
+    all_labels = list(EMOTION_PL_MAP.keys()) + list(reverse.keys())
+    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.6)
+    if not matches:
+        return None
+    matched = matches[0]
+    return matched if matched in EMOTION_PL_MAP else reverse[matched]
 
 
 def format_emotions_list(emotions: List[EmotionInfo]) -> str:
     if not emotions:
         return get_no_emotions_message()
-    lines = [f"{e['label_pl']} ({e['label_en']})" for e in emotions]
-    header = f"Dostepne emocje ({len(emotions)}):\n\n"
-    return header + "\n".join(f"{i + 1}. {line}" for i, line in enumerate(lines))
+    lines = [f"{i + 1}. {e['label_pl']} ({e['label_en']})" for i, e in enumerate(emotions)]
+    return BotResponse.info(f"DOSTEPNE EMOCJE ({len(emotions)})", "\n".join(lines))
 
 
 def get_no_emotions_message() -> str:
-    return "Brak danych o emocjach w indeksie."
+    return BotResponse.warning("BRAK DANYCH", "Brak danych o emocjach w indeksie.")
 
 
 def get_invalid_args_count_message() -> str:
