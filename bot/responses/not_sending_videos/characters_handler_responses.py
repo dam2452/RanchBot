@@ -89,17 +89,17 @@ def format_character_scenes(
 
     lines = [_scene_line(i + 1, scene) for i, scene in enumerate(scenes[:_PREVIEW_COUNT])]
 
-    header = f"🎭 *Postać: {character_name}* 🎭\n"
+    count_line = f"Znaleziono: {convert_number_to_emoji(len(scenes))} scen"
     if emotion_filter:
-        header += f"😊 *Emocja: {emotion_filter}* 😊\n"
-    header += f"👁️ *Znaleziono:* {convert_number_to_emoji(len(scenes))} scen 👁️\n\n"
+        count_line += f"  |  Emocja: {emotion_filter}"
 
     hint = (
-        f"\n\n📄 Pełna lista: /pl {character_name} {emotion_filter}"
+        f"Pelna lista: /pl {character_name} {emotion_filter}"
         if emotion_filter
-        else f"\n\n📄 Pełna lista: /pl {character_name}"
+        else f"Pelna lista: /pl {character_name}"
     )
-    return header + "\n".join(lines) + hint
+    body = count_line + "\n\n" + "\n".join(lines) + "\n\n" + hint
+    return BotResponse.info(f"POSTAC: {character_name.upper()}", body)
 
 
 def format_character_scenes_full(
