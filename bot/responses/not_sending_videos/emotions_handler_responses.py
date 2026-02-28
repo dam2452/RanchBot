@@ -33,7 +33,7 @@ def map_emotion_to_en(label: str) -> Optional[str]:
     if lower in reverse:
         return reverse[lower]
     all_labels = list(EMOTION_PL_MAP.keys()) + list(reverse.keys())
-    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.6)
+    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.5)
     if not matches:
         return None
     matched = matches[0]
@@ -47,11 +47,8 @@ def format_emotions_list(emotions: List[EmotionInfo]) -> str:
         f"{convert_number_to_emoji(i + 1)}  {e['label_pl']} ({e['label_en']})"
         for i, e in enumerate(emotions)
     ]
-    return (
-        f"😊 *Dostępne emocje* 😊\n"
-        f"👁️ *Łącznie:* {convert_number_to_emoji(len(emotions))} emocji 👁️\n\n"
-        + "\n".join(lines)
-    )
+    body = f"Lacznie: {convert_number_to_emoji(len(emotions))} emocji\n\n" + "\n".join(lines)
+    return BotResponse.info("DOSTEPNE EMOCJE", body)
 
 
 def get_no_emotions_message() -> str:
