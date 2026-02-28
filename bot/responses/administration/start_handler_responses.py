@@ -85,6 +85,9 @@ def get_all_message() -> str:
 ════════════════════════
 🛠️ Raportowanie błędów ️
 ════════════════════════
+👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen.
+😊 /emocje - Lista dostepnych emocji.
+
 🐛 /report - Raportuje błąd do administratora.
 
 ══════════════════
@@ -108,6 +111,8 @@ def get_search_message() -> str:
 📺 /serial - Zarządza aktywnym serialem (zmiana, lista dostępnych).\n
 ✂️ /wytnij <sezon_odcinek> <czas_start> <czas_koniec> - Wytnij fragment klipu. Przykład: /wytnij S07E06 36:47.50 36:49.00.\n
 📝 /transkrypcja <cytat> - Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: /transkrypcja geniusz.\n
+👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen. Przyklad: /postacie Wilkowyska.\n
+😊 /emocje - Wyswietla liste dostepnych emocji.\n
 ```"""
 
 
@@ -187,6 +192,8 @@ def get_shortcuts_message() -> str:
 📂 /mk, /mojeklipy - Wyświetla listę zapisanych klipów.\n
 💾 /z, /zapisz - Zapisuje wybrany klip.\n
 📤 /wys, /wyślij - Wysyła zapisany klip.\n
+👤 /p, /postacie - Przegladanie postaci i scen.\n
+😊 /e, /emocje - Lista dostepnych emocji.\n
 🐛 /r, /report - Raportuje błąd do administratora.\n
 🔔 /sub, /subskrypcja - Sprawdza stan Twojej subskrypcji.\n
 ```"""

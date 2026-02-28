@@ -192,3 +192,25 @@ class ObjectDetectionInFrame(TypedDict):
     class_id: int
     confidence: float
     bbox: List[int]
+
+
+class CharacterWithEpisodeCount(TypedDict):
+    name: str
+    episode_count: int
+
+
+class CharacterScene(TypedDict):
+    season: int
+    episode_number: int
+    title: str
+    start_time: float
+    end_time: float
+    actor_confidence: NotRequired[float]
+    emotion_label: NotRequired[str]
+    emotion_confidence: NotRequired[float]
+    video_path: NotRequired[str]
+
+
+class EmotionInfo(TypedDict):
+    label_en: str
+    label_pl: str

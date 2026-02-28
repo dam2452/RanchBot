@@ -38,6 +38,21 @@ class ElasticsearchAggregationKeys:
     UNIQUE_EPISODES: Final[str] = "unique_episodes"
     SEASONS: Final[str] = "seasons"
     VALUE: Final[str] = "value"
+    ACTORS: Final[str] = "actors"
+    EMOTION_LABELS: Final[str] = "emotion_labels"
+    UNIQUE_EPISODE_KEYS: Final[str] = "unique_episode_keys"
+
+
+class ActorKeys:
+    ACTORS: Final[str] = "actors"
+    NAME: Final[str] = "name"
+    CONFIDENCE: Final[str] = "confidence"
+    EMOTION: Final[str] = "emotion"
+
+
+class EmotionKeys:
+    LABEL: Final[str] = "label"
+    CONFIDENCE: Final[str] = "confidence"
 
 
 class TranscriptionContextKeys:
