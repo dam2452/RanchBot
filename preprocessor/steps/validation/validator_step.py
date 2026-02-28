@@ -1,0 +1,67 @@
+from typing import List
+
+from preprocessor.config.step_configs import ValidationConfig
+from preprocessor.core.artifacts import (
+    ElasticDocuments,
+    ValidationResult,
+)
+from preprocessor.core.base_step import PipelineStep
+from preprocessor.core.context import ExecutionContext
+from preprocessor.services.validation.validator import Validator
+
+
+class ValidationStep(PipelineStep[ElasticDocuments, ValidationResult, ValidationConfig]):
+    @property
+    def supports_batch_processing(self) -> bool:
+        return True
+
+    @property
+    def uses_caching(self) -> bool:
+        return False
+
+    def execute_batch(
+        self, input_data: List[ElasticDocuments], context: ExecutionContext,
+    ) -> List[ValidationResult]:
+        return self._execute_with_threadpool(
+            input_data, context, self.config.max_parallel_episodes, self.execute,
+        )
+
+    def _process(
+        self,
+        input_data: ElasticDocuments,
+        context: ExecutionContext,
+    ) -> ValidationResult:
+        season = input_data.episode_info.season_code()
+        context.logger.info(f"Starting validation for season {season}")
+
+        validator = self.__create_validator(season, context)
+        self.__run_validation(validator)
+
+        context.logger.info("Validation completed successfully")
+
+        return self.__construct_validation_result(season, validator)
+
+    def __create_validator(self, season: str, context: ExecutionContext) -> Validator:
+        return Validator(
+            season=season,
+            series_name=context.series_name,
+            anomaly_threshold=self.config.anomaly_threshold,
+            base_output_dir=context.base_output_dir,
+            episodes_info_json=self.config.episodes_info_json,
+        )
+
+    @staticmethod
+    def __run_validation(validator: Validator) -> None:
+        exit_code = validator.validate()
+        if exit_code != 0:
+            raise RuntimeError(f"Validation failed with exit code {exit_code}")
+
+    @staticmethod
+    def __construct_validation_result(
+        season: str,
+        validator: Validator,
+    ) -> ValidationResult:
+        return ValidationResult(
+            season=season,
+            validation_report_dir=validator.validation_reports_dir,
+        )

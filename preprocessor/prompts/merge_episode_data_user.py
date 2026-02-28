@@ -1,6 +1,0 @@
-def get() -> str:
-    return """Merge the following episode metadata from {num_sources} sources:
-
-{combined_text}
-
-Create a single, unified metadata entry."""

@@ -1,0 +1,40 @@
+{
+  "_comment": "Konfiguracja dla Ranczo - tylko zmiany wzgl\u0119dem defaults.json",
+  "_note": "Metadane, bohaterowie i transkrypcje przygotowane r\u0119cznie/z 11labs",
+  "display_name": "Ranczo",
+  "indexing": {
+    "elasticsearch": {
+      "index_name": "ranczo_clips"
+    }
+  },
+  "pipeline_mode": "selective",
+  "processing": {
+    "transcription": {
+      "mode": "elevenlabs"
+    }
+  },
+  "scraping": {
+    "character_references": {
+      "search_engine": "google"
+    },
+    "characters": {
+      "parser_mode": "premium",
+      "urls": [
+        "https://ranczo.fandom.com/pl/wiki/Postacie"
+      ]
+    },
+    "episodes": {
+      "parser_mode": "premium",
+      "urls": [
+        "https://ranczo.fandom.com/pl/wiki/Lista_odcink\u00f3w"
+      ]
+    }
+  },
+  "series_name": "ranczo",
+  "skip_steps": [
+    "episode_scraper",
+    "character_scraper",
+    "character_reference",
+    "transcription"
+  ]
+}

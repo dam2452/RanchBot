@@ -1,0 +1,269 @@
+from abc import (
+    ABC,
+    abstractmethod,
+)
+from dataclasses import dataclass
+from pathlib import Path
+import re
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+)
+
+from preprocessor.config.constants import SUPPORTED_VIDEO_EXTENSIONS
+from preprocessor.core.state_manager import StateManager
+from preprocessor.services.core.logging import ErrorHandlingLogger
+from preprocessor.services.io.path_service import PathService
+from preprocessor.services.ui.console import (
+    SimpleProgress,
+    console,
+)
+from preprocessor.services.ui.progress import OperationTracker
+
+
+@dataclass
+class ProcessingItem:
+    episode_id: str
+    input_path: Path
+    metadata: Dict[str, Any]
+
+
+@dataclass
+class OutputSpec:
+    path: Path
+    required: bool = True
+
+
+@dataclass
+class _FilterResult:
+    items_to_process: List[ProcessingItem]
+    skipped_count: int
+    skip_messages: List[str]
+    total_items: int
+
+
+class BaseProcessor(ABC):
+    DESCRIPTION: str = ''
+    PRIORITY: int = 100
+    PRODUCES: List[str] = []
+    REQUIRES: List[str] = []
+    SUPPORTED_VIDEO_EXTENSIONS = SUPPORTED_VIDEO_EXTENSIONS
+
+    def __init__(
+            self,
+            args: Dict[str, Any],
+            class_name: str,
+            error_exit_code: int,
+            loglevel: int = 10,
+    ) -> None:
+        self._validate_args(args)
+        self._args = args
+        self.logger = ErrorHandlingLogger(
+            class_name=class_name, loglevel=loglevel, error_exit_code=error_exit_code,
+        )
+        self.state_manager: Optional[StateManager] = args.get('state_manager')
+        self.series_name: str = args.get('series_name', 'unknown')
+        self.path_manager: PathService = args.get('path_manager', PathService(self.series_name))
+        self.progress = args.get('progress_tracker', OperationTracker('default', 0, 0.0))
+
+    def cleanup(self) -> None:
+        pass
+
+    def work(self) -> int:
+        try:
+            self._execute()
+        except KeyboardInterrupt:
+            console.print('\n[yellow]Process interrupted by user[/yellow]')
+            self.cleanup()
+            self.logger.finalize()
+            return 130
+        except Exception as e:
+            self.logger.error(f'{self.__class__.__name__} failed: {e}')
+
+        self.cleanup()
+        return self.logger.finalize()
+
+    @abstractmethod
+    def get_output_subdir(self) -> str:
+        pass
+
+    @abstractmethod
+    def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
+        pass
+
+    @abstractmethod
+    def _get_processing_items(self) -> List[ProcessingItem]:
+        pass
+
+    @abstractmethod
+    def _process_item(
+            self, item: ProcessingItem, missing_outputs: List[OutputSpec],
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def _validate_args(self, args: Dict[str, Any]) -> None:
+        pass
+
+    def _execute(self) -> None:
+        all_items = self._get_processing_items()
+        if not all_items:
+            console.print('[yellow]No items to process[/yellow]')
+            return
+
+        filter_result = self.__filter_skipped_items(all_items)
+
+        if not filter_result.items_to_process:
+            console.print(
+                f'[yellow]All items already processed '
+                f'({filter_result.total_items} total, {filter_result.skipped_count} skipped)[/yellow]',
+            )
+            return
+
+        self.__display_processing_summary(filter_result)
+        self.__execute_processing(filter_result.items_to_process)
+        self._finalize()
+
+    def _finalize(self) -> None:
+        pass
+
+    def _get_progress_description(self) -> str:
+        return f'Processing {self.__class__.__name__}'
+
+    def _load_resources(self) -> bool:
+        return True
+
+    def __filter_skipped_items(self, all_items: List[ProcessingItem]) -> _FilterResult:
+        items_to_process: List[ProcessingItem] = []
+        skipped_count = 0
+        skip_messages: List[str] = []
+
+        for item in all_items:
+            should_skip, missing_outputs, skip_message = self.__should_skip_item(item)
+
+            if should_skip:
+                if skip_message:
+                    skip_messages.append(skip_message)
+                skipped_count += 1
+            else:
+                item.metadata['missing_outputs'] = missing_outputs
+                items_to_process.append(item)
+
+        return _FilterResult(
+            items_to_process=items_to_process,
+            skipped_count=skipped_count,
+            skip_messages=skip_messages,
+            total_items=len(all_items),
+        )
+
+    def __should_skip_item(
+            self, item: ProcessingItem,
+    ) -> Tuple[bool, List[OutputSpec], str]:
+        expected_outputs = self._get_expected_outputs(item)
+        if not expected_outputs:
+            return False, [], ''
+
+        missing_outputs = self.__get_missing_outputs(expected_outputs)
+        step_name = self.__get_step_name()
+        state_completed = self.__is_step_completed_in_state(step_name, item.episode_id)
+        has_all_outputs = len(missing_outputs) == 0
+
+        if has_all_outputs and state_completed:
+            return True, [], f'[yellow]Skipping (completed): {item.episode_id}[/yellow]'
+
+        if has_all_outputs and not state_completed:
+            self.__sync_state_completed(step_name, item.episode_id)
+            return True, [], f'[yellow]Skipping (files exist, state synced): {item.episode_id}[/yellow]'
+
+        if not has_all_outputs and state_completed:
+            console.print(
+                f'[yellow]Warning: State marked complete but outputs missing '
+                f'for {item.episode_id}[/yellow]',
+            )
+
+        return False, missing_outputs, ''
+
+    def __execute_processing(self, items: List[ProcessingItem]) -> None:
+        if not items:
+            console.print('[yellow]No items to process, skipping resource loading[/yellow]')
+            return
+
+        if not self._load_resources():
+            return
+
+        step_name = self.__get_step_name()
+        try:
+            with SimpleProgress() as progress:
+                task = progress.add_task(self._get_progress_description(), total=len(items))
+                for item in items:
+                    self.__process_single_item(item, step_name, progress, task)
+        except KeyboardInterrupt:
+            console.print('\n[yellow]Processing interrupted[/yellow]')
+            raise
+
+    def __process_single_item(
+            self,
+            item: ProcessingItem,
+            step_name: str,
+            progress: SimpleProgress,
+            task: int,
+    ) -> None:
+        try:
+            if self.state_manager:
+                self.state_manager.mark_step_started(step_name, item.episode_id, [])
+
+            missing_outputs = item.metadata.get('missing_outputs', [])
+            self._process_item(item, missing_outputs)
+
+            if self.state_manager:
+                self.state_manager.mark_step_completed(step_name, item.episode_id)
+        except Exception as e:
+            self.logger.error(f'Failed to process {item.episode_id}: {e}')
+        finally:
+            progress.advance(task)
+
+    def __is_step_completed_in_state(self, step_name: str, episode_id: str) -> bool:
+        if not self.state_manager:
+            return False
+        return self.state_manager.is_step_completed(step_name, episode_id)
+
+    def __sync_state_completed(self, step_name: str, episode_id: str) -> None:
+        if self.state_manager:
+            self.state_manager.mark_step_completed(step_name, episode_id)
+
+    def __get_step_name(self) -> str:
+        class_name = self.__class__.__name__
+        suffixes_to_remove = [
+            'Processor', 'Generator', 'Detector', 'Transcoder', 'Importer', 'Indexer',
+        ]
+
+        name = class_name
+        for suffix in suffixes_to_remove:
+            name = name.replace(suffix, '')
+
+        return self.__to_snake_case(name)
+
+    @staticmethod
+    def __display_processing_summary(result: _FilterResult) -> None:
+        for skip_message in result.skip_messages:
+            console.print(skip_message)
+
+        console.print(
+            f'[blue]Processing {len(result.items_to_process)} items '
+            f'(of {result.total_items} total, {result.skipped_count} skipped)[/blue]',
+        )
+
+    @staticmethod
+    def __get_missing_outputs(expected_outputs: List[OutputSpec]) -> List[OutputSpec]:
+        return [
+            output for output in expected_outputs
+            if not output.path.exists() or output.path.stat().st_size == 0
+        ]
+
+    @staticmethod
+    def __to_snake_case(name: str) -> str:
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()

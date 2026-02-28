@@ -1,0 +1,44 @@
+{
+  "_comment": "Template - skopiuj i edytuj dla swojej serii",
+  "_instruction": "1. Skopiuj jako {nazwa_serii}.json, 2. Wype\u0142nij wymagane pola, 3. Dodaj tylko te opcje kt\u00f3re si\u0119 r\u00f3\u017cni\u0105 od defaults",
+  "_note": "Podaj tylko ZMIANY wzgl\u0119dem defaults.json (nie przepisuj wszystkiego!)",
+  "_optional_overrides": {
+    "_comment": "Poni\u017cej opcjonalne nadpisania defaults.json - odkomentuj i dostosuj wed\u0142ug potrzeb",
+    "pipeline_mode_example": "selective (je\u015bli masz gotowe dane)",
+    "processing.transcode.codec_example": "h265_nvenc (je\u015bli chcesz HEVC)",
+    "processing.transcode.resolution_example": "1080p (je\u015bli chcesz wy\u017csz\u0105 jako\u015b\u0107)",
+    "processing.transcription.mode_example": "elevenlabs (je\u015bli masz 11labs API)",
+    "scraping.character_references.search_engine_example": "google (je\u015bli masz SerpAPI)",
+    "scraping.episodes.parser_mode_example": "premium (je\u015bli masz Gemini API)",
+    "skip_steps_example": [
+      "episode_scraper",
+      "transcription"
+    ]
+  },
+  "_required_fields": {
+    "display_name": "WYMAGANE - nazwa wy\u015bwietlana",
+    "indexing.elasticsearch.index_name": "WYMAGANE - nazwa indeksu ES",
+    "scraping.characters.urls": "WYMAGANE - lista URLi do stron z postaciami",
+    "scraping.episodes.urls": "WYMAGANE - lista URLi do stron z odcinkami",
+    "series_name": "WYMAGANE - nazwa serii (musi zgadza\u0107 si\u0119 z nazw\u0105 pliku i katalogu input_data/)"
+  },
+  "display_name": "Nazwa Wy\u015bwietlana",
+  "indexing": {
+    "elasticsearch": {
+      "index_name": "nazwa_serii_clips"
+    }
+  },
+  "scraping": {
+    "characters": {
+      "urls": [
+        "https://example.com/wiki/Characters"
+      ]
+    },
+    "episodes": {
+      "urls": [
+        "https://example.com/wiki/Episodes"
+      ]
+    }
+  },
+  "series_name": "nazwa_serii"
+}
