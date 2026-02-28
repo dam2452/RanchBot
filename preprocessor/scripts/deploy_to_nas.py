@@ -12,7 +12,7 @@ from typing import (
 )
 
 _DEPLOY_SUBDIRS = ("archives", "transcoded_videos")
-_DEFAULT_WORKERS = 8
+_DEFAULT_WORKERS = 1
 
 
 def _resolve_source_base(source_path: str) -> Path:
