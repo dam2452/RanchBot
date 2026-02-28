@@ -35,6 +35,8 @@
 - **`/report <issue_description>`** / **`/r <issue_description>`**: ⚠️ Zgłaszanie problemu.
 - **`/serial <nazwa_serialu>`** / **`/ser <nazwa_serialu>`**: 📺 Zmiana aktywnego serialu.
 - **`/reindex`** / **`/rei`**: 🔄 Reindeksowanie danych serialu.
+- **`/postacie`** / **`/characters`** / **`/p`**: 👤 Przeglądanie postaci i scen.
+- **`/emocje`** / **`/emotion`** / **`/e`**: 😊 Lista dostępnych emocji.
 
 ## 👥 Podstawowe Komendy Użytkownika
 
@@ -55,6 +57,10 @@
 - **`/mojeklipy`**/ **`/mk`**: 📂 Wyświetla listę zapisanych klipów.
 - **`/wyslij <nazwa>`**/ **`/wys <nazwa>`**: 📤 Wysyła zapisany klip o podanej nazwie. Przykład: `/wyslij moj_klip`.
 - **`/usunklip <nazwa_klipu>`**/ **`/uk <nazwa_klipu>`**: 🗑️ Usuwa zapisany klip o podanej nazwie. Przykład: `/uk moj_klip`.
+- **`/postacie`** / **`/p`**: 👤 Wyświetla listę wszystkich postaci z liczbą odcinków.
+- **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
+- **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/postacie Wilkowyska happy` lub `/p Wilkowyska radosny`.
+- **`/emocje`** / **`/e`**: 😊 Wyświetla listę dostępnych emocji (po polsku).
 
 ## 🔧 Komendy Administracyjne
 
