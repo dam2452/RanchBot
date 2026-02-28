@@ -112,9 +112,9 @@ def format_character_scenes(
     header += f"👁️ *Znaleziono:* {count_emoji} scen 👁️\n\n"
 
     hint = (
-        f"\n👉 Pełna lista: /pl {character_name} {emotion_filter}"
+        f"\n\n\n👉 Pełna lista: /pl {character_name} {emotion_filter}"
         if emotion_filter
-        else f"\n👉 Pełna lista: /pl {character_name}"
+        else f"\n\n\n👉 Pełna lista: /pl {character_name}"
     )
     code_header = f"Postać:\u00A0{character_name}".replace(" ", "\u00A0")
     return header + f"```{code_header}\n\n" + "\n\n".join(lines) + hint + "\n```"
