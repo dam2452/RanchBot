@@ -31,7 +31,7 @@ class CharactersHandler(BotMessageHandler):
         return await self._validate_argument_count(self._message, 0, 2)
 
     async def _do_handle(self) -> None:
-        args = self._message.get_args()
+        args = self._message.get_text().split()[1:]
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
