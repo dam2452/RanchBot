@@ -1,4 +1,4 @@
-import difflib
+import json
 import logging
 from pathlib import Path
 import tempfile
@@ -7,6 +7,7 @@ from typing import (
     Optional,
 )
 
+from bot.database.database_manager import DatabaseManager
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -20,10 +21,12 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
     get_log_character_scenes_message,
     get_log_characters_list_message,
     get_no_characters_message,
+    scene_to_search_segment,
 )
 from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
 from bot.search.character_finder import CharacterFinder
 from bot.settings import settings as s
+from bot.types import CharacterScene
 
 
 class CharactersHandler(BotMessageHandler):
@@ -50,13 +53,13 @@ class CharactersHandler(BotMessageHandler):
         if not args:
             await self.__handle_list_mode(series_name, is_full)
         elif len(args) == 1:
-            character = await self.__resolve_character(args[0], series_name)
+            character = await CharacterFinder.find_best_matching_name(args[0], series_name, self._logger)
             if character is None:
                 await self._reply_error(f"Nie znaleziono postaci pasujacych do '{args[0]}'.")
                 return
             await self.__handle_character_mode(character, series_name, is_full)
         else:
-            character = await self.__resolve_character(args[0], series_name)
+            character = await CharacterFinder.find_best_matching_name(args[0], series_name, self._logger)
             if character is None:
                 await self._reply_error(f"Nie znaleziono postaci pasujacych do '{args[0]}'.")
                 return
@@ -92,6 +95,7 @@ class CharactersHandler(BotMessageHandler):
             series_name=series_name,
             logger=self._logger,
         )
+        await self.__save_scenes_to_last_search(scenes, character_name)
         if is_full:
             await self.__send_document(
                 format_character_scenes_full(character_name, scenes),
@@ -119,6 +123,7 @@ class CharactersHandler(BotMessageHandler):
             series_name=series_name,
             logger=self._logger,
         )
+        await self.__save_scenes_to_last_search(scenes, character_name, emotion_input)
         if is_full:
             await self.__send_document(
                 format_character_scenes_full(character_name, scenes, emotion_filter=emotion_input),
@@ -132,23 +137,27 @@ class CharactersHandler(BotMessageHandler):
             get_log_character_scenes_message(character_name, len(scenes), self._message.get_username()),
         )
 
+    async def __save_scenes_to_last_search(
+        self,
+        scenes: List[CharacterScene],
+        character_name: str,
+        emotion_input: Optional[str] = None,
+    ) -> None:
+        if not scenes:
+            return
+        segments = [scene_to_search_segment(scene) for scene in scenes]
+        quote = f"{character_name} {emotion_input}" if emotion_input else character_name
+        await DatabaseManager.insert_last_search(
+            chat_id=self._message.get_chat_id(),
+            quote=quote,
+            segments=json.dumps(segments),
+        )
+
     async def __send_document(self, content: str, filename: str, caption: str) -> None:
         file_path = Path(tempfile.gettempdir()) / filename
         with file_path.open("w", encoding="utf-8") as f:
             f.write(content)
         await self._responder.send_document(file_path, caption=caption)
-
-    async def __resolve_character(self, query: str, series_name: str) -> Optional[str]:
-        characters = await CharacterFinder.get_all_characters(series_name=series_name, logger=self._logger)
-        return self.__fuzzy_match_name(query, [c["name"] for c in characters])
-
-    @staticmethod
-    def __fuzzy_match_name(query: str, names: List[str]) -> Optional[str]:
-        name_map = {n.lower(): n for n in names}
-        if query.lower() in name_map:
-            return name_map[query.lower()]
-        matches = difflib.get_close_matches(query.lower(), list(name_map.keys()), n=1, cutoff=0.6)
-        return name_map[matches[0]] if matches else None
 
     @staticmethod
     def __sanitize(name: str) -> str:

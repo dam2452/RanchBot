@@ -16,6 +16,7 @@ from bot.handlers import (
     AdjustBySceneHandler,
     AdjustVideoClipHandler,
     BotMessageHandler,
+    CharacterClipHandler,
     CharactersHandler,
     ClipHandler,
     CompileClipsHandler,
@@ -50,6 +51,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
         return [
             AdjustBySceneHandler,
             AdjustVideoClipHandler,
+            CharacterClipHandler,
             CharactersHandler,
             ClipHandler,
             CompileClipsHandler,
