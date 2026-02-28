@@ -20,6 +20,7 @@ from bot.utils.functions import (
 )
 
 _PREVIEW_COUNT = 5
+_FRAME_SPAN_S = 3.0
 
 
 def _scene_to_segment_dict(scene: CharacterScene) -> dict:
@@ -35,9 +36,10 @@ def _scene_to_segment_dict(scene: CharacterScene) -> dict:
 
 
 def scene_to_search_segment(scene: CharacterScene) -> Dict[str, Any]:
+    timestamp = scene["start_time"]
     return {
-        SegmentKeys.START_TIME: scene["start_time"],
-        SegmentKeys.END_TIME: scene["end_time"],
+        SegmentKeys.START_TIME: max(0.0, timestamp - _FRAME_SPAN_S),
+        SegmentKeys.END_TIME: timestamp + _FRAME_SPAN_S,
         SegmentKeys.VIDEO_PATH: scene.get("video_path", ""),
         EpisodeMetadataKeys.EPISODE_METADATA: {
             EpisodeMetadataKeys.SEASON: scene["season"],
@@ -55,12 +57,8 @@ def format_characters_list(characters: List[CharacterWithEpisodeCount]) -> str:
         f"{convert_number_to_emoji(i + 1)}  | 👤 {c['name']} | 🎬 w {c['episode_count']} odcinkach"
         for i, c in enumerate(sorted_chars[:_PREVIEW_COUNT])
     ]
-    return (
-        f"👥 *Postacie* 👥\n"
-        f"👁️ *Łącznie:* {convert_number_to_emoji(len(sorted_chars))} postaci 👁️\n\n"
-        + "\n".join(lines)
-        + "\n\n📄 Pełna lista: /pl"
-    )
+    body = f"Lacznie: {convert_number_to_emoji(len(sorted_chars))} postaci\n\n" + "\n".join(lines) + "\n\nPelna lista: /pl"
+    return BotResponse.info("POSTACIE", body)
 
 
 def format_characters_list_full(characters: List[CharacterWithEpisodeCount]) -> str:
