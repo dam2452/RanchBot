@@ -47,8 +47,8 @@ def format_emotions_list(emotions: List[EmotionInfo]) -> str:
         f"{convert_number_to_emoji(i + 1)}  {e['label_pl']} ({e['label_en']})"
         for i, e in enumerate(emotions)
     ]
-    body = f"Lacznie: {convert_number_to_emoji(len(emotions))} emocji\n\n" + "\n".join(lines)
-    return BotResponse.info("DOSTEPNE EMOCJE", body)
+    body = f"Łącznie: {convert_number_to_emoji(len(emotions))} emocji\n\n" + "\n".join(lines)
+    return BotResponse.info("DOSTĘPNE EMOCJE", body)
 
 
 def get_no_emotions_message() -> str:
@@ -58,7 +58,7 @@ def get_no_emotions_message() -> str:
 def get_invalid_args_count_message() -> str:
     return BotResponse.usage(
         command="emocje",
-        error_title="ZA DUZO ARGUMENTOW",
+        error_title="ZA DUŻO ARGUMENTÓW",
         usage_syntax="",
         params=[],
         example="/emocje",

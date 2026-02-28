@@ -3,9 +3,11 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from bot.responses.bot_response import BotResponse
+from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
 from bot.types import (
     CharacterScene,
     CharacterWithEpisodeCount,
@@ -21,6 +23,17 @@ from bot.utils.functions import (
 
 _PREVIEW_COUNT = 5
 _FRAME_SPAN_S = 3.0
+
+
+def parse_character_args(args: List[str]) -> Tuple[str, str, str]:
+    emotion_input, emotion_en = "", ""
+    if len(args) >= 2:
+        candidate_en = map_emotion_to_en(args[-1])
+        if candidate_en:
+            emotion_en = candidate_en
+            emotion_input = args[-1]
+            args = args[:-1]
+    return " ".join(args), emotion_input, emotion_en
 
 
 def _scene_to_segment_dict(scene: CharacterScene) -> dict:
@@ -54,17 +67,17 @@ def format_characters_list(characters: List[CharacterWithEpisodeCount]) -> str:
         return get_no_characters_message()
     sorted_chars = sorted(characters, key=lambda c: c["episode_count"], reverse=True)
     lines = [
-        f"{convert_number_to_emoji(i + 1)}  | 👤 {c['name']} | 🎬 w {c['episode_count']} odcinkach"
+        f"{convert_number_to_emoji(i + 1)} 👤 {c['name']}\n  🎬 wystąpił w {c['episode_count']} odcinkach"
         for i, c in enumerate(sorted_chars[:_PREVIEW_COUNT])
     ]
-    body = f"Lacznie: {convert_number_to_emoji(len(sorted_chars))} postaci\n\n" + "\n".join(lines) + "\n\nPelna lista: /pl"
+    body = f"Łącznie: {convert_number_to_emoji(len(sorted_chars))} postaci\n\n" + "\n".join(lines) + "\n\n👉 Pełna lista: /pl"
     return BotResponse.info("POSTACIE", body)
 
 
 def format_characters_list_full(characters: List[CharacterWithEpisodeCount]) -> str:
     sorted_chars = sorted(characters, key=lambda c: c["episode_count"], reverse=True)
     lines = [
-        f"{i + 1:3}. {c['name']:<30}  w {c['episode_count']} odcinkach"
+        f"{i + 1:3}. {c['name']:<30}  wystąpił w {c['episode_count']} odcinkach"
         for i, c in enumerate(sorted_chars)
     ]
     return f"POSTACIE ({len(sorted_chars)})\n\n" + "\n".join(lines)
@@ -77,29 +90,34 @@ def format_character_scenes(
 ) -> str:
     if not scenes:
         msg = (
-            f"Nie znaleziono scen z postacia '{character_name}' i emocja '{emotion_filter}'."
+            f"Nie znaleziono scen z postacią '{character_name}' i emocją '{emotion_filter}'."
             if emotion_filter
-            else f"Nie znaleziono scen z postacia '{character_name}'."
+            else f"Nie znaleziono scen z postacią '{character_name}'."
         )
-        return BotResponse.warning("BRAK WYNIKOW", msg)
+        return BotResponse.warning("BRAK WYNIKÓW", msg)
 
     def _scene_line(idx: int, scene: CharacterScene) -> str:
         seg = format_segment(_scene_to_segment_dict(scene))
-        return f"{convert_number_to_emoji(idx)}  | 📺 {seg.episode_formatted} | 🕒 {seg.time_formatted}"
+        return (
+            f"{convert_number_to_emoji(idx)}  | 📺 {seg.episode_formatted} | 🕒 {seg.time_formatted}\n"
+            f"   👉  {seg.episode_title}"
+        )
 
     lines = [_scene_line(i + 1, scene) for i, scene in enumerate(scenes[:_PREVIEW_COUNT])]
+    count_emoji = convert_number_to_emoji(len(scenes))
 
-    count_line = f"Znaleziono: {convert_number_to_emoji(len(scenes))} scen"
+    header = f"🎭 *Postać: {character_name}* 🎭\n"
     if emotion_filter:
-        count_line += f"  |  Emocja: {emotion_filter}"
+        header += f"😊 *Emocja: {emotion_filter}* 😊\n"
+    header += f"👁️ *Znaleziono:* {count_emoji} scen 👁️\n\n"
 
     hint = (
-        f"Pelna lista: /pl {character_name} {emotion_filter}"
+        f"\n👉 Pełna lista: /pl {character_name} {emotion_filter}"
         if emotion_filter
-        else f"Pelna lista: /pl {character_name}"
+        else f"\n👉 Pełna lista: /pl {character_name}"
     )
-    body = count_line + "\n\n" + "\n".join(lines) + "\n\n" + hint
-    return BotResponse.info(f"POSTAC: {character_name.upper()}", body)
+    code_header = f"Postać:\u00A0{character_name}".replace(" ", "\u00A0")
+    return header + f"```{code_header}\n\n" + "\n\n".join(lines) + hint + "\n```"
 
 
 def format_character_scenes_full(
@@ -121,18 +139,18 @@ def format_character_scenes_full(
 def get_invalid_args_count_message() -> str:
     return BotResponse.usage(
         command="postacie",
-        error_title="ZA DUZO ARGUMENTOW",
-        usage_syntax="[postac] [emocja]",
+        error_title="ZA DUŻO ARGUMENTÓW",
+        usage_syntax="[postać] [emocja]",
         params=[
-            ("[postac]", "nazwa postaci (opcjonalna, fuzzy)"),
+            ("[postać]", "nazwa postaci (opcjonalna, fuzzy)"),
             ("[emocja]", "emocja po polsku lub angielsku (opcjonalna, wymaga podania postaci)"),
         ],
-        example="/postacie Michalowa radosny",
+        example="/postacie Michałowa radosny",
     )
 
 
 def get_no_characters_message() -> str:
-    return BotResponse.warning("BRAK DANYCH", "Brak postaci w danych.")
+    return BotResponse.warning("BRAK DANYCH", "Brak postaci w bazie danych.")
 
 
 def get_log_characters_list_message(count: int, username: str) -> str:
