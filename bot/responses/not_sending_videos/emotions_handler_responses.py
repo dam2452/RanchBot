@@ -8,19 +8,14 @@ from bot.responses.bot_response import BotResponse
 from bot.types import EmotionInfo
 
 EMOTION_PL_MAP: Dict[str, str] = {
-    "happy": "radosny",
-    "sad": "smutny",
-    "angry": "zly",
-    "surprised": "zaskoczony",
-    "disgusted": "obrzydzony",
+    "happiness": "radosny",
+    "sadness": "smutny",
+    "anger": "zly",
+    "surprise": "zaskoczony",
     "disgust": "obrzydzony",
     "fear": "przestraszony",
-    "fearful": "przestraszony",
     "neutral": "neutralny",
     "contempt": "pogardliwy",
-    "confused": "zdezorientowany",
-    "calm": "spokojny",
-    "excited": "podekscytowany",
 }
 
 
