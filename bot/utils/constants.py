@@ -44,7 +44,7 @@ class ElasticsearchAggregationKeys:
 
 
 class ActorKeys:
-    ACTORS: Final[str] = "actors"
+    ACTORS: Final[str] = "character_appearances"
     NAME: Final[str] = "name"
     CONFIDENCE: Final[str] = "confidence"
     EMOTION: Final[str] = "emotion"
@@ -88,6 +88,14 @@ class ElasticsearchQueryKeys:
     SOURCE: Final[str] = "_source"
     KEY: Final[str] = "_key"
     EXISTS: Final[str] = "exists"
+    MUST_NOT: Final[str] = "must_not"
+    NESTED: Final[str] = "nested"
+    REVERSE_NESTED: Final[str] = "reverse_nested"
+    VALUE: Final[str] = "value"
+    CASE_INSENSITIVE: Final[str] = "case_insensitive"
+    MODE: Final[str] = "mode"
+    PATH: Final[str] = "path"
+    MAX: Final[str] = "max"
 
 
 class DatabaseKeys:
@@ -151,6 +159,30 @@ class JwtPayloadKeys:
     IAT: Final[str] = "iat"
     ISS: Final[str] = "iss"
     AUD: Final[str] = "aud"
+
+
+class ElasticsearchIndexSuffixes:
+    TEXT_SEGMENTS: Final[str] = "_text_segments"
+    VIDEO_FRAMES: Final[str] = "_video_frames"
+    TEXT_EMBEDDINGS: Final[str] = "_text_embeddings"
+    FULL_EPISODE_EMBEDDINGS: Final[str] = "_full_episode_embeddings"
+    EPISODE_NAMES: Final[str] = "_episode_names"
+    SOUND_EVENTS: Final[str] = "_sound_events"
+    SOUND_EVENT_EMBEDDINGS: Final[str] = "_sound_event_embeddings"
+
+
+class VideoFrameKeys:
+    TIMESTAMP: Final[str] = "timestamp"
+    FRAME_NUMBER: Final[str] = "frame_number"
+    FRAME_TYPE: Final[str] = "frame_type"
+    DETECTED_OBJECTS: Final[str] = "detected_objects"
+    SCENE_INFO: Final[str] = "scene_info"
+    EPISODE_ID: Final[str] = "episode_id"
+
+
+class SoundEventKeys:
+    SOUND_TYPE: Final[str] = "sound_type"
+    TEXT: Final[str] = "text"
 
 
 class ResponseKeys:
