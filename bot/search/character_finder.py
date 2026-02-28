@@ -1,8 +1,10 @@
+import difflib
 import logging
 from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 from bot.search.elastic_search_manager import ElasticSearchManager
@@ -18,6 +20,7 @@ from bot.utils.constants import (
     ElasticsearchQueryKeys,
     EmotionKeys,
     EpisodeMetadataKeys,
+    SegmentKeys,
     VideoFrameKeys,
 )
 from bot.utils.log import log_system_message
@@ -69,6 +72,7 @@ def _parse_scene(source: Dict[str, Any], character_name: str) -> CharacterScene:
         "title": meta.get(EpisodeMetadataKeys.TITLE, ""),
         "start_time": timestamp,
         "end_time": timestamp,
+        "video_path": source.get(SegmentKeys.VIDEO_PATH, ""),
     }
     for appearance in source.get(ActorKeys.ACTORS, []):
         if not isinstance(appearance, dict):
@@ -317,3 +321,17 @@ class CharacterFinder:
         labels = [b[ElasticsearchKeys.KEY] for b in buckets]
         await log_system_message(logging.INFO, f"Found {len(labels)} unique emotion labels.", logger)
         return labels
+
+    @staticmethod
+    async def find_best_matching_name(
+        query: str,
+        series_name: str,
+        logger: logging.Logger,
+    ) -> Optional[str]:
+        characters = await CharacterFinder.get_all_characters(series_name, logger)
+        names = [c["name"] for c in characters]
+        name_map = {n.lower(): n for n in names}
+        if query.lower() in name_map:
+            return name_map[query.lower()]
+        matches = difflib.get_close_matches(query.lower(), list(name_map.keys()), n=1, cutoff=0.6)
+        return name_map[matches[0]] if matches else None

@@ -7,6 +7,7 @@ from typing import (
 
 from bot.responses.bot_response import BotResponse
 from bot.types import EmotionInfo
+from bot.utils.functions import convert_number_to_emoji
 
 EMOTION_PL_MAP: Dict[str, str] = {
     "happiness": "radosny",
@@ -42,8 +43,15 @@ def map_emotion_to_en(label: str) -> Optional[str]:
 def format_emotions_list(emotions: List[EmotionInfo]) -> str:
     if not emotions:
         return get_no_emotions_message()
-    lines = [f"{i + 1}. {e['label_pl']} ({e['label_en']})" for i, e in enumerate(emotions)]
-    return BotResponse.info(f"DOSTEPNE EMOCJE ({len(emotions)})", "\n".join(lines))
+    lines = [
+        f"{convert_number_to_emoji(i + 1)}  {e['label_pl']} ({e['label_en']})"
+        for i, e in enumerate(emotions)
+    ]
+    return (
+        f"😊 *Dostępne emocje* 😊\n"
+        f"👁️ *Łącznie:* {convert_number_to_emoji(len(emotions))} emocji 👁️\n\n"
+        + "\n".join(lines)
+    )
 
 
 def get_no_emotions_message() -> str:
