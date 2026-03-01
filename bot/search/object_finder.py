@@ -9,6 +9,7 @@ from typing import (
 
 from bot.search.elastic_search_manager import ElasticSearchManager
 from bot.search.video_frames_finder import VideoFramesFinder
+from bot.settings import settings
 from bot.types import (
     ObjectScene,
     ObjectWithCount,
@@ -268,6 +269,30 @@ def _group_frames_into_scenes(
     return sorted(scenes.values(), key=lambda s: s["total_count"], reverse=True)
 
 
+def _clips_overlap(a: ObjectScene, b: ObjectScene) -> bool:
+    a_start = a["start_time"] - settings.EXTEND_BEFORE
+    a_end = a["end_time"] + settings.EXTEND_AFTER
+    b_start = b["start_time"] - settings.EXTEND_BEFORE
+    b_end = b["end_time"] + settings.EXTEND_AFTER
+    return a_start <= b_end and b_start <= a_end
+
+
+def _deduplicate_by_fragment(scenes: List[ObjectScene]) -> List[ObjectScene]:
+    result = []
+    for scene in scenes:
+        video_path = scene["video_path"]
+        if not video_path:
+            result.append(scene)
+            continue
+        already_covered = any(
+            selected["video_path"] == video_path and _clips_overlap(scene, selected)
+            for selected in result
+        )
+        if not already_covered:
+            result.append(scene)
+    return result
+
+
 class ObjectFinder:
     @staticmethod
     async def get_all_objects(
@@ -345,6 +370,7 @@ class ObjectFinder:
             logger=logger,
         )
         scenes = _group_frames_into_scenes(frames, class_name)
+        scenes = _deduplicate_by_fragment(scenes)
         await log_system_message(
             logging.INFO, f"Found {len(scenes)} scenes for object '{class_name}'.", logger,
         )
