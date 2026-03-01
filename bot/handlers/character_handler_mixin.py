@@ -12,9 +12,6 @@ from bot.search.character_finder import CharacterFinder
 class CharacterHandlerMixin:
     _logger: logging.Logger
 
-    async def _reply_error(self, message: str) -> None:
-        raise NotImplementedError
-
     async def _find_character(
         self,
         args: List[str],
@@ -25,6 +22,6 @@ class CharacterHandlerMixin:
             character_query, series_name, self._logger,
         )
         if character is None:
-            await self._reply_error(f"Nie znaleziono postaci pasujących do '{character_query}'.")
+            await self._reply_error(f"Nie znaleziono postaci pasujących do '{character_query}'.")  # pylint: disable=no-member
             return None, emotion_input, emotion_en
         return character, emotion_input, emotion_en

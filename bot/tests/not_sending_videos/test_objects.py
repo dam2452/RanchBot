@@ -29,7 +29,7 @@ class TestObjectsHandler(BaseTest):
         response = self.send_command(f'/obiekt {_TEST_OBJECT}')
         assert response.status_code == 200
         content = response.json().get("content", "")
-        has_scenes = _TEST_OBJECT.lower() in content.lower()
+        has_scenes = "osoba" in content.lower()
         has_not_found = "nie znaleziono" in content.lower()
         assert has_scenes or has_not_found
 
