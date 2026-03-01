@@ -6,6 +6,7 @@ from typing import (
 )
 
 from bot.responses.bot_response import BotResponse
+from bot.search.object_finder import get_polish_name
 from bot.types import (
     ObjectScene,
     ObjectWithCount,
@@ -47,7 +48,7 @@ def format_objects_list(objects: List[ObjectWithCount]) -> str:
         return get_no_objects_message()
     sorted_objs = sorted(objects, key=lambda o: o["scene_count"], reverse=True)
     lines = [
-        f"{convert_number_to_emoji(i + 1)} {o['class_name']}\n  🎬 wystąpił w {o['scene_count']} scenach"
+        f"{convert_number_to_emoji(i + 1)} {get_polish_name(o['class_name'])}\n  🎬 wystąpił w {o['scene_count']} scenach"
         for i, o in enumerate(sorted_objs[:_PREVIEW_COUNT])
     ]
     body = (
@@ -61,7 +62,7 @@ def format_objects_list(objects: List[ObjectWithCount]) -> str:
 def format_objects_list_full(objects: List[ObjectWithCount]) -> str:
     sorted_objs = sorted(objects, key=lambda o: o["scene_count"], reverse=True)
     lines = [
-        f"{i + 1:3}. {o['class_name']:<30}  wystąpił w {o['scene_count']} scenach"
+        f"{i + 1:3}. {get_polish_name(o['class_name']):<30}  wystąpił w {o['scene_count']} scenach"
         for i, o in enumerate(sorted_objs)
     ]
     return f"OBIEKTY ({len(sorted_objs)})\n\n" + "\n".join(lines)
@@ -72,9 +73,10 @@ def format_object_scenes(
     scenes: List[ObjectScene],
     qty_filter_str: Optional[str] = None,
 ) -> str:
+    display_name = get_polish_name(class_name)
     filter_info = f" (filtr: {qty_filter_str})" if qty_filter_str else ""
     if not scenes:
-        msg = f"Nie znaleziono scen z obiektem '{class_name}'{filter_info}."
+        msg = f"Nie znaleziono scen z obiektem '{display_name}'{filter_info}."
         return BotResponse.warning("BRAK WYNIKÓW", msg)
 
     def _scene_line(idx: int, scene: ObjectScene) -> str:
@@ -87,17 +89,17 @@ def format_object_scenes(
     lines = [_scene_line(i + 1, scene) for i, scene in enumerate(scenes[:_PREVIEW_COUNT])]
     count_emoji = convert_number_to_emoji(len(scenes))
 
-    header = f"🎯 *Obiekt: {class_name}* 🎯\n"
+    header = f"🎯 *Obiekt: {display_name}* 🎯\n"
     if qty_filter_str:
         header += f"🔢 *Filtr: {qty_filter_str}* 🔢\n"
     header += f"👁️ *Znaleziono:* {count_emoji} scen 👁️\n\n"
 
     hint = (
-        f"\n\n\n👉 Pełna lista: /objl {class_name} {qty_filter_str}"
+        f"\n\n\n👉 Pełna lista: /objl {display_name} {qty_filter_str}"
         if qty_filter_str
-        else f"\n\n\n👉 Pełna lista: /objl {class_name}"
+        else f"\n\n\n👉 Pełna lista: /objl {display_name}"
     )
-    code_header = f"Obiekt:\u00A0{class_name}".replace(" ", "\u00A0")
+    code_header = f"Obiekt:\u00A0{display_name}".replace(" ", "\u00A0")
     return header + f"```{code_header}\n\n" + "\n\n".join(lines) + hint + "\n```"
 
 
@@ -106,6 +108,7 @@ def format_object_scenes_full(
     scenes: List[ObjectScene],
     qty_filter_str: Optional[str] = None,
 ) -> str:
+    display_name = get_polish_name(class_name)
     lines = []
     for i, scene in enumerate(scenes):
         seg = format_segment(scene_to_segment_dict(scene))
@@ -113,9 +116,9 @@ def format_object_scenes_full(
             f"{i + 1:4}. {seg.episode_formatted}  {seg.time_formatted}  x{scene['total_count']}",
         )
     if qty_filter_str:
-        header = f"{class_name.upper()} - {qty_filter_str} ({len(scenes)} scen)\n\n"
+        header = f"{display_name.upper()} - {qty_filter_str} ({len(scenes)} scen)\n\n"
     else:
-        header = f"{class_name.upper()} ({len(scenes)} scen)\n\n"
+        header = f"{display_name.upper()} ({len(scenes)} scen)\n\n"
     return header + "\n".join(lines)
 
 
