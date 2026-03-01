@@ -28,12 +28,10 @@ from bot.utils.log import log_system_message
 
 _OBJECT_CLASS_FIELD = f"{VideoFrameKeys.DETECTED_OBJECTS}.{DetectedObjectKeys.CLASS}"
 _SEASON_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
-_SCENE_NUMBER_FIELD = f"{VideoFrameKeys.SCENE_INFO}.{SceneInfoKeys.SCENE_NUMBER}"
 _OBJECTS_AGG = "objects"
 _CLASSES_AGG = "classes"
 _BACK_TO_ROOT = "back_to_root"
-_EPISODES_AGG = "episodes"
-_SCENES_AGG = "scenes"
+_DOC_COUNT = "doc_count"
 
 _OPERATORS = {
     "=": lambda c, v: c == v,
@@ -178,22 +176,6 @@ class ObjectFinder:
                             ElasticsearchQueryKeys.AGGS: {
                                 _BACK_TO_ROOT: {
                                     ElasticsearchQueryKeys.REVERSE_NESTED: {},
-                                    ElasticsearchQueryKeys.AGGS: {
-                                        _EPISODES_AGG: {
-                                            ElasticsearchQueryKeys.TERMS: {
-                                                ElasticsearchQueryKeys.FIELD: VideoFrameKeys.EPISODE_ID,
-                                                ElasticsearchQueryKeys.SIZE: 200,
-                                            },
-                                            ElasticsearchQueryKeys.AGGS: {
-                                                _SCENES_AGG: {
-                                                    ElasticsearchQueryKeys.TERMS: {
-                                                        ElasticsearchQueryKeys.FIELD: _SCENE_NUMBER_FIELD,
-                                                        ElasticsearchQueryKeys.SIZE: 100,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
                                 },
                             },
                         },
@@ -209,18 +191,13 @@ class ObjectFinder:
             [_CLASSES_AGG]
             [ElasticsearchKeys.BUCKETS]
         )
-        objects = []
-        for b in buckets:
-            scene_count = sum(
-                len(ep[_SCENES_AGG][ElasticsearchKeys.BUCKETS])
-                for ep in b[_BACK_TO_ROOT][_EPISODES_AGG][ElasticsearchKeys.BUCKETS]
+        objects = [
+            ObjectWithCount(
+                class_name=b[ElasticsearchKeys.KEY],
+                scene_count=b[_BACK_TO_ROOT][_DOC_COUNT],
             )
-            objects.append(
-                ObjectWithCount(
-                    class_name=b[ElasticsearchKeys.KEY],
-                    scene_count=scene_count,
-                ),
-            )
+            for b in buckets
+        ]
         await log_system_message(logging.INFO, f"Found {len(objects)} object classes.", logger)
         return objects
 
