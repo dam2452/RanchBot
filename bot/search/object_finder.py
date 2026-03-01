@@ -108,8 +108,6 @@ def _group_frames_into_scenes(
     scenes = {}
     for frame in frames:
         meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-        if meta.get(EpisodeMetadataKeys.SEASON, 0) == 0:
-            continue
         episode_id = frame.get(VideoFrameKeys.EPISODE_ID, "")
         scene_info = frame.get(VideoFrameKeys.SCENE_INFO) or {}
         scene_number = scene_info.get(SceneInfoKeys.SCENE_NUMBER)
