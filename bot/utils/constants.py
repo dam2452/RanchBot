@@ -180,6 +180,17 @@ class VideoFrameKeys:
     EPISODE_ID: Final[str] = "episode_id"
 
 
+class DetectedObjectKeys:
+    CLASS: Final[str] = "class"
+    COUNT: Final[str] = "count"
+
+
+class SceneInfoKeys:
+    SCENE_NUMBER: Final[str] = "scene_number"
+    SCENE_START_TIME: Final[str] = "scene_start_time"
+    SCENE_END_TIME: Final[str] = "scene_end_time"
+
+
 class SoundEventKeys:
     SOUND_TYPE: Final[str] = "sound_type"
     TEXT: Final[str] = "text"
