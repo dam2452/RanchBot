@@ -197,6 +197,7 @@ def get_shortcuts_message() -> str:
 👤 /p, /postacie - Przegladanie postaci i scen.\n
 😊 /e, /emocje - Lista dostepnych emocji.\n
 🎯 /obj, /obiekt - Przegladanie scen z obiektami.\n
+🎯 /objl, /obj_lista - Pelna lista obiektow lub scen.\n
 🐛 /r, /report - Raportuje błąd do administratora.\n
 🔔 /sub, /subskrypcja - Sprawdza stan Twojej subskrypcji.\n
 ```"""

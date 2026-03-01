@@ -218,7 +218,7 @@ class EmotionInfo(TypedDict):
 
 class ObjectWithCount(TypedDict):
     class_name: str
-    frame_count: int
+    episode_count: int
 
 
 class ObjectScene(TypedDict):

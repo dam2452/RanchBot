@@ -14,6 +14,7 @@ from bot.types import (
 )
 from bot.utils.constants import (
     DetectedObjectKeys,
+    ElasticsearchAggregationKeys,
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
@@ -27,7 +28,7 @@ from bot.utils.log import log_system_message
 _OBJECT_CLASS_FIELD = f"{VideoFrameKeys.DETECTED_OBJECTS}.{DetectedObjectKeys.CLASS}"
 _OBJECTS_AGG = "objects"
 _CLASSES_AGG = "classes"
-_DOC_COUNT = "doc_count"
+_BACK_TO_ROOT = "back_to_root"
 
 _OPERATORS = {
     "=": lambda c, v: c == v,
@@ -108,7 +109,21 @@ class ObjectFinder:
                             ElasticsearchQueryKeys.TERMS: {
                                 ElasticsearchQueryKeys.FIELD: _OBJECT_CLASS_FIELD,
                                 ElasticsearchQueryKeys.SIZE: 500,
-                                ElasticsearchQueryKeys.ORDER: {"_count": ElasticsearchQueryKeys.DESC},
+                                ElasticsearchQueryKeys.ORDER: {
+                                    ElasticsearchQueryKeys.KEY: ElasticsearchQueryKeys.ASC,
+                                },
+                            },
+                            ElasticsearchQueryKeys.AGGS: {
+                                _BACK_TO_ROOT: {
+                                    ElasticsearchQueryKeys.REVERSE_NESTED: {},
+                                    ElasticsearchQueryKeys.AGGS: {
+                                        ElasticsearchAggregationKeys.UNIQUE_EPISODES: {
+                                            ElasticsearchQueryKeys.CARDINALITY: {
+                                                ElasticsearchQueryKeys.FIELD: VideoFrameKeys.EPISODE_ID,
+                                            },
+                                        },
+                                    },
+                                },
                             },
                         },
                     },
@@ -124,7 +139,10 @@ class ObjectFinder:
             [ElasticsearchKeys.BUCKETS]
         )
         objects = [
-            ObjectWithCount(class_name=b[ElasticsearchKeys.KEY], frame_count=b[_DOC_COUNT])
+            ObjectWithCount(
+                class_name=b[ElasticsearchKeys.KEY],
+                episode_count=b[_BACK_TO_ROOT][ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE],
+            )
             for b in buckets
         ]
         await log_system_message(logging.INFO, f"Found {len(objects)} object classes.", logger)

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import json
 import logging
 from typing import (
+    Any,
     Dict,
     List,
 )
@@ -9,6 +10,7 @@ import unicodedata
 
 from bot.database.database_manager import UserProfile
 from bot.database.models import FormattedSegmentInfo
+from bot.types import SearchSegment
 from bot.utils.constants import (
     EpisodeMetadataKeys,
     SegmentKeys,
@@ -75,6 +77,18 @@ def parse_whitelist_message(
         subscription_end=None,
         note=None,
     )
+
+
+def scene_to_segment_dict(scene: SearchSegment) -> Dict[str, Any]:
+    return {
+        EpisodeMetadataKeys.EPISODE_METADATA: {
+            EpisodeMetadataKeys.SEASON: scene["season"],
+            EpisodeMetadataKeys.EPISODE_NUMBER: scene["episode_number"],
+            EpisodeMetadataKeys.TITLE: scene["title"],
+        },
+        SegmentKeys.START_TIME: scene["start_time"],
+        SegmentKeys.END_TIME: scene["end_time"],
+    }
 
 
 def format_segment(segment: json) -> FormattedSegmentInfo:
