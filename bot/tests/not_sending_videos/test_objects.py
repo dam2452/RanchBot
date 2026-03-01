@@ -38,7 +38,7 @@ class TestObjectsHandler(BaseTest):
         response = self.send_command(f'/obiekt {_NONEXISTENT_OBJECT}')
         self.assert_response_contains(
             response,
-            [f"Nie znaleziono scen z obiektem '{_NONEXISTENT_OBJECT}'"],
+            [f"Nie znaleziono obiektu pasującego do '{_NONEXISTENT_OBJECT}'"],
         )
 
     @pytest.mark.asyncio

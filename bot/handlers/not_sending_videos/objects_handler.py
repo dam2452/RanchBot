@@ -23,6 +23,7 @@ from bot.responses.not_sending_videos.objects_handler_responses import (
     get_log_object_scenes_message,
     get_log_objects_list_message,
     get_no_objects_message,
+    get_object_not_found_message,
     object_scene_to_search_segment,
 )
 from bot.search.object_finder import ObjectFinder
@@ -84,12 +85,15 @@ class ObjectsHandler(BotMessageHandler):
 
     async def __handle_object_mode(
         self,
-        class_name: str,
+        query: str,
         series_name: str,
         is_full: bool,
     ) -> None:
+        class_name = await self.__resolve_object_class(query, series_name)
+        if class_name is None:
+            return
         scenes = await ObjectFinder.get_scenes_by_object(
-            class_name=class_name.lower(),
+            class_name=class_name,
             series_name=series_name,
             logger=self._logger,
         )
@@ -109,7 +113,7 @@ class ObjectsHandler(BotMessageHandler):
 
     async def __handle_object_filter_mode(
         self,
-        class_name: str,
+        query: str,
         qty_raw: str,
         series_name: str,
         is_full: bool,
@@ -118,8 +122,11 @@ class ObjectsHandler(BotMessageHandler):
         if qty_filter is None:
             await self._reply_error(get_invalid_quantity_filter_message(qty_raw))
             return
+        class_name = await self.__resolve_object_class(query, series_name)
+        if class_name is None:
+            return
         scenes = await ObjectFinder.get_scenes_by_object(
-            class_name=class_name.lower(),
+            class_name=class_name,
             series_name=series_name,
             logger=self._logger,
         )
@@ -137,6 +144,16 @@ class ObjectsHandler(BotMessageHandler):
             logging.INFO,
             get_log_object_scenes_message(class_name, len(filtered), self._message.get_username()),
         )
+
+    async def __resolve_object_class(self, query: str, series_name: str) -> Optional[str]:
+        class_name = await ObjectFinder.find_best_matching_object(
+            query=query,
+            series_name=series_name,
+            logger=self._logger,
+        )
+        if class_name is None:
+            await self._reply_error(get_object_not_found_message(query))
+        return class_name
 
     async def __save_scenes_to_last_search(
         self,

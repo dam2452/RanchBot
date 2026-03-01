@@ -1,8 +1,10 @@
+import difflib
 import logging
 from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 from bot.search.elastic_search_manager import ElasticSearchManager
@@ -14,7 +16,6 @@ from bot.types import (
 )
 from bot.utils.constants import (
     DetectedObjectKeys,
-    ElasticsearchAggregationKeys,
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
@@ -26,9 +27,13 @@ from bot.utils.constants import (
 from bot.utils.log import log_system_message
 
 _OBJECT_CLASS_FIELD = f"{VideoFrameKeys.DETECTED_OBJECTS}.{DetectedObjectKeys.CLASS}"
+_SEASON_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
+_SCENE_NUMBER_FIELD = f"{VideoFrameKeys.SCENE_INFO}.{SceneInfoKeys.SCENE_NUMBER}"
 _OBJECTS_AGG = "objects"
 _CLASSES_AGG = "classes"
 _BACK_TO_ROOT = "back_to_root"
+_EPISODES_AGG = "episodes"
+_SCENES_AGG = "scenes"
 
 _OPERATORS = {
     "=": lambda c, v: c == v,
@@ -36,6 +41,54 @@ _OPERATORS = {
     "<": lambda c, v: c < v,
     ">=": lambda c, v: c >= v,
     "<=": lambda c, v: c <= v,
+}
+
+_POLISH_TO_ENGLISH: Dict[str, str] = {
+    "osoba": "person",
+    "człowiek": "person",
+    "ludzie": "person",
+    "rower": "bicycle",
+    "samochód": "car",
+    "auto": "car",
+    "pojazd": "car",
+    "motocykl": "motorcycle",
+    "motor": "motorcycle",
+    "samolot": "airplane",
+    "autobus": "bus",
+    "pociąg": "train",
+    "ciężarówka": "truck",
+    "łódź": "boat",
+    "koń": "horse",
+    "krowa": "cow",
+    "owca": "sheep",
+    "pies": "dog",
+    "kot": "cat",
+    "ptak": "bird",
+    "krzesło": "chair",
+    "sofa": "couch",
+    "kanapa": "couch",
+    "stół": "dining table",
+    "stolik": "dining table",
+    "telewizor": "tv",
+    "laptop": "laptop",
+    "telefon": "cell phone",
+    "komórka": "cell phone",
+    "butelka": "bottle",
+    "kubek": "cup",
+    "szklanka": "cup",
+    "talerz": "bowl",
+    "miska": "bowl",
+    "nóż": "knife",
+    "widelec": "fork",
+    "łyżka": "spoon",
+    "plecak": "backpack",
+    "torba": "handbag",
+    "walizka": "suitcase",
+    "zegar": "clock",
+    "książka": "book",
+    "wazon": "vase",
+    "krawat": "tie",
+    "parasol": "umbrella",
 }
 
 
@@ -56,6 +109,9 @@ def _group_frames_into_scenes(
 ) -> List[ObjectScene]:
     scenes = {}
     for frame in frames:
+        meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+        if meta.get(EpisodeMetadataKeys.SEASON, 0) == 0:
+            continue
         episode_id = frame.get(VideoFrameKeys.EPISODE_ID, "")
         scene_info = frame.get(VideoFrameKeys.SCENE_INFO) or {}
         scene_number = scene_info.get(SceneInfoKeys.SCENE_NUMBER)
@@ -71,7 +127,6 @@ def _group_frames_into_scenes(
         )
 
         if key not in scenes:
-            meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
             scenes[key] = ObjectScene(
                 season=meta.get(EpisodeMetadataKeys.SEASON, 0),
                 episode_number=meta.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0),
@@ -99,6 +154,13 @@ class ObjectFinder:
 
         query: Dict[str, Any] = {
             ElasticsearchQueryKeys.SIZE: 0,
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.MUST_NOT: [
+                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: 0}},
+                    ],
+                },
+            },
             ElasticsearchQueryKeys.AGGS: {
                 _OBJECTS_AGG: {
                     ElasticsearchQueryKeys.NESTED: {
@@ -117,9 +179,18 @@ class ObjectFinder:
                                 _BACK_TO_ROOT: {
                                     ElasticsearchQueryKeys.REVERSE_NESTED: {},
                                     ElasticsearchQueryKeys.AGGS: {
-                                        ElasticsearchAggregationKeys.UNIQUE_EPISODES: {
-                                            ElasticsearchQueryKeys.CARDINALITY: {
+                                        _EPISODES_AGG: {
+                                            ElasticsearchQueryKeys.TERMS: {
                                                 ElasticsearchQueryKeys.FIELD: VideoFrameKeys.EPISODE_ID,
+                                                ElasticsearchQueryKeys.SIZE: 200,
+                                            },
+                                            ElasticsearchQueryKeys.AGGS: {
+                                                _SCENES_AGG: {
+                                                    ElasticsearchQueryKeys.TERMS: {
+                                                        ElasticsearchQueryKeys.FIELD: _SCENE_NUMBER_FIELD,
+                                                        ElasticsearchQueryKeys.SIZE: 100,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -138,13 +209,18 @@ class ObjectFinder:
             [_CLASSES_AGG]
             [ElasticsearchKeys.BUCKETS]
         )
-        objects = [
-            ObjectWithCount(
-                class_name=b[ElasticsearchKeys.KEY],
-                episode_count=b[_BACK_TO_ROOT][ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE],
+        objects = []
+        for b in buckets:
+            scene_count = sum(
+                len(ep[_SCENES_AGG][ElasticsearchKeys.BUCKETS])
+                for ep in b[_BACK_TO_ROOT][_EPISODES_AGG][ElasticsearchKeys.BUCKETS]
             )
-            for b in buckets
-        ]
+            objects.append(
+                ObjectWithCount(
+                    class_name=b[ElasticsearchKeys.KEY],
+                    scene_count=scene_count,
+                ),
+            )
         await log_system_message(logging.INFO, f"Found {len(objects)} object classes.", logger)
         return objects
 
@@ -177,3 +253,32 @@ class ObjectFinder:
         val = qty_filter["value"]
         predicate = _OPERATORS[op]
         return [s for s in scenes if predicate(s["total_count"], val)]
+
+    @staticmethod
+    async def find_best_matching_object(
+        query: str,
+        series_name: str,
+        logger: logging.Logger,
+    ) -> Optional[str]:
+        all_classes = await VideoFramesFinder.get_all_detected_objects(series_name, logger)
+        classes_lower = {c.lower(): c for c in all_classes}
+        normalized = query.lower().strip()
+
+        if normalized in classes_lower:
+            return classes_lower[normalized]
+
+        mapped = _POLISH_TO_ENGLISH.get(normalized)
+        if mapped and mapped.lower() in classes_lower:
+            return classes_lower[mapped.lower()]
+
+        candidates = list(classes_lower.keys())
+        matches = difflib.get_close_matches(normalized, candidates, n=1, cutoff=0.6)
+        if matches:
+            return classes_lower[matches[0]]
+
+        if mapped:
+            matches = difflib.get_close_matches(mapped.lower(), candidates, n=1, cutoff=0.6)
+            if matches:
+                return classes_lower[matches[0]]
+
+        return None

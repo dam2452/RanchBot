@@ -45,9 +45,9 @@ def object_scene_to_search_segment(scene: ObjectScene) -> Dict[str, Any]:
 def format_objects_list(objects: List[ObjectWithCount]) -> str:
     if not objects:
         return get_no_objects_message()
-    sorted_objs = sorted(objects, key=lambda o: o["episode_count"], reverse=True)
+    sorted_objs = sorted(objects, key=lambda o: o["scene_count"], reverse=True)
     lines = [
-        f"{convert_number_to_emoji(i + 1)} {o['class_name']}\n  🎬 wystąpił w {o['episode_count']} odcinkach"
+        f"{convert_number_to_emoji(i + 1)} {o['class_name']}\n  🎬 wystąpił w {o['scene_count']} scenach"
         for i, o in enumerate(sorted_objs[:_PREVIEW_COUNT])
     ]
     body = (
@@ -59,9 +59,9 @@ def format_objects_list(objects: List[ObjectWithCount]) -> str:
 
 
 def format_objects_list_full(objects: List[ObjectWithCount]) -> str:
-    sorted_objs = sorted(objects, key=lambda o: o["episode_count"], reverse=True)
+    sorted_objs = sorted(objects, key=lambda o: o["scene_count"], reverse=True)
     lines = [
-        f"{i + 1:3}. {o['class_name']:<30}  wystąpił w {o['episode_count']} odcinkach"
+        f"{i + 1:3}. {o['class_name']:<30}  wystąpił w {o['scene_count']} scenach"
         for i, o in enumerate(sorted_objs)
     ]
     return f"OBIEKTY ({len(sorted_objs)})\n\n" + "\n".join(lines)
@@ -121,6 +121,10 @@ def format_object_scenes_full(
 
 def get_no_objects_message() -> str:
     return BotResponse.warning("BRAK DANYCH", "Brak obiektów w bazie danych.")
+
+
+def get_object_not_found_message(query: str) -> str:
+    return BotResponse.warning("BRAK WYNIKÓW", f"Nie znaleziono obiektu pasującego do '{query}'.")
 
 
 def get_invalid_quantity_filter_message(raw: str) -> str:
