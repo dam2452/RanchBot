@@ -25,18 +25,7 @@ _PREVIEW_COUNT = 5
 _FRAME_SPAN_S = 3.0
 
 
-def parse_character_args(args: List[str]) -> Tuple[str, str, str]:
-    emotion_input, emotion_en = "", ""
-    if len(args) >= 2:
-        candidate_en = map_emotion_to_en(args[-1])
-        if candidate_en:
-            emotion_en = candidate_en
-            emotion_input = args[-1]
-            args = args[:-1]
-    return " ".join(args), emotion_input, emotion_en
-
-
-def _scene_to_segment_dict(scene: CharacterScene) -> dict:
+def _scene_to_segment_dict(scene: CharacterScene) -> Dict[str, Any]:
     return {
         EpisodeMetadataKeys.EPISODE_METADATA: {
             EpisodeMetadataKeys.SEASON: scene["season"],
@@ -46,6 +35,17 @@ def _scene_to_segment_dict(scene: CharacterScene) -> dict:
         SegmentKeys.START_TIME: scene["start_time"],
         SegmentKeys.END_TIME: scene["end_time"],
     }
+
+
+def parse_character_args(args: List[str]) -> Tuple[str, str, str]:
+    emotion_input, emotion_en = "", ""
+    if len(args) >= 2:
+        candidate_en = map_emotion_to_en(args[-1])
+        if candidate_en:
+            emotion_en = candidate_en
+            emotion_input = args[-1]
+            args = args[:-1]
+    return " ".join(args), emotion_input, emotion_en
 
 
 def scene_to_search_segment(scene: CharacterScene) -> Dict[str, Any]:
@@ -151,6 +151,10 @@ def get_invalid_args_count_message() -> str:
 
 def get_no_characters_message() -> str:
     return BotResponse.warning("BRAK DANYCH", "Brak postaci w bazie danych.")
+
+
+def get_character_not_found_message(query: str) -> str:
+    return BotResponse.warning("BRAK WYNIKÓW", f"Nie znaleziono postaci pasujących do '{query}'.")
 
 
 def get_log_characters_list_message(count: int, username: str) -> str:

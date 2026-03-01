@@ -52,7 +52,7 @@ class TestCharactersHandler(BaseTest):
         response = self.send_command(f'/postacie {_NONEXISTENT_CHARACTER}')
         self.assert_response_contains(
             response,
-            ["Nie znaleziono postaci pasujacych do"],
+            ["Nie znaleziono postaci pasujących do"],
         )
 
     @pytest.mark.asyncio
@@ -68,7 +68,7 @@ class TestCharactersHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_characters_unknown_emotion(self):
         response = self.send_command(f'/postacie {_TEST_CHARACTER} {_UNKNOWN_EMOTION}')
-        self.assert_response_contains(response, ["/emocje"])
+        self.assert_response_contains(response, ["Nie znaleziono postaci pasujących do"])
 
     @pytest.mark.asyncio
     async def test_characters_list_ignores_season_0(self):

@@ -5,15 +5,15 @@ from typing import (
     Tuple,
 )
 
-from bot.responses.not_sending_videos.characters_handler_responses import parse_character_args
+from bot.responses.not_sending_videos.characters_handler_responses import (
+    get_character_not_found_message,
+    parse_character_args,
+)
 from bot.search.character_finder import CharacterFinder
 
 
 class CharacterHandlerMixin:
     _logger: logging.Logger
-
-    async def _reply_error(self, message: str) -> None:
-        raise NotImplementedError
 
     async def _find_character(
         self,
@@ -25,6 +25,6 @@ class CharacterHandlerMixin:
             character_query, series_name, self._logger,
         )
         if character is None:
-            await self._reply_error(f"Nie znaleziono postaci pasujących do '{character_query}'.")
+            await self._reply_error(get_character_not_found_message(character_query))  # pylint: disable=no-member
             return None, emotion_input, emotion_en
         return character, emotion_input, emotion_en
