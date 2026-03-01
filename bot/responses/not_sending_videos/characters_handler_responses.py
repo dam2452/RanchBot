@@ -142,6 +142,10 @@ def get_no_characters_message() -> str:
     return BotResponse.warning("BRAK DANYCH", "Brak postaci w bazie danych.")
 
 
+def get_character_not_found_message(query: str) -> str:
+    return BotResponse.warning("BRAK WYNIKÓW", f"Nie znaleziono postaci pasujących do '{query}'.")
+
+
 def get_log_characters_list_message(count: int, username: str) -> str:
     return f"Characters list ({count} items) sent to user {username}."
 
