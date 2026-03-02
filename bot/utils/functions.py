@@ -43,6 +43,11 @@ def minutes_str_to_seconds(time_str: str) -> float:
         raise InvalidTimeStringException(time_str) from e
 
 
+def format_seconds_to_mmss(seconds: float) -> str:
+    minutes, secs = divmod(seconds, 60)
+    return f"{int(minutes):02d}:{int(secs):02d}"
+
+
 def convert_seconds_to_time_str(seconds: int) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)

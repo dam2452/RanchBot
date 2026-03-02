@@ -18,7 +18,7 @@ from bot.responses.not_sending_videos.search_handler_responses import (
     get_invalid_args_count_message,
     get_log_search_results_sent_message,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.settings import settings
 
 
@@ -52,7 +52,7 @@ class SearchHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
 
-        segments = await TranscriptionFinder.find_segment_by_quote(quote, self._logger, active_series, size=10000)
+        segments = await TextSegmentsFinder.find_segment_by_quote(quote, self._logger, active_series, size=999)
         if not segments:
             await self.__reply_no_segments_found(quote)
             return

@@ -1,16 +1,24 @@
+from typing import Optional
+
 from bot.types import TranscriptionContext
 from bot.utils.constants import (
     EpisodeMetadataKeys,
     SegmentKeys,
     TranscriptionContextKeys,
 )
+from bot.utils.functions import format_seconds_to_mmss
 
 
 def get_no_quote_provided_message() -> str:
     return "🔎 Podaj cytat, który chcesz znaleźć. Przykład: /transkrypcja Nie szkoda panu tego pięknego gabinetu?"
 
 
-def get_transcription_response(quote: str, result: TranscriptionContext) -> str:
+def get_transcription_response(
+    quote: str,
+    result: TranscriptionContext,
+    snapped_start: Optional[float] = None,
+    snapped_end: Optional[float] = None,
+) -> str:
     start_time = float(result[TranscriptionContextKeys.OVERALL_START_TIME])
     end_time = float(result[TranscriptionContextKeys.OVERALL_END_TIME])
 
@@ -34,15 +42,16 @@ def get_transcription_response(quote: str, result: TranscriptionContext) -> str:
         episode_display = f"S{int(season):02d}E{int(episode_number):02d}"
         absolute_episode_display = str((season - 1) * 13 + episode_number)
 
-    start_minutes, start_seconds = divmod(start_time, 60)
-    end_minutes, end_seconds = divmod(end_time, 60)
-
     response = (
         f"📺 *{episode_title}* 📺\n"
         f"🎬 *{episode_display} ({absolute_episode_display})* 🎬\n"
-        f"⏰ *Czas: {int(start_minutes):02d}:{int(start_seconds):02d} - {int(end_minutes):02d}:{int(end_seconds):02d}* ⏰\n\n"
-        "```"
+        f"⏰ *Czas: {format_seconds_to_mmss(start_time)} - {format_seconds_to_mmss(end_time)}* ⏰\n"
     )
+
+    if snapped_start is not None and snapped_end is not None:
+        response += f"🎞 *Scena: {format_seconds_to_mmss(snapped_start)} - {format_seconds_to_mmss(snapped_end)}* 🎞\n"
+
+    response += "\n```"
 
     response += f"Cytat: \"{quote}\" \n".replace(" ", "\u00A0")
 

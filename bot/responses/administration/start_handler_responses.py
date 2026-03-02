@@ -49,6 +49,7 @@ def get_all_message() -> str:
 📺 /odcinki <sezon> - Wyświetla listę odcinków dla podanego sezonu. Przykład: /odcinki 2.
 📺 /serial - Zarządza aktywnym serialem (zmiana, lista dostępnych).
 ✂️ /wytnij <sezon_odcinek> <czas_start> <czas_koniec> - Wytnij fragment klipu. Przykład: /wytnij S07E06 36:47.50 36:49.00.
+📝 /transkrypcja <cytat> - Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: /transkrypcja geniusz.
 
 ════════════════════
 ✂️ Edycja klipów ✂️
@@ -62,6 +63,8 @@ def get_all_message() -> str:
    -> Działa *zawsze* względem *pierwotnej, oryginalnej wersji* klipu.
    Przykład 1: /adostosuj -5.5 1.2 (dla wybranego klipu)
    Przykład 2: /adostosuj 1 10.0 -3 (dla klipu nr 1 z listy)
+
+🎯 /snap - Wyrównuje ostatni klip do najbliższych cięć scen (bez zmiany → informuje).
 
 🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.
 🎞️ /kompiluj <zakres> - Tworzy kompilację z zakresu klipów. Przykład: /kompiluj 1-4.
@@ -101,6 +104,7 @@ def get_search_message() -> str:
 📺 /odcinki <sezon> - Wyświetla listę odcinków dla podanego sezonu. Przykład: /odcinki 2.\n
 📺 /serial - Zarządza aktywnym serialem (zmiana, lista dostępnych).\n
 ✂️ /wytnij <sezon_odcinek> <czas_start> <czas_koniec> - Wytnij fragment klipu. Przykład: /wytnij S07E06 36:47.50 36:49.00.\n
+📝 /transkrypcja <cytat> - Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: /transkrypcja geniusz.\n
 ```"""
 
 
@@ -118,6 +122,8 @@ def get_edit_message() -> str:
    -> Działa *zawsze* względem *pierwotnej, oryginalnej wersji* klipu.
    Przykład 1: /adostosuj -5.5 1.2 (dla wybranego klipu)
    Przykład 2: /adostosuj 1 10.0 -3 (dla klipu nr 1 z listy)
+
+🎯 /snap - Wyrównuje ostatni klip do najbliższych cięć scen (bez zmiany → informuje).
 
 🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.
 🎞️ /kompiluj <zakres> - Tworzy kompilację z zakresu klipów. Przykład: /kompiluj 1-4.
@@ -164,12 +170,14 @@ def get_shortcuts_message() -> str:
 🐐 /s, /start - Uruchamia główne menu.\n
 🔎 /k, /klip - Wyszukuje klip na podstawie cytatu.\n
 🔎 /sz, /szukaj - Wyszukuje klip na podstawie cytatu.\n
+📝 /t, /transkrypcja - Wyświetla transkrypcję z kontekstem.\n
 📋 /l, /lista - Wyświetla wszystkie klipy znalezione przez /szukaj.\n
 ✅ /w, /wybierz - Wybiera klip z listy uzyskanej przez /szukaj.\n
 📺 /o, /odcinki - Wyświetla listę odcinków dla podanego sezonu.\n
 📺 /ser, /serial - Zarządza aktywnym serialem.\n
 ✂️ /d, /dostosuj - Dostosowuje wybrany klip (relatywnie).\n
 ✂️ /ad, /adostosuj - Dostosowuje wybrany klip (absolutnie).\n
+🎯 /sp, /snap - Wyrównuje klip do cięć scen.\n
 🎞️ /kom, /kompiluj - Tworzy kompilację klipów.\n
 🔗 /pk, /polaczklipy - Łączy zapisane klipy w jeden.\n
 🗑️ /uk, /usunklip - Usuwa zapisany klip.\n

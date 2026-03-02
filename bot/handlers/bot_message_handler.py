@@ -11,6 +11,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Union,
 )
 
 from bot.adapters.rest.models import ResponseStatus as RS
@@ -118,7 +119,9 @@ class BotMessageHandler(ABC):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         pass
 
-    async def _handle_clip_duration_limit_exceeded(self, clip_duration: float) -> bool:
+    async def _handle_clip_duration_limit_exceeded(self, clip_duration: Optional[float]) -> bool:
+        if clip_duration is None:
+            return False
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and clip_duration > settings.MAX_CLIP_DURATION:
             await self._responder.send_markdown(get_limit_exceeded_clip_duration_message())
             await self._log_system_message(logging.INFO, get_log_clip_duration_exceeded_message(self._message.get_user_id()))
@@ -130,7 +133,7 @@ class BotMessageHandler(ABC):
             message: AbstractMessage,
             min_args: int,
             error_message: str,
-            max_args: Optional[int] = None,
+            max_args: Optional[Union[int, float]] = None,
     ) -> bool:
         if max_args is None:
             max_args = min_args
@@ -148,7 +151,7 @@ class BotMessageHandler(ABC):
             status: RS = RS.SUCCESS,
     ) -> None:
         if self._message.should_reply_json():
-            response_data = {
+            response_data: Dict[str, Any] = {
                 "status": status,
                 "message": message,
             }
@@ -193,8 +196,14 @@ class BotMessageHandler(ABC):
 
         return message
 
-    async def _compile_and_send_video(self, selected_segments: List[ClipSegment], total_duration: float, clip_type: ClipType) -> None:
-        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger)
+    async def _compile_and_send_video(
+        self,
+        selected_segments: List[ClipSegment],
+        total_duration: float,
+        clip_type: ClipType,
+        series_name: Optional[str] = None,
+    ) -> None:
+        compiled_output = await ClipsCompiler.compile(self._message, selected_segments, self._logger, series_name)
         await process_compiled_clip(self._message, compiled_output, clip_type)
 
         try:

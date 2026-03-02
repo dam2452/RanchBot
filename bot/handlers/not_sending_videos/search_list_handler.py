@@ -15,7 +15,7 @@ from bot.responses.not_sending_videos.search_list_handler_responses import (
     get_log_search_results_sent_message,
     get_no_previous_search_results_message,
 )
-from bot.search.transcription_finder import TranscriptionFinder
+from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.settings import settings as s
 
 
@@ -47,7 +47,7 @@ class SearchListHandler(BotMessageHandler):
 
         if self._message.should_reply_json():
             series_name = await self._get_user_active_series(user_id)
-            season_info = await TranscriptionFinder.get_season_details_from_elastic(logger=self._logger, series_name=series_name)
+            season_info = await TextSegmentsFinder.get_season_details_from_elastic(logger=self._logger, series_name=series_name)
             await self._responder.send_json({
                 "query": search_term,
                 "segments": segments,

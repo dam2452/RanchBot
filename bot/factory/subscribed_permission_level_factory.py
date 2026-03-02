@@ -13,6 +13,7 @@ from bot.adapters.telegram.telegram_inline_query import TelegramInlineQuery
 from bot.database.database_manager import DatabaseManager
 from bot.factory.permission_level_factory import PermissionLevelFactory
 from bot.handlers import (
+    AdjustBySceneHandler,
     AdjustVideoClipHandler,
     BotMessageHandler,
     ClipHandler,
@@ -30,6 +31,8 @@ from bot.handlers import (
     SelectClipHandler,
     SendClipHandler,
     SerialContextHandler,
+    SnapClipHandler,
+    TranscriptionHandler,
 )
 from bot.middlewares import (
     BotMiddleware,
@@ -43,6 +46,7 @@ from bot.utils.log import log_system_message
 class SubscribedPermissionLevelFactory(PermissionLevelFactory):
     def _create_handler_classes(self) -> List[Type[BotMessageHandler]]:
         return [
+            AdjustBySceneHandler,
             AdjustVideoClipHandler,
             ClipHandler,
             CompileClipsHandler,
@@ -59,6 +63,8 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             SelectClipHandler,
             SendClipHandler,
             SerialContextHandler,
+            SnapClipHandler,
+            TranscriptionHandler,
         ]
 
     def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:

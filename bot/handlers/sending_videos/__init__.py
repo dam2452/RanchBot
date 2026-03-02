@@ -1,3 +1,4 @@
+from bot.handlers.sending_videos.adjust_by_scene_handler import AdjustBySceneHandler
 from bot.handlers.sending_videos.adjust_video_clip_handler import AdjustVideoClipHandler
 from bot.handlers.sending_videos.clip_handler import ClipHandler
 from bot.handlers.sending_videos.compile_clips_handler import CompileClipsHandler
@@ -5,3 +6,4 @@ from bot.handlers.sending_videos.compile_selected_clips_handler import CompileSe
 from bot.handlers.sending_videos.manual_clip_handler import ManualClipHandler
 from bot.handlers.sending_videos.select_clip_handler import SelectClipHandler
 from bot.handlers.sending_videos.send_clip_handler import SendClipHandler
+from bot.handlers.sending_videos.snap_clip_handler import SnapClipHandler

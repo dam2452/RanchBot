@@ -9,7 +9,6 @@ from bot.handlers import (
     ListAdminsHandler,
     ListModeratorsHandler,
     ListWhitelistHandler,
-    TranscriptionHandler,
     UpdateUserNoteHandler,
 )
 from bot.middlewares import ModeratorMiddleware
@@ -23,7 +22,6 @@ class ModeratorPermissionLevelFactory(PermissionLevelFactory):
             ListAdminsHandler,
             ListModeratorsHandler,
             ListWhitelistHandler,
-            TranscriptionHandler,
             UpdateUserNoteHandler,
         ]
 

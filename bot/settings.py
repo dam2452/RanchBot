@@ -44,8 +44,8 @@ class Settings(BaseSettings):
     EXTEND_BEFORE: float = Field(5)
     EXTEND_AFTER: float = Field(5)
 
-    EXTEND_BEFORE_COMPILE: float = Field(1)
-    EXTEND_AFTER_COMPILE: float = Field(1)
+    EXTEND_BEFORE_COMPILE: float = Field(0)
+    EXTEND_AFTER_COMPILE: float = Field(0)
 
     MESSAGE_LIMIT: int = Field(5)
     LIMIT_DURATION: int = Field(30)

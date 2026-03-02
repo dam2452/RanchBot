@@ -29,7 +29,7 @@ from bot.utils.constants import (
 from bot.utils.log import log_system_message
 
 
-class TranscriptionFinder:
+class TextSegmentsFinder:
     @staticmethod
     def is_segment_overlap(
             previous_segment: ElasticsearchSegment,
@@ -64,18 +64,18 @@ class TranscriptionFinder:
             quote: str, logger: logging.Logger, series_name: str, season_filter: Optional[int] = None,
             episode_filter: Optional[int] = None,
             size: int = 1,
-    ) -> Optional[Union[List[ObjectApiResponse], ObjectApiResponse]]:
+    ) -> Optional[Union[SegmentWithScore, List[SegmentWithScore]]]:
         def __merge_overlapping_segment(
-            segment: SegmentWithScore,
-            unique_segments: List[SegmentWithScore],
-            start_time: float,
-            end_time: float,
+            incoming: SegmentWithScore,
+            collected: List[SegmentWithScore],
+            incoming_start: float,
+            incoming_end: float,
         ) -> bool:
-            for i, existing_segment in enumerate(unique_segments):
+            for i, existing_segment in enumerate(collected):
                 existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
                 existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
-                seg_metadata = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+                seg_metadata = incoming.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
                 existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
 
                 seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
@@ -87,20 +87,20 @@ class TranscriptionFinder:
                 if (
                     seg_season == existing_season and
                     seg_episode == existing_episode and
-                    start_time <= existing_end and
-                    end_time >= existing_start
+                    incoming_start <= existing_end and
+                    incoming_end >= existing_start
                 ):
-                    unique_segments[i][SegmentKeys.START_TIME] = min(
+                    collected[i][SegmentKeys.START_TIME] = min(
                         existing_segment[SegmentKeys.START_TIME],
-                        segment[SegmentKeys.START_TIME],
+                        incoming[SegmentKeys.START_TIME],
                     )
-                    unique_segments[i][SegmentKeys.END_TIME] = max(
+                    collected[i][SegmentKeys.END_TIME] = max(
                         existing_segment[SegmentKeys.END_TIME],
-                        segment[SegmentKeys.END_TIME],
+                        incoming[SegmentKeys.END_TIME],
                     )
-                    unique_segments[i][ElasticsearchKeys.SCORE] = max(
+                    collected[i][ElasticsearchKeys.SCORE] = max(
                         existing_segment[ElasticsearchKeys.SCORE],
-                        segment[ElasticsearchKeys.SCORE],
+                        incoming[ElasticsearchKeys.SCORE],
                     )
                     return True
             return False
@@ -188,7 +188,6 @@ class TranscriptionFinder:
 
         return None
 
-
     @staticmethod
     async def find_segment_with_context(
             quote: str, logger: logging.Logger, series_name: str, context_size: int = 30,
@@ -205,7 +204,7 @@ class TranscriptionFinder:
         if index is None:
             index = f"{series_name}_text_segments"
 
-        segment = await TranscriptionFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
+        segment = await TextSegmentsFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
         if not segment:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None
@@ -217,13 +216,13 @@ class TranscriptionFinder:
         )
         segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
 
-        context_segments = await TranscriptionFinder._fetch_context_segments(
+        context_segments = await TextSegmentsFinder._fetch_context_segments(
             es, index, episode_data, segment_id, context_size,
         )
 
         segment_start = segment.get(SegmentKeys.START_TIME, segment.get(SegmentKeys.START))
         segment_end = segment.get(SegmentKeys.END_TIME, segment.get(SegmentKeys.END))
-        unique_context_segments = TranscriptionFinder.__build_unique_segments(
+        unique_context_segments = TextSegmentsFinder.__build_unique_segments(
             context_segments, segment_id, segment, segment_start, segment_end,
         )
 
@@ -232,12 +231,13 @@ class TranscriptionFinder:
         overall_start_time = min(seg[SegmentKeys.START] for seg in unique_context_segments)
         overall_end_time = max(seg[SegmentKeys.END] for seg in unique_context_segments)
 
-        return {
+        result = {
             TranscriptionContextKeys.TARGET: segment,
             TranscriptionContextKeys.CONTEXT: unique_context_segments,
             TranscriptionContextKeys.OVERALL_START_TIME: overall_start_time,
             TranscriptionContextKeys.OVERALL_END_TIME: overall_end_time,
         }
+        return result
 
     @staticmethod
     async def _fetch_context_segments(
@@ -473,7 +473,7 @@ class TranscriptionFinder:
         response = await es.search(index=index, body=agg_query)
         buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.SEASONS][ElasticsearchKeys.BUCKETS]
 
-        season_dict: SeasonInfoDict = {}
+        season_dict = {}
         for bucket in buckets:
             season_key = str(bucket[ElasticsearchKeys.KEY])
             episodes_count = bucket[ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE]

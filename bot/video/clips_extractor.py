@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from pathlib import Path
 import tempfile
 
@@ -19,7 +20,9 @@ class ClipsExtractor:
         logger: logging.Logger,
     ) -> Path:
         duration = end_time - start_time
-        output_filename = Path(tempfile.mktemp(suffix=".mp4"))
+        fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
+        os.close(fd)
+        output_filename = Path(tmp_path)
         await log_system_message(
             logging.INFO,
             f"Extracting clip from {video_path}, start: {start_time}, end: {end_time}, duration: {duration}",
