@@ -7,6 +7,7 @@
 - **`/start`**: 👋 Uruchamia główne menu.
 - **`/klip <cytat>`** / **`/k <cytat>`**: 🎥 Wyszukiwanie klipu.
 - **`/szukaj <cytat>`** / **`/sz <cytat>`**: 🔍 Znalezienie klipów.
+- **`/sens [tryb] <zapytanie>`** / **`/meaning`** / **`/sen`**: 🧠 Wyszukiwanie semantyczne (tekst/klatki/odcinek).
 - **`/lista`** / **`/l`**: 📋 Lista klipów.
 - **`/wybierz <numer_klipu>`** / **`/w <numer_klipu>`**: 🎯 Wybór klipu.
 - **`/odcinki <sezon>`** / **`/o <sezon>`**: 🎞️ Lista odcinków.
@@ -45,6 +46,7 @@
 - **`/start`**/ **`/s`**: 👋 Wyświetla wiadomość powitalną z podstawowymi komendami.
 - **`/klip <cytat>`**/ **`/k <cytat>`**: 🎥 Wyszukuje klip na podstawie cytatu. Przykład: `/klip geniusz`.
 - **`/szukaj <cytat>`**/ **`/sz <cytat>`**: 🔍 Znajduje klipy pasujące do cytatu (pierwsze 5 wyników). Przykład: `/szukaj kozioł`.
+- **`/sens [tryb] <zapytanie>`**/ **`/meaning [tryb] <zapytanie>`**/ **`/sen [tryb] <zapytanie>`**: 🧠 Wyszukuje klipy semantycznie po znaczeniu (embeddingi). Tryby: `tekst` (domyślnie), `klatki`, `odcinek`. Przykład: `/sens ucieczka od problemów` / `/sens klatki biesiada` / `/sens odcinek ślub`.
 - **`/lista`**/ **`/l`**: 📋 Wyświetla wszystkie klipy znalezione przez `/szukaj`.
 - **`/wybierz <numer_klipu>`**/ **`/w <numer_klipu>`**: 🎯 Wybiera klip z listy uzyskanej przez `/szukaj`**do dalszych operacji. Przykład: `/wybierz 1`.
 - **`/odcinki <sezon>`**/ **`/o <sezon>`**: 🎞️ Wyświetla listę odcinków dla podanego sezonu. Przykład: `/odcinki 2`.

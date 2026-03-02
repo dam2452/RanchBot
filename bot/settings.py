@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
     DISABLE_RATE_LIMITING: bool = Field(False)
 
+    VLLM_HOST: str = Field("http://localhost:8002")
+    VLLM_EMBEDDINGS_MODEL: str = Field("qwen3vl-embed")
+    VLLM_TIMEOUT_SECONDS: int = Field(30)
+    ES_TEXT_EMBEDDINGS_INDEX_SUFFIX: str = Field("text_embeddings")
+    ES_VIDEO_EMBEDDINGS_INDEX_SUFFIX: str = Field("video_embeddings")
+    ES_FULL_EPISODE_EMBEDDINGS_INDEX_SUFFIX: str = Field("full_episode_embeddings")
+
     @model_validator(mode='after')
     def check_conditional_settings(self) -> 'Settings':
         if not self.ENABLE_TELEGRAM and not self.ENABLE_REST:
