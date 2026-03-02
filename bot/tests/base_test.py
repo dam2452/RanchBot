@@ -30,7 +30,7 @@ class BaseTest:
     async def setup_client(self, test_client, auth_token):
         self.client = test_client
         self.token = auth_token
-        self.default_admin = int(s.TEST_ADMINS.split(",")[0])
+        self.default_admin = int(s.TEST_ADMINS.split(",")[0])  # pylint: disable=no-member
 
     @staticmethod
     def __sanitize_text(text: str) -> str:
