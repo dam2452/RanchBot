@@ -6,5 +6,6 @@ from bot.handlers.sending_videos.compile_clips_handler import CompileClipsHandle
 from bot.handlers.sending_videos.compile_selected_clips_handler import CompileSelectedClipsHandler
 from bot.handlers.sending_videos.manual_clip_handler import ManualClipHandler
 from bot.handlers.sending_videos.select_clip_handler import SelectClipHandler
+from bot.handlers.sending_videos.semantic_clip_handler import SemanticClipHandler
 from bot.handlers.sending_videos.send_clip_handler import SendClipHandler
 from bot.handlers.sending_videos.snap_clip_handler import SnapClipHandler

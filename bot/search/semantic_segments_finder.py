@@ -53,7 +53,7 @@ class SemanticSegmentsFinder:
         embedding = await VllmClient.get_text_embedding(query, logger)
 
         if mode == SemanticSearchMode.FRAMES:
-            return await SemanticSegmentsFinder._search_index(
+            frames = await SemanticSegmentsFinder._search_index(
                 embedding=embedding,
                 logger=logger,
                 series_name=series_name,
@@ -61,6 +61,7 @@ class SemanticSegmentsFinder:
                 embedding_field="video_embedding",
                 size=size,
             )
+            return SemanticSegmentsFinder._normalize_frames(frames) if frames is not None else None
         if mode == SemanticSearchMode.EPISODE:
             return await SemanticSegmentsFinder._search_index(
                 embedding=embedding,
@@ -153,6 +154,15 @@ class SemanticSegmentsFinder:
         return unique
 
     @staticmethod
+    def _normalize_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        for frame in frames:
+            scene = frame.get("scene_info", {})
+            timestamp = frame.get("timestamp", 0.0)
+            frame[SegmentKeys.START_TIME] = scene.get("scene_start_time", timestamp)
+            frame[SegmentKeys.END_TIME] = scene.get("scene_end_time", timestamp)
+        return frames
+
+    @staticmethod
     def deduplicate_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         seen = set()
         unique = []
@@ -160,7 +170,7 @@ class SemanticSegmentsFinder:
             key = (
                 frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
                 frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
-                frame.get("frame_number"),
+                frame.get("scene_number"),
             )
             if key not in seen:
                 seen.add(key)
