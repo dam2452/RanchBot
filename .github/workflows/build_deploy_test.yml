@@ -54,6 +54,8 @@ jobs:
       INLINE_CACHE_CHANNEL_ID: ${{ secrets.INLINE_CACHE_CHANNEL_ID }}
       REST_API_HOST: ${{ secrets.REST_API_HOST }}
       VIDEO_DATA_DIR: ${{ secrets.VIDEO_DATA_DIR }}
+      VLLM_HOST: ${{ secrets.VLLM_HOST }}
+      VLLM_EMBEDDINGS_MODEL: ${{ secrets.VLLM_EMBEDDINGS_MODEL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
