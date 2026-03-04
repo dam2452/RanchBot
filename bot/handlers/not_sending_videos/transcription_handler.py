@@ -19,8 +19,10 @@ from bot.responses.not_sending_videos.transcription_handler_responses import (
     get_no_quote_provided_message,
     get_transcription_response,
 )
-from bot.search.scene_finder import SceneFinder
-from bot.search.text_segments_finder import TextSegmentsFinder
+from bot.search.text_segments_finder import (
+    SceneFinder,
+    TextSegmentsFinder,
+)
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.types import TranscriptionContext
 from bot.utils.constants import (

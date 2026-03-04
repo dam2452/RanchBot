@@ -4,14 +4,17 @@ from typing import (
     Dict,
     List,
     Optional,
+    Set,
+    Tuple,
 )
 
 from elasticsearch import NotFoundError
 
-from bot.search.elastic_search_manager import ElasticSearchManager
-from bot.search.vllm_client import VllmClient
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.vllm_client import VllmClient
 from bot.settings import settings
 from bot.utils.constants import (
+    ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     EpisodeMetadataKeys,
     SegmentKeys,
@@ -43,7 +46,7 @@ class SemanticSegmentsFinder:
         logger: logging.Logger,
         series_name: str,
         mode: str = SemanticSearchMode.DEFAULT,
-        size: int = 999,
+        size: int = settings.MAX_ES_RESULTS,
     ) -> Optional[List[Dict[str, Any]]]:
         await log_system_message(
             logging.INFO,
@@ -71,7 +74,7 @@ class SemanticSegmentsFinder:
                 embedding_field="full_episode_embedding",
                 size=size,
             )
-        return await SemanticSegmentsFinder._search_index(
+        segments = await SemanticSegmentsFinder._search_index(
             embedding=embedding,
             logger=logger,
             series_name=series_name,
@@ -79,6 +82,61 @@ class SemanticSegmentsFinder:
             embedding_field="text_embedding",
             size=size,
         )
+        if segments is not None:
+            await SemanticSegmentsFinder._normalize_text_segments(segments, series_name, logger)
+        return segments
+
+    @staticmethod
+    async def _normalize_text_segments(
+        segments: List[Dict[str, Any]],
+        series_name: str,
+        logger: logging.Logger,
+    ) -> None:
+        episode_to_seg_ids: Dict[str, Set[int]] = {}
+        for seg in segments:
+            episode_id = seg.get("episode_id", "")
+            seg_range = seg.get("segment_range", [])
+            if not episode_id or len(seg_range) < 2:
+                continue
+            episode_to_seg_ids.setdefault(episode_id, set()).update({seg_range[0], seg_range[-1]})
+
+        es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+        index = f"{series_name}{ElasticsearchIndexSuffixes.TEXT_SEGMENTS}"
+        lookup: Dict[Tuple[str, int], Dict[str, Any]] = {}
+
+        for episode_id, seg_ids in episode_to_seg_ids.items():
+            query = {
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"episode_id": episode_id}},
+                            {"terms": {"segment_id": list(seg_ids)}},
+                        ],
+                    },
+                },
+                "size": len(seg_ids) * 2,
+                "_source": ["segment_id", "start_time", "end_time", "video_path"],
+            }
+            try:
+                response = await es.search(index=index, body=query)
+                for hit in response["hits"]["hits"]:
+                    src = hit["_source"]
+                    lookup[(episode_id, src["segment_id"])] = src
+            except Exception:  # pylint: disable=broad-except
+                pass
+
+        for seg in segments:
+            episode_id = seg.get("episode_id", "")
+            seg_range = seg.get("segment_range", [])
+            if not episode_id or len(seg_range) < 2:
+                continue
+            start_data = lookup.get((episode_id, seg_range[0]))
+            end_data = lookup.get((episode_id, seg_range[-1]))
+            if start_data:
+                seg[SegmentKeys.START_TIME] = start_data["start_time"]
+                seg[SegmentKeys.VIDEO_PATH] = start_data.get("video_path", "")
+            if end_data:
+                seg[SegmentKeys.END_TIME] = end_data["end_time"]
 
     @staticmethod
     async def _search_index(

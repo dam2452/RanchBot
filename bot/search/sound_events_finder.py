@@ -6,7 +6,8 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.settings import settings
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -85,7 +86,7 @@ class SoundEventsFinder:
                 {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
-            ElasticsearchQueryKeys.SIZE: 999,
+            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -101,7 +102,7 @@ class SoundEventsFinder:
         text_query: str,
         series_name: str,
         logger: logging.Logger,
-        size: int = 999,
+        size: int = settings.MAX_ES_RESULTS,
     ) -> List[Dict[str, Any]]:
         await log_system_message(
             logging.INFO, f"Searching sound events for '{text_query}' in '{series_name}'.", logger,

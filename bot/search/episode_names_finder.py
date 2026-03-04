@@ -6,7 +6,7 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,

@@ -35,6 +35,10 @@ def get_log_no_segments_found_message(quote: str) -> str:
     return f"No segments found for quote: '{quote}'"
 
 
+def get_no_video_path_message() -> str:
+    return BotResponse.error("BRAK PLIKU", "Nie znaleziono ścieżki do pliku wideo.")
+
+
 def get_extraction_failure_message() -> str:
     return BotResponse.error("BŁĄD EKSTRAKCJI KLIPU", "Nie udało się wyodrębnić klipu wideo")
 

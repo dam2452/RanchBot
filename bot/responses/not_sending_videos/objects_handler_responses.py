@@ -6,7 +6,7 @@ from typing import (
 )
 
 from bot.responses.bot_response import BotResponse
-from bot.search.object_finder import get_polish_name
+from bot.search.video_frames_finder import get_polish_name
 from bot.types import (
     ObjectScene,
     ObjectWithCount,

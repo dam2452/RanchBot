@@ -25,7 +25,7 @@ from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_successful_adjustment_message,
     get_updated_segment_info_log,
 )
-from bot.search.scene_finder import SceneFinder
+from bot.search.text_segments_finder import SceneFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.types import ElasticsearchSegment

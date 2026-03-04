@@ -1,9 +1,7 @@
 import json
 import logging
 import math
-from pathlib import Path
 import re
-import tempfile
 from typing import (
     List,
     Optional,
@@ -26,7 +24,7 @@ from bot.responses.not_sending_videos.objects_handler_responses import (
     get_object_not_found_message,
     object_scene_to_search_segment,
 )
-from bot.search.object_finder import ObjectFinder
+from bot.search.video_frames_finder import ObjectFinder
 from bot.settings import settings as s
 from bot.types import (
     ObjectScene,
@@ -35,7 +33,6 @@ from bot.types import (
 
 _QUANTITY_FILTER_PATTERN = re.compile(r"^(>=|<=|>|<|=)?(\d+)$")
 _FULL_LIST_COMMANDS = {"objl", "obj_lista"}
-
 
 class ObjectsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
@@ -71,7 +68,7 @@ class ObjectsHandler(BotMessageHandler):
             await self._reply_error(get_no_objects_message())
             return
         if is_full:
-            await self.__send_document(
+            await self._send_document(
                 format_objects_list_full(objects),
                 f"{s.BOT_USERNAME}_Obiekty.txt",
                 "Pełna lista obiektów",
@@ -99,9 +96,9 @@ class ObjectsHandler(BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, class_name)
         if is_full:
-            await self.__send_document(
+            await self._send_document(
                 format_object_scenes_full(class_name, scenes),
-                f"{s.BOT_USERNAME}_Sceny_{ObjectsHandler.__sanitize(class_name)}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_filename(class_name)}.txt",
                 f"Pełna lista scen: {class_name}",
             )
         else:
@@ -133,9 +130,9 @@ class ObjectsHandler(BotMessageHandler):
         filtered = ObjectFinder.apply_quantity_filter(scenes, qty_filter)
         await self.__save_scenes_to_last_search(filtered, class_name, qty_raw)
         if is_full:
-            await self.__send_document(
+            await self._send_document(
                 format_object_scenes_full(class_name, filtered, qty_filter_str=qty_raw),
-                f"{s.BOT_USERNAME}_Sceny_{ObjectsHandler.__sanitize(class_name)}_{qty_raw}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_filename(class_name)}_{qty_raw}.txt",
                 f"Pełna lista scen: {class_name} ({qty_raw})",
             )
         else:
@@ -171,12 +168,6 @@ class ObjectsHandler(BotMessageHandler):
             segments=json.dumps(segments),
         )
 
-    async def __send_document(self, content: str, filename: str, caption: str) -> None:
-        file_path = Path(tempfile.gettempdir()) / filename
-        with file_path.open("w", encoding="utf-8") as f:
-            f.write(content)
-        await self._responder.send_document(file_path, caption=caption)
-
     @staticmethod
     def __parse_quantity_filter(raw: str) -> Optional[QuantityFilter]:
         match = _QUANTITY_FILTER_PATTERN.match(raw.strip())
@@ -185,7 +176,3 @@ class ObjectsHandler(BotMessageHandler):
         operator = match.group(1) or "="
         value = int(match.group(2))
         return QuantityFilter(operator=operator, value=value)
-
-    @staticmethod
-    def __sanitize(name: str) -> str:
-        return "".join(c if c.isalnum() else "_" for c in name).strip("_")

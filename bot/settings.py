@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     LIMIT_DURATION: int = Field(30)
     MAX_CLIPS_PER_COMPILATION: int = Field(30)
     MAX_ADJUSTMENT_DURATION: int = Field(20)
+    MAX_ES_RESULTS: int = Field(999)
     MAX_SEARCH_QUERY_LENGTH: int = Field(200)
     MAX_CLIP_DURATION: int = Field(60)
     MAX_CLIP_NAME_LENGTH: int = Field(40)

@@ -8,7 +8,6 @@ from bot.responses.bot_response import BotResponse
 from bot.utils.constants import EpisodeMetadataKeys
 from bot.utils.functions import (
     convert_number_to_emoji,
-    format_seconds_to_mmss,
     format_segment,
 )
 
@@ -45,29 +44,15 @@ def format_semantic_frames_response(
     emoji_count = convert_number_to_emoji(unique_count)
     response = (
         f"🎞️ *Wyniki wyszukiwania semantycznego — klatki* 🎞️\n"
-        f"👁️ *Znaleziono:* {emoji_count} pasujących klatek 👁️\n\n"
+        f"👁️ *Znaleziono:* {emoji_count} pasujących scen 👁️\n\n"
     )
     frame_lines = []
 
     for i, frame in enumerate(frames[:5], start=1):
-        meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-        season = meta.get(EpisodeMetadataKeys.SEASON)
-        episode_num = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
-        title = meta.get(EpisodeMetadataKeys.TITLE, "")
-        timestamp = frame.get("timestamp", 0.0)
-        frame_type = frame.get("frame_type", "")
-
-        if season == 0:
-            ep_fmt = f"Spec-{episode_num}"
-        else:
-            ep_fmt = f"S{str(season).zfill(2)}E{str(episode_num).zfill(2)}"
-
-        time_fmt = format_seconds_to_mmss(timestamp)
-        type_label = f" [{frame_type}]" if frame_type else ""
-
+        segment_info = format_segment(frame)
         line = (
-            f"{convert_number_to_emoji(i)}  | 📺 {ep_fmt} | 🕒 {time_fmt}{type_label}\n"
-            f"   👉  {title}"
+            f"{convert_number_to_emoji(i)}  | 📺 {segment_info.episode_formatted} | 🕒 {segment_info.time_formatted}\n"
+            f"   👉  {segment_info.episode_title}"
         )
         frame_lines.append(line)
 
