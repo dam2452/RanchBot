@@ -32,11 +32,14 @@ from bot.types import (
 )
 
 _QUANTITY_FILTER_PATTERN = re.compile(r"^(>=|<=|>|<|=)?(\d+)$")
-_FULL_LIST_COMMANDS = {"objl", "objlista"}
+
 
 class ObjectsHandler(BotMessageHandler):
+    __SHORT_COMMANDS: List[str] = ["obiekt", "object", "obj"]
+    __FULL_COMMANDS: List[str] = ["objl", "objlista"]
+
     def get_commands(self) -> List[str]:
-        return ["obiekt", "object", "obj", "objl", "objlista"]
+        return ObjectsHandler.__SHORT_COMMANDS + ObjectsHandler.__FULL_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -51,7 +54,7 @@ class ObjectsHandler(BotMessageHandler):
         text_parts = self._message.get_text().split()
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
-        is_full = command in _FULL_LIST_COMMANDS
+        is_full = command in ObjectsHandler.__FULL_COMMANDS
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
