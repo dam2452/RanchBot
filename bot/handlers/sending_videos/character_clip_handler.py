@@ -20,7 +20,7 @@ from bot.search.video_frames_finder import CharacterFinder
 
 class CharacterClipHandler(CharacterHandlerMixin, BotMessageHandler):
     def get_commands(self) -> List[str]:
-        return ["klip_postac", "kp"]
+        return ["klippostac", "kp"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]

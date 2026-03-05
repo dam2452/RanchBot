@@ -20,7 +20,7 @@ from bot.responses.sending_videos.semantic_clip_handler_responses import (
 
 class SemanticClipHandler(SemanticHandlerMixin, BotMessageHandler):
     def get_commands(self) -> List[str]:
-        return ["sens_klip", "senk", "sk"]
+        return ["klipsens", "ksen", "ks"]
 
     def _get_usage_message(self) -> str:
         return get_no_query_provided_message()

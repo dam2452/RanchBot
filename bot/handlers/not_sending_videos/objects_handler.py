@@ -32,11 +32,11 @@ from bot.types import (
 )
 
 _QUANTITY_FILTER_PATTERN = re.compile(r"^(>=|<=|>|<|=)?(\d+)$")
-_FULL_LIST_COMMANDS = {"objl", "obj_lista"}
+_FULL_LIST_COMMANDS = {"objl", "objlista"}
 
 class ObjectsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
-        return ["obiekt", "object", "obj", "objl", "obj_lista"]
+        return ["obiekt", "object", "obj", "objl", "objlista"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]

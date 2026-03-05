@@ -59,6 +59,17 @@ def get_log_clip_duration_exceeded_message(user_id: int) -> str:
     return f"Clip duration limit exceeded for user '{user_id}'"
 
 
+def get_hard_limit_exceeded_clip_duration_message(max_seconds: int) -> str:
+    return BotResponse.error(
+        "KLIP ZA DŁUGI",
+        f"Klip przekracza maksymalną dozwoloną długość ({max_seconds}s). Wybierz krótszy fragment.",
+    )
+
+
+def get_log_hard_limit_exceeded_message(user_id: int, duration: float, max_seconds: int) -> str:
+    return f"Hard clip duration limit exceeded for user '{user_id}': {duration:.1f}s > {max_seconds}s"
+
+
 def get_clip_size_log_message(file_path: Path, file_size: float) -> str:
     return f"{file_path} Rozmiar klipu: {file_size:.2f} MB"
 

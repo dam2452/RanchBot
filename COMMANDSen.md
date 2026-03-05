@@ -6,72 +6,111 @@
 ## 🚀 Command Shortcuts
 
 - **`/start`**: 👋 Launches the main menu.
-- **`/clip <quote>`**/ **`/k <quote>`**: 🎥 Clip search.
-- **`/search <quote>`**/ **`/sz <quote>`**: 🔍 Find clips.
-- **`/list`**/ **`/l`**: 📋 List of clips.
-- **`/select <clip_number>`**/ **`/w <clip_number>`**: 🎯 Clip selection.
-- **`/episodes <season>`**/ **`/o <season>`**: 🎞️ List of episodes.
+- **`/clip <quote>`** / **`/k <quote>`**: 🎥 Clip search.
+- **`/search <quote>`** / **`/sz <quote>`**: 🔍 Find clips.
+- **`/sens <query>`** / **`/meaning <query>`** / **`/sen <query>`**: 🧠 Semantic search - text mode.
+- **`/sensklatki <query>`** / **`/sensk <query>`**: 🧠 Semantic search - frames mode.
+- **`/sensodcinek <query>`** / **`/senso <query>`**: 🧠 Semantic search - episode mode.
+- **`/klipsens <query>`** / **`/ksen <query>`** / **`/ks <query>`**: 🎬 Semantic search clip (sends top result).
+- **`/list`** / **`/l`**: 📋 List of clips.
+- **`/select <clip_number>`** / **`/w <clip_number>`**: 🎯 Clip selection.
+- **`/episodes <season>`** / **`/o <season>`**: 🎞️ List of episodes.
 - **`/cut <season_episode> <start_time> <end_time>`**: ✂️ Cutting a clip.
-- **`/adjust <extend_before> <extend_after>`**/ **`/d <extend_before> <extend_after>`**: ⏳ Adjusting a clip.
-- **`/snap`**/ **`/dopasuj`**/ **`/sp`**: 🎯 Snap last clip to scene cuts.
-- **`/transcription <quote>`**/ **`/t <quote>`**: 📝 Transcription with context for a quote.
-- **`/compile all`**/ **`/kom all`**: 🎬 Compiling all clips.
-- **`/compile <range>`**/ **`/kom <range>`**: 🎬 Compiling a range of clips.
-- **`/compile <clip_number1> <clip_number2> ...`**/ **`/kom <clip_number1> <clip_number2> ...`**: 🎬 Compiling selected clips.
-- **`/save <name>`**/ **`/z <name>`**: 💾 Saving a clip.
-- **`/myclips`**/ **`/mk`**: 📂 Your clips.
-- **`/send <name>`**/ **`/wys <name>`**: 📤 Sending a clip.
-- **`/deleteclip <clip_name>`**/ **`/uk <clip_name>`**: 🗑️ Deleting a clip.
+- **`/adjust <before> <after>`** / **`/d`**: ⏳ Adjust clip (relative).
+- **`/aadjust <before> <after>`** / **`/ad`**: ⏳ Adjust clip (absolute).
+- **`/sadjust <n_before> <n_after>`** / **`/sd`**: 🎬 Adjust clip to scene cut boundaries.
+- **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Snap last clip to scene cuts.
+- **`/transcription <quote>`** / **`/t <quote>`**: 📝 Transcription with context for a quote.
+- **`/compile all`** / **`/kom all`**: 🎬 Compile all clips.
+- **`/compile <range>`** / **`/kom <range>`**: 🎬 Compile a range of clips.
+- **`/compile <num1> <num2> ...`** / **`/kom ...`**: 🎬 Compile selected clips.
+- **`/concatclips <num1> <num2> ...`** / **`/pk ...`**: 🔗 Concatenate saved clips.
+- **`/save <name>`** / **`/z <name>`**: 💾 Save a clip.
+- **`/myclips`** / **`/mk`**: 📂 Your clips.
+- **`/send <name>`** / **`/wys <name>`**: 📤 Send a clip.
+- **`/deleteclip <clip_name>`** / **`/uk <clip_name>`**: 🗑️ Delete a clip.
+- **`/characters`** / **`/p`**: 👤 Browse characters and scenes.
+- **`/klippostac <character> [emotion]`** / **`/kp`**: 🎭 Clip with a character (and optional emotion).
+- **`/klipobiekt <object>`** / **`/ko`**: 🎯 Clip with a detected object.
+- **`/emotion`** / **`/e`**: 😊 List of available emotions.
+- **`/object`** / **`/obj`**: 🎯 Browse scenes with objects.
+- **`/objl`** / **`/objlista`**: 🎯 Full list of objects or scenes (as document).
+- **`/subscription`** / **`/sub`**: 🔔 Subscription status.
+- **`/report <description>`** / **`/r <description>`**: ⚠️ Report an issue.
+- **`/serial <series_name>`** / **`/ser <series_name>`**: 📺 Change active series.
+- **`/reindex`** / **`/rei`**: 🔄 Reindex series data.
 - **`/admin`**: 🔧 Administrative commands.
-- **`/addwhitelist <id>`**/ **`/addw <id>`**: 📝 Adding to the whitelist.
-- **`/removewhitelist <id>`**/ **`/rmw <id>`**: 🚫 Removing from the whitelist.
-- **`/listwhitelist`**/ **`/lw`**: 📄 Whitelist of users.
-- **`/listadmins`**/ **`/la`**: 🛡️ List of administrators.
-- **`/listmoderators`**/ **`/lm`**: 🛡️ List of moderators.
-- **`/note <user_id> <note>`**: 🗒️ Adding a note to a user.
-- **`/key <key_content>`**/ **`/klucz <key_content>`**: 🔑 Using a subscription key.
-- **`/listkeys`**/ **`/lk`**: 🔑 List of subscription keys.
-- **`/addkey <days> <note>`**/ **`/addk <days> <note>`**: 🔑 Creating a new subscription key.
-- **`/removekey <key>`**/ **`/rmk <key>`**: 🚫 Removing a subscription key.
-- **`/report <issue_description>`**/ **`/r <issue_description>`**: ⚠️ Reporting an issue.
-- **`/serial <series_name>`**/ **`/ser <series_name>`**: 📺 Change active series.
-- **`/reindex`**/ **`/rei`**: 🔄 Reindex series data.
+- **`/addwhitelist <id>`** / **`/addw <id>`**: 📝 Add to whitelist.
+- **`/removewhitelist <id>`** / **`/rmw <id>`**: 🚫 Remove from whitelist.
+- **`/listwhitelist`** / **`/lw`**: 📄 Whitelist of users.
+- **`/listadmins`** / **`/la`**: 🛡️ List of administrators.
+- **`/listmoderators`** / **`/lm`**: 🛡️ List of moderators.
+- **`/note <user_id> <note>`**: 🗒️ Add a note to a user.
+- **`/key <key_content>`** / **`/klucz`**: 🔑 Use a subscription key.
+- **`/listkeys`** / **`/lk`**: 🔑 List of subscription keys.
+- **`/addkey <days> <note>`** / **`/addk`**: 🔑 Create a new subscription key.
+- **`/removekey <key>`** / **`/rmk <key>`**: 🚫 Remove a subscription key.
+- **`/addsubscription <user_id> <days>`** / **`/addsub`**: 🔔 Add subscription to a user.
+- **`/removesubscription <user_id>`** / **`/rmsub`**: 🚫 Remove a user's subscription.
 
 ## 👥 Basic User Commands
 
-- **`/start`**/ **`/s`**: 👋 Displays a welcome message with basic commands.
-- **`/clip <quote>`**/ **`/k <quote>`**: 🎥 Searches for a clip based on a quote. Example: `/clip genius`.
-- **`/search <quote>`**/ **`/sz <quote>`**: 🔍 Finds clips matching the quote (first 5 results). Example: `/search goat`.
-- **`/list`**/ **`/l`**: 📋 Displays all clips found with `/search`.
-- **`/select <clip_number>`**/ **`/w <clip_number>`**: 🎯 Selects a clip from the list generated by `/search`**for further operations. Example: `/select 1`.
-- **`/episodes <season>`**/ **`/o <season>`**: 🎞️ Displays a list of episodes for the given season. Example: `/episodes 2`.
+- **`/start`** / **`/s`**: 👋 Displays a welcome message with basic commands.
+- **`/clip <quote>`** / **`/k <quote>`**: 🎥 Searches for a clip based on a quote. Example: `/clip genius`.
+- **`/search <quote>`** / **`/sz <quote>`**: 🔍 Finds clips matching the quote (first 5 results). Example: `/search goat`.
+- **`/sens <query>`** / **`/meaning <query>`** / **`/sen <query>`**: 🧠 Semantic search by text (embeddings). Example: `/sens escape from problems`.
+- **`/sensklatki <query>`** / **`/sensk <query>`**: 🧠 Semantic search by video frames. Example: `/sensklatki feast`.
+- **`/sensodcinek <query>`** / **`/senso <query>`**: 🧠 Semantic search by episode. Example: `/sensodcinek wedding`.
+- **`/klipsens <query>`** / **`/ksen <query>`** / **`/ks <query>`**: 🎬 Semantic search - sends top result as clip. Example: `/klipsens escape`.
+- **`/list`** / **`/l`**: 📋 Displays all clips found with `/search`.
+- **`/select <clip_number>`** / **`/w <clip_number>`**: 🎯 Selects a clip from the list generated by `/search` for further operations. Example: `/select 1`.
+- **`/episodes <season>`** / **`/o <season>`**: 🎞️ Displays a list of episodes for the given season. Example: `/episodes 2`.
 - **`/cut <season_episode> <start_time> <end_time>`**: ✂️ Cuts a segment from a clip. Example: `/cut S02E10 20:30.11 21:32.50`.
-- **`/adjust <extend_before> <extend_after>`**/ **`/d <extend_before> <extend_after>`**: ⏳ Adjusts the selected clip by extending the start and end time. Example: `/adjust -5.5 1.2`.
-- **`/snap`**/ **`/dopasuj`**/ **`/sp`**: 🎯 Snaps the last clip to the nearest scene cuts. No change → informs user.
-- **`/transcription <quote>`**/ **`/t <quote>`**: 📝 Displays transcription with context for the found quote. Example: `/transcription genius`.
-- **`/compile all`**/ **`/kom all`**: 🎬 Compiles all clips.
-- **`/compile <range>`**/ **`/kom <range>`**: 🎬 Compiles clips within a range. Example: `/compile 1-4`.
-- **`/compile <clip_number1> <clip_number2> ...`**/ **`/kom <clip_number1> <clip_number2> ...`**: 🎬 Compiles selected clips. Example: `/compile 1 5 7`.
-- **`/save <name>`**/ **`/z <name>`**: 💾 Saves the selected clip with a specified name. Example: `/save my_clip`.
-- **`/myclips`**/ **`/mk`**: 📂 Displays a list of saved clips.
-- **`/send <name>`**/ **`/wys <name>`**: 📤 Sends the saved clip with the specified name. Example: `/send my_clip`.
-- **`/deleteclip <clip_name>`**/ **`/uk <clip_name>`**: 🗑️ Deletes the saved clip with the specified name. Example: `/uk my_clip`.
+- **`/adjust [clip_number] <before> <after>`** / **`/d`**: ⏳ Adjusts clip RELATIVELY (based on last state). Example: `/adjust -1.5 2.0`.
+- **`/aadjust [clip_number] <before> <after>`** / **`/ad`**: ⏳ Adjusts clip ABSOLUTELY (based on original). Example: `/aadjust -5.5 1.2`.
+- **`/sadjust <n_before> <n_after>`** / **`/sd`**: 🎬 Expands clip by the given number of scene cuts in each direction. Example: `/sadjust 1 2`.
+- **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Snaps the last clip to the nearest scene cuts. No change → informs user.
+- **`/transcription <quote>`** / **`/t <quote>`**: 📝 Displays transcription with context for the found quote. Example: `/transcription genius`.
+- **`/compile all`** / **`/kom all`**: 🎬 Compiles all clips.
+- **`/compile <range>`** / **`/kom <range>`**: 🎬 Compiles clips within a range. Example: `/compile 1-4`.
+- **`/compile <num1> <num2> ...`** / **`/kom ...`**: 🎬 Compiles selected clips. Example: `/compile 1 5 7`.
+- **`/concatclips <num1> <num2> ...`** / **`/pk ...`**: 🔗 Concatenates saved clips into one. Example: `/concatclips 4 2 3`.
+- **`/save <name>`** / **`/z <name>`**: 💾 Saves the selected clip with a specified name. Example: `/save my_clip`.
+- **`/myclips`** / **`/mk`**: 📂 Displays a list of saved clips.
+- **`/send <name>`** / **`/wys <name>`**: 📤 Sends the saved clip with the specified name. Example: `/send my_clip`.
+- **`/deleteclip <clip_name>`** / **`/uk <clip_name>`**: 🗑️ Deletes the saved clip with the specified name. Example: `/uk my_clip`.
+- **`/characters`** / **`/p`**: 👤 Displays a list of all characters with episode count.
+- **`/characters <character_name>`** / **`/p <character_name>`**: 👤 Displays scenes with the given character. Example: `/characters Wilkowyska`.
+- **`/characters <character_name> <emotion>`** / **`/p <character_name> <emotion>`**: 👤 Scenes with character and emotion. Example: `/p Wilkowyska happy`.
+- **`/pl`** / **`/postacie_lista`**: 👤 Full list of characters or scenes (as document).
+- **`/klippostac <character> [emotion]`** / **`/kp`**: 🎭 Sends a clip with the given character (and optional emotion). Example: `/kp Wilkowyska happy`.
+- **`/klipobiekt <object>`** / **`/ko`**: 🎯 Sends a clip with the given detected object. Example: `/klipobiekt dog`.
+- **`/emotion`** / **`/e`**: 😊 Displays a list of available emotions.
+- **`/object`** / **`/obj`**: 🎯 Displays a list of all detected objects (most frequent first).
+- **`/object <name>`** / **`/obj <name>`**: 🎯 List of scenes with the given object. Example: `/object dog`.
+- **`/object <name> <filter>`** / **`/obj <name> <filter>`**: 🎯 List of scenes with count filter. Example: `/obj dog >3`.
+- **`/objl`**: 🎯 Full list of all objects (as document).
+- **`/objl <name>`**: 🎯 Full list of scenes with the given object (as document).
+- **`/objl <name> <filter>`**: 🎯 Full list of scenes with filter (as document).
+- **`/subscription`** / **`/sub`**: 🔔 Checks your subscription status.
+- **`/report <issue_description>`** / **`/r <issue>`**: ⚠️ Reports an issue to administrators.
+- **`/serial <series_name>`** / **`/ser <series_name>`**: 📺 Changes the active series for the user. Example: `/serial ranczo`.
 
 ## 🔧 Administrative Commands
 
 - **`/admin`**: 🔧 Displays administrative commands.
-- **`/addwhitelist <id>`**/ **`/addw <id>`**: 📝 Adds a user to the whitelist. Example: `/addwhitelist 123456789`.
-- **`/removewhitelist <id>`**/ **`/rmw <id>`**: 🚫 Removes a user from the whitelist. Example: `/removewhitelist 123456789`.
-- **`/listwhitelist`**/ **`/lw`**: 📄 Displays a list of all users on the whitelist.
-- **`/listadmins`**/ **`/la`**: 🛡️ Displays a list of all administrators.
-- **`/listmoderators`**/ **`/lm`**: 🛡️ Displays a list of all moderators.
+- **`/addwhitelist <id>`** / **`/addw <id>`**: 📝 Adds a user to the whitelist. Example: `/addwhitelist 123456789`.
+- **`/removewhitelist <id>`** / **`/rmw <id>`**: 🚫 Removes a user from the whitelist. Example: `/removewhitelist 123456789`.
+- **`/listwhitelist`** / **`/lw`**: 📄 Displays a list of all users on the whitelist.
+- **`/listadmins`** / **`/la`**: 🛡️ Displays a list of all administrators.
+- **`/listmoderators`** / **`/lm`**: 🛡️ Displays a list of all moderators.
 - **`/note <user_id> <note>`**: 🗒️ Adds or updates a note for a user. Example: `/note 123456789 This is a note`.
-- **`/key <key_content>`**/ **`/klucz <key_content>`**: 🔑 Uses a new subscription key for a user. Example: `/key some_secret_key`.
-- **`/listkeys`**/ **`/lk`**: 🔑 Displays a list of all subscription keys.
-- **`/addkey <days> <note>`**/ **`/addk <days> <note>`**: 🔑 Creates a new subscription key for a specified number of days. Example: `/addkey 30 "secret_key"`.
-- **`/removekey <key>`**/ **`/rmk <key>`**: 🚫 Removes an existing subscription key. Example: `/removekey some_secret_key`.
-- **`/report <issue_description>`**/ **`/r <issue_description>`**: ⚠️ Reports an issue to the administrators.
-- **`/serial <series_name>`**/ **`/ser <series_name>`**: 📺 Changes the active series for the user. Example: `/serial ranczo`.
-- **`/reindex`**/ **`/rei`**: 🔄 Reindexes data for the currently selected series (requires administrator privileges).
+- **`/key <key_content>`** / **`/klucz <key_content>`**: 🔑 Uses a subscription key. Example: `/key some_secret_key`.
+- **`/listkeys`** / **`/lk`**: 🔑 Displays a list of all subscription keys.
+- **`/addkey <days> <note>`** / **`/addk <days> <note>`**: 🔑 Creates a new subscription key for a specified number of days. Example: `/addkey 30 secret_key`.
+- **`/removekey <key>`** / **`/rmk <key>`**: 🚫 Removes an existing subscription key. Example: `/removekey some_secret_key`.
+- **`/addsubscription <user_id> <days>`** / **`/addsub <user_id> <days>`**: 🔔 Adds subscription to a user for the given number of days. Example: `/addsubscription 123456789 30`.
+- **`/removesubscription <user_id>`** / **`/rmsub <user_id>`**: 🚫 Removes a user's subscription. Example: `/removesubscription 123456789`.
+- **`/reindex`** / **`/rei`**: 🔄 Reindexes data for the currently selected series (requires administrator privileges).
 
 ---

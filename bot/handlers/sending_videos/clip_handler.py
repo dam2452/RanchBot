@@ -10,7 +10,9 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.bot_message_handler_responses import get_log_no_segments_found_message
 from bot.responses.sending_videos.clip_handler_responses import (
+    get_clip_trimmed_message,
     get_log_clip_success_message,
+    get_log_clip_trimmed_message,
     get_log_segment_saved_message,
     get_message_too_long_message,
     get_no_quote_provided_message,
@@ -66,9 +68,15 @@ class ClipHandler(BotMessageHandler):
             active_series, segment, start_time, end_time, self._logger,
         )
 
+        segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
+        is_admin = await DatabaseManager.is_admin_or_moderator(msg.get_user_id())
+        max_duration = settings.MAX_CLIP_DURATION_HARD_LIMIT if is_admin else settings.MAX_CLIP_DURATION
         clip_duration = end_time - start_time
-        if await self._handle_clip_duration_limit_exceeded(clip_duration):
-            return None
+        if clip_duration > max_duration:
+            await self._responder.send_markdown(get_clip_trimmed_message(max_duration))
+            await self._log_system_message(logging.INFO, get_log_clip_trimmed_message(segment_id, clip_duration, max_duration))
+            end_time = start_time + max_duration
+            clip_duration = max_duration
 
         output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
 

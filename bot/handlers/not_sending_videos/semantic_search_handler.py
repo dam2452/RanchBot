@@ -5,6 +5,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from bot.database.database_manager import DatabaseManager
@@ -26,8 +27,25 @@ from bot.search.semantic_segments_finder import SemanticSearchMode
 
 
 class SemanticSearchHandler(SemanticHandlerMixin, BotMessageHandler):
+    __TEXT_COMMANDS: List[str] = ["sens", "meaning", "sen"]
+    __FRAMES_COMMANDS: List[str] = ["sensklatki", "sensk"]
+    __EPISODE_COMMANDS: List[str] = ["sensodcinek", "senso"]
+
     def get_commands(self) -> List[str]:
-        return ["sens", "meaning", "sen"]
+        return (
+            SemanticSearchHandler.__TEXT_COMMANDS
+            + SemanticSearchHandler.__FRAMES_COMMANDS
+            + SemanticSearchHandler.__EPISODE_COMMANDS
+        )
+
+    def _parse_semantic_mode_and_query(self) -> Tuple[str, str]:
+        command = self._message.get_text().split()[0].lstrip("/").lower()
+        tokens = self._message.get_text().split()[1:]
+        if command in SemanticSearchHandler.__FRAMES_COMMANDS:
+            return SemanticSearchMode.FRAMES, " ".join(tokens)
+        if command in SemanticSearchHandler.__EPISODE_COMMANDS:
+            return SemanticSearchMode.EPISODE, " ".join(tokens)
+        return super()._parse_semantic_mode_and_query()
 
     def _get_usage_message(self) -> str:
         return get_no_query_provided_message()

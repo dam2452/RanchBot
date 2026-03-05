@@ -9,6 +9,17 @@ def get_log_clip_success_message(username: str) -> str:
     return f"Video clip extracted successfully for user '{username}'."
 
 
+def get_clip_trimmed_message(max_seconds: int) -> str:
+    return BotResponse.warning(
+        "KLIP SKRÓCONY",
+        f"Klip był za długi i został skrócony do {max_seconds}s. Możesz go rozszerzyć komendą /rozszerz.",
+    )
+
+
+def get_log_clip_trimmed_message(segment_id: str, original_duration: float, trimmed_duration: int) -> str:
+    return f"Clip {segment_id} trimmed from {original_duration:.1f}s to {trimmed_duration}s before extraction."
+
+
 def get_no_segments_found_message() -> str:
     return BotResponse.error("BRAK WYNIKÓW", "Nie znaleziono pasujących cytatów")
 

@@ -21,6 +21,17 @@ def get_log_segment_selected_message(segment_id: str, username: str) -> str:
     return f"Segment {segment_id} selected by user '{username}'."
 
 
+def get_clip_trimmed_message(max_seconds: int) -> str:
+    return BotResponse.warning(
+        "KLIP SKRÓCONY",
+        f"Klip był za długi i został skrócony do {max_seconds}s. Możesz go rozszerzyć komendą /rozszerz.",
+    )
+
+
+def get_log_clip_trimmed_message(segment_id: str, original_duration: float, trimmed_duration: int) -> str:
+    return f"Clip {segment_id} trimmed from {original_duration:.1f}s to {trimmed_duration}s before extraction."
+
+
 def get_limit_exceeded_clip_duration_message() -> str:
     return BotResponse.error("LIMIT DŁUGOŚCI KLIPU", "Przekroczono limit długości klipu")
 
