@@ -9,8 +9,10 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.handlers.character_handler_mixin import CharacterHandlerMixin
-from bot.responses.not_sending_videos.characters_handler_responses import scene_to_search_segment
+from bot.responses.not_sending_videos.characters_handler_responses import (
+    get_character_not_found_message,
+    scene_to_search_segment,
+)
 from bot.responses.sending_videos.character_clip_handler_responses import (
     get_log_character_clip_message,
     get_no_quote_provided_message,
@@ -20,11 +22,12 @@ from bot.responses.sending_videos.character_clip_handler_responses import (
 from bot.search.character_finder import CharacterFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
+from bot.utils.character_utils import find_character
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
 
 
-class CharacterClipHandler(CharacterHandlerMixin, BotMessageHandler):
+class CharacterClipHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["klip_postac", "kp"]
 
@@ -42,8 +45,9 @@ class CharacterClipHandler(CharacterHandlerMixin, BotMessageHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
-        character, emotion_input, emotion_en = await self._find_character(args, series_name)
+        character, character_query, emotion_input, emotion_en = await find_character(args, series_name, self._logger)
         if character is None:
+            await self._reply_error(get_character_not_found_message(character_query))
             return
 
         if emotion_en:

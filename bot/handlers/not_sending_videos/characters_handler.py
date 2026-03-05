@@ -1,3 +1,4 @@
+
 import json
 import logging
 import math
@@ -13,12 +14,12 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.handlers.character_handler_mixin import CharacterHandlerMixin
 from bot.responses.not_sending_videos.characters_handler_responses import (
     format_character_scenes,
     format_character_scenes_full,
     format_characters_list,
     format_characters_list_full,
+    get_character_not_found_message,
     get_invalid_args_count_message,
     get_log_character_scenes_message,
     get_log_characters_list_message,
@@ -28,11 +29,15 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
 from bot.search.character_finder import CharacterFinder
 from bot.settings import settings as s
 from bot.types import CharacterScene
+from bot.utils.character_utils import find_character
 
 
-class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
+class CharactersHandler(BotMessageHandler):
+    __SHORT_COMMANDS: List[str] = ["postacie", "characters", "p"]
+    __FULL_COMMANDS: List[str] = ["pl", "postacie_lista"]
+
     def get_commands(self) -> List[str]:
-        return ["postacie", "characters", "p", "pl", "postacie_lista"]
+        return CharactersHandler.__SHORT_COMMANDS + CharactersHandler.__FULL_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -47,7 +52,7 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         text_parts = self._message.get_text().split()
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
-        is_full = command in {"pl", "postacie_lista"}
+        is_full = command in CharactersHandler.__FULL_COMMANDS
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
@@ -55,8 +60,9 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
             await self.__handle_list_mode(series_name, is_full)
             return
 
-        character, emotion_input, emotion_en = await self._find_character(args, series_name)
+        character, character_query, emotion_input, emotion_en = await find_character(args, series_name, self._logger)
         if character is None:
+            await self._reply_error(get_character_not_found_message(character_query))
             return
 
         if emotion_en:
