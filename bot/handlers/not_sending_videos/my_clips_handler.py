@@ -22,6 +22,9 @@ class MyClipsHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
+    def _get_usage_message(self) -> str:
+        return ""
+
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()
 

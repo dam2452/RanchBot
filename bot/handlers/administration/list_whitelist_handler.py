@@ -22,6 +22,9 @@ class ListWhitelistHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
+    def _get_usage_message(self) -> str:
+        return ""
+
     async def _do_handle(self) -> None:
         users = await DatabaseManager.get_all_users()
         if not users:

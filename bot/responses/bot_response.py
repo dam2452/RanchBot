@@ -3,30 +3,30 @@ from typing import (
     Tuple,
 )
 
-_NBSP = "\u00A0"
+__NBSP = "\u00A0"
 
 
-def _to_code_block(header: str, body: str) -> str:
+def __to_code_block(header: str, body: str) -> str:
     content = f"```{header}\n\n{body}```"
-    return content.replace(" ", _NBSP)
+    return content.replace(" ", __NBSP)
 
 
 class BotResponse:
     @staticmethod
     def error(title: str, body: str) -> str:
-        return _to_code_block(f"❌ BŁĄD - {title}", body)
+        return __to_code_block(f"❌ BŁĄD - {title}", body)
 
     @staticmethod
     def warning(title: str, body: str) -> str:
-        return _to_code_block(f"⚠️ OSTRZEŻENIE - {title}", body)
+        return __to_code_block(f"⚠️ OSTRZEŻENIE - {title}", body)
 
     @staticmethod
     def info(title: str, body: str) -> str:
-        return _to_code_block(f"ℹ️ INFO - {title}", body)
+        return __to_code_block(f"ℹ️ INFO - {title}", body)
 
     @staticmethod
     def success(title: str, body: str) -> str:
-        return _to_code_block(f"✅ SUKCES - {title}", body)
+        return __to_code_block(f"✅ SUKCES - {title}", body)
 
     @staticmethod
     def usage(
@@ -45,4 +45,4 @@ class BotResponse:
             f"💡 Przykład:\n"
             f"   {example}"
         )
-        return _to_code_block(f"❌ BŁĄD - {error_title}", body)
+        return __to_code_block(f"❌ BŁĄD - {error_title}", body)

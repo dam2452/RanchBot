@@ -20,6 +20,9 @@ class AdminHelpHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
+    def _get_usage_message(self) -> str:
+        return ""
+
     async def _do_handle(self) -> None:
         keywords = ["skroty", "skróty", "skrot", "skrót"]
         if any(keyword in self._message.get_text().lower() for keyword in keywords):

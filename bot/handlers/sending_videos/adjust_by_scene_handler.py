@@ -15,13 +15,15 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
+from bot.responses.sending_videos.adjust_by_scene_responses import (
+    get_sd_invalid_args_count_message,
+    get_sd_no_scene_cuts_message,
+)
 from bot.responses.sending_videos.adjust_video_clip_handler_responses import (
     get_invalid_interval_log,
     get_invalid_interval_message,
     get_no_quotes_selected_log,
     get_no_quotes_selected_message,
-    get_sd_invalid_args_count_message,
-    get_sd_no_scene_cuts_message,
     get_successful_adjustment_message,
     get_updated_segment_info_log,
 )

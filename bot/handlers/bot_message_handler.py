@@ -128,10 +128,9 @@ class BotMessageHandler(ABC):
             return True
         return False
 
+    @abstractmethod
     def _get_usage_message(self) -> str:
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must implement _get_usage_message()",
-        )
+        pass
 
     async def _validate_user_id_is_digit(self) -> bool:
         user_input = self._message.get_text().split()[1]
