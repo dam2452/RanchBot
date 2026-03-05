@@ -3,30 +3,30 @@ from typing import (
     Tuple,
 )
 
-__NBSP = "\u00A0"
-
-
-def __to_code_block(header: str, body: str) -> str:
-    content = f"```{header}\n\n{body}```"
-    return content.replace(" ", __NBSP)
-
 
 class BotResponse:
+    __NBSP = "\u00A0"
+
+    @staticmethod
+    def __to_code_block(header: str, body: str) -> str:
+        content = f"```{header}\n\n{body}```"
+        return content.replace(" ", BotResponse.__NBSP)
+
     @staticmethod
     def error(title: str, body: str) -> str:
-        return __to_code_block(f"❌ BŁĄD - {title}", body)
+        return BotResponse.__to_code_block(f"❌ BŁĄD - {title}", body)
 
     @staticmethod
     def warning(title: str, body: str) -> str:
-        return __to_code_block(f"⚠️ OSTRZEŻENIE - {title}", body)
+        return BotResponse.__to_code_block(f"⚠️ OSTRZEŻENIE - {title}", body)
 
     @staticmethod
     def info(title: str, body: str) -> str:
-        return __to_code_block(f"ℹ️ INFO - {title}", body)
+        return BotResponse.__to_code_block(f"ℹ️ INFO - {title}", body)
 
     @staticmethod
     def success(title: str, body: str) -> str:
-        return __to_code_block(f"✅ SUKCES - {title}", body)
+        return BotResponse.__to_code_block(f"✅ SUKCES - {title}", body)
 
     @staticmethod
     def usage(
@@ -45,4 +45,4 @@ class BotResponse:
             f"💡 Przykład:\n"
             f"   {example}"
         )
-        return __to_code_block(f"❌ BŁĄD - {error_title}", body)
+        return BotResponse.__to_code_block(f"❌ BŁĄD - {error_title}", body)
