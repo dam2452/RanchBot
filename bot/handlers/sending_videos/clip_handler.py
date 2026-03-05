@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 from typing import List
@@ -56,11 +57,21 @@ class ClipHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        segments = await TextSegmentsFinder.find_segment_by_quote(quote, self._logger, active_series)
-        if not segments:
+        results = await TextSegmentsFinder.find_segment_by_quote(
+            quote, self._logger, active_series, size=settings.MAX_ES_RESULTS_QUICK,
+        )
+        if not results:
             return await self.__reply_no_segments_found(quote)
 
-        segment = segments[0] if isinstance(segments, list) else segments
+        segments = results if isinstance(results, list) else [results]
+
+        await DatabaseManager.insert_last_search(
+            chat_id=msg.get_chat_id(),
+            quote=quote,
+            segments=json.dumps(segments),
+        )
+
+        segment = segments[0]
         start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
         end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
@@ -83,7 +94,7 @@ class ClipHandler(BotMessageHandler):
         await self._responder.send_video(
             output_filename,
             duration=clip_duration,
-            suggestions=["Wybrać krótszy fragment"],
+            suggestions=["Uzyj /w N aby wybrac inny wynik"],
         )
 
         await DatabaseManager.insert_last_clip(

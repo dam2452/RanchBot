@@ -15,6 +15,7 @@ from bot.responses.sending_videos.object_clip_handler_responses import (
     get_object_not_found_message,
 )
 from bot.search.video_frames_finder import ObjectFinder
+from bot.settings import settings
 
 
 class ObjectClipHandler(BotMessageHandler):
@@ -51,7 +52,7 @@ class ObjectClipHandler(BotMessageHandler):
             await self._reply_error(get_no_scenes_found_message(object_name))
             return
 
-        segments = [object_scene_to_search_segment(scene) for scene in scenes]
+        segments = [object_scene_to_search_segment(scene) for scene in scenes][:settings.MAX_ES_RESULTS_QUICK]
         await DatabaseManager.insert_last_search(
             chat_id=self._message.get_chat_id(),
             quote=object_query,

@@ -46,7 +46,7 @@ class SemanticSegmentsFinder:
         logger: logging.Logger,
         series_name: str,
         mode: str = SemanticSearchMode.DEFAULT,
-        size: int = settings.MAX_ES_RESULTS,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> Optional[List[Dict[str, Any]]]:
         await log_system_message(
             logging.INFO,

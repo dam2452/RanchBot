@@ -86,7 +86,7 @@ class SoundEventsFinder:
                 {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
-            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS,
+            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -102,7 +102,7 @@ class SoundEventsFinder:
         text_query: str,
         series_name: str,
         logger: logging.Logger,
-        size: int = settings.MAX_ES_RESULTS,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> List[Dict[str, Any]]:
         await log_system_message(
             logging.INFO, f"Searching sound events for '{text_query}' in '{series_name}'.", logger,

@@ -424,7 +424,7 @@ class VideoFramesFinder:
                 },
             },
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
-            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS9,
+            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -523,7 +523,7 @@ class VideoFramesFinder:
                     },
                 },
             ],
-            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS,
+            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -635,6 +635,7 @@ class CharacterFinder:
         character_name: str,
         series_name: str,
         logger: logging.Logger,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -654,7 +655,7 @@ class CharacterFinder:
                 _confidence_sort(character_name),
                 *_episode_sort(),
             ],
-            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS,
+            ElasticsearchQueryKeys.SIZE: size,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -669,6 +670,7 @@ class CharacterFinder:
         emotion_en: str,
         series_name: str,
         logger: logging.Logger,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -707,7 +709,7 @@ class CharacterFinder:
                 _confidence_sort(character_name),
                 *_episode_sort(),
             ],
-            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS,
+            ElasticsearchQueryKeys.SIZE: size,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)

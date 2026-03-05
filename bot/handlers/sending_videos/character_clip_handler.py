@@ -16,6 +16,7 @@ from bot.responses.sending_videos.character_clip_handler_responses import (
     get_no_scenes_found_message,
 )
 from bot.search.video_frames_finder import CharacterFinder
+from bot.settings import settings
 
 
 class CharacterClipHandler(CharacterHandlerMixin, BotMessageHandler):
@@ -46,12 +47,14 @@ class CharacterClipHandler(CharacterHandlerMixin, BotMessageHandler):
                 emotion_en=emotion_en,
                 series_name=series_name,
                 logger=self._logger,
+                size=settings.MAX_ES_RESULTS_QUICK,
             )
         else:
             scenes = await CharacterFinder.get_scenes_by_character(
                 character_name=character,
                 series_name=series_name,
                 logger=self._logger,
+                size=settings.MAX_ES_RESULTS_QUICK,
             )
 
         if not scenes:
