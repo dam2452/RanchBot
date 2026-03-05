@@ -1,8 +1,5 @@
 import json
 import logging
-import math
-from pathlib import Path
-import tempfile
 from typing import (
     List,
     Optional,
@@ -41,7 +38,7 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         return get_invalid_args_count_message()
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 0, math.inf)
+        return await self._validate_argument_count(self._message, 0, 2)
 
     async def _do_handle(self) -> None:
         text_parts = self._message.get_text().split()
@@ -70,7 +67,7 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
             await self._reply_error(get_no_characters_message())
             return
         if is_full:
-            await self.__send_document(
+            await self._send_text_as_document(
                 format_characters_list_full(characters),
                 f"{s.BOT_USERNAME}_Postacie.txt",
                 "Pełna lista postaci",
@@ -90,9 +87,9 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, character_name)
         if is_full:
-            await self.__send_document(
+            await self._send_text_as_document(
                 format_character_scenes_full(character_name, scenes),
-                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(character_name)}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_for_filename(character_name)}.txt",
                 f"Pełna lista scen: {character_name}",
             )
         else:
@@ -118,9 +115,9 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, character_name, emotion_input)
         if is_full:
-            await self.__send_document(
+            await self._send_text_as_document(
                 format_character_scenes_full(character_name, scenes, emotion_filter=emotion_input),
-                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(character_name)}_{emotion_en}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_for_filename(character_name)}_{emotion_en}.txt",
                 f"Pełna lista scen: {character_name} ({emotion_input})",
             )
         else:
@@ -145,13 +142,3 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
             quote=quote,
             segments=json.dumps(segments),
         )
-
-    async def __send_document(self, content: str, filename: str, caption: str) -> None:
-        file_path = Path(tempfile.gettempdir()) / filename
-        with file_path.open("w", encoding="utf-8") as f:
-            f.write(content)
-        await self._responder.send_document(file_path, caption=caption)
-
-    @staticmethod
-    def __sanitize(name: str) -> str:
-        return "".join(c if c.isalnum() else "_" for c in name).strip("_")

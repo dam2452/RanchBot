@@ -2,9 +2,9 @@ from dataclasses import dataclass
 import json
 import logging
 from typing import (
-    Any,
     Dict,
     List,
+    TypedDict,
 )
 import unicodedata
 
@@ -79,7 +79,19 @@ def parse_whitelist_message(
     )
 
 
-def scene_to_segment_dict(scene: SearchSegment) -> Dict[str, Any]:
+class _EpisodeMetadataDict(TypedDict):
+    season: int
+    episode_number: int
+    title: str
+
+
+class SegmentDict(TypedDict):
+    episode_metadata: _EpisodeMetadataDict
+    start_time: float
+    end_time: float
+
+
+def scene_to_segment_dict(scene: SearchSegment) -> SegmentDict:
     return {
         EpisodeMetadataKeys.EPISODE_METADATA: {
             EpisodeMetadataKeys.SEASON: scene["season"],

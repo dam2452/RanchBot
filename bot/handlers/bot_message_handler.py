@@ -4,6 +4,8 @@ from abc import (
 )
 import json
 import logging
+from pathlib import Path
+import tempfile
 from typing import (
     Any,
     Awaitable,
@@ -206,6 +208,16 @@ class BotMessageHandler(ABC):
             message += "\n\nSpróbuj:\n" + "\n".join(f"• {s}" for s in suggestions)
 
         return message
+
+    async def _send_text_as_document(self, content: str, filename: str, caption: str) -> None:
+        file_path = Path(tempfile.gettempdir()) / filename
+        with file_path.open("w", encoding="utf-8") as f:
+            f.write(content)
+        await self._responder.send_document(file_path, caption=caption)
+
+    @staticmethod
+    def _sanitize_for_filename(name: str) -> str:
+        return "".join(c if c.isalnum() else "_" for c in name).strip("_")
 
     async def _compile_and_send_video(
         self,

@@ -1,7 +1,5 @@
 import json
 import logging
-from pathlib import Path
-import tempfile
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
@@ -56,14 +54,8 @@ class SearchListHandler(BotMessageHandler):
         else:
             response = format_search_list_response(search_term, segments)
             sanitized_search_term = self.__sanitize_search_term(search_term)
-            file_path = Path(tempfile.gettempdir()) / self.FILE_NAME_TEMPLATE.format(
-                sanitized_search_term=sanitized_search_term,
-            )
-
-            with file_path.open("w", encoding="utf-8") as file:
-                file.write(response)
-
-            await self._responder.send_document(file_path, caption="📄 Wszystkie znalezione cytaty 📄")
+            filename = self.FILE_NAME_TEMPLATE.format(sanitized_search_term=sanitized_search_term)
+            await self._send_text_as_document(response, filename, "Wszystkie znalezione cytaty")
 
         return await self._log_system_message(
             logging.INFO,

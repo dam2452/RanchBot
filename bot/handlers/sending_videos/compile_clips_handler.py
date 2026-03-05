@@ -98,7 +98,7 @@ class CompileClipsHandler(BotMessageHandler):
                 get_selected_clip_message(segment[SegmentKeys.VIDEO_PATH], segment[SegmentKeys.START_TIME], segment[SegmentKeys.END_TIME], duration),
             )
 
-        if await self._check_clip_duration_limit(user_id, total_duration):
+        if await self.__check_clip_duration_limit(user_id, total_duration):
             return await self.__reply_clip_duration_exceeded()
 
         active_series = await self._get_user_active_series(user_id)
@@ -183,7 +183,7 @@ class CompileClipsHandler(BotMessageHandler):
         }
 
     @staticmethod
-    async def _check_clip_duration_limit(user_id: int, total_duration: float) -> bool:
+    async def __check_clip_duration_limit(user_id: int, total_duration: float) -> bool:
         if await DatabaseManager.is_admin_or_moderator(user_id):
             return False
         return total_duration > settings.LIMIT_DURATION
