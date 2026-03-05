@@ -5,6 +5,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from bot.database.database_manager import DatabaseManager
@@ -16,6 +17,7 @@ from bot.responses.sending_videos.semantic_clip_handler_responses import (
     get_no_query_provided_message,
     get_no_results_found_message,
 )
+from bot.search.semantic_segments_finder import SemanticSearchMode
 
 
 class SemanticClipHandler(SemanticHandlerMixin, BotMessageHandler):
@@ -24,6 +26,10 @@ class SemanticClipHandler(SemanticHandlerMixin, BotMessageHandler):
 
     def _get_usage_message(self) -> str:
         return get_no_query_provided_message()
+
+    def _parse_semantic_mode_and_query(self) -> Tuple[str, str]:
+        tokens = self._message.get_text().split()[1:]
+        return SemanticSearchMode.FRAMES, " ".join(tokens)
 
     async def _handle_semantic_results(
         self,
