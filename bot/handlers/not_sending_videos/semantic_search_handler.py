@@ -9,8 +9,7 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.bot_message_handler import BotMessageHandler
-from bot.handlers.semantic_handler_mixin import SemanticHandlerMixin
+from bot.handlers.semantic_bot_handler import SemanticBotHandler
 from bot.responses.bot_message_handler_responses import (
     get_log_no_segments_found_message,
     get_no_segments_found_message,
@@ -26,7 +25,7 @@ from bot.responses.not_sending_videos.semantic_search_handler_responses import (
 from bot.search.semantic_segments_finder import SemanticSearchMode
 
 
-class SemanticSearchHandler(SemanticHandlerMixin, BotMessageHandler):
+class SemanticSearchHandler(SemanticBotHandler):
     __TEXT_COMMANDS: List[str] = ["sens", "meaning", "sen"]
     __FRAMES_COMMANDS: List[str] = ["sensklatki", "sensk"]
     __EPISODE_COMMANDS: List[str] = ["sensodcinek", "senso"]

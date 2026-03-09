@@ -4,11 +4,8 @@ import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
-from bot.handlers.character_handler_mixin import CharacterHandlerMixin
+from bot.handlers.bot_message_handler import ValidatorFunctions
+from bot.handlers.character_bot_handler import CharacterBotHandler
 from bot.responses.not_sending_videos.characters_handler_responses import scene_to_search_segment
 from bot.responses.sending_videos.character_clip_handler_responses import (
     get_log_character_clip_message,
@@ -19,7 +16,7 @@ from bot.search.video_frames_finder import CharacterFinder
 from bot.settings import settings
 
 
-class CharacterClipHandler(CharacterHandlerMixin, BotMessageHandler):
+class CharacterClipHandler(CharacterBotHandler):
     def get_commands(self) -> List[str]:
         return ["klippostac", "kp"]
 

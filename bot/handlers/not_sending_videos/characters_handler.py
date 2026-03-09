@@ -7,11 +7,8 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
-from bot.handlers.character_handler_mixin import CharacterHandlerMixin
+from bot.handlers.bot_message_handler import ValidatorFunctions
+from bot.handlers.character_bot_handler import CharacterBotHandler
 from bot.responses.not_sending_videos.characters_handler_responses import (
     format_character_scenes,
     format_character_scenes_full,
@@ -28,7 +25,7 @@ from bot.settings import settings as s
 from bot.types import CharacterScene
 
 
-class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
+class CharactersHandler(CharacterBotHandler):
     def get_commands(self) -> List[str]:
         return ["postacie", "characters", "p", "pl", "postacie_lista"]
 

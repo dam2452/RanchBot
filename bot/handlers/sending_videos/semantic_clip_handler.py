@@ -9,8 +9,7 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.bot_message_handler import BotMessageHandler
-from bot.handlers.semantic_handler_mixin import SemanticHandlerMixin
+from bot.handlers.semantic_bot_handler import SemanticBotHandler
 from bot.responses.not_sending_videos.semantic_search_handler_responses import get_embeddings_not_indexed_message
 from bot.responses.sending_videos.semantic_clip_handler_responses import (
     get_log_semantic_clip_message,
@@ -21,7 +20,7 @@ from bot.search.semantic_segments_finder import SemanticSearchMode
 from bot.settings import settings
 
 
-class SemanticClipHandler(SemanticHandlerMixin, BotMessageHandler):
+class SemanticClipHandler(SemanticBotHandler):
     def get_commands(self) -> List[str]:
         return ["klipsens", "ksen", "ks"]
 
