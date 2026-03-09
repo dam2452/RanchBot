@@ -135,15 +135,15 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
         normalized_bitrate = self.__get_normalized_bitrate(src_bitrate, probe_data, context)
 
-        if normalized_bitrate < min_bitrate:
+        if self.config.apply_boost_on_resize_only and self.__is_same_resolution(probe_data):
+            final_bitrate = normalized_bitrate
+            adjustment = "preserved (same resolution, no boost)"
+        elif normalized_bitrate < min_bitrate:
             final_bitrate = min_bitrate
             adjustment = f"boosted to minimum ({min_bitrate} Mbps)"
         elif normalized_bitrate > max_bitrate:
             final_bitrate = max_bitrate
             adjustment = f"capped to maximum ({max_bitrate} Mbps)"
-        elif self.config.apply_boost_on_resize_only and self.__is_same_resolution(probe_data):
-            final_bitrate = normalized_bitrate
-            adjustment = "preserved (same resolution, no resize boost)"
         else:
             final_bitrate = normalized_bitrate * self.config.bitrate_boost_ratio
             boost_percent = (self.config.bitrate_boost_ratio - 1.0) * 100
@@ -267,15 +267,20 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         eff = VideoTranscoderStep.__CODEC_EFFICIENCY
         return eff.get(src, 1.0) / eff.get(tgt, 1.0)
 
-    @staticmethod
     def __log_transcode_details(
+        self,
         ctx: ExecutionContext,
         input_data: SourceVideo,
         params: TranscodeParams,
         probe: Dict[str, Any],
     ) -> None:
         w, h = FFmpegWrapper.get_resolution(probe)
-        up_label = "UP" if params.is_upscaling else "DOWN"
+        if self.__is_same_resolution(probe):
+            scale_label = "SAME"
+        elif params.is_upscaling:
+            scale_label = "UP"
+        else:
+            scale_label = "DOWN"
         ctx.logger.info(
-            f'{input_data.episode_id}: {w}x{h} -> {params.resolution} [{up_label}]',
+            f'{input_data.episode_id}: {w}x{h} -> {params.resolution} [{scale_label}]',
         )
