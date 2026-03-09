@@ -117,6 +117,12 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         target_px = self.config.resolution.width * self.config.resolution.height
         return src_px < target_px
 
+    def __is_same_resolution(self, probe_data: Dict[str, Any]) -> bool:
+        w, h = FFmpegWrapper.get_resolution(probe_data)
+        sar_num, sar_denom = FFmpegWrapper.get_sample_aspect_ratio(probe_data)
+        eff_w = int(w * sar_num / sar_denom)
+        return eff_w == self.config.resolution.width and h == self.config.resolution.height
+
     def __compute_all_bitrate_settings(
         self, probe_data: Dict[str, Any], context: ExecutionContext,
     ) -> Dict[str, float]:
@@ -135,6 +141,9 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
         elif normalized_bitrate > max_bitrate:
             final_bitrate = max_bitrate
             adjustment = f"capped to maximum ({max_bitrate} Mbps)"
+        elif self.config.apply_boost_on_resize_only and self.__is_same_resolution(probe_data):
+            final_bitrate = normalized_bitrate
+            adjustment = "preserved (same resolution, no resize boost)"
         else:
             final_bitrate = normalized_bitrate * self.config.bitrate_boost_ratio
             boost_percent = (self.config.bitrate_boost_ratio - 1.0) * 100

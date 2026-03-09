@@ -1,10 +1,14 @@
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+    field,
+)
 import json
 from pathlib import Path
 from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 
@@ -54,6 +58,13 @@ class TranscriptionProcessingConfig:
 
 
 @dataclass
+class TranscriptionImportProcessingConfig:
+    format_type: str
+    season_remap: Dict[str, int]
+    source_dir: str
+
+
+@dataclass
 class TranscodeProcessingConfig:
     bitrate_boost_ratio: float
     force_deinterlace: bool
@@ -81,6 +92,7 @@ class ProcessingConfig:
     scene_detection: SceneDetectionProcessingConfig
     transcode: TranscodeProcessingConfig
     transcription: TranscriptionProcessingConfig
+    transcription_import: Optional[TranscriptionImportProcessingConfig] = field(default=None)
 
 
 @dataclass
@@ -143,30 +155,7 @@ class SeriesConfig:
                     images_per_character=data['scraping']['character_references']['images_per_character'],
                 ),
             ),
-            processing=ProcessingConfig(
-                transcription=TranscriptionProcessingConfig(
-                    mode=data['processing']['transcription']['mode'],
-                    model=data['processing']['transcription']['model'],
-                    language=data['processing']['transcription']['language'],
-                    device=data['processing']['transcription']['device'],
-                ),
-                transcode=TranscodeProcessingConfig(
-                    max_bitrate_file_size_mb=data['processing']['transcode']['max_bitrate_file_size_mb'],
-                    max_bitrate_duration_seconds=data['processing']['transcode']['max_bitrate_duration_seconds'],
-                    min_bitrate_mbps=data['processing']['transcode']['min_bitrate_mbps'],
-                    bitrate_boost_ratio=data['processing']['transcode']['bitrate_boost_ratio'],
-                    force_deinterlace=data['processing']['transcode']['force_deinterlace'],
-                    keyframe_interval_seconds=data['processing']['transcode']['keyframe_interval_seconds'],
-                    resolution=data['processing']['transcode']['resolution'],
-                ),
-                scene_detection=SceneDetectionProcessingConfig(
-                    threshold=data['processing']['scene_detection']['threshold'],
-                    min_scene_len=data['processing']['scene_detection']['min_scene_len'],
-                ),
-                frame_export=FrameExportProcessingConfig(
-                    frames_per_scene=data['processing']['frame_export']['frames_per_scene'],
-                ),
-            ),
+            processing=SeriesConfig.__build_processing_config(data),
             indexing=IndexingConfig(
                 elasticsearch=ElasticsearchIndexingConfig(
                     index_name=data['indexing']['elasticsearch']['index_name'],
@@ -175,6 +164,42 @@ class SeriesConfig:
                     append=data['indexing']['elasticsearch']['append'],
                 ),
             ),
+        )
+
+    @staticmethod
+    def __build_processing_config(data: Dict[str, Any]) -> 'ProcessingConfig':
+        import_cfg = data.get('processing', {}).get('transcription_import')
+        transcription_import = None
+        if import_cfg and import_cfg.get('source_dir'):
+            transcription_import = TranscriptionImportProcessingConfig(
+                source_dir=import_cfg['source_dir'],
+                format_type=import_cfg.get('format_type', '11labs_segmented'),
+                season_remap=import_cfg.get('season_remap', {}),
+            )
+        return ProcessingConfig(
+            transcription=TranscriptionProcessingConfig(
+                mode=data['processing']['transcription']['mode'],
+                model=data['processing']['transcription']['model'],
+                language=data['processing']['transcription']['language'],
+                device=data['processing']['transcription']['device'],
+            ),
+            transcode=TranscodeProcessingConfig(
+                max_bitrate_file_size_mb=data['processing']['transcode']['max_bitrate_file_size_mb'],
+                max_bitrate_duration_seconds=data['processing']['transcode']['max_bitrate_duration_seconds'],
+                min_bitrate_mbps=data['processing']['transcode']['min_bitrate_mbps'],
+                bitrate_boost_ratio=data['processing']['transcode']['bitrate_boost_ratio'],
+                force_deinterlace=data['processing']['transcode']['force_deinterlace'],
+                keyframe_interval_seconds=data['processing']['transcode']['keyframe_interval_seconds'],
+                resolution=data['processing']['transcode']['resolution'],
+            ),
+            scene_detection=SceneDetectionProcessingConfig(
+                threshold=data['processing']['scene_detection']['threshold'],
+                min_scene_len=data['processing']['scene_detection']['min_scene_len'],
+            ),
+            frame_export=FrameExportProcessingConfig(
+                frames_per_scene=data['processing']['frame_export']['frames_per_scene'],
+            ),
+            transcription_import=transcription_import,
         )
 
     @staticmethod

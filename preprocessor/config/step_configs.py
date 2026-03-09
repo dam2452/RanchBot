@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import (
+    Dict,
     List,
     Optional,
 )
@@ -17,6 +18,7 @@ from preprocessor.services.media.resolution import Resolution
 class TranscodeConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    apply_boost_on_resize_only: bool = True
     bitrate_boost_ratio: float = Field(default=1.1, ge=1.0, le=2.0)
     force_deinterlace: bool = False
     keyframe_interval_seconds: float = Field(gt=0)
@@ -160,7 +162,8 @@ class ImageHashConfig(BaseModel):
 
 class TranscriptionImportConfig(BaseModel):
     format_type: str = '11labs_segmented'
-    source_dir: str
+    season_remap: Dict[str, int] = {}
+    source_dir: Path
 
 
 class ElasticsearchConfig(BaseModel):

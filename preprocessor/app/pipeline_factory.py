@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict
 
 from preprocessor.app.pipeline import PipelineDefinition
@@ -32,6 +33,7 @@ from preprocessor.config.step_configs import (
     TextEmbeddingConfig,
     TranscodeConfig,
     TranscriptionConfig,
+    TranscriptionImportConfig,
     ValidationConfig,
     VideoEmbeddingConfig,
 )
@@ -42,6 +44,7 @@ from preprocessor.core.output_descriptors import (
     create_frames_output,
 )
 from preprocessor.services.media.resolution import Resolution
+from preprocessor.services.text.import_step import TranscriptionImportStep
 from preprocessor.steps.analysis.resolution_analysis_step import ResolutionAnalysisStep
 from preprocessor.steps.audio.separation_step import SoundSeparationStep
 from preprocessor.steps.packaging.archives_step import ArchiveGenerationStep
@@ -229,25 +232,41 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # =========================================================
     # PROCESSING PHASE: TEXT & AUDIO
     # =========================================================
-    transcription_data = StepBuilder(
-        phase=PROCESSING,
-        step_class=TranscriptionStep,
-        description=f"Audio transcription using {series_config.processing.transcription.mode}",
-        produces=[
-            JsonFileOutput(
-                pattern="{season}/{episode_num}/{episode}.json",
-                subdir="transcriptions/raw",
-                min_size_bytes=50,
-            ),
-        ],
-        needs=[transcoded_videos],
-        config=TranscriptionConfig(
-            mode=series_config.processing.transcription.mode,
-            model=series_config.processing.transcription.model,
-            language=series_config.processing.transcription.language,
-            device=series_config.processing.transcription.device,
+    _transcription_output = [
+        JsonFileOutput(
+            pattern="{season}/{episode_num}/{episode}.json",
+            subdir="transcriptions/raw",
+            min_size_bytes=50,
         ),
-    )
+    ]
+    _import_cfg = series_config.processing.transcription_import
+    if _import_cfg:
+        transcription_data = StepBuilder(
+            phase=PROCESSING,
+            step_class=TranscriptionImportStep,
+            description=f"Import pre-existing {_import_cfg.format_type} transcriptions",
+            produces=_transcription_output,
+            needs=[],
+            config=TranscriptionImportConfig(
+                source_dir=Path(_import_cfg.source_dir),
+                format_type=_import_cfg.format_type,
+                season_remap=_import_cfg.season_remap,
+            ),
+        )
+    else:
+        transcription_data = StepBuilder(
+            phase=PROCESSING,
+            step_class=TranscriptionStep,
+            description=f"Audio transcription using {series_config.processing.transcription.mode}",
+            produces=_transcription_output,
+            needs=[transcoded_videos],
+            config=TranscriptionConfig(
+                mode=series_config.processing.transcription.mode,
+                model=series_config.processing.transcription.model,
+                language=series_config.processing.transcription.language,
+                device=series_config.processing.transcription.device,
+            ),
+        )
 
     text_cleaning = StepBuilder(
         phase=PROCESSING,

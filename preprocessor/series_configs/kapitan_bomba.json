@@ -1,0 +1,35 @@
+{
+  "display_name": "Kapitan Bomba",
+  "indexing": {
+    "elasticsearch": {
+      "host": "http://192.168.1.210:19200",
+      "index_name": "kapitan_bomba"
+    }
+  },
+  "processing": {
+    "transcription_import": {
+      "format_type": "11labs_segmented",
+      "season_remap": {
+        "10": 0
+      },
+      "source_dir": "/mnt/c/Users/dam2452/Downloads/bomba trans/kapitan_bomba-wideo/segmented_json"
+    }
+  },
+  "scraping": {
+    "characters": {
+      "urls": [
+        "https://dubbingpedia.pl/wiki/Kapitan_Bomba"
+      ]
+    },
+    "episodes": {
+      "urls": [
+        "https://pl.wikipedia.org/wiki/Kapitan_Bomba_(serial_animowany)"
+      ]
+    }
+  },
+  "series_name": "kapitan_bomba",
+  "skip_steps": [
+    "episode_scraper",
+    "character_scraper"
+  ]
+}
