@@ -25,7 +25,7 @@ class BaseLLMClient(ABC):
 
 
 class VLLMClient(BaseLLMClient):
-    __DEFAULT_MODEL_NAME = 'Qwen/Qwen2.5-Coder-7B-Instruct'
+    __DEFAULT_MODEL_NAME = 'Qwen/Qwen3.5-9B'
 
     def __init__(self, model_name: Optional[str] = None) -> None:
         self.__model_name = model_name or self.__DEFAULT_MODEL_NAME
@@ -40,19 +40,25 @@ class VLLMClient(BaseLLMClient):
             temperature=0.7,
             top_p=0.8,
             top_k=20,
+            min_p=0.0,
+            presence_penalty=1.5,
+            repetition_penalty=1.0,
             max_tokens=max_tokens,
-            repetition_penalty=1.05,
         )
-        outputs = self.__model.chat(messages=[messages], sampling_params=sampling_params)
+        outputs = self.__model.chat(
+            messages=[messages],
+            sampling_params=sampling_params,
+            chat_template_kwargs={'enable_thinking': False},
+        )
         return outputs[0].outputs[0].text.strip()
 
     def __load_model(self) -> None:
-        console.print(f'[cyan]Loading LLM: {self.__model_name} (vLLM, 128K context)[/cyan]')
+        console.print(f'[cyan]Loading LLM: {self.__model_name} (vLLM, 256K context)[/cyan]')
         try:
             self.__model = LLM(
                 model=self.__model_name,
                 trust_remote_code=True,
-                max_model_len=131072,
+                max_model_len=262144,
                 gpu_memory_utilization=0.95,
                 tensor_parallel_size=1,
                 dtype='bfloat16',
