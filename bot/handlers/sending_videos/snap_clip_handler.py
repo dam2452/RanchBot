@@ -32,9 +32,6 @@ class SnapClipHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
-    def _get_usage_message(self) -> str:
-        return ""
-
     async def _do_handle(self) -> None:
         msg = self._message
         chat_id = msg.get_chat_id()
