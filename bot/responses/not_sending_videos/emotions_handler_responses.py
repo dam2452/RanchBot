@@ -1,15 +1,16 @@
 import difflib
 from typing import (
-    Dict,
     List,
     Optional,
 )
+
+from bidict import bidict
 
 from bot.responses.bot_response import BotResponse
 from bot.types import EmotionInfo
 from bot.utils.functions import convert_number_to_emoji
 
-_EMOTION_EN_TO_PL: Dict[str, str] = {
+_EMOTIONS: bidict[str, str] = bidict({
     "happiness": "radosny",
     "sadness": "smutny",
     "anger": "zly",
@@ -18,26 +19,25 @@ _EMOTION_EN_TO_PL: Dict[str, str] = {
     "fear": "przestraszony",
     "neutral": "neutralny",
     "contempt": "pogardliwy",
-}
-_EMOTION_PL_TO_EN: Dict[str, str] = {v: k for k, v in _EMOTION_EN_TO_PL.items()}
+})
 
 
 def map_emotion_to_pl(label_en: str) -> str:
-    return _EMOTION_EN_TO_PL.get(label_en.lower(), label_en)
+    return _EMOTIONS.get(label_en.lower(), label_en)
 
 
 def map_emotion_to_en(label: str) -> Optional[str]:
     lower = label.lower()
-    if lower in _EMOTION_EN_TO_PL:
+    if lower in _EMOTIONS:
         return lower
-    if lower in _EMOTION_PL_TO_EN:
-        return _EMOTION_PL_TO_EN[lower]
-    all_labels = list(_EMOTION_EN_TO_PL.keys()) + list(_EMOTION_PL_TO_EN.keys())
+    if lower in _EMOTIONS.inverse:
+        return _EMOTIONS.inverse[lower]
+    all_labels = list(_EMOTIONS.keys()) + list(_EMOTIONS.inverse.keys())
     matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.5)
     if not matches:
         return None
     matched = matches[0]
-    return matched if matched in _EMOTION_EN_TO_PL else _EMOTION_PL_TO_EN[matched]
+    return matched if matched in _EMOTIONS else _EMOTIONS.inverse[matched]
 
 
 def format_emotions_list(emotions: List[EmotionInfo]) -> str:

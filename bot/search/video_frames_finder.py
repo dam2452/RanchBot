@@ -6,7 +6,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_sources,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -54,8 +57,7 @@ class VideoFramesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        frames = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(frames)} frames for S{season:02d}E{episode_number:02d}.", logger,
         )
@@ -99,8 +101,7 @@ class VideoFramesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        return [h[ElasticsearchKeys.SOURCE] for h in hits]
+        return extract_sources(response)
 
     @staticmethod
     async def find_frames_with_detected_object(
@@ -143,8 +144,7 @@ class VideoFramesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        frames = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(frames)} frames with object '{object_class}'.", logger,
         )

@@ -27,7 +27,7 @@ class TestEmotionsHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_emotions_list_contains_polish_names(self):
         response = self.send_command('/emocje')
-        polish_labels = list(msg._EMOTION_EN_TO_PL.values())
+        polish_labels = list(msg._EMOTIONS.values())
         response_text = response.json().get("content", "")
         has_any = any(label in response_text for label in polish_labels)
         if not has_any:

@@ -8,7 +8,10 @@ from typing import (
 
 from elastic_transport import ObjectApiResponse
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_hits,
+)
 from bot.settings import settings
 from bot.types import (
     BaseSegment,
@@ -148,7 +151,7 @@ class TextSegmentsFinder:
                 {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_filter}},
             )
 
-        hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = extract_hits(await es.search(index=index, body=query, size=size))
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
@@ -300,14 +303,14 @@ class TextSegmentsFinder:
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
             SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
             SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
-        } for hit in context_response_before[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
+        } for hit in extract_hits(context_response_before)]
 
         context_segments_after = [{
             SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
             SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
             SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
-        } for hit in context_response_after[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
+        } for hit in extract_hits(context_response_after)]
 
         context_segments_before.reverse()
         return context_segments_before, context_segments_after
@@ -361,7 +364,7 @@ class TextSegmentsFinder:
         }
 
         response = await es.search(index=index, body=query, size=1)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = extract_hits(response)
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)

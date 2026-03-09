@@ -7,7 +7,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_hits,
+)
 from bot.types import (
     CharacterScene,
     CharacterWithEpisodeCount,
@@ -89,9 +92,6 @@ def _parse_scene(source: Dict[str, Any], character_name: str) -> CharacterScene:
             break
     return scene
 
-
-def _extract_hits(response: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
 
 def _confidence_sort(character_name: str) -> Dict[str, Any]:
@@ -228,7 +228,7 @@ class CharacterFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = _extract_hits(response)
+        hits = extract_hits(response)
         scenes = [_parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(logging.INFO, f"Found {len(scenes)} scenes for '{character_name}'.", logger)
         return scenes
@@ -281,7 +281,7 @@ class CharacterFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = _extract_hits(response)
+        hits = extract_hits(response)
         scenes = [_parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(scenes)} scenes for '{character_name}' with emotion '{emotion_en}'.", logger,

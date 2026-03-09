@@ -6,7 +6,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_sources,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -54,8 +57,7 @@ class EpisodeNamesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        episodes = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        episodes = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(episodes)} episodes matching '{title_query}'.", logger,
         )
@@ -89,8 +91,7 @@ class EpisodeNamesFinder:
             }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        episodes = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        episodes = extract_sources(response)
         await log_system_message(logging.INFO, f"Found {len(episodes)} episodes.", logger)
         return episodes
 
@@ -113,5 +114,5 @@ class EpisodeNamesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        return hits[0][ElasticsearchKeys.SOURCE] if hits else None
+        sources = extract_sources(response)
+        return sources[0] if sources else None

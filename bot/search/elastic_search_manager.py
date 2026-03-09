@@ -2,7 +2,11 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import (
+    Any,
+    Dict,
+    List,
+)
 
 from elasticsearch import (
     AsyncElasticsearch,
@@ -24,6 +28,14 @@ from bot.utils.constants import (
 from bot.utils.log import log_system_message
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def extract_hits(response: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+
+
+def extract_sources(response: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [h[ElasticsearchKeys.SOURCE] for h in extract_hits(response)]
 
 
 class ElasticSearchManager:
@@ -344,8 +356,9 @@ class ElasticSearchManager:
             index_name: str = s.ES_TRANSCRIPTION_INDEX,
     ) -> None:
         response = await es.search(index=index_name, size=1)
-        if response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]:
-            document = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS][0][ElasticsearchKeys.SOURCE]
+        hits = extract_hits(response)
+        if hits:
+            document = hits[0][ElasticsearchKeys.SOURCE]
             document[SegmentKeys.VIDEO_PATH] = document[SegmentKeys.VIDEO_PATH].replace("\\", "/")
             readable_output = (
                 f"Document ID: {response['hits']['hits'][0]['_id']}\n"

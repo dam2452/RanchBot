@@ -2,8 +2,6 @@
 import json
 import logging
 import math
-from pathlib import Path
-import tempfile
 from typing import (
     List,
     Optional,
@@ -76,7 +74,7 @@ class CharactersHandler(BotMessageHandler):
             await self._reply_error(get_no_characters_message())
             return
         if is_full:
-            await self.__send_document(
+            await self._responder.send_document_text(
                 format_characters_list_full(characters),
                 f"{s.BOT_USERNAME}_Postacie.txt",
                 "Pełna lista postaci",
@@ -96,7 +94,7 @@ class CharactersHandler(BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, character_name)
         if is_full:
-            await self.__send_document(
+            await self._responder.send_document_text(
                 format_character_scenes_full(character_name, scenes),
                 f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(character_name)}.txt",
                 f"Pełna lista scen: {character_name}",
@@ -124,7 +122,7 @@ class CharactersHandler(BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, character_name, emotion_input)
         if is_full:
-            await self.__send_document(
+            await self._responder.send_document_text(
                 format_character_scenes_full(character_name, scenes, emotion_filter=emotion_input),
                 f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(character_name)}_{emotion_en}.txt",
                 f"Pełna lista scen: {character_name} ({emotion_input})",
@@ -151,12 +149,6 @@ class CharactersHandler(BotMessageHandler):
             quote=quote,
             segments=json.dumps(segments),
         )
-
-    async def __send_document(self, content: str, filename: str, caption: str) -> None:
-        file_path = Path(tempfile.gettempdir()) / filename
-        with file_path.open("w", encoding="utf-8") as f:
-            f.write(content)
-        await self._responder.send_document(file_path, caption=caption)
 
     @staticmethod
     def __sanitize(name: str) -> str:

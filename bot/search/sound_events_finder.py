@@ -6,7 +6,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_sources,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -89,8 +92,7 @@ class SoundEventsFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        segments = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        segments = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(segments)} '{sound_type}' segments.", logger,
         )
@@ -127,8 +129,7 @@ class SoundEventsFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        segments = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        segments = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(segments)} sound segments matching '{text_query}'.", logger,
         )
