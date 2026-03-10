@@ -35,7 +35,7 @@
   },
   "scraping": {
     "character_references": {
-      "images_per_character": 5,
+      "images_per_character": 3,
       "search_engine": "duckduckgo"
     },
     "characters": {

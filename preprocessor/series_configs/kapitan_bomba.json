@@ -29,7 +29,6 @@
   },
   "series_name": "kapitan_bomba",
   "skip_steps": [
-    "episode_scraper",
-    "character_scraper"
+    "episode_scraper"
   ]
 }

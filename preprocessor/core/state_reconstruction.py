@@ -32,7 +32,7 @@ class StateReconstructor:
             step_name = step_instance.name
 
             if step_instance.is_global:
-                if StateReconstructor.__check_global_step_outputs(step_instance, base_output_dir):
+                if StateReconstructor.__check_global_step_outputs(step_def, base_output_dir):
                     checkpoint = StepCheckpoint(
                         step=step_name,
                         episode='all',
@@ -55,7 +55,7 @@ class StateReconstructor:
                     }
 
                     if StateReconstructor.__check_episode_step_outputs(
-                        step_instance, base_output_dir, context_vars,
+                        step_def, base_output_dir, context_vars,
                     ):
                         checkpoint = StepCheckpoint(
                             step=step_name,
@@ -74,8 +74,8 @@ class StateReconstructor:
         return completed_steps
 
     @staticmethod
-    def __check_global_step_outputs(step_instance, base_output_dir: Path) -> bool:
-        descriptors = step_instance.get_output_descriptors()
+    def __check_global_step_outputs(step_def, base_output_dir: Path) -> bool:
+        descriptors = step_def.get_output_descriptors()
         if not descriptors:
             return True
 
@@ -86,11 +86,11 @@ class StateReconstructor:
 
     @staticmethod
     def __check_episode_step_outputs(
-        step_instance,
+        step_def,
         base_output_dir: Path,
         context_vars: Dict[str, str],
     ) -> bool:
-        descriptors = step_instance.get_output_descriptors()
+        descriptors = step_def.get_output_descriptors()
         if not descriptors:
             return True
 

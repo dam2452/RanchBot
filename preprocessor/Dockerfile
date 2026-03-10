@@ -38,12 +38,18 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir \
         -r /app/requirements.txt \
-        vllm==0.13.0 \
         --extra-index-url https://pypi.nvidia.com \
+    && pip install --no-cache-dir --pre vllm \
+        --extra-index-url https://wheels.vllm.ai/nightly \
+    && pip install --no-cache-dir \
+        git+https://github.com/huggingface/transformers.git@main \
+    && pip uninstall -y flashinfer \
     && pip uninstall -y onnxruntime \
     && pip install --no-cache-dir \
         onnxruntime-gpu==1.21.0 \
         --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
+    && pip uninstall -y nvidia-cudnn-cu11 || true \
+    && pip install --no-cache-dir --force-reinstall --no-deps nvidia-cudnn-cu12 \
     && pip uninstall -y nvidia-nccl-cu11 || true \
     && pip install --no-cache-dir --force-reinstall --no-deps nvidia-nccl-cu12
 

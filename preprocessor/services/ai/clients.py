@@ -37,8 +37,8 @@ class VLLMClient(BaseLLMClient):
             raise RuntimeError('Model not initialized')
 
         sampling_params = SamplingParams(
-            temperature=0.7,
-            top_p=0.8,
+            temperature=1.0,
+            top_p=0.95,
             top_k=20,
             min_p=0.0,
             presence_penalty=1.5,
@@ -59,13 +59,14 @@ class VLLMClient(BaseLLMClient):
                 model=self.__model_name,
                 trust_remote_code=True,
                 max_model_len=262144,
-                gpu_memory_utilization=0.95,
+                gpu_memory_utilization=0.90,
                 tensor_parallel_size=1,
                 dtype='bfloat16',
                 enable_chunked_prefill=True,
                 max_num_batched_tokens=16384,
                 enforce_eager=True,
                 disable_log_stats=True,
+                language_model_only=True,
             )
             console.print('[green]LLM loaded successfully (vLLM)[/green]')
         except Exception as e:
