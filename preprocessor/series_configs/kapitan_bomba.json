@@ -16,6 +16,9 @@
     }
   },
   "scraping": {
+    "character_references": {
+      "images_per_character": 0
+    },
     "characters": {
       "urls": [
         "https://dubbingpedia.pl/wiki/Kapitan_Bomba"

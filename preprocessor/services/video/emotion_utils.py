@@ -1,14 +1,17 @@
+import os
+from pathlib import Path
+import shutil
+import time
 from typing import (
     Dict,
     List,
     Optional,
     Tuple,
 )
+import urllib.error
 
-from hsemotion_onnx.facial_emotions import (
-    HSEmotionRecognizer,
-    get_model_path,
-)
+import hsemotion_onnx.facial_emotions as _hsemotion_facial_emotions
+from hsemotion_onnx.facial_emotions import HSEmotionRecognizer
 import numpy as np
 import onnxruntime as ort
 
@@ -16,6 +19,20 @@ from preprocessor.config.settings_instance import settings
 from preprocessor.services.core.logging import ErrorHandlingLogger
 
 EMOTION_LABELS: List[str] = ['anger', 'contempt', 'disgust', 'fear', 'happiness', 'neutral', 'sadness', 'surprise']
+
+_ORIGINAL_GET_MODEL_PATH = _hsemotion_facial_emotions.get_model_path
+
+
+def _volume_aware_get_model_path(model_name: str) -> str:
+    model_home = os.environ.get('EMOTION_MODEL_HOME', '')
+    if model_home:
+        volume_path = Path(model_home) / f'{model_name}.onnx'
+        if volume_path.exists():
+            return str(volume_path)
+    return _ORIGINAL_GET_MODEL_PATH(model_name)
+
+
+_hsemotion_facial_emotions.get_model_path = _volume_aware_get_model_path
 
 
 class EmotionDetector:
@@ -37,13 +54,58 @@ class EmotionDetector:
             logger.info(f'Loading HSEmotion model: {model_name}...')
 
         try:
-            fer = HSEmotionRecognizer(model_name=model_name)
+            fer = EmotionDetector.__load_with_retry(model_name, logger)
+            EmotionDetector.__persist_model_to_volume(model_name, logger)
             EmotionDetector.__patch_gpu_session(fer, model_name, logger)
             if logger:
                 logger.info(f'HSEmotion model loaded: {model_name}')
             return fer
         except Exception as e:
             raise RuntimeError(f'Failed to load HSEmotion model {model_name}: {e}') from e
+
+    @staticmethod
+    def __load_with_retry(
+            model_name: str,
+            logger: Optional[ErrorHandlingLogger],
+            max_retries: int = 5,
+            initial_delay: float = 15.0,
+    ) -> HSEmotionRecognizer:
+        delay = initial_delay
+        for attempt in range(max_retries):
+            try:
+                return HSEmotionRecognizer(model_name=model_name)
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt >= max_retries - 1:
+                    raise
+                if logger:
+                    logger.warning(
+                        f'Rate limited downloading HSEmotion model '
+                        f'(attempt {attempt + 1}/{max_retries}), retrying in {delay:.0f}s...',
+                    )
+                time.sleep(delay)
+                delay *= 2
+        raise RuntimeError(f'Failed to download HSEmotion model after {max_retries} attempts')
+
+    @staticmethod
+    def __get_volume_model_path(model_name: str) -> Optional[Path]:
+        model_home = os.environ.get('EMOTION_MODEL_HOME', '')
+        if not model_home:
+            return None
+        return Path(model_home) / f'{model_name}.onnx'
+
+    @staticmethod
+    def __persist_model_to_volume(
+            model_name: str, logger: Optional[ErrorHandlingLogger],
+    ) -> None:
+        volume_path = EmotionDetector.__get_volume_model_path(model_name)
+        if not volume_path or volume_path.exists():
+            return
+        package_path = Path(_hsemotion_facial_emotions.__file__).parent / 'models' / f'{model_name}.onnx'
+        if package_path.exists():
+            volume_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(package_path, volume_path)
+            if logger:
+                logger.info(f'Persisted HSEmotion model to volume: {volume_path}')
 
     @staticmethod
     def __patch_gpu_session(
@@ -60,7 +122,7 @@ class EmotionDetector:
                 )
             return
 
-        model_path = get_model_path(model_name)
+        model_path = _hsemotion_facial_emotions.get_model_path(model_name)
         fer.ort_session = ort.InferenceSession(
             model_path,
             providers=['CUDAExecutionProvider', 'CPUExecutionProvider'],

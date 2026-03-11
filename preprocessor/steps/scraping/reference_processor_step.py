@@ -31,6 +31,9 @@ class CharacterReferenceStep(
     def _process(
         self, input_data: SourceVideo, context: ExecutionContext,
     ) -> SourceVideo:
+        if self.config.images_per_character == 0:
+            context.logger.info("images_per_character=0, skipping character reference download")
+            return input_data
         characters_path, output_dir = self.__resolve_paths(context)
         self.__validate_characters_file(characters_path)
         self.__download_character_references(characters_path, output_dir, context)

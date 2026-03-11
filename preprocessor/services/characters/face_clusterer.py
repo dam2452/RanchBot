@@ -53,12 +53,19 @@ class FaceClusterer:
             min_cluster_size: int,
             min_samples: int,
     ) -> np.ndarray:
+        n_samples = len(face_data)
+        if n_samples < 2:
+            return np.zeros(n_samples, dtype=np.intp)
+
         vectors = np.array([fd['vector'] for fd in face_data])
         vectors_gpu = cp.asarray(vectors)
 
+        effective_min_samples = min(min_samples, n_samples)
+        effective_min_cluster_size = min(min_cluster_size, n_samples)
+
         clusterer = cuHDBSCAN(
-            min_cluster_size=min_cluster_size,
-            min_samples=min_samples,
+            min_cluster_size=effective_min_cluster_size,
+            min_samples=effective_min_samples,
             metric='euclidean',
             cluster_selection_method='eom',
         )

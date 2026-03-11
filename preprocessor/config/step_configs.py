@@ -191,7 +191,7 @@ class EmotionDetectionConfig(BaseModel):
 
 
 class FaceClusteringConfig(BaseModel):
-    max_parallel_episodes: int = Field(default=4, ge=1, le=8)
+    max_parallel_episodes: int = Field(default=1, ge=1, le=8)
 
 
 class ObjectDetectionConfig(BaseModel):
@@ -209,7 +209,7 @@ class ArchiveConfig(BaseModel):
 class ValidationConfig(BaseModel):
     anomaly_threshold: float = 20.0
     episodes_info_json: Optional[Path] = None
-    max_parallel_episodes: int = Field(default=8, ge=1, le=16)
+    max_parallel_episodes: int = Field(default=1, ge=1, le=16)
 
 
 class EpisodeScraperConfig(BaseModel):
@@ -228,7 +228,7 @@ class CharacterScraperConfig(BaseModel):
 
 
 class CharacterReferenceConfig(BaseModel):
-    images_per_character: int = Field(default=5, ge=1, le=20)
+    images_per_character: int = Field(default=5, ge=0, le=20)
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
     search_engine: str = "duckduckgo"
 
