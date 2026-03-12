@@ -37,17 +37,17 @@ class TranscriptionSubdirs:
 @dataclass(frozen=True)
 class OutputSubdirs:  # pylint: disable=too-many-instance-attributes  # Configuration dataclass - all subdirs needed
     archives: str = 'archives'
-    character_detections: str = 'character_detections'
-    character_visualizations: str = 'character_detections/visualizations'
+    character_detections: str = 'detections/characters'
+    character_visualizations: str = 'detections/characters/visualizations'
     elastic_document_subdirs: ElasticDocumentSubdirs = field(default_factory=ElasticDocumentSubdirs)
     elastic_documents: str = 'elastic_documents'
     embeddings: str = 'embeddings'
-    face_clusters: str = 'face_clusters'
-    frames: str = 'exported_frames'
-    image_hashes: str = 'image_hashes'
-    object_detections: str = 'object_detections'
-    object_visualizations: str = 'object_detections/visualizations'
-    scenes: str = 'scene_timestamps'
+    face_clusters: str = 'clusters/faces'
+    frames: str = 'frames'
+    image_hashes: str = 'hashes'
+    object_detections: str = 'detections/objects'
+    object_visualizations: str = 'detections/objects/visualizations'
+    scenes: str = 'scene_detections'
     transcription_subdirs: TranscriptionSubdirs = field(default_factory=TranscriptionSubdirs)
     transcriptions: str = 'transcriptions'
     validation_reports: str = 'validation_reports'

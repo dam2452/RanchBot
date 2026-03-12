@@ -16,7 +16,7 @@ from preprocessor.services.validation.validators.base_validator import BaseValid
 
 class FrameValidator(BaseValidator):
     def validate(self, stats: EpisodeStats) -> None:
-        frames_dir = PathService(stats.series_name).get_episode_dir(
+        frames_dir = PathService(stats.series_name).get_episode_dir_by_code(
             stats.episode_info, settings.output_subdirs.frames,
         )
 

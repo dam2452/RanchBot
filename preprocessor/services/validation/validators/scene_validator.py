@@ -7,7 +7,6 @@ from typing import (
     List,
 )
 
-from preprocessor.config.constants import OUTPUT_FILE_PATTERNS
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.episode_stats import EpisodeStats
@@ -31,11 +30,9 @@ class SceneValidator(BaseValidator):
 
     @staticmethod
     def __resolve_scenes_file(stats: EpisodeStats) -> Path:
-        scenes_dir = PathService(stats.series_name).get_episode_dir(
+        return PathService(stats.series_name).get_episode_file_path(
             stats.episode_info, settings.output_subdirs.scenes,
         )
-        suffix = OUTPUT_FILE_PATTERNS['scenes_suffix']
-        return scenes_dir / f"{stats.series_name}_{stats.episode_info.episode_code()}{suffix}"
 
     def __validate_json_integrity(self, stats: EpisodeStats, file_path: Path) -> bool:
         result = FileValidator.validate_json_file(file_path)

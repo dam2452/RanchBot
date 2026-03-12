@@ -90,18 +90,18 @@ class TranscriptionValidator(BaseValidator):
     @staticmethod
     def __resolve_file_map(stats: EpisodeStats) -> Dict[str, Path]:
         path_svc = PathService(stats.series_name)
-        trans_dir = path_svc.get_episode_dir(stats.episode_info, settings.output_subdirs.transcriptions)
-        base = f'{stats.series_name}_{stats.episode_info.episode_code()}'
-
-        raw_base = trans_dir / settings.output_subdirs.transcription_subdirs.raw
-        clean_base = trans_dir / settings.output_subdirs.transcription_subdirs.clean
-        sound_base = trans_dir / settings.output_subdirs.transcription_subdirs.sound_events
+        raw_ep_dir = path_svc.get_episode_dir(
+            stats.episode_info,
+            f'{settings.output_subdirs.transcriptions}/{settings.output_subdirs.transcription_subdirs.raw}',
+        )
+        season_raw_dir = raw_ep_dir.parent
+        ep_code = stats.episode_info.episode_code()
 
         return {
-            'main': raw_base / f'{base}.json',
-            'segmented': raw_base / f'{base}_segmented.json',
-            'simple': raw_base / f'{base}_simple.json',
-            'clean': clean_base / f'{base}_clean_transcription.json',
-            'clean_txt': clean_base / f'{base}_clean_transcription.txt',
-            'sound_events': sound_base / f'{base}_sound_events.json',
+            'main': raw_ep_dir / f'{ep_code}.json',
+            'segmented': raw_ep_dir / f'{ep_code}_segmented.json',
+            'simple': raw_ep_dir / f'{ep_code}_simple.json',
+            'clean': season_raw_dir / settings.output_subdirs.transcription_subdirs.clean / f'{ep_code}_clean_transcription.json',
+            'clean_txt': season_raw_dir / settings.output_subdirs.transcription_subdirs.clean / f'{ep_code}_clean_transcription.txt',
+            'sound_events': season_raw_dir / settings.output_subdirs.transcription_subdirs.sound_events / f'{ep_code}_sound_events.json',
         }

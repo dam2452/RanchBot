@@ -503,7 +503,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
             FileOutput(
                 pattern="{season}/{episode}_text_segments.jsonl",
                 subdir="elastic_documents/text_segments",
-                min_size_bytes=10,
+                min_size_bytes=0,
             ),
         ],
         needs=[
@@ -524,6 +524,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         produces=[
             FileOutput(
                 pattern="{season}/{episode}.zip",
+                subdir="archives",
                 min_size_bytes=1024 * 100,
             ),
         ],

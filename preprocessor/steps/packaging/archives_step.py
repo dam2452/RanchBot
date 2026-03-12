@@ -47,9 +47,10 @@ class ArchiveGenerationStep(
             return self.__build_artifact(input_data, output_path)
 
         if found < expected and not self.config.allow_partial:
+            missing = [folder for folder, _ in ELASTIC_DOC_TYPES if folder not in episode_files]
             context.logger.warning(
                 f"Skipping {input_data.episode_id}: incomplete documents "
-                f"({found}/{expected}). Set allow_partial=True to archive anyway.",
+                f"({found}/{expected}), missing: {missing}. Set allow_partial=True to archive anyway.",
             )
             return self.__build_artifact(input_data, output_path)
 

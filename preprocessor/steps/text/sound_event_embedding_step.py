@@ -69,6 +69,7 @@ class SoundEventEmbeddingStep(
 
         segments = self.__load_segments(input_data, context)
         if not segments:
+            self.__save_results([], output_path, input_data)
             return self.__build_collection(input_data, output_path, 0)
 
         self.__ensure_model()

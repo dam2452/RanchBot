@@ -7,7 +7,7 @@ from typing import (
     Dict,
 )
 
-from preprocessor.config.constants import OUTPUT_FILE_NAMES
+from preprocessor.config.output_paths import get_base_output_dir
 from preprocessor.config.settings_instance import settings
 from preprocessor.services.io.path_service import PathService
 from preprocessor.services.validation.episode_stats import EpisodeStats
@@ -24,25 +24,25 @@ class ElasticValidator(BaseValidator):
         self.__validate_elastic_documents(stats)
         self.__validate_text_statistics(stats)
 
-    def __validate_character_detections(self, stats: EpisodeStats) -> None:
-        char_detections_dir = self.__get_dir(stats, settings.output_subdirs.character_detections)
-        detections_file = char_detections_dir / OUTPUT_FILE_NAMES['detections']
-
-        self._validate_json_if_exists(
-            stats,
-            detections_file,
-            error_msg_prefix=f"Invalid {OUTPUT_FILE_NAMES['detections']}",
+    @staticmethod
+    def __validate_character_detections(stats: EpisodeStats) -> None:
+        detections_file = PathService(stats.series_name).get_episode_file_path(
+            stats.episode_info, settings.output_subdirs.character_detections,
         )
+        if detections_file.exists():
+            result = FileValidator.validate_json_file(detections_file)
+            if not result.is_valid:
+                stats.errors.append(f'Invalid character detections JSON: {result.error_message}')
 
-    def __validate_embeddings(self, stats: EpisodeStats) -> None:
-        embeddings_dir = self.__get_dir(stats, settings.output_subdirs.embeddings)
-        if embeddings_dir.exists():
-            embeddings_file = embeddings_dir / OUTPUT_FILE_NAMES['embeddings_text']
-            self._validate_json_if_exists(
-                stats,
-                embeddings_file,
-                error_msg_prefix=f"Invalid {OUTPUT_FILE_NAMES['embeddings_text']}",
-            )
+    @staticmethod
+    def __validate_embeddings(stats: EpisodeStats) -> None:
+        embeddings_file = PathService(stats.series_name).get_episode_file_path(
+            stats.episode_info, f'{settings.output_subdirs.embeddings}/episode_names',
+        )
+        if embeddings_file.exists():
+            result = FileValidator.validate_json_file(embeddings_file)
+            if not result.is_valid:
+                stats.errors.append(f'Invalid episode embeddings JSON: {result.error_message}')
 
     def __validate_elastic_documents(self, stats: EpisodeStats) -> None:
         subdirs_to_check = [
@@ -54,36 +54,43 @@ class ElasticValidator(BaseValidator):
 
         found_any = False
         elastic_base = settings.output_subdirs.elastic_documents
+        ep_code = stats.episode_info.episode_code()
+        season_code = stats.episode_info.season_code()
 
         for subdir in subdirs_to_check:
-            docs_dir = self.__get_dir(stats, f'{elastic_base}/{subdir}')
-            if docs_dir.exists():
-                found_any = True
-                self.__process_jsonl_files(stats, docs_dir, subdir)
+            season_dir = (
+                get_base_output_dir(stats.series_name) / elastic_base / subdir / season_code
+            )
+            if not season_dir.exists():
+                continue
+            ep_files = list(season_dir.glob(f'{ep_code}_*.jsonl'))
+            if not ep_files:
+                continue
+            found_any = True
+            for jsonl_file in ep_files:
+                self.__validate_jsonl_file(stats, jsonl_file, subdir)
 
         if not found_any:
             self._add_warning(stats, f'Missing {settings.output_subdirs.elastic_documents} directory')
 
-    def __process_jsonl_files(self, stats: EpisodeStats, docs_dir: Path, subdir: str) -> None:
-        for jsonl_file in docs_dir.glob('*.jsonl'):
-            result = FileValidator.validate_jsonl_file(jsonl_file)
+    def __validate_jsonl_file(self, stats: EpisodeStats, jsonl_file: Path, subdir: str) -> None:
+        result = FileValidator.validate_jsonl_file(jsonl_file)
+        if not result.is_valid:
+            self._add_error(stats, f'Invalid JSONL {jsonl_file.name}: {result.error_message}')
+        else:
+            self.__validate_embedding_dimensions(stats, jsonl_file, subdir)
+
+    @staticmethod
+    def __validate_text_statistics(stats: EpisodeStats) -> None:
+        text_stats_file = PathService(stats.series_name).get_episode_file_path(
+            stats.episode_info, 'text_analysis',
+        )
+        if text_stats_file.exists():
+            result = FileValidator.validate_json_file(text_stats_file)
             if not result.is_valid:
-                self._add_error(stats, f'Invalid JSONL {jsonl_file.name}: {result.error_message}')
-            else:
-                self.__validate_embedding_dimensions(stats, jsonl_file, subdir)
-
-    def __validate_text_statistics(self, stats: EpisodeStats) -> None:
-        trans_dir = self.__get_dir(stats, settings.output_subdirs.transcriptions)
-        if trans_dir.exists():
-            clean_subdir = settings.output_subdirs.transcription_subdirs.clean
-            text_stats_file = trans_dir / clean_subdir / f'{stats.series_name}_{stats.episode_info.episode_code()}_text_stats.json'
-
-            if text_stats_file.exists():
-                result = FileValidator.validate_json_file(text_stats_file)
-                if not result.is_valid:
-                    self._add_error(stats, f'Invalid text_stats JSON: {result.error_message}')
-            else:
-                self._add_warning(stats, f'Missing text statistics file: {text_stats_file.name}')
+                stats.errors.append(f'Invalid text_stats JSON: {result.error_message}')
+        else:
+            stats.warnings.append(f'Missing text statistics file: {text_stats_file.name}')
 
     def __validate_embedding_dimensions(self, stats: EpisodeStats, jsonl_file: Path, subdir: str) -> None:
         embedding_fields = {
@@ -118,7 +125,3 @@ class ElasticValidator(BaseValidator):
             actual = len(doc[field])
             if actual != expected:
                 self._add_error(stats, f'{fname} line {lnum}: {field} has {actual} dim, expected {expected}')
-
-    @staticmethod
-    def __get_dir(stats: EpisodeStats, subdir: str) -> Path:
-        return PathService(stats.series_name).get_episode_dir(stats.episode_info, subdir)

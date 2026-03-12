@@ -135,10 +135,7 @@ class VideoTranscoderStep(PipelineStep[SourceVideo, TranscodedVideo, TranscodeCo
 
         normalized_bitrate = self.__get_normalized_bitrate(src_bitrate, probe_data, context)
 
-        if self.config.apply_boost_on_resize_only and self.__is_same_resolution(probe_data):
-            final_bitrate = normalized_bitrate
-            adjustment = "preserved (same resolution, no boost)"
-        elif normalized_bitrate < min_bitrate:
+        if normalized_bitrate < min_bitrate:
             final_bitrate = min_bitrate
             adjustment = f"boosted to minimum ({min_bitrate} Mbps)"
         elif normalized_bitrate > max_bitrate:

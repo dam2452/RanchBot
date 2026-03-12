@@ -36,6 +36,10 @@ class Validator:
         self.__episode_manager = EpisodeManager(episodes_info_json, series_name)
         self.__validation_reports_dir = base_output_dir / settings.output_subdirs.validation_reports
 
+    @property
+    def validation_reports_dir(self) -> Path:
+        return self.__validation_reports_dir
+
     def validate(self) -> int:
         transcriptions_path = self.__base_output_dir / 'transcriptions' / 'raw' / self.__season
         if not transcriptions_path.exists():

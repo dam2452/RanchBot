@@ -76,7 +76,7 @@ class DocumentGeneratorStep(
             FileOutput(
                 pattern=f"{{season}}/{{episode}}_{suffix}.jsonl",
                 subdir=f"elastic_documents/{folder}",
-                min_size_bytes=10,
+                min_size_bytes=0,
             )
             for folder, suffix in ELASTIC_DOC_TYPES
         ]
@@ -223,8 +223,6 @@ class DocumentGeneratorStep(
 
     @staticmethod
     def __write_ndjson(output_path: Path, docs: List[Dict[str, Any]]) -> int:
-        if not docs:
-            return 0
         with StepTempFile(output_path) as tmp:
             with open(tmp, "w", encoding="utf-8") as f:
                 for doc in docs:
@@ -241,11 +239,9 @@ class DocumentGeneratorStep(
         scene_data: Optional[Dict[str, Any]],
     ) -> int:
         clean_data = self.__load_optional(context, "transcriptions/clean", episode_info)
-        if not clean_data:
-            return 0
 
         docs = []
-        for i, seg in enumerate(clean_data.get("segments", [])):
+        for i, seg in enumerate((clean_data or {}).get("segments", [])):
             text = seg.get("text", "").strip()
             if not text:
                 continue
@@ -280,11 +276,9 @@ class DocumentGeneratorStep(
         scene_data: Optional[Dict[str, Any]],
     ) -> int:
         sound_data = self.__load_optional(context, "transcriptions/sound_events", episode_info)
-        if not sound_data:
-            return 0
 
         docs = []
-        for i, seg in enumerate(sound_data.get("segments", [])):
+        for i, seg in enumerate((sound_data or {}).get("segments", [])):
             if "text" not in seg:
                 continue
             words = seg.get("words", [])
@@ -316,11 +310,9 @@ class DocumentGeneratorStep(
         video_path: str,
     ) -> int:
         emb_data = self.__load_optional(context, "embeddings/text", episode_info)
-        if not emb_data:
-            return 0
 
         docs = []
-        for i, emb in enumerate(emb_data.get("text_embeddings", [])):
+        for i, emb in enumerate((emb_data or {}).get("text_embeddings", [])):
             embedding = emb.get("embedding", [])
             if not embedding:
                 continue
@@ -349,11 +341,9 @@ class DocumentGeneratorStep(
         objects_by_frame: Dict[str, List[Dict[str, Any]]],
     ) -> int:
         emb_data = self.__load_optional(context, "embeddings/vision", episode_info)
-        if not emb_data:
-            return 0
 
         docs = []
-        for emb in emb_data.get("video_embeddings", []):
+        for emb in (emb_data or {}).get("video_embeddings", []):
             embedding = emb.get("embedding")
             timestamp = emb.get("timestamp")
             if embedding is None or timestamp is None:
@@ -405,17 +395,17 @@ class DocumentGeneratorStep(
         video_path: str,
     ) -> int:
         emb_data = self.__load_optional(context, "embeddings/episode_names", episode_info)
-        if not emb_data or not emb_data.get("title_embedding"):
-            return 0
 
-        doc: Dict[str, Any] = {
-            "episode_id": episode_id,
-            "episode_metadata": episode_metadata,
-            "title": emb_data.get("title", ""),
-            "title_embedding": emb_data.get("title_embedding", []),
-            "video_path": video_path,
-        }
-        return self.__write_ndjson(self.__output_path(context, episode_info, 4), [doc])
+        docs = []
+        if emb_data and emb_data.get("title_embedding"):
+            docs = [{
+                "episode_id": episode_id,
+                "episode_metadata": episode_metadata,
+                "title": emb_data.get("title", ""),
+                "title_embedding": emb_data.get("title_embedding", []),
+                "video_path": video_path,
+            }]
+        return self.__write_ndjson(self.__output_path(context, episode_info, 4), docs)
 
     def __write_text_statistics(
         self,
@@ -426,22 +416,22 @@ class DocumentGeneratorStep(
         video_path: str,
     ) -> int:
         stats_data = self.__load_optional(context, "text_analysis", episode_info)
-        if not stats_data or not stats_data.get("basic_statistics"):
-            return 0
 
-        doc: Dict[str, Any] = {
-            "episode_id": episode_id,
-            "episode_metadata": episode_metadata,
-            "video_path": video_path,
-            "language": stats_data.get("metadata", {}).get("language", "pl"),
-            "analyzed_at": stats_data.get("metadata", {}).get("analyzed_at"),
-            "basic_statistics": stats_data.get("basic_statistics", {}),
-            "advanced_statistics": stats_data.get("advanced_statistics", {}),
-            "word_frequency": stats_data.get("word_frequency", [])[:20],
-            "bigrams": stats_data.get("bigrams", [])[:10],
-            "trigrams": stats_data.get("trigrams", [])[:10],
-        }
-        return self.__write_ndjson(self.__output_path(context, episode_info, 5), [doc])
+        docs = []
+        if stats_data and stats_data.get("basic_statistics"):
+            docs = [{
+                "episode_id": episode_id,
+                "episode_metadata": episode_metadata,
+                "video_path": video_path,
+                "language": stats_data.get("metadata", {}).get("language", "pl"),
+                "analyzed_at": stats_data.get("metadata", {}).get("analyzed_at"),
+                "basic_statistics": stats_data.get("basic_statistics", {}),
+                "advanced_statistics": stats_data.get("advanced_statistics", {}),
+                "word_frequency": stats_data.get("word_frequency", [])[:20],
+                "bigrams": stats_data.get("bigrams", [])[:10],
+                "trigrams": stats_data.get("trigrams", [])[:10],
+            }]
+        return self.__write_ndjson(self.__output_path(context, episode_info, 5), docs)
 
     def __write_full_episode_embedding(
         self,
@@ -452,22 +442,19 @@ class DocumentGeneratorStep(
         video_path: str,
     ) -> int:
         emb_data = self.__load_optional(context, "embeddings/full_episode", episode_info)
-        if not emb_data:
-            return 0
 
-        full_emb = emb_data.get("full_episode_embedding", {})
-        if not full_emb or "embedding" not in full_emb:
-            return 0
-
-        doc: Dict[str, Any] = {
-            "episode_id": episode_id,
-            "episode_metadata": episode_metadata,
-            "full_transcript": full_emb.get("text", ""),
-            "transcript_length": full_emb.get("transcript_length", 0),
-            "full_episode_embedding": full_emb.get("embedding", []),
-            "video_path": video_path,
-        }
-        return self.__write_ndjson(self.__output_path(context, episode_info, 6), [doc])
+        docs = []
+        full_emb = (emb_data or {}).get("full_episode_embedding", {})
+        if full_emb and "embedding" in full_emb:
+            docs = [{
+                "episode_id": episode_id,
+                "episode_metadata": episode_metadata,
+                "full_transcript": full_emb.get("text", ""),
+                "transcript_length": full_emb.get("transcript_length", 0),
+                "full_episode_embedding": full_emb.get("embedding", []),
+                "video_path": video_path,
+            }]
+        return self.__write_ndjson(self.__output_path(context, episode_info, 6), docs)
 
     def __write_sound_event_embeddings(
         self,
@@ -478,11 +465,9 @@ class DocumentGeneratorStep(
         video_path: str,
     ) -> int:
         emb_data = self.__load_optional(context, "embeddings/sound_events", episode_info)
-        if not emb_data:
-            return 0
 
         docs = []
-        for i, emb in enumerate(emb_data.get("sound_event_embeddings", [])):
+        for i, emb in enumerate((emb_data or {}).get("sound_event_embeddings", [])):
             embedding = emb.get("embedding", [])
             if not embedding:
                 continue

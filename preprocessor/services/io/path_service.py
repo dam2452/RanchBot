@@ -26,6 +26,14 @@ class PathService:
         base_output_dir = get_base_output_dir(self.__series_name)
         return base_output_dir / subdir / episode_info.season_code() / episode_info.episode_num()
 
+    def get_episode_dir_by_code(self, episode_info: EpisodeInfo, subdir: str) -> Path:
+        base_output_dir = get_base_output_dir(self.__series_name)
+        return base_output_dir / subdir / episode_info.season_code() / episode_info.episode_code()
+
+    def get_episode_file_path(self, episode_info: EpisodeInfo, subdir: str, extension: str = 'json') -> Path:
+        base_output_dir = get_base_output_dir(self.__series_name)
+        return base_output_dir / subdir / episode_info.season_code() / f'{episode_info.episode_code()}.{extension}'
+
     @staticmethod
     def get_input_base() -> Path:
         if Environment.is_docker():
