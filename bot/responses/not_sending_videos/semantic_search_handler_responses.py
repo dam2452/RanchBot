@@ -111,7 +111,10 @@ def get_vllm_unavailable_message() -> str:
 
 
 def get_embeddings_not_indexed_message(series_name: str, mode: str) -> str:
-    return f"Embeddingi ({mode}) dla serialu '{series_name}' nie zostały jeszcze wygenerowane."
+    return BotResponse.warning(
+        "BRAK EMBEDDINGÓW",
+        f"Embeddingi ({mode}) dla serialu '{series_name}' nie zostaly jeszcze wygenerowane.",
+    )
 
 
 def get_log_semantic_search_results_sent_message(query: str, username: str, mode: str) -> str:

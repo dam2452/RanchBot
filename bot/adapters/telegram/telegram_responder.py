@@ -27,12 +27,12 @@ class TelegramResponder(AbstractResponder):
         return await self._message.answer(text, reply_to_message_id=self._message.message_id, disable_notification=True)
 
     async def send_markdown(self, text: str) -> Optional[Message]:
-        return await self._message.answer(text, parse_mode="Markdown", reply_to_message_id=self._message.message_id, disable_notification=True)
+        return await self._message.answer(text, parse_mode="MarkdownV2", reply_to_message_id=self._message.message_id, disable_notification=True)
 
     @staticmethod
     async def edit_text(message: Message, text: str) -> None:
         try:
-            await message.edit_text(text, parse_mode="Markdown")
+            await message.edit_text(text, parse_mode="MarkdownV2")
         except Exception:
             pass
 
@@ -41,7 +41,7 @@ class TelegramResponder(AbstractResponder):
             photo=BufferedInputFile(image_bytes, str(image_path)),
             caption=caption,
             show_caption_above_media=True,
-            parse_mode="Markdown",
+            parse_mode="MarkdownV2",
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )

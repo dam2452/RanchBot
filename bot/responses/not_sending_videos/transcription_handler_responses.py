@@ -1,5 +1,7 @@
 from typing import Optional
 
+from aiogram.utils.markdown import markdown_decoration
+
 from bot.responses.bot_response import BotResponse
 from bot.types import TranscriptionContext
 from bot.utils.constants import (
@@ -40,13 +42,15 @@ def get_transcription_response(
         absolute_episode_display = str((season - 1) * 13 + episode_number)
 
     response = (
-        f"📺 *{episode_title}* 📺\n"
-        f"🎬 *{episode_display} ({absolute_episode_display})* 🎬\n"
-        f"⏰ *Czas: {format_seconds_to_mmss(start_time)} - {format_seconds_to_mmss(end_time)}* ⏰\n"
+        f"📺 *{markdown_decoration.quote(episode_title)}* 📺\n"
+        f"🎬 *{markdown_decoration.quote(episode_display)} \\({absolute_episode_display}\\)* 🎬\n"
+        f"⏰ *Czas: {markdown_decoration.quote(format_seconds_to_mmss(start_time))} \\- {markdown_decoration.quote(format_seconds_to_mmss(end_time))}* ⏰\n"
     )
 
     if snapped_start is not None and snapped_end is not None:
-        response += f"🎞 *Scena: {format_seconds_to_mmss(snapped_start)} - {format_seconds_to_mmss(snapped_end)}* 🎞\n"
+        snapped_s = markdown_decoration.quote(format_seconds_to_mmss(snapped_start))
+        snapped_e = markdown_decoration.quote(format_seconds_to_mmss(snapped_end))
+        response += f"🎞 *Scena: {snapped_s} \\- {snapped_e}* 🎞\n"
 
     response += "\n```"
 
