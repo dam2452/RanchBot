@@ -14,14 +14,13 @@ from preprocessor.core.artifacts import (
     SourceVideo,
     TranscriptionData,
 )
-from preprocessor.core.base_step import PipelineStep
+from preprocessor.core.base_transcription_step import BaseTranscriptionStep
 from preprocessor.core.context import ExecutionContext
-from preprocessor.core.output_descriptors import JsonFileOutput
 from preprocessor.services.episodes.episode_manager import EpisodeManager
 from preprocessor.services.episodes.types import EpisodeInfo
 
 
-class TranscriptionImportStep(PipelineStep[SourceVideo, TranscriptionData, TranscriptionImportConfig]):
+class TranscriptionImportStep(BaseTranscriptionStep[SourceVideo, TranscriptionImportConfig]):
     @property
     def supports_batch_processing(self) -> bool:
         return True
@@ -58,26 +57,6 @@ class TranscriptionImportStep(PipelineStep[SourceVideo, TranscriptionData, Trans
             language=trans_meta.get('language_code', 'pl'),
             model=trans_meta.get('format', '11labs'),
             format='json',
-        )
-
-    def get_output_descriptors(self) -> List[JsonFileOutput]:
-        return [
-            JsonFileOutput(
-                pattern='{season}/{episode_num}/{episode}.json',
-                subdir='transcriptions/raw',
-                min_size_bytes=50,
-            ),
-        ]
-
-    def _get_cache_path(self, input_data: SourceVideo, context: ExecutionContext) -> Path:
-        return self._resolve_output_path(
-            0,
-            context,
-            {
-                'season': input_data.episode_info.season_code(),
-                'episode_num': input_data.episode_info.episode_num(),
-                'episode': input_data.episode_info.episode_code(),
-            },
         )
 
     def _load_from_cache(
