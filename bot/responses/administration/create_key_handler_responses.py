@@ -1,10 +1,22 @@
+from bot.responses.bot_response import BotResponse
 
-def get_create_key_usage_message() -> str:
-    return "❌ Podaj liczbę dni i klucz. Przykład: /addkey 30 tajny_klucz ❌"
+
+def get_invalid_args_message() -> str:
+    return BotResponse.usage(
+        command="addkey",
+        error_title="BRAK ARGUMENTÓW",
+        usage_syntax="<dni> <klucz>",
+        params=[
+            ("<dni>", "liczba dni subskrypcji (liczba całkowita)"),
+            ("<klucz>", "treść klucza subskrypcyjnego"),
+        ],
+        example="/addkey 30 tajny_klucz",
+    )
 
 
 def get_create_key_success_message(days: int, key: str) -> str:
-    return f"✅ Stworzono klucz: {key} na {days} dni. ✅"
+    return BotResponse.success("KLUCZ STWORZONY", f"Stworzono klucz: {key} na {days} dni")
+
 
 def get_key_already_exists_message(key: str) -> str:
-    return f"❌ Klucz {key} już istnieje. ❌"
+    return BotResponse.error("KLUCZ ISTNIEJE", f"Klucz {key} już istnieje")

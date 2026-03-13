@@ -1,5 +1,6 @@
 from typing import List
 
+from bot.responses.bot_response import BotResponse
 from bot.types import (
     EpisodeInfo,
     SeasonInfoDict,
@@ -46,8 +47,9 @@ def format_episode_list_response(season: int, episodes: List[EpisodeInfo], seaso
     response += "```"
     return response
 
+
 def get_no_episodes_found_message(season: int) -> str:
-    return f"❌ Nie znaleziono odcinków dla sezonu {season}."
+    return BotResponse.error("BRAK ODCINKÓW", f"Nie znaleziono odcinków dla sezonu {season}")
 
 
 def get_log_no_episodes_found_message(season: int) -> str:
@@ -83,4 +85,10 @@ def format_season_list_response(season_info: SeasonInfoDict) -> str:
 
 
 def get_invalid_args_count_message() -> str:
-    return "📋 Podaj poprawną komendę w formacie: /odcinki [sezon]. Przykład: /odcinki 2 lub /odcinki (lista sezonów)"
+    return BotResponse.usage(
+        command="odcinki",
+        error_title="BRAK NUMERU SEZONU",
+        usage_syntax="<numer_sezonu>",
+        params=[("<numer_sezonu>", "numer sezonu (liczba całkowita) lub brak dla listy sezonów")],
+        example="/odcinki 2",
+    )

@@ -21,8 +21,11 @@ class SaveUserKeyHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_no_message_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_no_message_provided_message())
+        return await self._validate_argument_count(self._message, 1)
 
     async def _do_handle(self) -> None:
         key = self._message.get_text().split(maxsplit=1)[1]

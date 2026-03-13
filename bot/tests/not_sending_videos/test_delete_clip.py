@@ -30,10 +30,7 @@ class TestDeleteClipHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_delete_clip_no_arguments(self):
         response = self.send_command('/usunklip')
-        self.assert_response_contains(
-            response,
-            [msg.get_invalid_args_count_message()],
-        )
+        self.assert_response_contains(response, [msg.get_no_clip_number_provided_message()])
 
     @pytest.mark.asyncio
     async def test_delete_multiple_clips(self):

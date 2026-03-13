@@ -28,7 +28,7 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.responses.sending_videos.clip_handler_responses import get_no_quote_provided_message
+from bot.responses.sending_videos.inline_clip_handler_responses import get_no_query_provided_message
 from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
@@ -56,8 +56,11 @@ class InlineClipHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_no_query_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_no_quote_provided_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def _do_handle(self) -> None:
         query = " ".join(self._message.get_text().split()[1:])

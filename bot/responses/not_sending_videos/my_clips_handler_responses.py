@@ -4,6 +4,7 @@ from typing import (
 )
 
 from bot.database.models import VideoClip
+from bot.responses.bot_response import BotResponse
 from bot.types import SeasonInfoDict
 from bot.utils.functions import convert_number_to_emoji
 
@@ -43,7 +44,7 @@ def format_myclips_response(clips: List[VideoClip], username: Optional[str], ful
 
 
 def get_no_saved_clips_message() -> str:
-    return "📭 Nie masz zapisanych klipów.📭"
+    return BotResponse.warning("BRAK ZAPISANYCH KLIPÓW", "Nie masz zapisanych klipów")
 
 
 def get_log_no_saved_clips_message(username: str) -> str:

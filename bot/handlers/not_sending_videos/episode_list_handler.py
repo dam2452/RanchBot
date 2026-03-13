@@ -31,8 +31,11 @@ class EpisodeListHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_invalid_args_count_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 0, get_invalid_args_count_message(), 1)
+        return await self._validate_argument_count(self._message, 0, 1)
 
     async def _do_handle(self) -> None:
         args = self._message.get_text().split()
@@ -69,7 +72,7 @@ class EpisodeListHandler(BotMessageHandler):
             try:
                 season = int(season_arg)
             except ValueError:
-                return await self._reply_error(get_invalid_args_count_message())
+                return await self._reply_error(self._get_usage_message())
 
         episodes = await TextSegmentsFinder.find_episodes_by_season(season, self._logger, index=index)
 

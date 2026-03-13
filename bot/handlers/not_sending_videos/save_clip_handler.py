@@ -57,8 +57,11 @@ class SaveClipHandler(BotMessageHandler):
             self.__check_last_clip_exists,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_clip_name_not_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_clip_name_not_provided_message())
+        return await self._validate_argument_count(self._message, 1)
 
     async def __check_clip_name_format(self) -> bool:
         parts = self._message.get_text().split(maxsplit=1)

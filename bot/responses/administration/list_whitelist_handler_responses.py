@@ -1,6 +1,7 @@
 from typing import List
 
 from bot.database.models import UserProfile
+from bot.responses.bot_response import BotResponse
 from bot.utils.functions import format_user_list
 
 
@@ -9,7 +10,7 @@ def create_whitelist_response(users: List[UserProfile]) -> str:
 
 
 def get_whitelist_empty_message() -> str:
-    return "📭 Whitelist jest pusta.📭"
+    return BotResponse.warning("WHITELIST PUSTA", "Whitelist jest pusta")
 
 
 def get_log_whitelist_empty_message() -> str:

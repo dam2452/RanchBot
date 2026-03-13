@@ -11,7 +11,6 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.compile_clips_handler_responses import (
     get_clip_time_message,
-    get_invalid_args_count_message,
     get_invalid_index_message,
     get_invalid_range_message,
     get_log_compilation_success_message,
@@ -21,6 +20,7 @@ from bot.responses.sending_videos.compile_clips_handler_responses import (
     get_log_no_matching_segments_found_message,
     get_log_no_previous_search_results_message,
     get_max_clips_exceeded_message,
+    get_no_args_provided_message,
     get_no_matching_segments_found_message,
     get_no_previous_search_results_message,
     get_selected_clip_message,
@@ -52,8 +52,11 @@ class CompileClipsHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
 
+    def _get_usage_message(self) -> str:
+        return get_no_args_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message(), math.inf)
+        return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def _do_handle(self) -> None:
         content = self._message.get_text().split()

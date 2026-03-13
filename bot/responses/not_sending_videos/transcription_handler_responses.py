@@ -1,5 +1,6 @@
 from typing import Optional
 
+from bot.responses.bot_response import BotResponse
 from bot.types import TranscriptionContext
 from bot.utils.constants import (
     EpisodeMetadataKeys,
@@ -7,10 +8,6 @@ from bot.utils.constants import (
     TranscriptionContextKeys,
 )
 from bot.utils.functions import format_seconds_to_mmss
-
-
-def get_no_quote_provided_message() -> str:
-    return "🔎 Podaj cytat, który chcesz znaleźć. Przykład: /transkrypcja Nie szkoda panu tego pięknego gabinetu?"
 
 
 def get_transcription_response(
@@ -71,3 +68,13 @@ def get_transcription_response(
 
 def get_log_transcription_response_sent_message(quote: str, username: str) -> str:
     return f"Transcription for quote '{quote}' sent to user '{username}'."
+
+
+def get_no_quote_provided_message() -> str:
+    return BotResponse.usage(
+        command="transkrypcja",
+        error_title="BRAK CYTATU",
+        usage_syntax="<cytat>",
+        params=[("<cytat>", "fragment tekstu do wyszukania transkrypcji")],
+        example="/transkrypcja geniusz",
+    )

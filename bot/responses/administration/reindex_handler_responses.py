@@ -1,18 +1,8 @@
-def get_reindex_usage_message() -> str:
-    return ("""```❌ BŁĄD - BRAK TARGETU
-
-📋 Podaj cel reindeksowania:
-• all - wszystkie seriale
-• all-new - tylko nowe seriale
-• <nazwa> - konkretny serial
-
-💡 Przykład:
-   /reindex ranczo
-```""").replace(" ", "\u00A0")
+from bot.responses.bot_response import BotResponse
 
 
 def get_reindex_started_message(target: str) -> str:
-    return f"🔄 Rozpoczynam reindeksowanie: {target}"
+    return BotResponse.info("REINDEKSOWANIE ROZPOCZĘTE", f"Rozpoczynam reindeksowanie: {target}")
 
 
 def get_reindex_progress_message(message: str, current: int, total: int) -> str:
@@ -51,7 +41,7 @@ def get_reindex_complete_message(result) -> str:
 
 
 def get_reindex_error_message(error: str) -> str:
-    return f"❌ Błąd reindeksowania:\n```\n{error}\n```"
+    return BotResponse.error("BŁĄD REINDEKSOWANIA", error)
 
 
 def get_reindex_all_complete_message(series_count: int, episodes: int, documents: int) -> str:
@@ -73,4 +63,18 @@ def get_reindex_all_new_complete_message(series_count: int, episodes: int, docum
 
 
 def get_no_new_series_message() -> str:
-    return "📺 Brak nowych seriali do reindeksowania."
+    return BotResponse.info("BRAK NOWYCH SERIALI", "Brak nowych seriali do reindeksowania")
+
+
+def get_no_target_provided_message() -> str:
+    return BotResponse.usage(
+        command="reindex",
+        error_title="BRAK CELU",
+        usage_syntax="<all | all-new | nazwa_serialu>",
+        params=[
+            ("all", "reindeksuj wszystkie seriale"),
+            ("all-new", "reindeksuj tylko nowe seriale"),
+            ("<nazwa>", "reindeksuj konkretny serial np. ranczo"),
+        ],
+        example="/reindex ranczo",
+    )

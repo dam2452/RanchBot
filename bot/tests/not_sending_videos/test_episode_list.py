@@ -30,10 +30,7 @@ class TestEpisodeListHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_episodes_too_many_arguments(self):
         response = self.send_command('/odcinki 1 2')
-        self.assert_response_contains(
-            response,
-            [msg.get_invalid_args_count_message()],
-        )
+        self.assert_response_contains(response, [msg.get_invalid_args_count_message()])
 
     @pytest.mark.asyncio
     async def test_episodes_long_list(self):

@@ -1,3 +1,6 @@
+from bot.responses.bot_response import BotResponse
+
+
 def get_basic_message() -> str:
     return """```🐐\u00A0Witaj\u00A0w\u00A0RanczoKlipy!\u00A0🐐
 ════════════════════════
@@ -190,7 +193,7 @@ def get_shortcuts_message() -> str:
 
 
 def get_invalid_command_message() -> str:
-    return "❌ Niepoprawna komenda w menu startowym. Użyj /start, aby zobaczyć dostępne opcje. ❌"
+    return BotResponse.error("NIEPOPRAWNA KOMENDA", "Niepoprawna komenda w menu startowym. Użyj /start, aby zobaczyć dostępne opcje")
 
 
 def get_log_start_message_sent(username: str) -> str:

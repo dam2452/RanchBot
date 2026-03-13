@@ -1,9 +1,18 @@
+from bot.responses.bot_response import BotResponse
+
+
 def get_no_report_content_message() -> str:
-    return "❌ Podaj treść raportu.❌"
+    return BotResponse.usage(
+        command="report",
+        error_title="BRAK TREŚCI RAPORTU",
+        usage_syntax="<opis_problemu>",
+        params=[("<opis_problemu>", "opis błędu lub sugestia ulepszenia")],
+        example="/report Komenda /klip nie działa dla cytatu XYZ",
+    )
 
 
 def get_report_received_message() -> str:
-    return "✅ Dziękujemy za zgłoszenie.✅"
+    return BotResponse.success("ZGŁOSZENIE PRZYJĘTE", "Dziękujemy za zgłoszenie")
 
 
 def get_log_no_report_content_message(username: str) -> str:
@@ -15,4 +24,4 @@ def get_log_report_received_message(username: str, report: str) -> str:
 
 
 def get_limit_exceeded_report_length_message() -> str:
-    return "❌ Przekroczono limit długości raportu.❌"
+    return BotResponse.error("LIMIT DŁUGOŚCI RAPORTU", "Przekroczono limit długości raportu")

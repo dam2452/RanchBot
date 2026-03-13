@@ -7,9 +7,9 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.administration.remove_whitelist_handler_responses import (
+    get_invalid_args_message,
     get_log_user_not_in_whitelist_message,
     get_log_user_removed_message,
-    get_no_user_id_provided_message,
     get_user_not_in_whitelist_message,
     get_user_removed_message,
 )
@@ -26,13 +26,16 @@ class RemoveWhitelistHandler(BotMessageHandler):
             self.__check_user_exists,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_invalid_args_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_no_user_id_provided_message())
+        return await self._validate_argument_count(self._message, 1)
 
     async def __check_user_id_digit(self) -> bool:
         content = self._message.get_text().split()
         if not content[1].isdigit():
-            await self._reply_error(get_no_user_id_provided_message())
+            await self._reply_invalid_args_count(self._get_usage_message())
             return False
         return True
 

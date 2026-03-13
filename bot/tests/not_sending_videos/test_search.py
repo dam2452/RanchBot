@@ -22,7 +22,7 @@ class TestSearchHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_search_invalid_arguments(self):
         response = self.send_command('/szukaj')
-        self.assert_response_contains(response, [msg.get_invalid_args_count_message()])
+        self.assert_response_contains(response, [msg.get_no_quote_provided_message()])
 
     @pytest.mark.asyncio
     async def test_search_long_quote_exceeds_limit(self):

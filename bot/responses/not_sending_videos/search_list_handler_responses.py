@@ -1,11 +1,12 @@
 from typing import List
 
+from bot.responses.bot_response import BotResponse
 from bot.types import SearchSegment
 from bot.utils.functions import format_segment
 
 
 def get_no_previous_search_results_message() -> str:
-    return "🔍 Nie znaleziono wcześniejszych wyników wyszukiwania.🔍"
+    return BotResponse.warning("BRAK POPRZEDNICH WYNIKÓW", "Nie znaleziono wcześniejszych wyników wyszukiwania")
 
 
 def get_log_no_previous_search_results_message(chat_id: int) -> str:

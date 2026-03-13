@@ -10,10 +10,10 @@ from bot.responses.not_sending_videos.delete_clip_handler_responses import (
     get_clip_deleted_message,
     get_clip_id_not_exist_message,
     get_clip_not_exist_message,
-    get_invalid_args_count_message,
     get_log_clip_deleted_message,
     get_log_clip_not_exist_message,
     get_log_no_saved_clips_message,
+    get_no_clip_number_provided_message,
     get_no_saved_clips_message,
 )
 
@@ -29,8 +29,11 @@ class DeleteClipHandler(BotMessageHandler):
             self.__check_clip_exists,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_clip_number_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 1, get_invalid_args_count_message())
+        return await self._validate_argument_count(self._message, 1)
 
     async def __check_clip_exists(self) -> bool:
         content = self._message.get_text().split(maxsplit=1)

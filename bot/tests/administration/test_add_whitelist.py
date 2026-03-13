@@ -37,7 +37,7 @@ class TestAddWhitelistHandler(BaseTest):
 
         self.expect_command_result_contains(
             f'/addwhitelist {user_id_invalid}',
-            [msg.get_no_user_id_provided_message()],
+            [msg.get_invalid_args_message()],
         )
 
     @pytest.mark.asyncio

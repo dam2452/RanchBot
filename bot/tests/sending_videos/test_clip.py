@@ -22,6 +22,4 @@ class TestClipHandler(BaseTest):
 
     @pytest.mark.asyncio
     async def test_no_quote_provided(self):
-        self.expect_command_result_contains(
-            '/klip', [msg.get_no_quote_provided_message()],
-        )
+        self.expect_command_result_contains('/klip', [msg.get_no_quote_provided_message()])

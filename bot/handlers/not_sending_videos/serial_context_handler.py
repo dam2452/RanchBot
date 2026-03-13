@@ -6,10 +6,10 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.not_sending_videos.serial_context_handler_responses import (
+    get_no_series_name_provided_message,
     get_serial_changed_message,
     get_serial_current_message,
     get_serial_invalid_message,
-    get_serial_usage_message,
 )
 
 
@@ -17,13 +17,15 @@ class SerialContextHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["serial", "series" ,"ser"]
 
+    def _get_usage_message(self) -> str:
+        return get_no_series_name_provided_message()
+
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
             lambda: self._validate_argument_count(
                 self._message,
                 min_args=0,
                 max_args=1,
-                error_message=get_serial_usage_message(),
             ),
         ]
 

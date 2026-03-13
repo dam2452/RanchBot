@@ -66,7 +66,7 @@ class TestAddSubscriptionHandler(BaseTest):
 
         self.expect_command_result_contains(
             'addsubscription',
-            [msg.get_no_user_id_provided_message()],
+            [msg.get_invalid_args_message()],
             args=[str(user_id) + " " + str(invalid_days)],
         )
 
@@ -78,7 +78,7 @@ class TestAddSubscriptionHandler(BaseTest):
 
         self.expect_command_result_contains(
             'addsubscription',
-            [msg.get_no_user_id_provided_message()],
+            [msg.get_invalid_args_message()],
             args=[str(user_id_invalid) + " " + str(days)],
         )
 
@@ -90,6 +90,6 @@ class TestAddSubscriptionHandler(BaseTest):
 
         self.expect_command_result_contains(
             'addsubscription',
-            [msg.get_no_user_id_provided_message()],
+            [msg.get_invalid_args_message()],
             args=[str(user_id) + " " + str(negative_days)],
         )

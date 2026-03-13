@@ -8,13 +8,13 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.administration.reindex_handler_responses import (
     get_no_new_series_message,
+    get_no_target_provided_message,
     get_reindex_all_complete_message,
     get_reindex_all_new_complete_message,
     get_reindex_complete_message,
     get_reindex_error_message,
     get_reindex_progress_message,
     get_reindex_started_message,
-    get_reindex_usage_message,
 )
 from bot.services.reindex.reindex_service import ReindexService
 
@@ -34,9 +34,12 @@ class ReindexHandler(BotMessageHandler):
             self.__check_target_valid,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_target_provided_message()
+
     async def __check_argument_count(self) -> bool:
         return await self._validate_argument_count(
-            self._message, 1, get_reindex_usage_message(),
+            self._message, 1,
         )
 
     async def __check_target_valid(self) -> bool:
@@ -47,7 +50,7 @@ class ReindexHandler(BotMessageHandler):
             return True
 
         if not target.replace('_', '').replace('-', '').isalnum():
-            await self._reply_error(get_reindex_usage_message())
+            await self._reply_error(self._get_usage_message())
             return False
 
         return True

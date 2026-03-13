@@ -35,7 +35,7 @@ class TestCompileSelectedClipsHandler(BaseTest):
         self.send_command('/zapisz klip2')
 
         response = self.send_command('/polaczklipy 1 5')
-        self.assert_response_contains(response, [msg.get_invalid_args_count_message()])
+        self.assert_response_contains(response, [msg.get_no_clip_numbers_provided_message()])
 
     @pytest.mark.asyncio
     async def test_merge_single_clip(self):

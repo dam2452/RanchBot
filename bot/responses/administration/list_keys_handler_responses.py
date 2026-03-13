@@ -1,6 +1,7 @@
 from typing import List
 
 from bot.database.models import SubscriptionKey
+from bot.responses.bot_response import BotResponse
 from bot.utils.functions import convert_number_to_emoji
 
 
@@ -17,7 +18,7 @@ def create_subscription_keys_response(keys: List[SubscriptionKey]) -> str:
 
 
 def get_subscription_keys_empty_message() -> str:
-    return "📭 Brak zapisanych kluczy subskrypcji.📭"
+    return BotResponse.warning("BRAK KLUCZY SUBSKRYPCJI", "Brak zapisanych kluczy subskrypcji")
 
 
 def get_log_subscription_keys_empty_message() -> str:

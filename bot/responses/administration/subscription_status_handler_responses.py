@@ -1,5 +1,7 @@
 from datetime import date
 
+from bot.responses.bot_response import BotResponse
+
 
 def format_subscription_status_response(username: str, subscription_end: date, days_remaining: int) -> str:
     return f"""
@@ -14,7 +16,7 @@ def format_subscription_status_response(username: str, subscription_end: date, d
 
 
 def get_no_subscription_message() -> str:
-    return "🚫 Nie masz aktywnej subskrypcji.🚫"
+    return BotResponse.warning("BRAK SUBSKRYPCJI", "Nie masz aktywnej subskrypcji")
 
 
 def get_log_subscription_status_sent_message(username: str) -> str:

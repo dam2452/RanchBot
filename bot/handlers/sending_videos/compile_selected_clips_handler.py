@@ -11,8 +11,8 @@ from bot.handlers.bot_message_handler import (
 )
 from bot.responses.sending_videos.compile_selected_clips_handler_responses import (
     get_compiled_clip_sent_message,
-    get_invalid_args_count_message,
     get_log_no_matching_clips_found_message,
+    get_no_clip_numbers_provided_message,
     get_no_matching_clips_found_message,
 )
 
@@ -32,8 +32,11 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             self.__check_user_has_clips,
         ]
 
+    def _get_usage_message(self) -> str:
+        return get_no_clip_numbers_provided_message()
+
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2, get_invalid_args_count_message(), math.inf)
+        return await self._validate_argument_count(self._message, 2, math.inf)
 
     async def __check_user_has_clips(self) -> bool:
         user_id = self._message.get_user_id()
@@ -50,7 +53,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
         try:
             clip_numbers = [int(clip) for clip in content[1:]]
         except ValueError:
-            return await self._reply_invalid_args_count(get_invalid_args_count_message())
+            return await self._reply_invalid_args_count(self._get_usage_message())
 
         user_clips = await DatabaseManager.get_saved_clips(user_id)
 
@@ -59,7 +62,7 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             if 1 <= clip_number <= len(user_clips):
                 selected_clips.append(user_clips[clip_number - 1])
             else:
-                return await self._reply_invalid_args_count(get_invalid_args_count_message())
+                return await self._reply_invalid_args_count(self._get_usage_message())
 
         if not selected_clips:
             return await self.__reply_no_matching_clips_found()

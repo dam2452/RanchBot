@@ -1,5 +1,6 @@
 import pytest
 
+import bot.responses.sending_videos.adjust_by_scene_responses as sd_msg
 import bot.responses.sending_videos.adjust_video_clip_handler_responses as msg
 from bot.tests.base_test import BaseTest
 
@@ -22,7 +23,9 @@ class TestAdjustBySceneHandler(BaseTest):
     async def test_sd_invalid_args(self):
         video_name = "geniusz"
         self.send_command(f"/klip {video_name}")
-        self.expect_command_result_contains("/sd abc xyz", [msg.get_sd_invalid_args_message()])
+        self.expect_command_result_contains(
+            "/sd abc xyz", [sd_msg.get_sd_invalid_args_count_message()],
+        )
 
     @pytest.mark.asyncio
     async def test_sd_success(self):

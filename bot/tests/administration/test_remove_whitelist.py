@@ -40,6 +40,5 @@ class TestRemoveWhitelistHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_remove_whitelist_invalid_user_id_format(self):
         self.expect_command_result_contains(
-            '/removewhitelist user123',
-            [msg.get_no_user_id_provided_message()],
+            '/removewhitelist user123', [msg.get_invalid_args_message()],
         )

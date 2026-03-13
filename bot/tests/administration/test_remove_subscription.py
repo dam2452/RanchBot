@@ -34,8 +34,7 @@ class TestRemoveSubscriptionHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_remove_subscription_invalid_user_id_format(self):
         self.expect_command_result_contains(
-            '/removesubscription user123',
-            [msg.get_no_user_id_provided_message()],
+            '/removesubscription user123', [msg.get_invalid_args_message()],
         )
 
     @pytest.mark.asyncio
