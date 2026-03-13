@@ -1,0 +1,28 @@
+{
+  "display_name": "Sejm RP - Demo",
+  "indexing": {
+    "elasticsearch": {
+      "index_name": "sejm_demo"
+    }
+  },
+  "scraping": {
+    "character_references": {
+      "images_per_character": 2
+    },
+    "characters": {
+      "urls": [
+        "https://www.sejm.gov.pl/Sejm10.nsf/poslowie.xsp"
+      ]
+    },
+    "episodes": {
+      "urls": [
+        "https://www.sejm.gov.pl/Sejm10.nsf/transmisje.xsp"
+      ]
+    }
+  },
+  "series_name": "sejm_demo",
+  "skip_steps": [
+    "episode_scraper",
+    "character_scraper"
+  ]
+}
