@@ -5,6 +5,7 @@
       "index_name": "sejm_demo"
     }
   },
+  "pipeline_mode": "selective",
   "scraping": {
     "character_references": {
       "images_per_character": 2

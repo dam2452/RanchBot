@@ -266,7 +266,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         elif saved_count > 0:
             self.logger.warning(f'{char_name}: {saved_count}/{self.__images_per_character} images (incomplete)')
         else:
-            self.logger.error(f'{char_name}: No suitable images found')
+            self.logger.warning(f'{char_name}: No suitable images found')
 
     @staticmethod
     def __apply_random_delay() -> None:
