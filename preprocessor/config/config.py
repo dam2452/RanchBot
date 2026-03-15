@@ -227,14 +227,14 @@ class ImageScraperSettings(BaseAPISettings):
     retry_delay: float = 3.0
 
     @property
-    def serpapi_key(self) -> Optional[str]:
+    def google_search_key(self) -> Optional[str]:
         return self.api_key
 
     @classmethod
     def from_env(cls) -> 'ImageScraperSettings':
         api_key = None
-        if os.getenv('SERPAPI_API_KEY'):
-            api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
+        if os.getenv('RAPIDAPI_GOOGLE_SEARCH_KEY'):
+            api_key = SecretStr(os.getenv('RAPIDAPI_GOOGLE_SEARCH_KEY', ''))
         return cls(_api_key=api_key)
 
 

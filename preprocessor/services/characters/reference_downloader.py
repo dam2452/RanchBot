@@ -11,6 +11,7 @@ from typing import (
     List,
     Optional,
 )
+from urllib.parse import quote_plus
 
 import cv2
 from insightface.app import FaceAnalysis
@@ -19,6 +20,7 @@ from patchright.sync_api import (
     BrowserContext,
     Page,
     Playwright,
+    Response,
     sync_playwright,
 )
 
@@ -26,7 +28,6 @@ from preprocessor.config.settings_instance import settings
 from preprocessor.services.characters.face_detection import FaceDetector
 from preprocessor.services.characters.image_search import (
     BaseImageSearch,
-    DuckDuckGoImageSearch,
     GoogleImageSearch,
 )
 from preprocessor.services.core.base_processor import (
@@ -63,7 +64,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             'search_query_template', 'Serial {series_name} {char_name} postać',
         )
 
-        self.__search_engine: BaseImageSearch = self.__create_search_engine()
+        self.__search_engine: Optional[BaseImageSearch] = self.__create_search_engine()
         self.__face_app: Optional[FaceAnalysis] = None
         self.__playwright: Optional[Playwright] = None
         self.__browser_context: Optional[BrowserContext] = None
@@ -133,7 +134,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         search_query = self.__search_query_template.format(
             series_name=self.__series_name, char_name=char_name,
         )
-        self.logger.info(f'Searching [{self.__search_engine.name}]: {search_query}')
+        self.logger.info(f'Searching: {search_query}')
 
         saved_count = self.__execute_search_with_retries(search_query, char_name, output_folder, saved_count)
         self.__log_final_results(char_name, saved_count)
@@ -142,13 +143,13 @@ class CharacterReferenceDownloader(BaseProcessor):
         if saved_count == 0:
             self.__mark_exhausted(output_folder, char_name)
 
-    def __create_search_engine(self) -> BaseImageSearch:
+    def __create_search_engine(self) -> Optional[BaseImageSearch]:
         if self.__search_mode == 'premium':
             return GoogleImageSearch(
-                api_key=settings.image_scraper.serpapi_key,
+                api_key=settings.image_scraper.google_search_key,
                 max_results=self.__max_results,
             )
-        return DuckDuckGoImageSearch(max_results=self.__max_results)
+        return None
 
     def __prepare_output_folder(self, char_name: str) -> Path:
         output_folder = self.__output_dir / char_name.replace(' ', '_').lower()
@@ -160,13 +161,50 @@ class CharacterReferenceDownloader(BaseProcessor):
     ) -> int:
         for attempt in range(settings.image_scraper.retry_attempts):
             try:
-                results = self.__search_engine.search(query)
+                if self.__search_engine is not None:
+                    results = self.__search_engine.search(query)
+                else:
+                    results = self.__search_via_browser(query)
                 return self.__download_and_process_images(results, output_folder, saved_count)
             except Exception as e:
                 if isinstance(e, KeyboardInterrupt):
                     raise
                 self.__handle_retry_logic(e, attempt, char_name)
         return saved_count
+
+    def __search_via_browser(self, query: str) -> List[Dict[str, Any]]:
+        i_js_responses: List[Response] = []
+        page = self.__browser_context.new_page()
+
+        def _on_response(response: Response) -> None:
+            if '/i.js' in response.url and response.status == 200:
+                i_js_responses.append(response)
+
+        page.on('response', _on_response)
+
+        try:
+            url = f'https://duckduckgo.com/?q={quote_plus(query)}&iax=images&ia=images'
+            page.goto(url, wait_until='networkidle', timeout=20000)
+
+            results: List[Dict[str, Any]] = []
+            for response in i_js_responses:
+                try:
+                    data = response.json()
+                    for item in data.get('results', []):
+                        img_url = item.get('image', '')
+                        if img_url:
+                            results.append({'image': img_url})
+                        if len(results) >= self.__max_results:
+                            break
+                except Exception as e:
+                    self.logger.debug(f'Failed to parse DDG i.js response: {e}')
+
+            if not results:
+                raise ValueError('No results found')
+
+            return results
+        finally:
+            page.close()
 
     def __handle_retry_logic(self, error: Exception, attempt: int, char_name: str) -> None:
         if attempt < settings.image_scraper.retry_attempts - 1:
@@ -210,10 +248,14 @@ class CharacterReferenceDownloader(BaseProcessor):
             if not response or response.status != 200:
                 return None
 
-            if 'image' not in response.headers.get('content-type', ''):
-                return None
+            content_type = response.headers.get('content-type', '')
+            if 'image' in content_type:
+                return self.__decode_image_bytes(response.body(), img_url)
 
-            return self.__decode_image_bytes(response.body(), img_url)
+            if 'text/html' in content_type:
+                return self.__extract_og_image(page, img_url)
+
+            return None
 
         except TimeoutError:
             self.logger.debug(f'Timeout downloading image {img_url}')
@@ -223,6 +265,28 @@ class CharacterReferenceDownloader(BaseProcessor):
                 self.logger.debug(f'Connection/navigation error for {img_url}: {msg}')
             else:
                 self.logger.debug(f'Failed to download image {img_url}: {msg}')
+        return None
+
+    def __extract_og_image(self, page: Page, source_url: str) -> Optional[np.ndarray]:
+        try:
+            og_image_url = page.evaluate(
+                '() => document.querySelector("meta[property=\'og:image\']")?.content ?? ""',
+            )
+            if not og_image_url:
+                return None
+
+            response = page.goto(
+                og_image_url,
+                timeout=settings.image_scraper.page_navigation_timeout,
+                wait_until='domcontentloaded',
+            )
+            if not response or response.status != 200:
+                return None
+            if 'image' not in response.headers.get('content-type', ''):
+                return None
+            return self.__decode_image_bytes(response.body(), og_image_url)
+        except Exception as e:
+            self.logger.debug(f'Failed to extract og:image from {source_url}: {e}')
         return None
 
     def __decode_image_bytes(self, img_bytes: bytes, img_url: str) -> Optional[np.ndarray]:
@@ -262,16 +326,6 @@ class CharacterReferenceDownloader(BaseProcessor):
         cv2.imwrite(str(output_folder / filename), img)
         return True
 
-    @staticmethod
-    def __sort_results_by_extension(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        return sorted(
-            results,
-            key=lambda x: (
-                0 if x.get('image', '').lower().endswith(('.jpg', '.jpeg')) else 1,
-                1 if x.get('image', '').lower().endswith('.png') else 2,
-            ),
-        )
-
     def __mark_exhausted(self, output_folder: Path, char_name: str) -> None:
         exhausted_marker = output_folder / '.exhausted'
         exhausted_marker.touch()
@@ -284,6 +338,16 @@ class CharacterReferenceDownloader(BaseProcessor):
             self.logger.warning(f'{char_name}: {saved_count}/{self.__images_per_character} images (incomplete)')
         else:
             self.logger.warning(f'{char_name}: No suitable images found')
+
+    @staticmethod
+    def __sort_results_by_extension(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return sorted(
+            results,
+            key=lambda x: (
+                0 if x.get('image', '').lower().endswith(('.jpg', '.jpeg')) else 1,
+                1 if x.get('image', '').lower().endswith('.png') else 2,
+            ),
+        )
 
     @staticmethod
     def __apply_random_delay() -> None:

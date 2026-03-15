@@ -4,9 +4,12 @@ from typing import (
     List,
 )
 
-from serpapi import GoogleSearch
+import requests
 
 from preprocessor.services.characters.image_search.image_search import BaseImageSearch
+
+_RAPIDAPI_HOST = 'google-search116.p.rapidapi.com'
+_RAPIDAPI_URL = f'https://{_RAPIDAPI_HOST}/'
 
 
 class GoogleImageSearch(BaseImageSearch):
@@ -14,38 +17,37 @@ class GoogleImageSearch(BaseImageSearch):
         super().__init__(max_results)
 
         if not api_key:
-            raise ValueError('SerpAPI key is required for Google Image Search')
+            raise ValueError('RapidAPI key is required for Google Image Search')
 
         self.__api_key = api_key
 
     @property
     def name(self) -> str:
-        return 'Google Images API'
+        return 'Google Search API (RapidAPI)'
 
     def search(self, query: str) -> List[Dict[str, str]]:
-        params = self.__build_search_params(query)
-        search_client = GoogleSearch(params)
-        raw_results = search_client.get_dict()
-
+        raw_results = self.__call_api(query)
         return self.__extract_image_data(raw_results)
 
-    def __build_search_params(self, query: str) -> Dict[str, str]:
-        return {
-            'engine': 'google_images',
-            'q': query,
+    def __call_api(self, query: str) -> Dict[str, Any]:
+        headers = {
+            'x-rapidapi-key': self.__api_key,
+            'x-rapidapi-host': _RAPIDAPI_HOST,
+        }
+        params = {
+            'query': query,
+            'limit': str(self._max_results),
             'hl': 'pl',
             'gl': 'pl',
-            'api_key': self.__api_key,
         }
+        response = requests.get(_RAPIDAPI_URL, headers=headers, params=params, timeout=15)
+        response.raise_for_status()
+        return response.json()
 
     def __extract_image_data(self, raw_results: Dict[str, Any]) -> List[Dict[str, str]]:
-        images: List[Dict[str, str]] = []
-        image_results = raw_results.get('images_results', [])[:self._max_results]
-
-        for img_result in image_results:
-            images.append({
-                'image': img_result.get('original', ''),
-                'thumbnail': img_result.get('thumbnail', ''),
-            })
-
-        return images
+        results = raw_results.get('results', [])[:self._max_results]
+        return [
+            {'image': r['url'], 'thumbnail': ''}
+            for r in results
+            if r.get('url')
+        ]
