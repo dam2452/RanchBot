@@ -56,6 +56,10 @@ class PipelineStep(ABC, Generic[InputT, OutputT, ConfigT]):
         return True
 
     @property
+    def uses_global_completion(self) -> bool:
+        return True
+
+    @property
     def supports_batch_processing(self) -> bool:
         return False
 

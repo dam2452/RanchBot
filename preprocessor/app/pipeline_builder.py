@@ -174,14 +174,16 @@ class PipelineExecutor:
     def __run_global_step(self, step: PipelineStep) -> None:
         self.__context.logger.info(f"=== Running Global Step: {step.name} ===")
 
-        if self.__should_skip_global_step(step.name):
+        if step.uses_global_completion and self.__should_skip_global_step(step.name):
             self.__context.logger.info(f"Skipping {step.name} (already completed)")
             return
 
         try:
-            self.__mark_step_in_progress(step.name, 'all')
+            if step.uses_global_completion:
+                self.__mark_step_in_progress(step.name, 'all')
             step.execute(None, self.__context)
-            self.__mark_step_completed(step.name, 'all')
+            if step.uses_global_completion:
+                self.__mark_step_completed(step.name, 'all')
         except Exception as e:
             self.__context.logger.error(f"Global step {step.name} failed: {e}")
             raise

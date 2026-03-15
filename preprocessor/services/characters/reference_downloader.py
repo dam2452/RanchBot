@@ -58,6 +58,7 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.__min_width: int = settings.image_scraper.min_image_width
         self.__min_height: int = settings.image_scraper.min_image_height
         self.__search_mode: str = self._args.get('search_mode', 'normal')
+        self.__force_rerun: bool = self._args.get('force_rerun', False)
 
         self.__search_engine: BaseImageSearch = self.__create_search_engine()
         self.__face_app: Optional[FaceAnalysis] = None
@@ -80,6 +81,10 @@ class CharacterReferenceDownloader(BaseProcessor):
     def _get_expected_outputs(self, item: ProcessingItem) -> List[OutputSpec]:
         char_name = item.metadata['char_name']
         output_folder = self.__output_dir / char_name.replace(' ', '_').lower()
+
+        exhausted_marker = output_folder / '.exhausted'
+        if not self.__force_rerun and exhausted_marker.exists():
+            return [OutputSpec(path=exhausted_marker, required=True)]
 
         return [
             OutputSpec(path=output_folder / f'{i:02d}.jpg', required=True)
@@ -129,6 +134,8 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.__log_final_results(char_name, saved_count)
         self.__apply_random_delay()
 
+        if saved_count == 0:
+            self.__mark_exhausted(output_folder, char_name)
 
     def __create_search_engine(self) -> BaseImageSearch:
         if self.__search_mode == 'premium':
@@ -259,6 +266,11 @@ class CharacterReferenceDownloader(BaseProcessor):
                 1 if x.get('image', '').lower().endswith('.png') else 2,
             ),
         )
+
+    def __mark_exhausted(self, output_folder: Path, char_name: str) -> None:
+        exhausted_marker = output_folder / '.exhausted'
+        exhausted_marker.touch()
+        self.logger.info(f'{char_name}: marked as exhausted (no images found after search)')
 
     def __log_final_results(self, char_name: str, saved_count: int) -> None:
         if saved_count >= self.__images_per_character:

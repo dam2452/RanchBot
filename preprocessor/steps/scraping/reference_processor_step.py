@@ -16,17 +16,13 @@ class CharacterReferenceStep(
     def is_global(self) -> bool:
         return True
 
-    def _get_cache_path(
-        self, input_data: SourceVideo, context: ExecutionContext,
-    ) -> Path:
-        _, output_dir = self.__resolve_paths(context)
-        return output_dir
+    @property
+    def uses_caching(self) -> bool:
+        return False
 
-    def _load_from_cache(
-        self, cache_path: Path, input_data: SourceVideo, context: ExecutionContext,
-    ) -> SourceVideo:
-        context.logger.info(f"Character references already exist in: {cache_path}")
-        return input_data
+    @property
+    def uses_global_completion(self) -> bool:
+        return False
 
     def _process(
         self, input_data: SourceVideo, context: ExecutionContext,
@@ -38,14 +34,6 @@ class CharacterReferenceStep(
         self.__validate_characters_file(characters_path)
         self.__download_character_references(characters_path, output_dir, context)
         return input_data
-
-    @staticmethod
-    def _should_use_cache(
-            cache_path: Path, _input_data: SourceVideo, context: ExecutionContext,
-    ) -> bool:
-        if context.force_rerun:
-            return False
-        return cache_path.exists() and any(cache_path.iterdir())
 
     @staticmethod
     def __resolve_paths(context: ExecutionContext) -> Tuple[Path, Path]:
@@ -69,6 +57,7 @@ class CharacterReferenceStep(
                 "search_engine": self.config.search_engine,
                 "images_per_character": self.config.images_per_character,
                 "series_name": context.series_name,
+                "force_rerun": context.force_rerun,
             },
         )
 
