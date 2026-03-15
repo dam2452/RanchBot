@@ -68,7 +68,7 @@ class ObjectsHandler(BotMessageHandler):
             await self._reply_error(get_no_objects_message())
             return
         if is_full:
-            await self._send_text_as_document(
+            await self._responder.send_document_text(
                 format_objects_list_full(objects),
                 f"{s.BOT_USERNAME}_Obiekty.txt",
                 "Pełna lista obiektów",
@@ -96,9 +96,9 @@ class ObjectsHandler(BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, class_name)
         if is_full:
-            await self._send_text_as_document(
+            await self._responder.send_document_text(
                 format_object_scenes_full(class_name, scenes),
-                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_for_filename(class_name)}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(class_name)}.txt",
                 f"Pełna lista scen: {class_name}",
             )
         else:
@@ -130,9 +130,9 @@ class ObjectsHandler(BotMessageHandler):
         filtered = ObjectFinder.apply_quantity_filter(scenes, qty_filter)
         await self.__save_scenes_to_last_search(filtered, class_name, qty_raw)
         if is_full:
-            await self._send_text_as_document(
+            await self._responder.send_document_text(
                 format_object_scenes_full(class_name, filtered, qty_filter_str=qty_raw),
-                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_for_filename(class_name)}_{qty_raw}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(class_name)}_{qty_raw}.txt",
                 f"Pełna lista scen: {class_name} ({qty_raw})",
             )
         else:
@@ -141,6 +141,10 @@ class ObjectsHandler(BotMessageHandler):
             logging.INFO,
             get_log_object_scenes_message(class_name, len(filtered), self._message.get_username()),
         )
+
+    @staticmethod
+    def __sanitize(name: str) -> str:
+        return "".join(c if c.isalnum() else "_" for c in name).strip("_")
 
     async def __resolve_object_class(self, query: str, series_name: str) -> Optional[str]:
         class_name = await ObjectFinder.find_best_matching_object(

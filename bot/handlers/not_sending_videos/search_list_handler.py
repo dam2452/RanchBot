@@ -55,7 +55,7 @@ class SearchListHandler(BotMessageHandler):
             response = format_search_list_response(search_term, segments)
             sanitized_search_term = self.__sanitize_search_term(search_term)
             filename = self.FILE_NAME_TEMPLATE.format(sanitized_search_term=sanitized_search_term)
-            await self._send_text_as_document(response, filename, "Wszystkie znalezione cytaty")
+            await self._responder.send_document_text(response, filename, "Wszystkie znalezione cytaty")
 
         return await self._log_system_message(
             logging.INFO,

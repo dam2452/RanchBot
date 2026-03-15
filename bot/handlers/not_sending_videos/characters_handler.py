@@ -1,5 +1,7 @@
+
 import json
 import logging
+import math
 from typing import (
     List,
     Optional,
@@ -10,12 +12,12 @@ from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
-from bot.handlers.character_handler_mixin import CharacterHandlerMixin
 from bot.responses.not_sending_videos.characters_handler_responses import (
     format_character_scenes,
     format_character_scenes_full,
     format_characters_list,
     format_characters_list_full,
+    get_character_not_found_message,
     get_invalid_args_count_message,
     get_log_character_scenes_message,
     get_log_characters_list_message,
@@ -25,11 +27,15 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
 from bot.search.character_finder import CharacterFinder
 from bot.settings import settings as s
 from bot.types import CharacterScene
+from bot.utils.character_utils import find_character
 
 
-class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
+class CharactersHandler(BotMessageHandler):
+    __SHORT_COMMANDS: List[str] = ["postacie", "characters", "p"]
+    __FULL_COMMANDS: List[str] = ["pl", "postacie_lista"]
+
     def get_commands(self) -> List[str]:
-        return ["postacie", "characters", "p", "pl", "postacie_lista"]
+        return CharactersHandler.__SHORT_COMMANDS + CharactersHandler.__FULL_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -38,13 +44,13 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         return get_invalid_args_count_message()
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 0, 2)
+        return await self._validate_argument_count(self._message, 0, math.inf)
 
     async def _do_handle(self) -> None:
         text_parts = self._message.get_text().split()
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
-        is_full = command in {"pl", "postacie_lista"}
+        is_full = command in CharactersHandler.__FULL_COMMANDS
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
@@ -52,8 +58,9 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
             await self.__handle_list_mode(series_name, is_full)
             return
 
-        character, emotion_input, emotion_en = await self._find_character(args, series_name)
+        character, character_query, emotion_input, emotion_en = await find_character(args, series_name, self._logger)
         if character is None:
+            await self._reply_error(get_character_not_found_message(character_query))
             return
 
         if emotion_en:
@@ -67,7 +74,7 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
             await self._reply_error(get_no_characters_message())
             return
         if is_full:
-            await self._send_text_as_document(
+            await self._responder.send_document_text(
                 format_characters_list_full(characters),
                 f"{s.BOT_USERNAME}_Postacie.txt",
                 "Pełna lista postaci",
@@ -87,9 +94,9 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, character_name)
         if is_full:
-            await self._send_text_as_document(
+            await self._responder.send_document_text(
                 format_character_scenes_full(character_name, scenes),
-                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_for_filename(character_name)}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(character_name)}.txt",
                 f"Pełna lista scen: {character_name}",
             )
         else:
@@ -115,9 +122,9 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, character_name, emotion_input)
         if is_full:
-            await self._send_text_as_document(
+            await self._responder.send_document_text(
                 format_character_scenes_full(character_name, scenes, emotion_filter=emotion_input),
-                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_for_filename(character_name)}_{emotion_en}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(character_name)}_{emotion_en}.txt",
                 f"Pełna lista scen: {character_name} ({emotion_input})",
             )
         else:
@@ -142,3 +149,7 @@ class CharactersHandler(CharacterHandlerMixin, BotMessageHandler):
             quote=quote,
             segments=json.dumps(segments),
         )
+
+    @staticmethod
+    def __sanitize(name: str) -> str:
+        return "".join(c if c.isalnum() else "_" for c in name).strip("_")

@@ -6,7 +6,11 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    build_bool_must_query,
+    extract_sources,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -40,22 +44,17 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
-                        {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
-                    ],
-                },
-            },
+        query = {
+            **build_bool_must_query([
+                {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
+                {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
+            ]),
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: 9999,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        frames = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(frames)} frames for S{season:02d}E{episode_number:02d}.", logger,
         )
@@ -77,30 +76,25 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
-                        {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
-                        {
-                            ElasticsearchQueryKeys.RANGE: {
-                                VideoFrameKeys.TIMESTAMP: {
-                                    ElasticsearchQueryKeys.GT: timestamp - radius_seconds,
-                                    ElasticsearchQueryKeys.LT: timestamp + radius_seconds,
-                                },
-                            },
+        query = {
+            **build_bool_must_query([
+                {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
+                {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
+                {
+                    ElasticsearchQueryKeys.RANGE: {
+                        VideoFrameKeys.TIMESTAMP: {
+                            ElasticsearchQueryKeys.GT: timestamp - radius_seconds,
+                            ElasticsearchQueryKeys.LT: timestamp + radius_seconds,
                         },
-                    ],
+                    },
                 },
-            },
+            ]),
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: 100,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        return [h[ElasticsearchKeys.SOURCE] for h in hits]
+        return extract_sources(response)
 
     @staticmethod
     async def find_frames_with_detected_object(
@@ -131,10 +125,8 @@ class VideoFramesFinder:
             must_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
 
         object_count_field = f"{VideoFrameKeys.DETECTED_OBJECTS}.count"
-        query: Dict[str, Any] = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.MUST: must_clauses},
-            },
+        query = {
+            **build_bool_must_query(must_clauses),
             ElasticsearchQueryKeys.SORT: [
                 {
                     object_count_field: {
@@ -153,8 +145,7 @@ class VideoFramesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        frames = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(frames)} frames with object '{object_class}'.", logger,
         )
@@ -170,7 +161,7 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
                 "objects": {

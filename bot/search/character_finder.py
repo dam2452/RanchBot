@@ -7,7 +7,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_hits,
+)
 from bot.types import (
     CharacterScene,
     CharacterWithEpisodeCount,
@@ -90,6 +93,7 @@ def _parse_scene(source: Dict[str, Any], character_name: str) -> CharacterScene:
     return scene
 
 
+
 def _confidence_sort(character_name: str) -> Dict[str, Any]:
     return {
         _character_field(ActorKeys.CONFIDENCE): {
@@ -144,7 +148,7 @@ class CharacterFinder:
         await log_system_message(logging.INFO, f"Fetching all characters for series '{series_name}'.", logger)
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
@@ -209,7 +213,7 @@ class CharacterFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [_nested_char_filter(character_name)],
@@ -224,7 +228,7 @@ class CharacterFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = extract_hits(response)
         scenes = [_parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(logging.INFO, f"Found {len(scenes)} scenes for '{character_name}'.", logger)
         return scenes
@@ -261,7 +265,7 @@ class CharacterFinder:
             },
         }
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [char_and_emotion_nested],
@@ -277,7 +281,7 @@ class CharacterFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = extract_hits(response)
         scenes = [_parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(scenes)} scenes for '{character_name}' with emotion '{emotion_en}'.", logger,
@@ -292,7 +296,7 @@ class CharacterFinder:
         await log_system_message(logging.INFO, f"Fetching all emotions for series '{series_name}'.", logger)
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
                 ElasticsearchAggregationKeys.ACTORS: {

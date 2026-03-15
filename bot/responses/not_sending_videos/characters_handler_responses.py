@@ -19,11 +19,22 @@ from bot.utils.constants import (
 from bot.utils.functions import (
     convert_number_to_emoji,
     format_segment,
-    scene_to_segment_dict,
 )
 
 _PREVIEW_COUNT = 5
 _FRAME_SPAN_S = 3.0
+
+
+def _scene_to_segment_dict(scene: CharacterScene) -> Dict[str, Any]:
+    return {
+        EpisodeMetadataKeys.EPISODE_METADATA: {
+            EpisodeMetadataKeys.SEASON: scene["season"],
+            EpisodeMetadataKeys.EPISODE_NUMBER: scene["episode_number"],
+            EpisodeMetadataKeys.TITLE: scene["title"],
+        },
+        SegmentKeys.START_TIME: scene["start_time"],
+        SegmentKeys.END_TIME: scene["end_time"],
+    }
 
 
 def parse_character_args(args: List[str]) -> Tuple[str, str, str]:
@@ -86,7 +97,7 @@ def format_character_scenes(
         return BotResponse.warning("BRAK WYNIKÓW", msg)
 
     def _scene_line(idx: int, scene: CharacterScene) -> str:
-        seg = format_segment(scene_to_segment_dict(scene))
+        seg = format_segment(_scene_to_segment_dict(scene))
         return (
             f"{convert_number_to_emoji(idx)}  | 📺 {seg.episode_formatted} | 🕒 {seg.time_formatted}\n"
             f"   👉  {seg.episode_title}"
@@ -116,7 +127,7 @@ def format_character_scenes_full(
 ) -> str:
     lines = []
     for i, scene in enumerate(scenes):
-        seg = format_segment(scene_to_segment_dict(scene))
+        seg = format_segment(_scene_to_segment_dict(scene))
         lines.append(f"{i + 1:4}. {seg.episode_formatted}  {seg.time_formatted}")
     if emotion_filter:
         header = f"{character_name.upper()} - {emotion_filter.upper()} ({len(scenes)} scen)\n\n"

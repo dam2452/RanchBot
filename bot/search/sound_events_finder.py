@@ -6,7 +6,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    extract_sources,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -36,7 +39,7 @@ class SoundEventsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
                 "sound_types": {
@@ -76,7 +79,7 @@ class SoundEventsFinder:
         if episode_filter is not None:
             filter_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.FILTER: filter_clauses},
             },
@@ -89,8 +92,7 @@ class SoundEventsFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        segments = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        segments = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(segments)} '{sound_type}' segments.", logger,
         )
@@ -108,7 +110,7 @@ class SoundEventsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.MATCH: {
                     SoundEventKeys.TEXT: {
@@ -127,8 +129,7 @@ class SoundEventsFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        segments = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        segments = extract_sources(response)
         await log_system_message(
             logging.INFO, f"Found {len(segments)} sound segments matching '{text_query}'.", logger,
         )

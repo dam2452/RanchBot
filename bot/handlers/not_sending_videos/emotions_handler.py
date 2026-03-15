@@ -26,7 +26,7 @@ class EmotionsHandler(BotMessageHandler):
         return get_invalid_args_count_message()
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 0, 0)
+        return await self._validate_argument_count(self._message, 0)
 
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()
