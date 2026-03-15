@@ -124,12 +124,22 @@ class VideoFramesFinder:
         if episode_filter is not None:
             must_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
 
+        object_count_field = f"{VideoFrameKeys.DETECTED_OBJECTS}.count"
         query = {
             **build_bool_must_query(must_clauses),
             ElasticsearchQueryKeys.SORT: [
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
-                {VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC},
+                {
+                    object_count_field: {
+                        ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC,
+                        ElasticsearchQueryKeys.NESTED: {
+                            ElasticsearchQueryKeys.PATH: VideoFrameKeys.DETECTED_OBJECTS,
+                            ElasticsearchQueryKeys.FILTER: {
+                                ElasticsearchQueryKeys.TERM: {_OBJECT_CLASS_FIELD: object_class},
+                            },
+                        },
+                        ElasticsearchQueryKeys.MODE: ElasticsearchQueryKeys.MAX,
+                    },
+                },
             ],
             ElasticsearchQueryKeys.SIZE: 999,
         }

@@ -87,6 +87,7 @@ def get_all_message() -> str:
 ════════════════════════
 👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen.
 😊 /emocje - Lista dostepnych emocji.
+🎯 /obiekt [obiekt] [filtr] - Przegladanie scen z danym obiektem. Przyklad: /obiekt dog.
 
 🐛 /report - Raportuje błąd do administratora.
 
@@ -113,6 +114,7 @@ def get_search_message() -> str:
 📝 /transkrypcja <cytat> - Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: /transkrypcja geniusz.\n
 👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen. Przyklad: /postacie Wilkowyska.\n
 😊 /emocje - Wyswietla liste dostepnych emocji.\n
+🎯 /obiekt [obiekt] [filtr] - Sceny z danym obiektem, np. /obiekt dog >3.\n
 ```"""
 
 
@@ -194,6 +196,8 @@ def get_shortcuts_message() -> str:
 📤 /wys, /wyślij - Wysyła zapisany klip.\n
 👤 /p, /postacie - Przegladanie postaci i scen.\n
 😊 /e, /emocje - Lista dostepnych emocji.\n
+🎯 /obj, /obiekt - Przegladanie scen z obiektami.\n
+🎯 /objl, /obj_lista - Pelna lista obiektow lub scen.\n
 🐛 /r, /report - Raportuje błąd do administratora.\n
 🔔 /sub, /subskrypcja - Sprawdza stan Twojej subskrypcji.\n
 ```"""

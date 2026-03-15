@@ -214,3 +214,23 @@ class CharacterScene(TypedDict):
 class EmotionInfo(TypedDict):
     label_en: str
     label_pl: str
+
+
+class ObjectWithCount(TypedDict):
+    class_name: str
+    scene_count: int
+
+
+class ObjectScene(TypedDict):
+    season: int
+    episode_number: int
+    title: str
+    start_time: float
+    end_time: float
+    total_count: int
+    video_path: NotRequired[str]
+
+
+class QuantityFilter(TypedDict):
+    operator: str
+    value: int

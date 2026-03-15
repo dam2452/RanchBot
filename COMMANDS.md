@@ -37,6 +37,8 @@
 - **`/reindex`** / **`/rei`**: 🔄 Reindeksowanie danych serialu.
 - **`/postacie`** / **`/characters`** / **`/p`**: 👤 Przeglądanie postaci i scen.
 - **`/emocje`** / **`/emotion`** / **`/e`**: 😊 Lista dostępnych emocji.
+- **`/obiekt`** / **`/object`** / **`/obj`**: 🎯 Przeglądanie scen z obiektami.
+- **`/objl`** / **`/obj_lista`**: 🎯 Pełna lista obiektów lub scen (jako dokument).
 
 ## 👥 Podstawowe Komendy Użytkownika
 
@@ -61,6 +63,12 @@
 - **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/postacie Wilkowyska happy` lub `/p Wilkowyska radosny`.
 - **`/emocje`** / **`/e`**: 😊 Wyświetla listę dostępnych emocji (po polsku).
+- **`/obiekt`** / **`/obj`**: 🎯 Wyświetla listę wszystkich wykrytych obiektów (od najpopularniejszych).
+- **`/obiekt <nazwa>`** / **`/obj <nazwa>`**: 🎯 Lista scen z danym obiektem, posortowana od scen z największą ilością. Przykład: `/obiekt dog`.
+- **`/obiekt <nazwa> <filtr>`** / **`/obj <nazwa> <filtr>`**: 🎯 Lista scen z filtrem ilości. Przykład: `/obj dog >3` lub `/obj dog =2`.
+- **`/objl`**: 🎯 Pełna lista wszystkich obiektów (jako dokument).
+- **`/objl <nazwa>`**: 🎯 Pełna lista scen z danym obiektem (jako dokument).
+- **`/objl <nazwa> <filtr>`**: 🎯 Pełna lista scen z filtrem (jako dokument).
 
 ## 🔧 Komendy Administracyjne
 
