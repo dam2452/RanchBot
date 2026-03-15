@@ -169,7 +169,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             self.logger.warning(f'Attempt {attempt + 1} failed for {char_name}, retrying in {delay}s: {error}')
             time.sleep(delay)
         else:
-            self.logger.error(f'All retry attempts failed for {char_name}: {error}')
+            self.logger.warning(f'All retry attempts failed for {char_name}: {error}')
 
     def __download_and_process_images(
             self, results: List[Dict[str, Any]], output_folder: Path, saved_count: int,
