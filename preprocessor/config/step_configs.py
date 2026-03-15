@@ -230,6 +230,7 @@ class CharacterReferenceConfig(BaseModel):
     images_per_character: int = Field(default=5, ge=0, le=20)
     max_parallel_episodes: int = Field(default=4, ge=1, le=8)
     search_engine: str = "duckduckgo"
+    search_query_template: str = "Serial {series_name} {char_name} postać"
 
 
 class CharacterReferenceProcessorConfig(BaseModel):

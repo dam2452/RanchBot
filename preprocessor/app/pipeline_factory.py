@@ -144,6 +144,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         config=CharacterReferenceConfig(
             search_engine=series_config.scraping.character_references.search_engine,
             images_per_character=series_config.scraping.character_references.images_per_character,
+            search_query_template=series_config.scraping.character_references.search_query_template,
         ),
     )
 

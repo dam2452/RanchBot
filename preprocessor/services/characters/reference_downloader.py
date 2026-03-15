@@ -59,6 +59,9 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.__min_height: int = settings.image_scraper.min_image_height
         self.__search_mode: str = self._args.get('search_mode', 'normal')
         self.__force_rerun: bool = self._args.get('force_rerun', False)
+        self.__search_query_template: str = self._args.get(
+            'search_query_template', 'Serial {series_name} {char_name} postać',
+        )
 
         self.__search_engine: BaseImageSearch = self.__create_search_engine()
         self.__face_app: Optional[FaceAnalysis] = None
@@ -127,7 +130,9 @@ class CharacterReferenceDownloader(BaseProcessor):
         if saved_count >= self.__images_per_character:
             return
 
-        search_query = f'Serial {self.__series_name} {char_name} postać'
+        search_query = self.__search_query_template.format(
+            series_name=self.__series_name, char_name=char_name,
+        )
         self.logger.info(f'Searching [{self.__search_engine.name}]: {search_query}')
 
         saved_count = self.__execute_search_with_retries(search_query, char_name, output_folder, saved_count)

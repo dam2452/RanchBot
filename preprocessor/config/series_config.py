@@ -40,6 +40,7 @@ class CharacterScrapingConfig:
 class CharacterReferencesConfig:
     images_per_character: int
     search_engine: str
+    search_query_template: str
 
 
 @dataclass
@@ -153,6 +154,7 @@ class SeriesConfig:
                 character_references=CharacterReferencesConfig(
                     search_engine=data['scraping']['character_references']['search_engine'],
                     images_per_character=data['scraping']['character_references']['images_per_character'],
+                    search_query_template=data['scraping']['character_references']['search_query_template'],
                 ),
             ),
             processing=SeriesConfig.__build_processing_config(data),

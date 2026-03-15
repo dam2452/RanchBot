@@ -36,7 +36,8 @@
   "scraping": {
     "character_references": {
       "images_per_character": 3,
-      "search_engine": "duckduckgo"
+      "search_engine": "duckduckgo",
+      "search_query_template": "Serial {series_name} {char_name} posta\u0107"
     },
     "characters": {
       "parser_mode": "normal"

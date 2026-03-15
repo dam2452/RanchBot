@@ -57,6 +57,7 @@ class CharacterReferenceStep(
                 "search_engine": self.config.search_engine,
                 "images_per_character": self.config.images_per_character,
                 "series_name": context.series_name,
+                "search_query_template": self.config.search_query_template,
                 "force_rerun": context.force_rerun,
             },
         )
