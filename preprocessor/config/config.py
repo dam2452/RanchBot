@@ -218,8 +218,8 @@ class ImageHashSettings(OutputDirMixin):
 @dataclass(frozen=True)
 class ImageScraperSettings(BaseAPISettings):
     max_results_to_scrape: int = 50
-    min_image_height: int = 600
-    min_image_width: int = 800
+    min_image_height: int = 60
+    min_image_width: int = 60
     page_navigation_timeout: int = 30000
     request_delay_max: float = 6.0
     request_delay_min: float = 3.0

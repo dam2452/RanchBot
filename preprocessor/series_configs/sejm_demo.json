@@ -9,6 +9,7 @@
   "scraping": {
     "character_references": {
       "images_per_character": 2,
+      "search_engine": "premium",
       "search_query_template": "{char_name} pose\u0142"
     },
     "characters": {

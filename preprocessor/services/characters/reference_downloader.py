@@ -11,7 +11,6 @@ from typing import (
     List,
     Optional,
 )
-from urllib.parse import quote_plus
 
 import cv2
 from insightface.app import FaceAnalysis
@@ -20,7 +19,6 @@ from patchright.sync_api import (
     BrowserContext,
     Page,
     Playwright,
-    Response,
     sync_playwright,
 )
 
@@ -28,6 +26,7 @@ from preprocessor.config.settings_instance import settings
 from preprocessor.services.characters.face_detection import FaceDetector
 from preprocessor.services.characters.image_search import (
     BaseImageSearch,
+    DuckDuckGoImageSearch,
     GoogleImageSearch,
 )
 from preprocessor.services.core.base_processor import (
@@ -58,13 +57,13 @@ class CharacterReferenceDownloader(BaseProcessor):
         self.__max_results: int = settings.image_scraper.max_results_to_scrape
         self.__min_width: int = settings.image_scraper.min_image_width
         self.__min_height: int = settings.image_scraper.min_image_height
-        self.__search_mode: str = self._args.get('search_mode', 'normal')
+        self.__search_engine_name: str = self._args.get('search_engine', 'normal')
         self.__force_rerun: bool = self._args.get('force_rerun', False)
         self.__search_query_template: str = self._args.get(
             'search_query_template', 'Serial {series_name} {char_name} postać',
         )
 
-        self.__search_engine: Optional[BaseImageSearch] = self.__create_search_engine()
+        self.__search_engine: BaseImageSearch = self.__create_search_engine()
         self.__face_app: Optional[FaceAnalysis] = None
         self.__playwright: Optional[Playwright] = None
         self.__browser_context: Optional[BrowserContext] = None
@@ -143,13 +142,13 @@ class CharacterReferenceDownloader(BaseProcessor):
         if saved_count == 0:
             self.__mark_exhausted(output_folder, char_name)
 
-    def __create_search_engine(self) -> Optional[BaseImageSearch]:
-        if self.__search_mode == 'premium':
+    def __create_search_engine(self) -> BaseImageSearch:
+        if self.__search_engine_name == 'premium':
             return GoogleImageSearch(
                 api_key=settings.image_scraper.google_search_key,
                 max_results=self.__max_results,
             )
-        return None
+        return DuckDuckGoImageSearch(max_results=self.__max_results)
 
     def __prepare_output_folder(self, char_name: str) -> Path:
         output_folder = self.__output_dir / char_name.replace(' ', '_').lower()
@@ -161,50 +160,13 @@ class CharacterReferenceDownloader(BaseProcessor):
     ) -> int:
         for attempt in range(settings.image_scraper.retry_attempts):
             try:
-                if self.__search_engine is not None:
-                    results = self.__search_engine.search(query)
-                else:
-                    results = self.__search_via_browser(query)
+                results = self.__search_engine.search(query)
                 return self.__download_and_process_images(results, output_folder, saved_count)
             except Exception as e:
                 if isinstance(e, KeyboardInterrupt):
                     raise
                 self.__handle_retry_logic(e, attempt, char_name)
         return saved_count
-
-    def __search_via_browser(self, query: str) -> List[Dict[str, Any]]:
-        i_js_responses: List[Response] = []
-        page = self.__browser_context.new_page()
-
-        def _on_response(response: Response) -> None:
-            if '/i.js' in response.url and response.status == 200:
-                i_js_responses.append(response)
-
-        page.on('response', _on_response)
-
-        try:
-            url = f'https://duckduckgo.com/?q={quote_plus(query)}&iax=images&ia=images'
-            page.goto(url, wait_until='networkidle', timeout=20000)
-
-            results: List[Dict[str, Any]] = []
-            for response in i_js_responses:
-                try:
-                    data = response.json()
-                    for item in data.get('results', []):
-                        img_url = item.get('image', '')
-                        if img_url:
-                            results.append({'image': img_url})
-                        if len(results) >= self.__max_results:
-                            break
-                except Exception as e:
-                    self.logger.debug(f'Failed to parse DDG i.js response: {e}')
-
-            if not results:
-                raise ValueError('No results found')
-
-            return results
-        finally:
-            page.close()
 
     def __handle_retry_logic(self, error: Exception, attempt: int, char_name: str) -> None:
         if attempt < settings.image_scraper.retry_attempts - 1:

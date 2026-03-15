@@ -45,9 +45,14 @@ class GoogleImageSearch(BaseImageSearch):
         return response.json()
 
     def __extract_image_data(self, raw_results: Dict[str, Any]) -> List[Dict[str, str]]:
-        results = raw_results.get('results', [])[:self._max_results]
-        return [
-            {'image': r['url'], 'thumbnail': ''}
-            for r in results
-            if r.get('url')
-        ]
+        images: List[Dict[str, str]] = []
+
+        kp_url = raw_results.get('knowledge_panel', {}).get('image', {}).get('url', '')
+        if kp_url:
+            images.append({'image': kp_url, 'thumbnail': kp_url})
+
+        for r in raw_results.get('results', []):
+            if r.get('url'):
+                images.append({'image': r['url'], 'thumbnail': ''})
+
+        return images[:self._max_results]

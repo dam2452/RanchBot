@@ -16,4 +16,8 @@ class DuckDuckGoImageSearch(BaseImageSearch):
     def search(self, query: str) -> List[Dict[str, str]]:
         with DDGS() as ddgs:
             results = ddgs.images(query, max_results=self._max_results)
-            return list(results)
+            return [
+                {'image': r.get('thumbnail') or r.get('image', ''), 'thumbnail': r.get('thumbnail', '')}
+                for r in results
+                if r.get('thumbnail') or r.get('image')
+            ]
