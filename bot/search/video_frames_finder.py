@@ -8,6 +8,7 @@ from typing import (
 
 from bot.search.elastic_search_manager import (
     ElasticSearchManager,
+    build_bool_must_query,
     extract_sources,
 )
 from bot.utils.constants import (
@@ -44,14 +45,10 @@ class VideoFramesFinder:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
         query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
-                        {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
-                    ],
-                },
-            },
+            **build_bool_must_query([
+                {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
+                {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
+            ]),
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: 9999,
         }
@@ -80,22 +77,18 @@ class VideoFramesFinder:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
         query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
-                        {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
-                        {
-                            ElasticsearchQueryKeys.RANGE: {
-                                VideoFrameKeys.TIMESTAMP: {
-                                    ElasticsearchQueryKeys.GT: timestamp - radius_seconds,
-                                    ElasticsearchQueryKeys.LT: timestamp + radius_seconds,
-                                },
-                            },
+            **build_bool_must_query([
+                {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
+                {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
+                {
+                    ElasticsearchQueryKeys.RANGE: {
+                        VideoFrameKeys.TIMESTAMP: {
+                            ElasticsearchQueryKeys.GT: timestamp - radius_seconds,
+                            ElasticsearchQueryKeys.LT: timestamp + radius_seconds,
                         },
-                    ],
+                    },
                 },
-            },
+            ]),
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: 100,
         }
@@ -132,9 +125,7 @@ class VideoFramesFinder:
             must_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
 
         query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.MUST: must_clauses},
-            },
+            **build_bool_must_query(must_clauses),
             ElasticsearchQueryKeys.SORT: [
                 {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
                 {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},

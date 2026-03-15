@@ -10,6 +10,7 @@ from elastic_transport import ObjectApiResponse
 
 from bot.search.elastic_search_manager import (
     ElasticSearchManager,
+    build_bool_must_query,
     extract_hits,
 )
 from bot.settings import settings
@@ -255,42 +256,25 @@ class TextSegmentsFinder:
             f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
         )
 
+        episode_must_clauses = [
+            {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
+            {ElasticsearchQueryKeys.TERM: {episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER]}},
+        ]
+
         context_query_before = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
-                        {
-                            ElasticsearchQueryKeys.TERM: {
-                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
-                            },
-                        },
-                    ],
-                    ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.LT: segment_id}}},
-                    ],
-                },
-            },
+            **build_bool_must_query(
+                episode_must_clauses,
+                filter_clauses=[{ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.LT: segment_id}}}],
+            ),
             ElasticsearchQueryKeys.SORT: [{SegmentKeys.SEGMENT_ID: ElasticsearchQueryKeys.DESC}],
             ElasticsearchQueryKeys.SIZE: context_size,
         }
 
         context_query_after = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
-                        {
-                            ElasticsearchQueryKeys.TERM: {
-                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
-                            },
-                        },
-                    ],
-                    ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.GT: segment_id}}},
-                    ],
-                },
-            },
+            **build_bool_must_query(
+                episode_must_clauses,
+                filter_clauses=[{ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.GT: segment_id}}}],
+            ),
             ElasticsearchQueryKeys.SORT: [{SegmentKeys.SEGMENT_ID: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: context_size,
         }
@@ -352,16 +336,10 @@ class TextSegmentsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
-                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
-                    ],
-                },
-            },
-        }
+        query = build_bool_must_query([
+            {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
+            {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
+        ])
 
         response = await es.search(index=index, body=query, size=1)
         hits = extract_hits(response)

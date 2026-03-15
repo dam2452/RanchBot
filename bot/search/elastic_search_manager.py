@@ -6,6 +6,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Optional,
 )
 
 from elasticsearch import (
@@ -22,6 +23,7 @@ from bot.database.database_manager import DatabaseManager
 from bot.settings import settings as s
 from bot.utils.constants import (
     ElasticsearchKeys,
+    ElasticsearchQueryKeys,
     EpisodeMetadataKeys,
     SegmentKeys,
 )
@@ -36,6 +38,20 @@ def extract_hits(response: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def extract_sources(response: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [h[ElasticsearchKeys.SOURCE] for h in extract_hits(response)]
+
+
+def build_bool_must_query(
+    must_clauses: List[Dict[str, Any]],
+    filter_clauses: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    bool_clause: Dict[str, Any] = {ElasticsearchQueryKeys.MUST: must_clauses}
+    if filter_clauses:
+        bool_clause[ElasticsearchQueryKeys.FILTER] = filter_clauses
+    return {
+        ElasticsearchQueryKeys.QUERY: {
+            ElasticsearchQueryKeys.BOOL: bool_clause,
+        },
+    }
 
 
 class ElasticSearchManager:
