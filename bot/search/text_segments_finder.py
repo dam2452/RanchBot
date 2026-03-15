@@ -8,7 +8,11 @@ from typing import (
 
 from elastic_transport import ObjectApiResponse
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.elastic_search_manager import (
+    ElasticSearchManager,
+    build_bool_must_query,
+    extract_hits,
+)
 from bot.settings import settings
 from bot.types import (
     BaseSegment,
@@ -148,7 +152,7 @@ class TextSegmentsFinder:
                 {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_filter}},
             )
 
-        hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = extract_hits(await es.search(index=index, body=query, size=size))
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
@@ -252,42 +256,25 @@ class TextSegmentsFinder:
             f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
         )
 
+        episode_must_clauses = [
+            {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
+            {ElasticsearchQueryKeys.TERM: {episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER]}},
+        ]
+
         context_query_before = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
-                        {
-                            ElasticsearchQueryKeys.TERM: {
-                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
-                            },
-                        },
-                    ],
-                    ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.LT: segment_id}}},
-                    ],
-                },
-            },
+            **build_bool_must_query(
+                episode_must_clauses,
+                filter_clauses=[{ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.LT: segment_id}}}],
+            ),
             ElasticsearchQueryKeys.SORT: [{SegmentKeys.SEGMENT_ID: ElasticsearchQueryKeys.DESC}],
             ElasticsearchQueryKeys.SIZE: context_size,
         }
 
         context_query_after = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {season_field: episode_data[EpisodeMetadataKeys.SEASON]}},
-                        {
-                            ElasticsearchQueryKeys.TERM: {
-                                episode_field: episode_data[EpisodeMetadataKeys.EPISODE_NUMBER],
-                            },
-                        },
-                    ],
-                    ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.GT: segment_id}}},
-                    ],
-                },
-            },
+            **build_bool_must_query(
+                episode_must_clauses,
+                filter_clauses=[{ElasticsearchQueryKeys.RANGE: {SegmentKeys.SEGMENT_ID: {ElasticsearchQueryKeys.GT: segment_id}}}],
+            ),
             ElasticsearchQueryKeys.SORT: [{SegmentKeys.SEGMENT_ID: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: context_size,
         }
@@ -300,14 +287,14 @@ class TextSegmentsFinder:
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
             SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
             SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
-        } for hit in context_response_before[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
+        } for hit in extract_hits(context_response_before)]
 
         context_segments_after = [{
             SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
             SegmentKeys.START: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.START)),
             SegmentKeys.END: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END_TIME, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.END)),
-        } for hit in context_response_after[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]]
+        } for hit in extract_hits(context_response_after)]
 
         context_segments_before.reverse()
         return context_segments_before, context_segments_after
@@ -349,19 +336,13 @@ class TextSegmentsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
-                        {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
-                    ],
-                },
-            },
-        }
+        query = build_bool_must_query([
+            {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season}},
+            {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number}},
+        ])
 
         response = await es.search(index=index, body=query, size=1)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = extract_hits(response)
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)

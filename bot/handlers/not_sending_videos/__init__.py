@@ -1,4 +1,6 @@
+from bot.handlers.not_sending_videos.characters_handler import CharactersHandler
 from bot.handlers.not_sending_videos.delete_clip_handler import DeleteClipHandler
+from bot.handlers.not_sending_videos.emotions_handler import EmotionsHandler
 from bot.handlers.not_sending_videos.episode_list_handler import EpisodeListHandler
 from bot.handlers.not_sending_videos.my_clips_handler import MyClipsHandler
 from bot.handlers.not_sending_videos.save_clip_handler import SaveClipHandler
