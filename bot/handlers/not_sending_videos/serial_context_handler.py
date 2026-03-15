@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import List
 
 from bot.handlers.bot_message_handler import (
@@ -26,6 +27,7 @@ class SerialContextHandler(BotMessageHandler):
             lambda: self._validate_argument_count(
                 self._message,
                 min_args=0,
+                max_args=math.inf,
             ),
         ]
 
