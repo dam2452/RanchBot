@@ -217,24 +217,24 @@ class ImageHashSettings(OutputDirMixin):
 
 @dataclass(frozen=True)
 class ImageScraperSettings(BaseAPISettings):
-    max_results_to_scrape: int = 50
+    max_results_to_scrape: int = 100
     min_image_height: int = 60
     min_image_width: int = 60
     page_navigation_timeout: int = 30000
-    request_delay_max: float = 6.0
-    request_delay_min: float = 3.0
+    request_delay_max: float = 5.0
+    request_delay_min: float = 2.0
     retry_attempts: int = 3
-    retry_delay: float = 3.0
+    retry_delay: float = 5.0
 
     @property
-    def google_search_key(self) -> Optional[str]:
+    def serpapi_key(self) -> Optional[str]:
         return self.api_key
 
     @classmethod
     def from_env(cls) -> 'ImageScraperSettings':
         api_key = None
-        if os.getenv('RAPIDAPI_GOOGLE_SEARCH_KEY'):
-            api_key = SecretStr(os.getenv('RAPIDAPI_GOOGLE_SEARCH_KEY', ''))
+        if os.getenv('SERPAPI_API_KEY'):
+            api_key = SecretStr(os.getenv('SERPAPI_API_KEY', ''))
         return cls(_api_key=api_key)
 
 

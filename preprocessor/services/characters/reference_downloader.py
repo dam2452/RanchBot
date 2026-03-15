@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import logging
 from pathlib import Path
@@ -8,10 +9,14 @@ import time
 from typing import (
     Any,
     Dict,
+    Iterator,
     List,
     Optional,
+    Tuple,
 )
+import warnings
 
+from PIL import Image
 import cv2
 from insightface.app import FaceAnalysis
 import numpy as np
@@ -26,7 +31,7 @@ from preprocessor.config.settings_instance import settings
 from preprocessor.services.characters.face_detection import FaceDetector
 from preprocessor.services.characters.image_search import (
     BaseImageSearch,
-    DuckDuckGoImageSearch,
+    BrowserBingImageSearch,
     GoogleImageSearch,
 )
 from preprocessor.services.core.base_processor import (
@@ -63,7 +68,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             'search_query_template', 'Serial {series_name} {char_name} postać',
         )
 
-        self.__search_engine: BaseImageSearch = self.__create_search_engine()
+        self.__search_engine: Optional[BaseImageSearch] = None
         self.__face_app: Optional[FaceAnalysis] = None
         self.__playwright: Optional[Playwright] = None
         self.__browser_context: Optional[BrowserContext] = None
@@ -120,6 +125,7 @@ class CharacterReferenceDownloader(BaseProcessor):
             args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
             ignore_default_args=['--enable-automation'],
         )
+        self.__search_engine = self.__create_search_engine()
         return True
 
     def _process_item(self, item: ProcessingItem, missing_outputs: List[OutputSpec]) -> None:
@@ -129,6 +135,8 @@ class CharacterReferenceDownloader(BaseProcessor):
         saved_count = len(list(output_folder.glob('*.jpg')))
         if saved_count >= self.__images_per_character:
             return
+
+        assert self.__search_engine is not None
 
         search_query = self.__search_query_template.format(
             series_name=self.__series_name, char_name=char_name,
@@ -145,10 +153,13 @@ class CharacterReferenceDownloader(BaseProcessor):
     def __create_search_engine(self) -> BaseImageSearch:
         if self.__search_engine_name == 'premium':
             return GoogleImageSearch(
-                api_key=settings.image_scraper.google_search_key,
+                api_key=settings.image_scraper.serpapi_key,
                 max_results=self.__max_results,
             )
-        return DuckDuckGoImageSearch(max_results=self.__max_results)
+        return BrowserBingImageSearch(
+            browser_context=self.__browser_context,
+            max_results=self.__max_results,
+        )
 
     def __prepare_output_folder(self, char_name: str) -> Path:
         output_folder = self.__output_dir / char_name.replace(' ', '_').lower()
@@ -177,26 +188,110 @@ class CharacterReferenceDownloader(BaseProcessor):
             self.logger.warning(f'All retry attempts failed for {char_name}: {error}')
 
     def __download_and_process_images(
-            self, results: List[Dict[str, Any]], output_folder: Path, saved_count: int,
+            self, results: Iterator[Dict[str, Any]], output_folder: Path, saved_count: int,
     ) -> int:
-        sorted_results = self.__sort_results_by_extension(results)
+        needed = self.__images_per_character - saved_count
+        raw = self.__collect_raw_candidates(results, needed)
+        scored = self.__filter_by_consensus(raw)
+        if len(scored) < needed:
+            scored = self.__score_all(raw)
+        return self.__save_best_candidates(scored, output_folder, saved_count)
+
+    def __collect_raw_candidates(
+            self, results: Iterator[Dict[str, Any]], needed: int,
+    ) -> List[Tuple[np.ndarray, List[Any]]]:
+        raw: List[Tuple[np.ndarray, List[Any]]] = []
+        processed = 0
 
         page = self.__browser_context.new_page()
         try:
-            for res in sorted_results:
-                if saved_count >= self.__images_per_character:
+            for res in results:
+                if processed >= self.__max_results:
                     break
-
+                processed += 1
                 img_url = res.get('image', '')
                 try:
                     img = self.__download_image_via_browser(img_url, page)
-                    if img is not None and self.__validate_and_save_image(img, img_url, output_folder, saved_count):
-                        saved_count += 1
+                    if img is None:
+                        continue
+                    h, w = img.shape[:2]
+                    if w < self.__min_width or h < self.__min_height:
+                        continue
+                    faces = self.__face_app.get(img)
+                    if faces:
+                        raw.append((img, list(faces)))
                 except Exception as e:
                     self.logger.debug(f'Error processing image {img_url}: {e}')
+
+                if len(raw) >= needed + 1 and len(self.__filter_by_consensus(raw)) >= needed:
+                    break
         finally:
             page.close()
 
+        return raw
+
+    def __filter_by_consensus(
+            self, candidates: List[Tuple[np.ndarray, List[Any]]],
+    ) -> List[Tuple[np.ndarray, float]]:
+        if not candidates:
+            return []
+
+        consensus = self.__find_consensus_embedding(candidates)
+        if consensus is None:
+            return []
+
+        threshold = settings.character.reference_matching_threshold
+        scored: List[Tuple[np.ndarray, float]] = []
+        for img, faces in candidates:
+            best_det = max(
+                (
+                    f.det_score for f in faces
+                    if float(np.dot(consensus, f.normed_embedding)) >= threshold
+                ),
+                default=None,
+            )
+            if best_det is not None:
+                scored.append((img, float(best_det)))
+        return scored
+
+    def __find_consensus_embedding(
+            self, candidates: List[Tuple[np.ndarray, List[Any]]],
+    ) -> Optional[np.ndarray]:
+        threshold = settings.character.reference_matching_threshold
+        _, first_faces = candidates[0]
+        others = [faces for _, faces in candidates[1:]]
+
+        best_embedding: Optional[np.ndarray] = None
+        best_count = 0
+
+        for anchor in first_faces:
+            count = 1
+            for other_faces in others:
+                sims = [float(np.dot(anchor.normed_embedding, f.normed_embedding)) for f in other_faces]
+                if sims and max(sims) >= threshold:
+                    count += 1
+            if count > best_count:
+                best_count = count
+                best_embedding = anchor.normed_embedding
+
+        return best_embedding
+
+    def __score_all(
+            self, candidates: List[Tuple[np.ndarray, List[Any]]],
+    ) -> List[Tuple[np.ndarray, float]]:
+        return [
+            (img, float(max(f.det_score for f in faces)))
+            for img, faces in candidates
+        ]
+
+    def __save_best_candidates(
+            self, candidates: List[Tuple[np.ndarray, float]], output_folder: Path, saved_count: int,
+    ) -> int:
+        needed = self.__images_per_character - saved_count
+        best = sorted(candidates, key=lambda x: x[1], reverse=True)[:needed]
+        for img, _ in best:
+            cv2.imwrite(str(output_folder / f'{saved_count:02d}.jpg'), img)
+            saved_count += 1
         return saved_count
 
     def __download_image_via_browser(self, img_url: str, page: Page) -> Optional[np.ndarray]:
@@ -210,14 +305,10 @@ class CharacterReferenceDownloader(BaseProcessor):
             if not response or response.status != 200:
                 return None
 
-            content_type = response.headers.get('content-type', '')
-            if 'image' in content_type:
-                return self.__decode_image_bytes(response.body(), img_url)
+            if 'image' not in response.headers.get('content-type', ''):
+                return None
 
-            if 'text/html' in content_type:
-                return self.__extract_og_image(page, img_url)
-
-            return None
+            return self.__decode_image_bytes(response.body(), img_url)
 
         except TimeoutError:
             self.logger.debug(f'Timeout downloading image {img_url}')
@@ -229,36 +320,16 @@ class CharacterReferenceDownloader(BaseProcessor):
                 self.logger.debug(f'Failed to download image {img_url}: {msg}')
         return None
 
-    def __extract_og_image(self, page: Page, source_url: str) -> Optional[np.ndarray]:
-        try:
-            og_image_url = page.evaluate(
-                '() => document.querySelector("meta[property=\'og:image\']")?.content ?? ""',
-            )
-            if not og_image_url:
-                return None
-
-            response = page.goto(
-                og_image_url,
-                timeout=settings.image_scraper.page_navigation_timeout,
-                wait_until='domcontentloaded',
-            )
-            if not response or response.status != 200:
-                return None
-            if 'image' not in response.headers.get('content-type', ''):
-                return None
-            return self.__decode_image_bytes(response.body(), og_image_url)
-        except Exception as e:
-            self.logger.debug(f'Failed to extract og:image from {source_url}: {e}')
-        return None
-
     def __decode_image_bytes(self, img_bytes: bytes, img_url: str) -> Optional[np.ndarray]:
         if not img_bytes:
             return None
 
-        img_array = np.asarray(bytearray(img_bytes), dtype=np.uint8)
-        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
-        if img is None or img.size == 0:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                pil_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+            img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        except Exception:
             self.logger.debug(f'Failed to decode image from {img_url}')
             return None
 
@@ -267,26 +338,6 @@ class CharacterReferenceDownloader(BaseProcessor):
             return None
 
         return img
-
-    def __validate_and_save_image(
-            self, img: np.ndarray, img_url: str, output_folder: Path, saved_count: int,
-    ) -> bool:
-        h, w = img.shape[:2]
-        if w < self.__min_width or h < self.__min_height:
-            return False
-
-        try:
-            face_count = len(self.__face_app.get(img))
-        except Exception as face_err:
-            self.logger.debug(f'Face detection failed for {img_url}: {face_err}')
-            return False
-
-        if face_count != 1:
-            return False
-
-        filename = f'{saved_count:02d}.jpg'
-        cv2.imwrite(str(output_folder / filename), img)
-        return True
 
     def __mark_exhausted(self, output_folder: Path, char_name: str) -> None:
         exhausted_marker = output_folder / '.exhausted'
@@ -300,16 +351,6 @@ class CharacterReferenceDownloader(BaseProcessor):
             self.logger.warning(f'{char_name}: {saved_count}/{self.__images_per_character} images (incomplete)')
         else:
             self.logger.warning(f'{char_name}: No suitable images found')
-
-    @staticmethod
-    def __sort_results_by_extension(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        return sorted(
-            results,
-            key=lambda x: (
-                0 if x.get('image', '').lower().endswith(('.jpg', '.jpeg')) else 1,
-                1 if x.get('image', '').lower().endswith('.png') else 2,
-            ),
-        )
 
     @staticmethod
     def __apply_random_delay() -> None:

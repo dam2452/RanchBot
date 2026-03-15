@@ -4,7 +4,7 @@ from abc import (
 )
 from typing import (
     Dict,
-    List,
+    Iterator,
 )
 
 
@@ -18,5 +18,5 @@ class BaseImageSearch(ABC):
         pass
 
     @abstractmethod
-    def search(self, query: str) -> List[Dict[str, str]]:
+    def search(self, query: str) -> Iterator[Dict[str, str]]:
         pass
