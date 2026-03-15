@@ -154,7 +154,6 @@ class SaveClipHandler(BotMessageHandler):
 
         return await clip_handlers[last_clip.clip_type]()
 
-
     async def __handle_compiled_clip(self, last_clip: LastClip) -> ClipInfo:
         output_filename = self.__bytes_to_filepath(last_clip.compiled_clip)
         return ClipInfo(
@@ -166,13 +165,11 @@ class SaveClipHandler(BotMessageHandler):
             episode_number=None,
         )
 
-
     async def __handle_adjusted_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
-
 
     async def __handle_manual_clip(self, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         start = segment_json["start"]
@@ -180,13 +177,11 @@ class SaveClipHandler(BotMessageHandler):
         output_filename = await ClipsExtractor.extract_clip(segment_json[SegmentKeys.VIDEO_PATH], start, end, self._logger)
         return ClipInfo(output_filename, start, end, False, season, episode_number)
 
-
     async def __handle_selected_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
             segment_json[SegmentKeys.VIDEO_PATH], last_clip.adjusted_start_time, last_clip.adjusted_end_time, self._logger,
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
-
 
     async def __handle_single_clip(self, last_clip: LastClip, segment_json: ElasticsearchSegment, season, episode_number) -> ClipInfo:
         output_filename = await ClipsExtractor.extract_clip(
@@ -194,14 +189,12 @@ class SaveClipHandler(BotMessageHandler):
         )
         return ClipInfo(output_filename, last_clip.adjusted_start_time, last_clip.adjusted_end_time, False, season, episode_number)
 
-
     @staticmethod
     def __bytes_to_filepath(clip_data: bytes) -> Path:
         with tempfile.NamedTemporaryFile(delete=False, delete_on_close=False, suffix=".mp4") as tmp_file:
             path = Path(tmp_file.name)
         path.write_bytes(clip_data)
         return path
-
 
     async def __reply_clip_name_exists(self, clip_name: str) -> None:
         await self._reply_error(get_clip_name_exists_message(clip_name))

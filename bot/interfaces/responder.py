@@ -4,6 +4,7 @@ from abc import (
 )
 import json
 from pathlib import Path
+import tempfile
 from typing import (
     List,
     Optional,
@@ -31,3 +32,8 @@ class AbstractResponder(ABC):
     async def send_document(self, file_path: Path, caption: str, delete_after_send: bool = True, cleanup_dir: Optional[Path] = None) -> None: ...
     @abstractmethod
     async def send_json(self, data: json) -> None: ...
+
+    async def send_document_text(self, content: str, filename: str, caption: str) -> None:
+        file_path = Path(tempfile.gettempdir()) / filename
+        file_path.write_text(content, encoding="utf-8")
+        await self.send_document(file_path, caption=caption, delete_after_send=True)
