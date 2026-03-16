@@ -191,15 +191,15 @@ class CharacterReferenceDownloader(BaseProcessor):
             self, results: Iterator[Dict[str, Any]], output_folder: Path, saved_count: int,
     ) -> int:
         needed = self.__images_per_character - saved_count
-        raw = self.__collect_raw_candidates(results, needed)
-        scored = self.__filter_by_consensus(raw)
-        if len(scored) < needed:
-            scored = self.__score_all(raw)
+        raw, consensus = self.__collect_raw_candidates(results, needed)
+        if consensus is None:
+            return saved_count
+        scored = self.__score_by_consensus(raw, consensus)
         return self.__save_best_candidates(scored, output_folder, saved_count)
 
     def __collect_raw_candidates(
             self, results: Iterator[Dict[str, Any]], needed: int,
-    ) -> List[Tuple[np.ndarray, List[Any]]]:
+    ) -> Tuple[List[Tuple[np.ndarray, List[Any]]], Optional[np.ndarray]]:
         raw: List[Tuple[np.ndarray, List[Any]]] = []
         processed = 0
 
@@ -223,23 +223,49 @@ class CharacterReferenceDownloader(BaseProcessor):
                 except Exception as e:
                     self.logger.debug(f'Error processing image {img_url}: {e}')
 
-                if len(raw) >= needed + 1 and len(self.__filter_by_consensus(raw)) >= needed:
-                    break
+                consensus = self.__find_confident_consensus(raw, needed)
+                if consensus is not None and len(self.__score_by_consensus(raw, consensus)) >= needed:
+                    return raw, consensus
         finally:
             page.close()
 
-        return raw
+        return raw, self.__find_confident_consensus(raw, needed)
 
-    def __filter_by_consensus(
-            self, candidates: List[Tuple[np.ndarray, List[Any]]],
+    def __find_confident_consensus(
+            self, candidates: List[Tuple[np.ndarray, List[Any]]], needed: int,
+    ) -> Optional[np.ndarray]:
+        if len(candidates) < needed:
+            return None
+
+        threshold = settings.character.reference_matching_threshold
+        clusters: List[Tuple[np.ndarray, List[int]]] = []
+
+        for img_idx, (_, faces) in enumerate(candidates):
+            for face in faces:
+                matched = False
+                for cluster_emb, img_indices in clusters:
+                    if float(np.dot(cluster_emb, face.normed_embedding)) >= threshold:
+                        if img_idx not in img_indices:
+                            img_indices.append(img_idx)
+                        matched = True
+                        break
+                if not matched:
+                    clusters.append((face.normed_embedding, [img_idx]))
+
+        if not clusters:
+            return None
+
+        clusters.sort(key=lambda x: len(x[1]), reverse=True)
+        best_count = len(clusters[0][1])
+        second_count = len(clusters[1][1]) if len(clusters) > 1 else 0
+
+        if best_count > second_count and best_count >= needed:
+            return clusters[0][0]
+        return None
+
+    def __score_by_consensus(
+            self, candidates: List[Tuple[np.ndarray, List[Any]]], consensus: np.ndarray,
     ) -> List[Tuple[np.ndarray, float]]:
-        if not candidates:
-            return []
-
-        consensus = self.__find_consensus_embedding(candidates)
-        if consensus is None:
-            return []
-
         threshold = settings.character.reference_matching_threshold
         scored: List[Tuple[np.ndarray, float]] = []
         for img, faces in candidates:
@@ -253,36 +279,6 @@ class CharacterReferenceDownloader(BaseProcessor):
             if best_det is not None:
                 scored.append((img, float(best_det)))
         return scored
-
-    def __find_consensus_embedding(
-            self, candidates: List[Tuple[np.ndarray, List[Any]]],
-    ) -> Optional[np.ndarray]:
-        threshold = settings.character.reference_matching_threshold
-        _, first_faces = candidates[0]
-        others = [faces for _, faces in candidates[1:]]
-
-        best_embedding: Optional[np.ndarray] = None
-        best_count = 0
-
-        for anchor in first_faces:
-            count = 1
-            for other_faces in others:
-                sims = [float(np.dot(anchor.normed_embedding, f.normed_embedding)) for f in other_faces]
-                if sims and max(sims) >= threshold:
-                    count += 1
-            if count > best_count:
-                best_count = count
-                best_embedding = anchor.normed_embedding
-
-        return best_embedding
-
-    def __score_all(
-            self, candidates: List[Tuple[np.ndarray, List[Any]]],
-    ) -> List[Tuple[np.ndarray, float]]:
-        return [
-            (img, float(max(f.det_score for f in faces)))
-            for img, faces in candidates
-        ]
 
     def __save_best_candidates(
             self, candidates: List[Tuple[np.ndarray, float]], output_folder: Path, saved_count: int,
@@ -298,8 +294,8 @@ class CharacterReferenceDownloader(BaseProcessor):
         try:
             response = page.goto(
                 img_url,
-                timeout=settings.image_scraper.page_navigation_timeout,
-                wait_until='domcontentloaded',
+                timeout=settings.image_scraper.image_download_timeout,
+                wait_until='commit',
             )
 
             if not response or response.status != 200:

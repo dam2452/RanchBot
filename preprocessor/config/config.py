@@ -217,6 +217,7 @@ class ImageHashSettings(OutputDirMixin):
 
 @dataclass(frozen=True)
 class ImageScraperSettings(BaseAPISettings):
+    image_download_timeout: int = 8000
     max_results_to_scrape: int = 100
     min_image_height: int = 60
     min_image_width: int = 60
