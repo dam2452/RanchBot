@@ -54,7 +54,7 @@ class SemanticBotHandler(BotMessageHandler):
                 return mode, " ".join(tokens[1:])
         return SemanticSearchMode.DEFAULT, " ".join(tokens)
 
-    async def _fetch_semantic_results(
+    async def __fetch_semantic_results(
         self,
         query: str,
         mode: SemanticSearchMode,
@@ -75,11 +75,10 @@ class SemanticBotHandler(BotMessageHandler):
         if not query:
             await self._reply_error(self._get_usage_message())
             return
-        fetch_result = await self._fetch_semantic_results(query, mode)
-        if fetch_result is None:
-            return
-        active_series, results = fetch_result
-        await self._handle_semantic_results(mode, query, active_series, results)
+        fetch_result = await self.__fetch_semantic_results(query, mode)
+        if fetch_result:
+            active_series, results = fetch_result
+            await self._handle_semantic_results(mode, query, active_series, results)
 
     @abstractmethod
     async def _handle_semantic_results(

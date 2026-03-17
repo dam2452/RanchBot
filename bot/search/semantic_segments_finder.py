@@ -28,9 +28,16 @@ class SemanticSearchMode(str, Enum):
     EPISODE = "odcinek"
     DEFAULT = "tekst"
 
+    __ALIASES = {
+        "t": "tekst", "text": "tekst",
+        "k": "klatki", "frames": "klatki",
+        "o": "odcinek", "episode": "odcinek", "ep": "odcinek",
+    }
+
     @classmethod
     def _missing_(cls, value: object) -> Optional["SemanticSearchMode"]:
-        return _SEMANTIC_MODE_ALIASES.get(str(value).lower())
+        mapped = cls.__ALIASES.get(str(value).lower())  # pylint: disable=no-member
+        return cls(mapped) if mapped else None
 
     @classmethod
     def from_str(cls, token: str) -> Optional["SemanticSearchMode"]:
@@ -38,13 +45,6 @@ class SemanticSearchMode(str, Enum):
             return cls(token.lower())
         except ValueError:
             return None
-
-
-_SEMANTIC_MODE_ALIASES: Dict[str, SemanticSearchMode] = {
-    "t": SemanticSearchMode.TEXT, "text": SemanticSearchMode.TEXT,
-    "k": SemanticSearchMode.FRAMES, "frames": SemanticSearchMode.FRAMES,
-    "o": SemanticSearchMode.EPISODE, "episode": SemanticSearchMode.EPISODE, "ep": SemanticSearchMode.EPISODE,
-}
 
 
 class SemanticSegmentsFinder:
@@ -64,7 +64,7 @@ class SemanticSegmentsFinder:
         embedding = await VllmClient.get_text_embedding(query, logger)
 
         if mode == SemanticSearchMode.FRAMES:
-            frames = await SemanticSegmentsFinder._search_index(
+            frames = await SemanticSegmentsFinder.__search_index(
                 embedding=embedding,
                 logger=logger,
                 series_name=series_name,
@@ -74,7 +74,7 @@ class SemanticSegmentsFinder:
             )
             return SemanticSegmentsFinder.__normalize_frames(frames) if frames is not None else None
         if mode == SemanticSearchMode.EPISODE:
-            return await SemanticSegmentsFinder._search_index(
+            return await SemanticSegmentsFinder.__search_index(
                 embedding=embedding,
                 logger=logger,
                 series_name=series_name,
@@ -82,7 +82,7 @@ class SemanticSegmentsFinder:
                 embedding_field="full_episode_embedding",
                 size=size,
             )
-        segments = await SemanticSegmentsFinder._search_index(
+        segments = await SemanticSegmentsFinder.__search_index(
             embedding=embedding,
             logger=logger,
             series_name=series_name,
@@ -91,11 +91,11 @@ class SemanticSegmentsFinder:
             size=size,
         )
         if segments is not None:
-            await SemanticSegmentsFinder._normalize_text_segments(segments, series_name, logger)
+            await SemanticSegmentsFinder.__normalize_text_segments(segments, series_name, logger)
         return segments
 
     @staticmethod
-    async def _normalize_text_segments(
+    async def __normalize_text_segments(
         segments: List[Dict[str, Any]],
         series_name: str,
         logger: logging.Logger,
@@ -147,7 +147,7 @@ class SemanticSegmentsFinder:
                 seg[SegmentKeys.END_TIME] = end_data["end_time"]
 
     @staticmethod
-    async def _search_index(
+    async def __search_index(
         embedding: List[float],
         logger: logging.Logger,
         series_name: str,
@@ -204,22 +204,6 @@ class SemanticSegmentsFinder:
         return results
 
     @staticmethod
-    def deduplicate_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        seen = set()
-        unique = []
-        for seg in segments:
-            key = (
-                seg.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
-                seg.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
-                seg.get(SegmentKeys.START_TIME),
-                seg.get(SegmentKeys.END_TIME),
-            )
-            if key not in seen:
-                seen.add(key)
-                unique.append(seg)
-        return unique
-
-    @staticmethod
     def __normalize_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for frame in frames:
             scene = frame.get("scene_info", {})
@@ -241,6 +225,22 @@ class SemanticSegmentsFinder:
             if key not in seen:
                 seen.add(key)
                 unique.append(frame)
+        return unique
+
+    @staticmethod
+    def deduplicate_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        seen = set()
+        unique = []
+        for seg in segments:
+            key = (
+                seg.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
+                seg.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
+                seg.get(SegmentKeys.START_TIME),
+                seg.get(SegmentKeys.END_TIME),
+            )
+            if key not in seen:
+                seen.add(key)
+                unique.append(seg)
         return unique
 
     @staticmethod
