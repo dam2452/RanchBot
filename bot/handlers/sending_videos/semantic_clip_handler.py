@@ -55,9 +55,7 @@ class SemanticClipHandler(SemanticBotHandler):
         )
 
         if await self._send_top_segment_as_clip(unique[0], active_series):
-            return
-
-        await self._log_system_message(
-            logging.INFO,
-            get_log_semantic_clip_message(query, self._message.get_username(), mode),
-        )
+            await self._log_system_message(
+                logging.INFO,
+                get_log_semantic_clip_message(query, self._message.get_username(), mode),
+            )

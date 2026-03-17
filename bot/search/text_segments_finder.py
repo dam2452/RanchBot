@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import logging
 from typing import (
     List,
@@ -339,7 +338,7 @@ class TextSegmentsFinder:
         return unique_context_segments
 
     @staticmethod
-    async def find_video_path_by_episode(
+    async def find_video_path_by_episode(  # pylint: disable=duplicate-code
             season: int, episode_number: int, logger: logging.Logger,
             index: str = settings.ES_TRANSCRIPTION_INDEX,
     ) -> Optional[str]:

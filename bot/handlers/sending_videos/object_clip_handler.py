@@ -14,7 +14,7 @@ from bot.responses.sending_videos.object_clip_handler_responses import (
     get_no_scenes_found_message,
     get_object_not_found_message,
 )
-from bot.search.video_frames_finder import ObjectFinder
+from bot.search.video_frames import ObjectFinder
 from bot.settings import settings
 
 
@@ -60,9 +60,7 @@ class ObjectClipHandler(BotMessageHandler):
         )
 
         if await self._send_top_segment_as_clip(segments[0], series_name):
-            return
-
-        await self._log_system_message(
-            logging.INFO,
-            get_log_object_clip_message(object_name, self._message.get_username()),
-        )
+            await self._log_system_message(
+                logging.INFO,
+                get_log_object_clip_message(object_name, self._message.get_username()),
+            )

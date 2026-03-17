@@ -30,12 +30,7 @@ class SemanticSearchMode(str, Enum):
 
     @classmethod
     def _missing_(cls, value: object) -> Optional["SemanticSearchMode"]:
-        _aliases = {
-            "t": cls.TEXT, "text": cls.TEXT,
-            "k": cls.FRAMES, "frames": cls.FRAMES,
-            "o": cls.EPISODE, "episode": cls.EPISODE, "ep": cls.EPISODE,
-        }
-        return _aliases.get(str(value).lower())
+        return _SEMANTIC_MODE_ALIASES.get(str(value).lower())
 
     @classmethod
     def from_str(cls, token: str) -> Optional["SemanticSearchMode"]:
@@ -43,6 +38,13 @@ class SemanticSearchMode(str, Enum):
             return cls(token.lower())
         except ValueError:
             return None
+
+
+_SEMANTIC_MODE_ALIASES: Dict[str, SemanticSearchMode] = {
+    "t": SemanticSearchMode.TEXT, "text": SemanticSearchMode.TEXT,
+    "k": SemanticSearchMode.FRAMES, "frames": SemanticSearchMode.FRAMES,
+    "o": SemanticSearchMode.EPISODE, "episode": SemanticSearchMode.EPISODE, "ep": SemanticSearchMode.EPISODE,
+}
 
 
 class SemanticSegmentsFinder:

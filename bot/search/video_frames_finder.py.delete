@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import difflib
 import logging
 from typing import (
@@ -34,8 +33,6 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_SEASON_FIELD = EpisodeMetadataKeys.SEASON_FIELD
-_EPISODE_FIELD = EpisodeMetadataKeys.EPISODE_NUMBER_FIELD
 _OBJECT_CLASS_FIELD = f"{VideoFrameKeys.DETECTED_OBJECTS}.class"
 _BACK_TO_ROOT = "back_to_root"
 _NAMES_AGG = "names"
@@ -144,7 +141,7 @@ def get_polish_name(class_name: str) -> str:
 
 class VideoFramesFinder:
     @staticmethod
-    async def find_frames_in_episode(
+    async def find_frames_in_episode(  # pylint: disable=duplicate-code
         season: int,
         episode_number: int,
         series_name: str,
@@ -161,8 +158,8 @@ class VideoFramesFinder:
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
-                        {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_number}},
                     ],
                 },
             },
@@ -198,8 +195,8 @@ class VideoFramesFinder:
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season}},
-                        {ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_number}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_number}},
                         {
                             ElasticsearchQueryKeys.RANGE: {
                                 VideoFrameKeys.TIMESTAMP: {
@@ -243,9 +240,9 @@ class VideoFramesFinder:
             },
         ]
         if season_filter is not None:
-            must_clauses.append({ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season_filter}})
+            must_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season_filter}})
         if episode_filter is not None:
-            must_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
+            must_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_filter}})
 
         object_count_field = f"{VideoFrameKeys.DETECTED_OBJECTS}.count"
         query = {
@@ -319,7 +316,7 @@ class CharacterFinder:
 
     @staticmethod
     def __season_0_term() -> Dict[str, Any]:
-        return {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: 0}}
+        return {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}}
 
     @staticmethod
     def __char_term(character_name: str) -> Dict[str, Any]:
@@ -408,8 +405,8 @@ class CharacterFinder:
     @staticmethod
     def __episode_sort() -> List[Dict[str, Any]]:
         return [
-            {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-            {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
             {VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC},
         ]
 
@@ -699,7 +696,7 @@ class ObjectFinder:
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST_NOT: [
-                        {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: 0}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}},
                     ],
                 },
             },

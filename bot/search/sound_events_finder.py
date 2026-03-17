@@ -18,9 +18,6 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_SEASON_FIELD = EpisodeMetadataKeys.SEASON_FIELD
-_EPISODE_FIELD = EpisodeMetadataKeys.EPISODE_NUMBER_FIELD
-
 
 def _build_index(series_name: str) -> str:
     return f"{series_name}{ElasticsearchIndexSuffixes.SOUND_EVENTS}"
@@ -73,17 +70,17 @@ class SoundEventsFinder:
             {ElasticsearchQueryKeys.TERM: {SoundEventKeys.SOUND_TYPE: sound_type}},
         ]
         if season_filter is not None:
-            filter_clauses.append({ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season_filter}})
+            filter_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season_filter}})
         if episode_filter is not None:
-            filter_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
+            filter_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_filter}})
 
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.FILTER: filter_clauses},
             },
             ElasticsearchQueryKeys.SORT: [
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
@@ -120,8 +117,8 @@ class SoundEventsFinder:
             },
             ElasticsearchQueryKeys.SORT: [
                 {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: size,

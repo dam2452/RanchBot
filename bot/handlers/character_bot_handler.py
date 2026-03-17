@@ -9,7 +9,7 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
     get_character_not_found_message,
     parse_character_args,
 )
-from bot.search.video_frames_finder import CharacterFinder
+from bot.search.video_frames import CharacterFinder
 
 
 class CharacterBotHandler(BotMessageHandler):

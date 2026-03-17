@@ -20,7 +20,7 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
     get_no_characters_message,
     scene_to_search_segment,
 )
-from bot.search.video_frames_finder import CharacterFinder
+from bot.search.video_frames import CharacterFinder
 from bot.settings import settings as s
 from bot.types import CharacterScene
 

@@ -24,7 +24,7 @@ from bot.responses.not_sending_videos.objects_handler_responses import (
     get_object_not_found_message,
     object_scene_to_search_segment,
 )
-from bot.search.video_frames_finder import ObjectFinder
+from bot.search.video_frames import ObjectFinder
 from bot.settings import settings as s
 from bot.types import (
     ObjectScene,

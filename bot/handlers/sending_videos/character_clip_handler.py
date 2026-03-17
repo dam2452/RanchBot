@@ -12,7 +12,7 @@ from bot.responses.sending_videos.character_clip_handler_responses import (
     get_no_quote_provided_message,
     get_no_scenes_found_message,
 )
-from bot.search.video_frames_finder import CharacterFinder
+from bot.search.video_frames import CharacterFinder
 from bot.settings import settings
 
 
@@ -67,9 +67,7 @@ class CharacterClipHandler(CharacterBotHandler):
         )
 
         if await self._send_top_segment_as_clip(segments[0], series_name):
-            return
-
-        await self._log_system_message(
-            logging.INFO,
-            get_log_character_clip_message(character, self._message.get_username()),
-        )
+            await self._log_system_message(
+                logging.INFO,
+                get_log_character_clip_message(character, self._message.get_username()),
+            )

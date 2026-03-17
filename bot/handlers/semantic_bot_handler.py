@@ -58,26 +58,27 @@ class SemanticBotHandler(BotMessageHandler):
         self,
         query: str,
         mode: SemanticSearchMode,
-    ) -> Tuple[bool, str, Optional[List[Dict[str, Any]]]]:
+    ) -> Optional[Tuple[str, Optional[List[Dict[str, Any]]]]]:
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
         try:
             results = await SemanticSegmentsFinder.find_by_text(
                 query, self._logger, active_series, mode=mode,
             )
-            return False, active_series, results
+            return active_series, results
         except (VllmConnectionError, VllmTimeoutError):
             await self._reply_error(get_vllm_unavailable_message())
-            return True, "", None
+            return None
 
     async def _do_handle(self) -> None:
         mode, query = self._parse_semantic_mode_and_query()
         if not query:
             await self._reply_error(self._get_usage_message())
             return
-        failed, active_series, results = await self._fetch_semantic_results(query, mode)
-        if failed:
+        fetch_result = await self._fetch_semantic_results(query, mode)
+        if fetch_result is None:
             return
+        active_series, results = fetch_result
         await self._handle_semantic_results(mode, query, active_series, results)
 
     @abstractmethod

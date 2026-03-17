@@ -8,7 +8,7 @@ from typing import (
 from aiogram.utils.markdown import markdown_decoration
 
 from bot.responses.bot_response import BotResponse
-from bot.search.video_frames_finder import get_polish_name
+from bot.search.video_frames import get_polish_name
 from bot.types import (
     ObjectScene,
     ObjectWithCount,

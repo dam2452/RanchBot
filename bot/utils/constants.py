@@ -34,6 +34,7 @@ class ElasticsearchKeys:
     AGGREGATIONS: Final[str] = "aggregations"
     BUCKETS: Final[str] = "buckets"
     KEY: Final[str] = "key"
+    DOC_COUNT: Final[str] = "doc_count"
 
 
 class ElasticsearchAggregationKeys:
@@ -43,6 +44,10 @@ class ElasticsearchAggregationKeys:
     ACTORS: Final[str] = "actors"
     EMOTION_LABELS: Final[str] = "emotion_labels"
     UNIQUE_EPISODE_KEYS: Final[str] = "unique_episode_keys"
+    NAMES: Final[str] = "names"
+    OBJECTS: Final[str] = "objects"
+    CLASSES: Final[str] = "classes"
+    BACK_TO_ROOT: Final[str] = "back_to_root"
 
 
 class ActorKeys:
@@ -185,6 +190,7 @@ class VideoFrameKeys:
 class DetectedObjectKeys:
     CLASS: Final[str] = "class"
     COUNT: Final[str] = "count"
+    OBJECT_CLASS_FIELD: Final[str] = f"{VideoFrameKeys.DETECTED_OBJECTS}.{CLASS}"
 
 
 class SceneInfoKeys:

@@ -15,9 +15,6 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_SEASON_FIELD = EpisodeMetadataKeys.SEASON_FIELD
-_EPISODE_FIELD = EpisodeMetadataKeys.EPISODE_NUMBER_FIELD
-
 
 def _build_index(series_name: str) -> str:
     return f"{series_name}{ElasticsearchIndexSuffixes.EPISODE_NAMES}"
@@ -47,8 +44,8 @@ class EpisodeNamesFinder:
             },
             ElasticsearchQueryKeys.SORT: [
                 {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: size,
         }
@@ -75,8 +72,8 @@ class EpisodeNamesFinder:
         query = {
             ElasticsearchQueryKeys.QUERY: {ElasticsearchQueryKeys.BOOL: {}},
             ElasticsearchQueryKeys.SORT: [
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: 9999,
         }
@@ -84,7 +81,7 @@ class EpisodeNamesFinder:
         if exclude_season_0:
             query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL] = {
                 ElasticsearchQueryKeys.MUST_NOT: [
-                    {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: 0}},
+                    {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}},
                 ],
             }
 
