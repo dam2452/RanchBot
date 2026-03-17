@@ -36,7 +36,7 @@ class EpisodeNamesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.MATCH: {
                     EpisodeMetadataKeys.TITLE: {
@@ -72,7 +72,7 @@ class EpisodeNamesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {ElasticsearchQueryKeys.BOOL: {}},
             ElasticsearchQueryKeys.SORT: [
                 {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
@@ -105,7 +105,7 @@ class EpisodeNamesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.TERM: {"episode_id": episode_id},
             },

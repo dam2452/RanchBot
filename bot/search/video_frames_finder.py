@@ -414,7 +414,7 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
@@ -451,7 +451,7 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.MUST: [
@@ -505,7 +505,7 @@ class VideoFramesFinder:
             must_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
 
         object_count_field = f"{VideoFrameKeys.DETECTED_OBJECTS}.count"
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.MUST: must_clauses},
             },
@@ -544,7 +544,7 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
                 _OBJECTS_AGG: {
@@ -578,7 +578,7 @@ class CharacterFinder:
         await log_system_message(logging.INFO, f"Fetching all characters for series '{series_name}'.", logger)
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
@@ -644,7 +644,7 @@ class CharacterFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [_nested_char_filter(character_name)],
@@ -697,7 +697,7 @@ class CharacterFinder:
             },
         }
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [char_and_emotion_nested],
@@ -728,7 +728,7 @@ class CharacterFinder:
         await log_system_message(logging.INFO, f"Fetching all emotions for series '{series_name}'.", logger)
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
                 ElasticsearchAggregationKeys.ACTORS: {
@@ -784,7 +784,7 @@ class ObjectFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query: Dict[str, Any] = {
+        query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
