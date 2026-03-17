@@ -15,8 +15,8 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_SEASON_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
-_EPISODE_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
+_SEASON_FIELD = EpisodeMetadataKeys.SEASON_FIELD
+_EPISODE_FIELD = EpisodeMetadataKeys.EPISODE_NUMBER_FIELD
 
 
 def _build_index(series_name: str) -> str:

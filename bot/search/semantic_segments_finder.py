@@ -1,3 +1,4 @@
+from enum import Enum
 import logging
 from typing import (
     Any,
@@ -5,7 +6,6 @@ from typing import (
     List,
     Optional,
     Set,
-    Tuple,
 )
 
 from elasticsearch import NotFoundError
@@ -22,21 +22,27 @@ from bot.utils.constants import (
 from bot.utils.log import log_system_message
 
 
-class SemanticSearchMode:
+class SemanticSearchMode(str, Enum):
     TEXT = "tekst"
     FRAMES = "klatki"
     EPISODE = "odcinek"
-    DEFAULT = TEXT
-
-    _ALIASES: Dict[str, str] = {
-        "t": TEXT, "tekst": TEXT, "text": TEXT,
-        "k": FRAMES, "klatki": FRAMES, "frames": FRAMES,
-        "o": EPISODE, "odcinek": EPISODE, "episode": EPISODE, "ep": EPISODE,
-    }
+    DEFAULT = "tekst"
 
     @classmethod
-    def from_str(cls, token: str) -> Optional[str]:
-        return cls._ALIASES.get(token.lower())
+    def _missing_(cls, value: object) -> Optional["SemanticSearchMode"]:
+        _aliases = {
+            "t": cls.TEXT, "text": cls.TEXT,
+            "k": cls.FRAMES, "frames": cls.FRAMES,
+            "o": cls.EPISODE, "episode": cls.EPISODE, "ep": cls.EPISODE,
+        }
+        return _aliases.get(str(value).lower())
+
+    @classmethod
+    def from_str(cls, token: str) -> Optional["SemanticSearchMode"]:
+        try:
+            return cls(token.lower())
+        except ValueError:
+            return None
 
 
 class SemanticSegmentsFinder:
@@ -45,7 +51,7 @@ class SemanticSegmentsFinder:
         query: str,
         logger: logging.Logger,
         series_name: str,
-        mode: str = SemanticSearchMode.DEFAULT,
+        mode: "SemanticSearchMode" = SemanticSearchMode.DEFAULT,
         size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> Optional[List[Dict[str, Any]]]:
         await log_system_message(
@@ -64,7 +70,7 @@ class SemanticSegmentsFinder:
                 embedding_field="video_embedding",
                 size=size,
             )
-            return SemanticSegmentsFinder._normalize_frames(frames) if frames is not None else None
+            return SemanticSegmentsFinder.__normalize_frames(frames) if frames is not None else None
         if mode == SemanticSearchMode.EPISODE:
             return await SemanticSegmentsFinder._search_index(
                 embedding=embedding,
@@ -102,7 +108,7 @@ class SemanticSegmentsFinder:
 
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         index = f"{series_name}{ElasticsearchIndexSuffixes.TEXT_SEGMENTS}"
-        lookup: Dict[Tuple[str, int], Dict[str, Any]] = {}
+        lookup = {}
 
         for episode_id, seg_ids in episode_to_seg_ids.items():
             query = {
@@ -212,7 +218,7 @@ class SemanticSegmentsFinder:
         return unique
 
     @staticmethod
-    def _normalize_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def __normalize_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for frame in frames:
             scene = frame.get("scene_info", {})
             timestamp = frame.get("timestamp", 0.0)

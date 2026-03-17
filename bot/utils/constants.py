@@ -22,6 +22,8 @@ class EpisodeMetadataKeys:
     TITLE: Final[str] = "title"
     PREMIERE_DATE: Final[str] = "premiere_date"
     VIEWERSHIP: Final[str] = "viewership"
+    SEASON_FIELD: Final[str] = f"{EPISODE_METADATA}.{SEASON}"
+    EPISODE_NUMBER_FIELD: Final[str] = f"{EPISODE_METADATA}.{EPISODE_NUMBER}"
 
 
 class ElasticsearchKeys:

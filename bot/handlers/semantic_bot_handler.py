@@ -45,7 +45,7 @@ class SemanticBotHandler(BotMessageHandler):
             return False
         return True
 
-    def _parse_semantic_mode_and_query(self) -> Tuple[str, str]:
+    def _parse_semantic_mode_and_query(self) -> Tuple[SemanticSearchMode, str]:
         args = self._message.get_text().split()
         tokens = args[1:]
         if tokens:
@@ -57,7 +57,7 @@ class SemanticBotHandler(BotMessageHandler):
     async def _fetch_semantic_results(
         self,
         query: str,
-        mode: str,
+        mode: SemanticSearchMode,
     ) -> Tuple[bool, str, Optional[List[Dict[str, Any]]]]:
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
@@ -83,7 +83,7 @@ class SemanticBotHandler(BotMessageHandler):
     @abstractmethod
     async def _handle_semantic_results(
         self,
-        mode: str,
+        mode: SemanticSearchMode,
         query: str,
         active_series: str,
         results: Optional[List[Dict[str, Any]]],
@@ -92,7 +92,7 @@ class SemanticBotHandler(BotMessageHandler):
     @staticmethod
     def _deduplicate_semantic_results(
         results: List[Dict[str, Any]],
-        mode: str,
+        mode: SemanticSearchMode,
     ) -> List[Dict[str, Any]]:
         if mode == SemanticSearchMode.FRAMES:
             return SemanticSegmentsFinder.deduplicate_frames(results)

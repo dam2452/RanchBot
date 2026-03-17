@@ -27,13 +27,13 @@ class SemanticClipHandler(SemanticBotHandler):
     def _get_usage_message(self) -> str:
         return get_no_query_provided_message()
 
-    def _parse_semantic_mode_and_query(self) -> Tuple[str, str]:
+    def _parse_semantic_mode_and_query(self) -> Tuple[SemanticSearchMode, str]:
         tokens = self._message.get_text().split()[1:]
         return SemanticSearchMode.FRAMES, " ".join(tokens)
 
     async def _handle_semantic_results(
         self,
-        mode: str,
+        mode: SemanticSearchMode,
         query: str,
         active_series: str,
         results: Optional[List[Dict[str, Any]]],

@@ -16,7 +16,7 @@ from bot.responses.sending_videos.snap_clip_handler_responses import (
     get_no_scene_cuts_message,
     get_snap_success_log,
 )
-from bot.search.text_segments_finder import SceneFinder
+from bot.search.scene_finder import SceneFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.utils.constants import (
     EpisodeMetadataKeys,

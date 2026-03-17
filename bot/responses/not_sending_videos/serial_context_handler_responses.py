@@ -6,25 +6,25 @@ from typing import (
 from bot.responses.bot_response import BotResponse
 
 
-def _fmt(series_name: str) -> str:
+def __fmt(series_name: str) -> str:
     return series_name.replace("_", " ").title()
 
 
 def get_serial_changed_message(series_name: str) -> str:
-    return BotResponse.success("SERIAL ZMIENIONY", f"Zmieniono aktywny serial na: {_fmt(series_name)}")
+    return BotResponse.success("SERIAL ZMIENIONY", f"Zmieniono aktywny serial na: {__fmt(series_name)}")
 
 
 def get_serial_invalid_message(series_name: str, available: List[str]) -> str:
-    series_list = ", ".join([_fmt(s) for s in available]) if available else "brak"
-    return BotResponse.error("NIEZNANY SERIAL", f"Nieznany serial: {_fmt(series_name)}\n\nDostępne: {series_list}")
+    series_list = ", ".join([__fmt(s) for s in available]) if available else "brak"
+    return BotResponse.error("NIEZNANY SERIAL", f"Nieznany serial: {__fmt(series_name)}\n\nDostępne: {series_list}")
 
 
 def get_serial_current_message(series_name: str, available_series: Optional[List[str]] = None) -> str:
     if available_series is None:
-        return BotResponse.info("AKTYWNY SERIAL", f"Twój aktywny serial: {_fmt(series_name)}")
+        return BotResponse.info("AKTYWNY SERIAL", f"Twój aktywny serial: {__fmt(series_name)}")
 
     series_list = "\n".join([
-        f"💥 {_fmt(s)} 💥" if s == series_name else f"• {_fmt(s)}"
+        f"💥 {__fmt(s)} 💥" if s == series_name else f"• {__fmt(s)}"
         for s in available_series
     ]) if available_series else "• brak dostępnych seriali"
 

@@ -6,7 +6,7 @@ from typing import (
     Union,
 )
 
-from bot.search.text_segments_finder import SceneFinder
+from bot.search.scene_finder import SceneFinder
 from bot.types import (
     ClipSegment,
     ElasticsearchSegment,

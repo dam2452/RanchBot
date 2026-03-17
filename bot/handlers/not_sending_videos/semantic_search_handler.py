@@ -37,7 +37,7 @@ class SemanticSearchHandler(SemanticBotHandler):
             + SemanticSearchHandler.__EPISODE_COMMANDS
         )
 
-    def _parse_semantic_mode_and_query(self) -> Tuple[str, str]:
+    def _parse_semantic_mode_and_query(self) -> Tuple[SemanticSearchMode, str]:
         command = self._message.get_text().split()[0].lstrip("/").lower()
         tokens = self._message.get_text().split()[1:]
         if command in SemanticSearchHandler.__FRAMES_COMMANDS:
@@ -51,7 +51,7 @@ class SemanticSearchHandler(SemanticBotHandler):
 
     async def _handle_semantic_results(
         self,
-        mode: str,
+        mode: SemanticSearchMode,
         query: str,
         active_series: str,
         results: Optional[List[Dict[str, Any]]],
@@ -84,7 +84,7 @@ class SemanticSearchHandler(SemanticBotHandler):
         )
 
     @staticmethod
-    def __format_response(unique: list, query: str, mode: str) -> str:
+    def __format_response(unique: list, query: str, mode: SemanticSearchMode) -> str:
         if mode == SemanticSearchMode.FRAMES:
             return format_semantic_frames_response(len(unique), unique, query)
         if mode == SemanticSearchMode.EPISODE:
@@ -96,7 +96,7 @@ class SemanticSearchHandler(SemanticBotHandler):
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(query))
 
     async def __reply_embeddings_not_indexed(
-        self, series_name: str, mode: str, query: str,
+        self, series_name: str, mode: SemanticSearchMode, query: str,
     ) -> None:
         await self._reply_error(get_embeddings_not_indexed_message(series_name, mode))
         await self._log_system_message(logging.INFO, get_log_no_segments_found_message(query))
