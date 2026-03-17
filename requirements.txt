@@ -1,7 +1,7 @@
 aiogram~=3.26.0
 aiohttp~=3.13.3
 asyncpg~=0.31.0
-bcrypt~=5.0.0
+bcrypt~=4.3.0
 bidict~=0.23.1
 click~=8.3.1
 elastic-transport~=9.2.1
