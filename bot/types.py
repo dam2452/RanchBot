@@ -234,3 +234,40 @@ class ObjectScene(TypedDict):
 class QuantityFilter(TypedDict):
     operator: str
     value: int
+
+
+DetectedObjectSource = TypedDict(
+    "DetectedObjectSource", {
+        "class": str,
+        "count": int,
+    },
+)
+
+
+class SceneInfoSource(TypedDict):
+    scene_number: NotRequired[int]
+    scene_start_time: NotRequired[float]
+    scene_end_time: NotRequired[float]
+
+
+class ActorEmotionSource(TypedDict):
+    label: NotRequired[str]
+    confidence: NotRequired[float]
+
+
+class ActorAppearanceSource(TypedDict):
+    name: str
+    confidence: NotRequired[float]
+    emotion: NotRequired[ActorEmotionSource]
+
+
+class VideoFrameSource(TypedDict):
+    timestamp: float
+    frame_number: NotRequired[int]
+    frame_type: NotRequired[str]
+    episode_id: NotRequired[str]
+    episode_metadata: NotRequired[EpisodeMetadata]
+    video_path: NotRequired[str]
+    detected_objects: NotRequired[List[DetectedObjectSource]]
+    scene_info: NotRequired[SceneInfoSource]
+    character_appearances: NotRequired[List[ActorAppearanceSource]]

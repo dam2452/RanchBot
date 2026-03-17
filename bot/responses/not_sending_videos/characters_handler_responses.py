@@ -6,6 +6,8 @@ from typing import (
     Tuple,
 )
 
+from aiogram.utils.markdown import markdown_decoration
+
 from bot.responses.bot_response import BotResponse
 from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
 from bot.types import (
@@ -95,9 +97,9 @@ def format_character_scenes(
     lines = [_scene_line(i + 1, scene) for i, scene in enumerate(scenes[:_PREVIEW_COUNT])]
     count_emoji = convert_number_to_emoji(len(scenes))
 
-    header = f"🎭 *Postać: {character_name}* 🎭\n"
+    header = f"🎭 *Postać: {markdown_decoration.quote(character_name)}* 🎭\n"
     if emotion_filter:
-        header += f"😊 *Emocja: {emotion_filter}* 😊\n"
+        header += f"😊 *Emocja: {markdown_decoration.quote(emotion_filter)}* 😊\n"
     header += f"👁️ *Znaleziono:* {count_emoji} scen 👁️\n\n"
 
     hint = (

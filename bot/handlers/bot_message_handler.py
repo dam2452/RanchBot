@@ -4,6 +4,8 @@ from abc import (
 )
 import json
 import logging
+from pathlib import Path
+import tempfile
 from typing import (
     Any,
     Awaitable,
@@ -31,11 +33,14 @@ from bot.responses.bot_message_handler_responses import (
     get_log_clip_too_large_message,
     get_log_compilation_too_large_message,
     get_log_extraction_failure_message,
+    get_no_video_path_message,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
+from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
 from bot.types import ClipSegment
+from bot.utils.constants import SegmentKeys
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
@@ -44,6 +49,7 @@ from bot.video.clips_compiler import (
     ClipsCompiler,
     process_compiled_clip,
 )
+from bot.video.clips_extractor import ClipsExtractor
 from bot.video.utils import FFMpegException
 
 ValidatorFunctions = List[Callable[[], Awaitable[bool]]]
@@ -205,6 +211,48 @@ class BotMessageHandler(ABC):
 
         return message
 
+    async def _send_top_segment_as_clip(
+        self,
+        top_segment: Dict[str, Any],
+        series_name: str,
+    ) -> bool:
+        if not top_segment.get(SegmentKeys.VIDEO_PATH):
+            await self._reply_error(get_no_video_path_message())
+            return True
+
+        start_time = max(0, top_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
+        end_time = top_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+
+        start_time, end_time = await SceneSnapService.snap_clip_times(
+            series_name, top_segment, start_time, end_time, self._logger,
+        )
+
+        clip_duration = end_time - start_time
+        if await self._handle_clip_duration_limit_exceeded(clip_duration):
+            return True
+
+        output_filename = await ClipsExtractor.extract_clip(
+            top_segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger,
+        )
+
+        await self._responder.send_video(
+            output_filename,
+            duration=clip_duration,
+            suggestions=["Uzyj /w N aby wybrac inny wynik"],
+        )
+
+        await DatabaseManager.insert_last_clip(
+            chat_id=self._message.get_chat_id(),
+            segment=top_segment,
+            compiled_clip=None,
+            clip_type=ClipType.SINGLE,
+            adjusted_start_time=start_time,
+            adjusted_end_time=end_time,
+            is_adjusted=False,
+        )
+
+        return False
+
     async def _compile_and_send_video(
         self,
         selected_segments: List[ClipSegment],
@@ -223,3 +271,13 @@ class BotMessageHandler(ABC):
             )
         except VideoTooLargeException as e:
             raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions) from e
+
+    async def _send_document(self, content: str, filename: str, caption: str) -> None:
+        file_path = Path(tempfile.gettempdir()) / filename
+        with file_path.open("w", encoding="utf-8") as f:
+            f.write(content)
+        await self._responder.send_document(file_path, caption=caption)
+
+    @staticmethod
+    def _sanitize_filename(name: str) -> str:
+        return "".join(c if c.isalnum() else "_" for c in name).strip("_")

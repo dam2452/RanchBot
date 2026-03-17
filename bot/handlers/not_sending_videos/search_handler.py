@@ -55,7 +55,7 @@ class SearchHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
 
-        segments = await TextSegmentsFinder.find_segment_by_quote(quote, self._logger, active_series, size=999)
+        segments = await TextSegmentsFinder.find_segment_by_quote(quote, self._logger, active_series, size=settings.MAX_ES_RESULTS_LONG)
         if not segments:
             await self.__reply_no_segments_found(quote)
             return

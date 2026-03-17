@@ -7,18 +7,17 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import (
-    ElasticSearchManager,
-    extract_hits,
-)
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.video_frames.frames_finder import _build_index
+from bot.settings import settings
 from bot.types import (
     CharacterScene,
     CharacterWithEpisodeCount,
+    VideoFrameSource,
 )
 from bot.utils.constants import (
     ActorKeys,
     ElasticsearchAggregationKeys,
-    ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
     EmotionKeys,
@@ -28,118 +27,108 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_BACK_TO_ROOT = "back_to_root"
-_NAMES_AGG = "names"
-_SEASON_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
-_EPISODE_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
-
-
-def _build_index(series_name: str) -> str:
-    return f"{series_name}{ElasticsearchIndexSuffixes.VIDEO_FRAMES}"
-
-
-def _character_field(subfield: str) -> str:
-    return f"{ActorKeys.ACTORS}.{subfield}"
-
-
-def _season_0_term() -> Dict[str, Any]:
-    return {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: 0}}
-
-
-def _char_term(character_name: str) -> Dict[str, Any]:
-    return {
-        ElasticsearchQueryKeys.TERM: {
-            _character_field(ActorKeys.NAME): {
-                ElasticsearchQueryKeys.VALUE: character_name,
-                ElasticsearchQueryKeys.CASE_INSENSITIVE: True,
-            },
-        },
-    }
-
-
-def _nested_char_filter(character_name: str) -> Dict[str, Any]:
-    return {
-        ElasticsearchQueryKeys.NESTED: {
-            ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
-            ElasticsearchQueryKeys.QUERY: _char_term(character_name),
-        },
-    }
-
-
-def _parse_scene(source: Dict[str, Any], character_name: str) -> CharacterScene:
-    meta = source.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-    timestamp = source.get(VideoFrameKeys.TIMESTAMP, 0.0)
-    scene: CharacterScene = {
-        "season": meta.get(EpisodeMetadataKeys.SEASON, 0),
-        "episode_number": meta.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0),
-        "title": meta.get(EpisodeMetadataKeys.TITLE, ""),
-        "start_time": timestamp,
-        "end_time": timestamp,
-        "video_path": source.get(SegmentKeys.VIDEO_PATH, ""),
-    }
-    for appearance in source.get(ActorKeys.ACTORS, []):
-        if not isinstance(appearance, dict):
-            continue
-        if appearance.get(ActorKeys.NAME, "").lower() == character_name.lower():
-            if ActorKeys.CONFIDENCE in appearance:
-                scene["actor_confidence"] = appearance[ActorKeys.CONFIDENCE]
-            emotion = appearance.get(ActorKeys.EMOTION)
-            if isinstance(emotion, dict):
-                if EmotionKeys.LABEL in emotion:
-                    scene["emotion_label"] = emotion[EmotionKeys.LABEL]
-                if EmotionKeys.CONFIDENCE in emotion:
-                    scene["emotion_confidence"] = emotion[EmotionKeys.CONFIDENCE]
-            break
-    return scene
-
-
-
-def _confidence_sort(character_name: str) -> Dict[str, Any]:
-    return {
-        _character_field(ActorKeys.CONFIDENCE): {
-            ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC,
-            ElasticsearchQueryKeys.NESTED: {
-                ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
-                ElasticsearchQueryKeys.FILTER: _char_term(character_name),
-            },
-            ElasticsearchQueryKeys.MODE: ElasticsearchQueryKeys.MAX,
-        },
-    }
-
-
-def _emotion_confidence_sort(character_name: str, emotion_en: str) -> Dict[str, Any]:
-    return {
-        _character_field(f"{ActorKeys.EMOTION}.{EmotionKeys.CONFIDENCE}"): {
-            ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC,
-            ElasticsearchQueryKeys.NESTED: {
-                ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
-                ElasticsearchQueryKeys.FILTER: {
-                    ElasticsearchQueryKeys.BOOL: {
-                        ElasticsearchQueryKeys.MUST: [
-                            _char_term(character_name),
-                            {
-                                ElasticsearchQueryKeys.TERM: {
-                                    _character_field(f"{ActorKeys.EMOTION}.{EmotionKeys.LABEL}"): emotion_en,
-                                },
-                            },
-                        ],
-                    },
-                },
-            },
-            ElasticsearchQueryKeys.MODE: ElasticsearchQueryKeys.MAX,
-        },
-    }
-
-
-def _episode_sort() -> List[Dict[str, Any]]:
-    return [
-        {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-        {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
-        {VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC},
-    ]
-
 
 class CharacterFinder:
+    @staticmethod
+    def __character_field(subfield: str) -> str:
+        return f"{ActorKeys.ACTORS}.{subfield}"
+
+    @staticmethod
+    def __season_0_term() -> Dict[str, Any]:
+        return {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}}
+
+    @staticmethod
+    def __char_term(character_name: str) -> Dict[str, Any]:
+        return {
+            ElasticsearchQueryKeys.TERM: {
+                CharacterFinder.__character_field(ActorKeys.NAME): {
+                    ElasticsearchQueryKeys.VALUE: character_name,
+                    ElasticsearchQueryKeys.CASE_INSENSITIVE: True,
+                },
+            },
+        }
+
+    @staticmethod
+    def __nested_char_filter(character_name: str) -> Dict[str, Any]:
+        return {
+            ElasticsearchQueryKeys.NESTED: {
+                ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
+                ElasticsearchQueryKeys.QUERY: CharacterFinder.__char_term(character_name),
+            },
+        }
+
+    @staticmethod
+    def __parse_scene(source: VideoFrameSource, character_name: str) -> CharacterScene:
+        meta = source.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+        timestamp = source.get(VideoFrameKeys.TIMESTAMP, 0.0)
+        scene: CharacterScene = {
+            "season": meta.get(EpisodeMetadataKeys.SEASON, 0),
+            "episode_number": meta.get(EpisodeMetadataKeys.EPISODE_NUMBER, 0),
+            "title": meta.get(EpisodeMetadataKeys.TITLE, ""),
+            "start_time": timestamp,
+            "end_time": timestamp,
+            "video_path": source.get(SegmentKeys.VIDEO_PATH, ""),
+        }
+        for appearance in source.get(ActorKeys.ACTORS, []):
+            if not isinstance(appearance, dict):
+                continue
+            if appearance.get(ActorKeys.NAME, "").lower() == character_name.lower():
+                if ActorKeys.CONFIDENCE in appearance:
+                    scene["actor_confidence"] = appearance[ActorKeys.CONFIDENCE]
+                emotion = appearance.get(ActorKeys.EMOTION)
+                if isinstance(emotion, dict):
+                    if EmotionKeys.LABEL in emotion:
+                        scene["emotion_label"] = emotion[EmotionKeys.LABEL]
+                    if EmotionKeys.CONFIDENCE in emotion:
+                        scene["emotion_confidence"] = emotion[EmotionKeys.CONFIDENCE]
+                break
+        return scene
+
+    @staticmethod
+    def __confidence_sort(character_name: str) -> Dict[str, Any]:
+        return {
+            CharacterFinder.__character_field(ActorKeys.CONFIDENCE): {
+                ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC,
+                ElasticsearchQueryKeys.NESTED: {
+                    ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
+                    ElasticsearchQueryKeys.FILTER: CharacterFinder.__char_term(character_name),
+                },
+                ElasticsearchQueryKeys.MODE: ElasticsearchQueryKeys.MAX,
+            },
+        }
+
+    @staticmethod
+    def __emotion_confidence_sort(character_name: str, emotion_en: str) -> Dict[str, Any]:
+        return {
+            CharacterFinder.__character_field(f"{ActorKeys.EMOTION}.{EmotionKeys.CONFIDENCE}"): {
+                ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC,
+                ElasticsearchQueryKeys.NESTED: {
+                    ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
+                    ElasticsearchQueryKeys.FILTER: {
+                        ElasticsearchQueryKeys.BOOL: {
+                            ElasticsearchQueryKeys.MUST: [
+                                CharacterFinder.__char_term(character_name),
+                                {
+                                    ElasticsearchQueryKeys.TERM: {
+                                        CharacterFinder.__character_field(f"{ActorKeys.EMOTION}.{EmotionKeys.LABEL}"): emotion_en,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                },
+                ElasticsearchQueryKeys.MODE: ElasticsearchQueryKeys.MAX,
+            },
+        }
+
+    @staticmethod
+    def __episode_sort() -> List[Dict[str, Any]]:
+        return [
+            {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
+            {VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC},
+        ]
+
     @staticmethod
     async def get_all_characters(
         series_name: str,
@@ -152,21 +141,21 @@ class CharacterFinder:
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST_NOT: [_season_0_term()],
+                    ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },
             ElasticsearchQueryKeys.AGGS: {
                 ElasticsearchAggregationKeys.ACTORS: {
                     ElasticsearchQueryKeys.NESTED: {ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS},
                     ElasticsearchQueryKeys.AGGS: {
-                        _NAMES_AGG: {
+                        ElasticsearchAggregationKeys.NAMES: {
                             ElasticsearchQueryKeys.TERMS: {
-                                ElasticsearchQueryKeys.FIELD: _character_field(ActorKeys.NAME),
+                                ElasticsearchQueryKeys.FIELD: CharacterFinder.__character_field(ActorKeys.NAME),
                                 ElasticsearchQueryKeys.SIZE: 10000,
                                 ElasticsearchQueryKeys.ORDER: {ElasticsearchQueryKeys.KEY: ElasticsearchQueryKeys.ASC},
                             },
                             ElasticsearchQueryKeys.AGGS: {
-                                _BACK_TO_ROOT: {
+                                ElasticsearchAggregationKeys.BACK_TO_ROOT: {
                                     ElasticsearchQueryKeys.REVERSE_NESTED: {},
                                     ElasticsearchQueryKeys.AGGS: {
                                         ElasticsearchAggregationKeys.UNIQUE_EPISODES: {
@@ -187,13 +176,13 @@ class CharacterFinder:
         buckets = (
             response[ElasticsearchKeys.AGGREGATIONS]
             [ElasticsearchAggregationKeys.ACTORS]
-            [_NAMES_AGG]
+            [ElasticsearchAggregationKeys.NAMES]
             [ElasticsearchKeys.BUCKETS]
         )
         characters = [
             CharacterWithEpisodeCount(
                 name=b[ElasticsearchKeys.KEY],
-                episode_count=b[_BACK_TO_ROOT][ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE],
+                episode_count=b[ElasticsearchAggregationKeys.BACK_TO_ROOT][ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchAggregationKeys.VALUE],
             )
             for b in buckets
         ]
@@ -205,6 +194,7 @@ class CharacterFinder:
         character_name: str,
         series_name: str,
         logger: logging.Logger,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -216,20 +206,20 @@ class CharacterFinder:
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.FILTER: [_nested_char_filter(character_name)],
-                    ElasticsearchQueryKeys.MUST_NOT: [_season_0_term()],
+                    ElasticsearchQueryKeys.FILTER: [CharacterFinder.__nested_char_filter(character_name)],
+                    ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },
             ElasticsearchQueryKeys.SORT: [
-                _confidence_sort(character_name),
-                *_episode_sort(),
+                CharacterFinder.__confidence_sort(character_name),
+                *CharacterFinder.__episode_sort(),
             ],
-            ElasticsearchQueryKeys.SIZE: 999,
+            ElasticsearchQueryKeys.SIZE: size,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = extract_hits(response)
-        scenes = [_parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        scenes = [CharacterFinder.__parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(logging.INFO, f"Found {len(scenes)} scenes for '{character_name}'.", logger)
         return scenes
 
@@ -239,6 +229,7 @@ class CharacterFinder:
         emotion_en: str,
         series_name: str,
         logger: logging.Logger,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -253,10 +244,10 @@ class CharacterFinder:
                 ElasticsearchQueryKeys.QUERY: {
                     ElasticsearchQueryKeys.BOOL: {
                         ElasticsearchQueryKeys.MUST: [
-                            _char_term(character_name),
+                            CharacterFinder.__char_term(character_name),
                             {
                                 ElasticsearchQueryKeys.TERM: {
-                                    _character_field(f"{ActorKeys.EMOTION}.{EmotionKeys.LABEL}"): emotion_en,
+                                    CharacterFinder.__character_field(f"{ActorKeys.EMOTION}.{EmotionKeys.LABEL}"): emotion_en,
                                 },
                             },
                         ],
@@ -269,20 +260,20 @@ class CharacterFinder:
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [char_and_emotion_nested],
-                    ElasticsearchQueryKeys.MUST_NOT: [_season_0_term()],
+                    ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },
             ElasticsearchQueryKeys.SORT: [
-                _emotion_confidence_sort(character_name, emotion_en),
-                _confidence_sort(character_name),
-                *_episode_sort(),
+                CharacterFinder.__emotion_confidence_sort(character_name, emotion_en),
+                CharacterFinder.__confidence_sort(character_name),
+                *CharacterFinder.__episode_sort(),
             ],
-            ElasticsearchQueryKeys.SIZE: 999,
+            ElasticsearchQueryKeys.SIZE: size,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        hits = extract_hits(response)
-        scenes = [_parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        scenes = [CharacterFinder.__parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(scenes)} scenes for '{character_name}' with emotion '{emotion_en}'.", logger,
         )
@@ -304,7 +295,7 @@ class CharacterFinder:
                     ElasticsearchQueryKeys.AGGS: {
                         ElasticsearchAggregationKeys.EMOTION_LABELS: {
                             ElasticsearchQueryKeys.TERMS: {
-                                ElasticsearchQueryKeys.FIELD: _character_field(
+                                ElasticsearchQueryKeys.FIELD: CharacterFinder.__character_field(
                                     f"{ActorKeys.EMOTION}.{EmotionKeys.LABEL}",
                                 ),
                                 ElasticsearchQueryKeys.SIZE: 100,

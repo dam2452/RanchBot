@@ -12,7 +12,7 @@ from bot.responses.not_sending_videos.emotions_handler_responses import (
     get_log_emotions_listed_message,
     map_emotion_to_pl,
 )
-from bot.search.character_finder import CharacterFinder
+from bot.search.video_frames import CharacterFinder
 
 
 class EmotionsHandler(BotMessageHandler):

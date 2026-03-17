@@ -1,3 +1,5 @@
+from aiogram.utils.markdown import markdown_decoration
+
 from bot.responses.bot_response import BotResponse
 
 
@@ -6,8 +8,10 @@ def get_reindex_started_message(target: str) -> str:
 
 
 def get_reindex_progress_message(message: str, current: int, total: int) -> str:
+    safe_message = markdown_decoration.quote(message)
+
     if total == 0:
-        return f"🔄 {message}"
+        return f"🔄 {safe_message}"
 
     percentage = int((current / total) * 100)
     bar_length = 10
@@ -17,48 +21,41 @@ def get_reindex_progress_message(message: str, current: int, total: int) -> str:
 
     return (
         f"🔄 *Reindeksowanie w toku*\n\n"
-        f"📝 {message}\n\n"
+        f"📝 {safe_message}\n\n"
         f"{progress_bar}\n\n"
         f"📊 Postęp: *{percentage}%*"
     )
 
 
 def get_reindex_complete_message(result) -> str:
-    error_info = ""
-    if result.errors:
-        error_list = "\n".join(f"- {err}" for err in result.errors[:3])
-        error_info = f"\n\n⚠️ Błędy ({len(result.errors)}):\n```\n{error_list}\n```"
-        if len(result.errors) > 3:
-            error_info += f"\n... i {len(result.errors) - 3} więcej"
-
-    return (
-        f"✅ Reindeksowanie zakończone!\n\n"
+    body = (
         f"Serial: {result.series_name}\n"
         f"Odcinki: {result.episodes_processed}\n"
         f"Dokumenty: {result.documents_indexed}"
-        f"{error_info}"
     )
+    if result.errors:
+        error_list = "\n".join(f"- {err}" for err in result.errors[:3])
+        body += f"\n\nBledy ({len(result.errors)}):\n{error_list}"
+        if len(result.errors) > 3:
+            body += f"\n... i {len(result.errors) - 3} wiecej"
+    return BotResponse.success("REINDEKSOWANIE ZAKONCZONE", body)
 
 
 def get_reindex_error_message(error: str) -> str:
-    return BotResponse.error("BŁĄD REINDEKSOWANIA", error)
+    return BotResponse.error("BLAD REINDEKSOWANIA", error)
 
 
 def get_reindex_all_complete_message(series_count: int, episodes: int, documents: int) -> str:
-    return (
-        f"✅ Reindeksowanie wszystkich seriali zakończone!\n\n"
-        f"Seriale: {series_count}\n"
-        f"Odcinki: {episodes}\n"
-        f"Dokumenty: {documents}"
+    return BotResponse.success(
+        "REINDEKSOWANIE ZAKONCZONE",
+        f"Seriale: {series_count}\nOdcinki: {episodes}\nDokumenty: {documents}",
     )
 
 
 def get_reindex_all_new_complete_message(series_count: int, episodes: int, documents: int) -> str:
-    return (
-        f"✅ Reindeksowanie nowych seriali zakończone!\n\n"
-        f"Nowe seriale: {series_count}\n"
-        f"Odcinki: {episodes}\n"
-        f"Dokumenty: {documents}"
+    return BotResponse.success(
+        "NOWE SERIALE ZREINDEKSOWANE",
+        f"Nowe seriale: {series_count}\nOdcinki: {episodes}\nDokumenty: {documents}",
     )
 
 

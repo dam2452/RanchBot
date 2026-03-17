@@ -196,6 +196,7 @@ class BaseTest:
         sanitized_message = self.__sanitize_text(response_text)
 
         computed_hash = hashlib.sha256(sanitized_message.encode()).hexdigest()
+        logger.info(f"Computed hash for key '{expected_key}': {computed_hash}")
 
         expected_hashes_path = Path(__file__).parent / expected_hashes_file
         assert expected_hashes_path.exists(), "Expected hashes file not found!"

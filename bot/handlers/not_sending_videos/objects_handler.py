@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import re
 from typing import (
     List,
@@ -23,7 +24,7 @@ from bot.responses.not_sending_videos.objects_handler_responses import (
     get_object_not_found_message,
     object_scene_to_search_segment,
 )
-from bot.search.object_finder import ObjectFinder
+from bot.search.video_frames import ObjectFinder
 from bot.settings import settings as s
 from bot.types import (
     ObjectScene,
@@ -31,12 +32,14 @@ from bot.types import (
 )
 
 _QUANTITY_FILTER_PATTERN = re.compile(r"^(>=|<=|>|<|=)?(\d+)$")
-_FULL_LIST_COMMANDS = {"objl", "obj_lista"}
 
 
 class ObjectsHandler(BotMessageHandler):
+    __SHORT_COMMANDS: List[str] = ["obiekt", "object", "obj"]
+    __FULL_COMMANDS: List[str] = ["objl", "objlista"]
+
     def get_commands(self) -> List[str]:
-        return ["obiekt", "object", "obj", "objl", "obj_lista"]
+        return ObjectsHandler.__SHORT_COMMANDS + ObjectsHandler.__FULL_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -45,13 +48,13 @@ class ObjectsHandler(BotMessageHandler):
         return get_invalid_quantity_filter_message("")
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 0, 2)
+        return await self._validate_argument_count(self._message, 0, math.inf)
 
     async def _do_handle(self) -> None:
         text_parts = self._message.get_text().split()
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
-        is_full = command in _FULL_LIST_COMMANDS
+        is_full = command in ObjectsHandler.__FULL_COMMANDS
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
@@ -68,7 +71,7 @@ class ObjectsHandler(BotMessageHandler):
             await self._reply_error(get_no_objects_message())
             return
         if is_full:
-            await self._responder.send_document_text(
+            await self._send_document(
                 format_objects_list_full(objects),
                 f"{s.BOT_USERNAME}_Obiekty.txt",
                 "Pełna lista obiektów",
@@ -96,9 +99,9 @@ class ObjectsHandler(BotMessageHandler):
         )
         await self.__save_scenes_to_last_search(scenes, class_name)
         if is_full:
-            await self._responder.send_document_text(
+            await self._send_document(
                 format_object_scenes_full(class_name, scenes),
-                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(class_name)}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_filename(class_name)}.txt",
                 f"Pełna lista scen: {class_name}",
             )
         else:
@@ -130,9 +133,9 @@ class ObjectsHandler(BotMessageHandler):
         filtered = ObjectFinder.apply_quantity_filter(scenes, qty_filter)
         await self.__save_scenes_to_last_search(filtered, class_name, qty_raw)
         if is_full:
-            await self._responder.send_document_text(
+            await self._send_document(
                 format_object_scenes_full(class_name, filtered, qty_filter_str=qty_raw),
-                f"{s.BOT_USERNAME}_Sceny_{self.__sanitize(class_name)}_{qty_raw}.txt",
+                f"{s.BOT_USERNAME}_Sceny_{self._sanitize_filename(class_name)}_{qty_raw}.txt",
                 f"Pełna lista scen: {class_name} ({qty_raw})",
             )
         else:
@@ -141,10 +144,6 @@ class ObjectsHandler(BotMessageHandler):
             logging.INFO,
             get_log_object_scenes_message(class_name, len(filtered), self._message.get_username()),
         )
-
-    @staticmethod
-    def __sanitize(name: str) -> str:
-        return "".join(c if c.isalnum() else "_" for c in name).strip("_")
 
     async def __resolve_object_class(self, query: str, series_name: str) -> Optional[str]:
         class_name = await ObjectFinder.find_best_matching_object(

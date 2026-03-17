@@ -11,7 +11,9 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.select_clip_handler_responses import (
+    get_clip_trimmed_message,
     get_invalid_segment_number_message,
+    get_log_clip_trimmed_message,
     get_log_invalid_segment_number_message,
     get_log_no_previous_search_message,
     get_log_segment_selected_message,
@@ -63,10 +65,14 @@ class SelectClipHandler(BotMessageHandler):
             active_series, segment, start_time, end_time, self._logger,
         )
 
-        if await self._handle_clip_duration_limit_exceeded(end_time - start_time):
-            return None
-
         segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
+        is_admin = await DatabaseManager.is_admin_or_moderator(self._message.get_user_id())
+        max_duration = settings.MAX_CLIP_DURATION_HARD_LIMIT if is_admin else settings.MAX_CLIP_DURATION
+        clip_duration = end_time - start_time
+        if clip_duration > max_duration:
+            end_time = start_time + max_duration
+            await self._responder.send_markdown(get_clip_trimmed_message(max_duration))
+            await self._log_system_message(logging.INFO, get_log_clip_trimmed_message(segment_id, clip_duration, max_duration))
 
         output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
         temp_file_path = Path(tempfile.gettempdir()) / f"selected_clip_{segment_id}.mp4"

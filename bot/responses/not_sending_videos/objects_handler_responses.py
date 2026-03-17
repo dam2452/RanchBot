@@ -5,8 +5,10 @@ from typing import (
     Optional,
 )
 
+from aiogram.utils.markdown import markdown_decoration
+
 from bot.responses.bot_response import BotResponse
-from bot.search.object_finder import get_polish_name
+from bot.search.video_frames import get_polish_name
 from bot.types import (
     ObjectScene,
     ObjectWithCount,
@@ -89,9 +91,9 @@ def format_object_scenes(
     lines = [_scene_line(i + 1, scene) for i, scene in enumerate(scenes[:_PREVIEW_COUNT])]
     count_emoji = convert_number_to_emoji(len(scenes))
 
-    header = f"🎯 *Obiekt: {display_name}* 🎯\n"
+    header = f"🎯 *Obiekt: {markdown_decoration.quote(display_name)}* 🎯\n"
     if qty_filter_str:
-        header += f"🔢 *Filtr: {qty_filter_str}* 🔢\n"
+        header += f"🔢 *Filtr: {markdown_decoration.quote(qty_filter_str)}* 🔢\n"
     header += f"👁️ *Znaleziono:* {count_emoji} scen 👁️\n\n"
 
     hint = (

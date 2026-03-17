@@ -6,7 +6,7 @@ from typing import (
 )
 
 from bot.responses.not_sending_videos.characters_handler_responses import parse_character_args
-from bot.search.character_finder import CharacterFinder
+from bot.search.video_frames import CharacterFinder
 
 
 async def find_character(

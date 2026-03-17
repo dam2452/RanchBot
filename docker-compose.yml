@@ -26,6 +26,8 @@ services:
       DISABLE_RATE_LIMITING: ${DISABLE_RATE_LIMITING:-false}
       INLINE_CACHE_CHANNEL_ID: ${INLINE_CACHE_CHANNEL_ID}
       VIDEO_DATA_DIR: ${VIDEO_DATA_DIR:-/app/bot/RanchBotData}
+      VLLM_HOST: ${VLLM_HOST:-http://localhost:11435}
+      VLLM_EMBEDDINGS_MODEL: ${VLLM_EMBEDDINGS_MODEL:-qwen3vl-embed}
     restart: ${RESTART_POLICY:-unless-stopped}
     volumes:
       - /mnt/WD_RED_2TB_MIRROR/RanchBot:/app/bot/RanchBotData:ro

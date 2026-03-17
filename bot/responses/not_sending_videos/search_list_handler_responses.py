@@ -6,7 +6,7 @@ from bot.utils.functions import format_segment
 
 
 def get_no_previous_search_results_message() -> str:
-    return BotResponse.warning("BRAK POPRZEDNICH WYNIKÓW", "Nie znaleziono wcześniejszych wyników wyszukiwania")
+    return BotResponse.warning("BRAK POPRZEDNICH WYNIKÓW", "Nie znaleziono wczesniejszych wynikow wyszukiwania")
 
 
 def get_log_no_previous_search_results_message(chat_id: int) -> str:
@@ -14,15 +14,13 @@ def get_log_no_previous_search_results_message(chat_id: int) -> str:
 
 
 def format_search_list_response(search_term: str, segments: List[SearchSegment]) -> str:
-    response = f"🔍 Wyniki dla wyszukiwania: '{search_term}' 🔍\n\n"
-    response += f"{'Nr':<4} {'Odcinek':<9} {'Czas':<9} {'Tytuł':<9}\n"
-    response += "-" * 50 + "\n"
+    lines = [f"{'Nr':<4} {'Odcinek':<9} {'Czas':<9} {'Tytul':<9}", "=" * 50]
 
     for i, segment in enumerate(segments, start=1):
         segment_info = format_segment(segment)
-        response += f"{i:<4} {segment_info.episode_formatted:<9} {segment_info.time_formatted:<9} {segment_info.episode_title:<9}\n"
+        lines.append(f"{i:<4} {segment_info.episode_formatted:<9} {segment_info.time_formatted:<9} {segment_info.episode_title:<9}")
 
-    return response
+    return BotResponse.info(f"WYNIKI: {search_term}", "\n".join(lines))
 
 
 def get_log_search_results_sent_message(search_term: str, username: str) -> str:

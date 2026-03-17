@@ -77,8 +77,12 @@ class ElasticSearchManager:
                 "episode_id": {"type": "keyword"},
                 "episode_metadata": {"type": "object"},
                 "embedding_id": {"type": "integer"},
+                "segment_id": {"type": "integer"},
                 "segment_range": {"type": "integer"},
                 "text": {"type": "text"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "video_path": {"type": "keyword"},
                 "text_embedding": {
                     "type": "dense_vector",
                     "dims": 4096,

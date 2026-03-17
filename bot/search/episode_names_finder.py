@@ -6,10 +6,7 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import (
-    ElasticSearchManager,
-    extract_sources,
-)
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -17,9 +14,6 @@ from bot.utils.constants import (
     EpisodeMetadataKeys,
 )
 from bot.utils.log import log_system_message
-
-_SEASON_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
-_EPISODE_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
 
 
 def _build_index(series_name: str) -> str:
@@ -50,14 +44,15 @@ class EpisodeNamesFinder:
             },
             ElasticsearchQueryKeys.SORT: [
                 {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: size,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        episodes = extract_sources(response)
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        episodes = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(episodes)} episodes matching '{title_query}'.", logger,
         )
@@ -77,8 +72,8 @@ class EpisodeNamesFinder:
         query = {
             ElasticsearchQueryKeys.QUERY: {ElasticsearchQueryKeys.BOOL: {}},
             ElasticsearchQueryKeys.SORT: [
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: 9999,
         }
@@ -86,12 +81,13 @@ class EpisodeNamesFinder:
         if exclude_season_0:
             query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL] = {
                 ElasticsearchQueryKeys.MUST_NOT: [
-                    {ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: 0}},
+                    {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}},
                 ],
             }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        episodes = extract_sources(response)
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        episodes = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(logging.INFO, f"Found {len(episodes)} episodes.", logger)
         return episodes
 
@@ -114,5 +110,5 @@ class EpisodeNamesFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        sources = extract_sources(response)
-        return sources[0] if sources else None
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        return hits[0][ElasticsearchKeys.SOURCE] if hits else None

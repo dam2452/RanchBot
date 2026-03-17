@@ -5,8 +5,9 @@ from typing import (
     List,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.utils.constants import (
+    ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
     EpisodeMetadataKeys,
@@ -31,12 +32,12 @@ class SceneFinder:
                     ElasticsearchQueryKeys.MUST: [
                         {
                             ElasticsearchQueryKeys.TERM: {
-                                f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": season,
+                                EpisodeMetadataKeys.SEASON_FIELD: season,
                             },
                         },
                         {
                             ElasticsearchQueryKeys.TERM: {
-                                f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_number,
+                                EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_number,
                             },
                         },
                         {
@@ -95,7 +96,7 @@ class SceneFinder:
     ) -> List[float]:
         try:
             es = await ElasticSearchManager.connect_to_elasticsearch(logger)
-            index = f"{series_name}_text_segments"
+            index = f"{series_name}{ElasticsearchIndexSuffixes.TEXT_SEGMENTS}"
             query = SceneFinder.__build_scene_cuts_query(season, episode_number)
             response = await es.search(index=index, body=query)
             buckets = response[ElasticsearchKeys.AGGREGATIONS][SceneFinder.__UNIQUE_SCENES_AGG][ElasticsearchKeys.BUCKETS]

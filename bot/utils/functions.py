@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+import difflib
 import json
 import logging
 from typing import (
     Dict,
     List,
+    Optional,
     TypedDict,
 )
 import unicodedata
@@ -174,3 +176,30 @@ def remove_diacritics_and_lowercase(text):
     normalized_text = unicodedata.normalize('NFKD', text)
     cleaned_text = ''.join([char for char in normalized_text if not unicodedata.combining(char)])
     return cleaned_text.lower()
+
+
+def find_matching_series(query: str, available_series: List[str]) -> Optional[str]:
+    normalized_query = query.lower().replace("_", " ").strip()
+    normalized_series = {s: s.lower().replace("_", " ") for s in available_series}
+
+    for original, normalized in normalized_series.items():
+        if normalized_query == normalized:
+            return original
+
+    matches = [orig for orig, norm in normalized_series.items() if normalized_query in norm]
+    if not matches:
+        query_words = normalized_query.split()
+        matches = [
+            orig for orig, norm in normalized_series.items()
+            if all(w in norm for w in query_words)
+        ]
+    if len(matches) == 1:
+        return matches[0]
+
+    close = difflib.get_close_matches(normalized_query, list(normalized_series.values()), n=1, cutoff=0.6)
+    if close:
+        for original, normalized in normalized_series.items():
+            if normalized == close[0]:
+                return original
+
+    return None

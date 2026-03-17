@@ -53,6 +53,10 @@ def get_all_message() -> str:
 📺 /serial - Zarządza aktywnym serialem (zmiana, lista dostępnych).
 ✂️ /wytnij <sezon_odcinek> <czas_start> <czas_koniec> - Wytnij fragment klipu. Przykład: /wytnij S07E06 36:47.50 36:49.00.
 📝 /transkrypcja <cytat> - Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: /transkrypcja geniusz.
+🧠 /sens <zapytanie> - Wyszukiwanie semantyczne po tekście. Przykład: /sens ucieczka od problemów.
+🧠 /sensklatki <zapytanie> - Wyszukiwanie semantyczne po klatkach. Przykład: /sensklatki biesiada.
+🧠 /sensodcinek <zapytanie> - Wyszukiwanie semantyczne po odcinkach. Przykład: /sensodcinek ślub.
+🎬 /klipsens <zapytanie> - Wyszukuje semantycznie i wysyła klip. Przykład: /klipsens ucieczka.
 
 ════════════════════
 ✂️ Edycja klipów ✂️
@@ -112,7 +116,13 @@ def get_search_message() -> str:
 📺 /serial - Zarządza aktywnym serialem (zmiana, lista dostępnych).\n
 ✂️ /wytnij <sezon_odcinek> <czas_start> <czas_koniec> - Wytnij fragment klipu. Przykład: /wytnij S07E06 36:47.50 36:49.00.\n
 📝 /transkrypcja <cytat> - Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: /transkrypcja geniusz.\n
+🧠 /sens <zapytanie> - Wyszukiwanie semantyczne po tekście. Przykład: /sens ucieczka od problemów.\n
+🧠 /sensklatki <zapytanie> - Wyszukiwanie semantyczne po klatkach. Przykład: /sensklatki biesiada.\n
+🧠 /sensodcinek <zapytanie> - Wyszukiwanie semantyczne po odcinkach. Przykład: /sensodcinek ślub.\n
+🎬 /klipsens <zapytanie> - Wyszukuje semantycznie i wysyła klip. Przykład: /klipsens ucieczka.\n
 👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen. Przyklad: /postacie Wilkowyska.\n
+🎭 /klippostac <postac> [emocja] - Klip z daną postacią. Przykład: /klippostac Wilkowyska.\n
+🎯 /klipobiekt <obiekt> - Klip z danym obiektem. Przykład: /klipobiekt dog.\n
 😊 /emocje - Wyswietla liste dostepnych emocji.\n
 🎯 /obiekt [obiekt] [filtr] - Sceny z danym obiektem, np. /obiekt dog >3.\n
 ```"""
@@ -187,6 +197,7 @@ def get_shortcuts_message() -> str:
 📺 /ser, /serial - Zarządza aktywnym serialem.\n
 ✂️ /d, /dostosuj - Dostosowuje wybrany klip (relatywnie).\n
 ✂️ /ad, /adostosuj - Dostosowuje wybrany klip (absolutnie).\n
+✂️ /sd, /sdostosuj - Dostosowuje klip do granic scen.\n
 🎯 /sp, /snap - Wyrównuje klip do cięć scen.\n
 🎞️ /kom, /kompiluj - Tworzy kompilację klipów.\n
 🔗 /pk, /polaczklipy - Łączy zapisane klipy w jeden.\n
@@ -194,10 +205,16 @@ def get_shortcuts_message() -> str:
 📂 /mk, /mojeklipy - Wyświetla listę zapisanych klipów.\n
 💾 /z, /zapisz - Zapisuje wybrany klip.\n
 📤 /wys, /wyślij - Wysyła zapisany klip.\n
+🧠 /sen, /sens - Wyszukiwanie semantyczne (tekst).\n
+🧠 /sensk, /sensklatki - Wyszukiwanie semantyczne (klatki).\n
+🧠 /senso, /sensodcinek - Wyszukiwanie semantyczne (odcinek).\n
+🎬 /ks, /ksen, /klipsens - Wyszukuje semantycznie i wysyła klip.\n
 👤 /p, /postacie - Przegladanie postaci i scen.\n
+🎭 /kp, /klippostac - Klip z daną postacią.\n
+🎯 /ko, /klipobiekt - Klip z danym obiektem.\n
 😊 /e, /emocje - Lista dostepnych emocji.\n
 🎯 /obj, /obiekt - Przegladanie scen z obiektami.\n
-🎯 /objl, /obj_lista - Pelna lista obiektow lub scen.\n
+🎯 /objl, /objlista - Pelna lista obiektow lub scen.\n
 🐛 /r, /report - Raportuje błąd do administratora.\n
 🔔 /sub, /subskrypcja - Sprawdza stan Twojej subskrypcji.\n
 ```"""

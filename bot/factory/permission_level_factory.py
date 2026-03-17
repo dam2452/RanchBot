@@ -6,6 +6,7 @@ import logging
 from typing import (
     Awaitable,
     Callable,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -37,6 +38,7 @@ class PermissionLevelFactory(ABC):
         self._bot = bot
 
     def create_and_register(self, dp: Dispatcher) -> None:
+        self.__assert_no_command_collisions()
         handler_funcs, middlewares = self.__get_telegram_routes_and_middlewares()
 
         for command, handler_fn in handler_funcs:
@@ -48,6 +50,18 @@ class PermissionLevelFactory(ABC):
             dp.message.middleware.register(AiogramMiddlewareAdapter(middleware))
 
         self._logger.info(f"{self.__class__.__name__} middlewares registered")
+
+    def __assert_no_command_collisions(self) -> None:
+        seen: Dict[str, Type[BotMessageHandler]] = {}
+        for handler_cls in self._create_handler_classes():
+            dummy = handler_cls(message=None, responder=None, logger=self._logger)
+            for command in dummy.get_commands():
+                if command in seen:
+                    raise ValueError(
+                        f"Command collision: '/{command}' registered by both "
+                        f"{seen[command].__name__} and {handler_cls.__name__}",
+                    )
+                seen[command] = handler_cls
 
     def __get_telegram_routes_and_middlewares(self) -> Tuple[
         List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]],

@@ -6,10 +6,8 @@ from typing import (
     Optional,
 )
 
-from bot.search.elastic_search_manager import (
-    ElasticSearchManager,
-    extract_sources,
-)
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.settings import settings
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -19,9 +17,6 @@ from bot.utils.constants import (
     SoundEventKeys,
 )
 from bot.utils.log import log_system_message
-
-_SEASON_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
-_EPISODE_FIELD = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
 
 
 def _build_index(series_name: str) -> str:
@@ -75,24 +70,25 @@ class SoundEventsFinder:
             {ElasticsearchQueryKeys.TERM: {SoundEventKeys.SOUND_TYPE: sound_type}},
         ]
         if season_filter is not None:
-            filter_clauses.append({ElasticsearchQueryKeys.TERM: {_SEASON_FIELD: season_filter}})
+            filter_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season_filter}})
         if episode_filter is not None:
-            filter_clauses.append({ElasticsearchQueryKeys.TERM: {_EPISODE_FIELD: episode_filter}})
+            filter_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_filter}})
 
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.FILTER: filter_clauses},
             },
             ElasticsearchQueryKeys.SORT: [
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
-            ElasticsearchQueryKeys.SIZE: 999,
+            ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        segments = extract_sources(response)
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        segments = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(segments)} '{sound_type}' segments.", logger,
         )
@@ -103,7 +99,7 @@ class SoundEventsFinder:
         text_query: str,
         series_name: str,
         logger: logging.Logger,
-        size: int = 999,
+        size: int = settings.MAX_ES_RESULTS_LONG,
     ) -> List[Dict[str, Any]]:
         await log_system_message(
             logging.INFO, f"Searching sound events for '{text_query}' in '{series_name}'.", logger,
@@ -121,15 +117,16 @@ class SoundEventsFinder:
             },
             ElasticsearchQueryKeys.SORT: [
                 {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {_SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {_EPISODE_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: size,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        segments = extract_sources(response)
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        segments = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(segments)} sound segments matching '{text_query}'.", logger,
         )

@@ -18,7 +18,7 @@ from elasticsearch.helpers import (
     async_bulk,
 )
 
-from bot.search.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.services.reindex.series_scanner import SeriesScanner
 from bot.services.reindex.video_path_transformer import VideoPathTransformer
 from bot.services.reindex.zip_extractor import ZipExtractor

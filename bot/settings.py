@@ -51,8 +51,11 @@ class Settings(BaseSettings):
     LIMIT_DURATION: int = Field(30)
     MAX_CLIPS_PER_COMPILATION: int = Field(30)
     MAX_ADJUSTMENT_DURATION: int = Field(20)
+    MAX_ES_RESULTS_LONG: int = Field(333)
+    MAX_ES_RESULTS_QUICK: int = Field(10)
     MAX_SEARCH_QUERY_LENGTH: int = Field(200)
     MAX_CLIP_DURATION: int = Field(60)
+    MAX_CLIP_DURATION_HARD_LIMIT: int = Field(120)
     MAX_CLIP_NAME_LENGTH: int = Field(40)
     MAX_REPORT_LENGTH: int = Field(1000)
     MAX_CLIPS_PER_USER: int = Field(100)
@@ -74,6 +77,13 @@ class Settings(BaseSettings):
     REST_API_PORT: int = Field(8000)
     REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
     DISABLE_RATE_LIMITING: bool = Field(False)
+
+    VLLM_HOST: str = Field("http://localhost:11435")
+    VLLM_EMBEDDINGS_MODEL: str = Field("qwen3vl-embed")
+    VLLM_TIMEOUT_SECONDS: int = Field(30)
+    ES_TEXT_EMBEDDINGS_INDEX_SUFFIX: str = Field("text_embeddings")
+    ES_VIDEO_EMBEDDINGS_INDEX_SUFFIX: str = Field("video_frames")
+    ES_FULL_EPISODE_EMBEDDINGS_INDEX_SUFFIX: str = Field("full_episode_embeddings")
 
     @model_validator(mode='after')
     def check_conditional_settings(self) -> 'Settings':
