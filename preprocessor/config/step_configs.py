@@ -83,6 +83,7 @@ class TranscriptionConfig(BaseModel):
     beam_size: int = Field(default=10, ge=1)
     device: str = 'cuda'
     language: str = 'pl'
+    max_chunk_duration_seconds: int = Field(default=1800, ge=60)
     max_parallel_episodes: int = Field(default=2, ge=1, le=4)
     mode: str = 'whisper'
     model: str = 'large-v3-turbo'

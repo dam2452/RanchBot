@@ -93,6 +93,7 @@ class TranscriptionStep(
             device=self.config.device,
             beam_size=self.config.beam_size,
             temperature=self.config.temperature,
+            max_chunk_duration_seconds=self.config.max_chunk_duration_seconds,
         )
 
     def __transcribe_and_save(

@@ -39,6 +39,7 @@ class DefaultConfigFactory:
                 device='cuda',
                 beam_size=5,
                 temperature=0.0,
+                max_parallel_episodes=1,
             ),
             'separate_sounds': SoundSeparationConfig(),
             'analyze_text': TextAnalysisConfig(language='pl'),

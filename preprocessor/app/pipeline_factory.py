@@ -266,6 +266,7 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
                 model=series_config.processing.transcription.model,
                 language=series_config.processing.transcription.language,
                 device=series_config.processing.transcription.device,
+                max_parallel_episodes=1,
             ),
         )
 
