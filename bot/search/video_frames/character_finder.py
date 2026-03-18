@@ -326,6 +326,14 @@ class CharacterFinder:
         return labels
 
     @staticmethod
+    def __query_candidates(query: str) -> List[str]:
+        words = query.lower().split()
+        candidates = [" ".join(words)]
+        if len(words) >= 2:
+            candidates.append(" ".join(reversed(words)))
+        return candidates
+
+    @staticmethod
     async def find_best_matching_name(
         query: str,
         series_name: str,
@@ -334,7 +342,10 @@ class CharacterFinder:
         characters = await CharacterFinder.get_all_characters(series_name, logger)
         names = [c["name"] for c in characters]
         name_map = {n.lower(): n for n in names}
-        if query.lower() in name_map:
-            return name_map[query.lower()]
-        matches = difflib.get_close_matches(query.lower(), list(name_map.keys()), n=1, cutoff=0.6)
-        return name_map[matches[0]] if matches else None
+        for candidate in CharacterFinder.__query_candidates(query):
+            if candidate in name_map:
+                return name_map[candidate]
+            matches = difflib.get_close_matches(candidate, list(name_map.keys()), n=1, cutoff=0.6)
+            if matches:
+                return name_map[matches[0]]
+        return None

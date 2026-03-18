@@ -7,6 +7,8 @@
 - **`/start`**: 👋 Uruchamia główne menu.
 - **`/klip <cytat>`** / **`/k <cytat>`**: 🎥 Wyszukiwanie klipu.
 - **`/szukaj <cytat>`** / **`/sz <cytat>`**: 🔍 Znalezienie klipów.
+- **`/szukajpostac <postac> [emocja]`** / **`/szp`**: 👤 Wyszukiwanie scen z postacią.
+- **`/szukajobiekt <obiekt> [filtr]`** / **`/szo`**: 🎯 Wyszukiwanie scen z obiektem.
 - **`/sens <zapytanie>`** / **`/meaning`** / **`/sen`**: 🧠 Wyszukiwanie semantyczne - tryb tekst.
 - **`/sensklatki <zapytanie>`** / **`/sensk <zapytanie>`**: 🧠 Wyszukiwanie semantyczne - tryb klatki.
 - **`/sensodcinek <zapytanie>`** / **`/senso <zapytanie>`**: 🧠 Wyszukiwanie semantyczne - tryb odcinek.
@@ -95,7 +97,9 @@
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/p Wilkowyska radosny`.
 - **`/pl`** / **`/postacie_lista`**: 👤 Pełna lista postaci lub scen (jako dokument).
 - **`/klippostac <postac> [emocja]`** / **`/kp`**: 🎭 Wysyła klip z daną postacią (i opcjonalnie emocją). Przykład: `/kp Wilkowyska radosny`.
+- **`/szukajpostac <postac> [emocja]`** / **`/szp`**: 👤 Wyświetla listę scen z daną postacią bez wysyłania klipu — wyniki dostępne przez `/wybierz` i `/lista`. Przykład: `/szp Wilkowyska radosny`.
 - **`/klipobiekt <obiekt>`** / **`/ko`**: 🎯 Wysyła klip z danym obiektem. Przykład: `/klipobiekt dog`.
+- **`/szukajobiekt <obiekt> [filtr]`** / **`/szo`**: 🎯 Wyświetla listę scen z danym obiektem bez wysyłania klipu — wyniki dostępne przez `/wybierz` i `/lista`. Przykład: `/szo dog >3`.
 - **`/emocje`** / **`/e`**: 😊 Wyświetla listę dostępnych emocji (po polsku).
 - **`/obiekt`** / **`/obj`**: 🎯 Wyświetla listę wszystkich wykrytych obiektów (od najpopularniejszych).
 - **`/obiekt <nazwa>`** / **`/obj <nazwa>`**: 🎯 Lista scen z danym obiektem. Przykład: `/obiekt dog`.

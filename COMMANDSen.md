@@ -8,6 +8,8 @@
 - **`/start`**: 👋 Launches the main menu.
 - **`/clip <quote>`** / **`/k <quote>`**: 🎥 Clip search.
 - **`/search <quote>`** / **`/sz <quote>`**: 🔍 Find clips.
+- **`/searchcharacter <character> [emotion]`** / **`/szp`**: 👤 Search scenes by character.
+- **`/searchobject <object> [filter]`** / **`/szo`**: 🎯 Search scenes by object.
 - **`/sens <query>`** / **`/meaning <query>`** / **`/sen <query>`**: 🧠 Semantic search - text mode.
 - **`/sensklatki <query>`** / **`/sensk <query>`**: 🧠 Semantic search - frames mode.
 - **`/sensodcinek <query>`** / **`/senso <query>`**: 🧠 Semantic search - episode mode.
@@ -96,7 +98,9 @@
 - **`/characters <character_name> <emotion>`** / **`/p <character_name> <emotion>`**: 👤 Scenes with character and emotion. Example: `/p Wilkowyska happy`.
 - **`/pl`** / **`/postacie_lista`**: 👤 Full list of characters or scenes (as document).
 - **`/klippostac <character> [emotion]`** / **`/kp`**: 🎭 Sends a clip with the given character (and optional emotion). Example: `/kp Wilkowyska happy`.
+- **`/szukajpostac <character> [emotion]`** / **`/szp`**: 👤 Lists scenes with the given character without sending a clip — results available via `/select` and `/list`. Example: `/szp Wilkowyska happy`.
 - **`/klipobiekt <object>`** / **`/ko`**: 🎯 Sends a clip with the given detected object. Example: `/klipobiekt dog`.
+- **`/szukajobiekt <object> [filter]`** / **`/szo`**: 🎯 Lists scenes with the given object without sending a clip — results available via `/select` and `/list`. Example: `/szo dog >3`.
 - **`/emotion`** / **`/e`**: 😊 Displays a list of available emotions.
 - **`/object`** / **`/obj`**: 🎯 Displays a list of all detected objects (most frequent first).
 - **`/object <name>`** / **`/obj <name>`**: 🎯 List of scenes with the given object. Example: `/object dog`.

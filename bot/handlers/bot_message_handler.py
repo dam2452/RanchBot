@@ -211,6 +211,37 @@ class BotMessageHandler(ABC):
 
         return message
 
+    async def __extract_clip_with_size_guard(
+        self,
+        video_path: Path,
+        start_time: float,
+        end_time: float,
+        segment: Dict[str, Any],
+    ) -> tuple[Path, float, float]:
+        output = await ClipsExtractor.extract_clip(video_path, start_time, end_time, self._logger)
+        file_size_bytes = output.stat().st_size
+        limit_bytes = settings.FILE_SIZE_LIMIT_MB * 1024 * 1024
+
+        if file_size_bytes <= limit_bytes:
+            return output, start_time, end_time
+
+        duration = end_time - start_time
+        bitrate_bps = file_size_bytes * 8 / duration
+        max_duration = limit_bytes * 8 / bitrate_bps * 0.85
+
+        output.unlink()
+        await log_system_message(
+            logging.WARNING,
+            f"Clip too large ({file_size_bytes / (1024*1024):.1f}MB), shrinking from {duration:.1f}s to {max_duration:.1f}s",
+            self._logger,
+        )
+
+        center = (segment[SegmentKeys.START_TIME] + segment[SegmentKeys.END_TIME]) / 2
+        new_start = max(0.0, center - max_duration / 2)
+        new_end = new_start + max_duration
+        output = await ClipsExtractor.extract_clip(video_path, new_start, new_end, self._logger)
+        return output, new_start, new_end
+
     async def _send_top_segment_as_clip(
         self,
         top_segment: Dict[str, Any],
@@ -231,13 +262,13 @@ class BotMessageHandler(ABC):
         if await self._handle_clip_duration_limit_exceeded(clip_duration):
             return True
 
-        output_filename = await ClipsExtractor.extract_clip(
-            top_segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger,
+        output_filename, start_time, end_time = await self.__extract_clip_with_size_guard(
+            Path(top_segment[SegmentKeys.VIDEO_PATH]), start_time, end_time, top_segment,
         )
 
         await self._responder.send_video(
             output_filename,
-            duration=clip_duration,
+            duration=end_time - start_time,
             suggestions=["Uzyj /w N aby wybrac inny wynik"],
         )
 

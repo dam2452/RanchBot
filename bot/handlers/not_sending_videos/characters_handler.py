@@ -27,8 +27,10 @@ from bot.types import CharacterScene
 
 
 class CharactersHandler(CharacterBotHandler):
+    __SEARCH_COMMANDS: List[str] = ["szukajpostac", "szp"]
+
     def get_commands(self) -> List[str]:
-        return ["postacie", "characters", "p", "pl", "postacie_lista"]
+        return ["postacie", "characters", "p", "pl", "postacie_lista"] + CharactersHandler.__SEARCH_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -37,6 +39,9 @@ class CharactersHandler(CharacterBotHandler):
         return get_invalid_args_count_message()
 
     async def __check_argument_count(self) -> bool:
+        command = self._message.get_text().split()[0].lstrip("/").lower()
+        if command in CharactersHandler.__SEARCH_COMMANDS:
+            return await self._validate_argument_count(self._message, 1, math.inf)
         return await self._validate_argument_count(self._message, 0, math.inf)
 
     async def _do_handle(self) -> None:

@@ -38,9 +38,10 @@ _QUANTITY_FILTER_PATTERN = re.compile(r"^(>=|<=|>|<|=)?(\d+)$")
 class ObjectsHandler(BotMessageHandler):
     __SHORT_COMMANDS: List[str] = ["obiekt", "object", "obj"]
     __FULL_COMMANDS: List[str] = ["objl", "objlista"]
+    __SEARCH_COMMANDS: List[str] = ["szukajobiekt", "szo"]
 
     def get_commands(self) -> List[str]:
-        return ObjectsHandler.__SHORT_COMMANDS + ObjectsHandler.__FULL_COMMANDS
+        return ObjectsHandler.__SHORT_COMMANDS + ObjectsHandler.__FULL_COMMANDS + ObjectsHandler.__SEARCH_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -49,6 +50,9 @@ class ObjectsHandler(BotMessageHandler):
         return get_invalid_quantity_filter_message("")
 
     async def __check_argument_count(self) -> bool:
+        command = self._message.get_text().split()[0].lstrip("/").lower()
+        if command in ObjectsHandler.__SEARCH_COMMANDS:
+            return await self._validate_argument_count(self._message, 1, math.inf)
         return await self._validate_argument_count(self._message, 0, math.inf)
 
     async def _do_handle(self) -> None:

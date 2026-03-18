@@ -97,16 +97,58 @@ class ElasticSearchManager:
         "mappings": {
             "properties": {
                 "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
+                "episode_metadata": {
+                    "properties": {
+                        "season": {"type": "integer"},
+                        "episode_number": {"type": "integer"},
+                        "title": {"type": "text"},
+                        "premiere_date": {
+                            "type": "date",
+                            "format": "dd.MM.yyyy||d.MM.yyyy||d.M.yyyy||yyyy-MM-dd||strict_date_optional_time||epoch_millis",
+                        },
+                        "series_name": {"type": "keyword"},
+                    },
+                },
                 "frame_number": {"type": "integer"},
                 "timestamp": {"type": "float"},
                 "frame_type": {"type": "keyword"},
+                "scene_number": {"type": "integer"},
                 "video_path": {"type": "keyword"},
+                "perceptual_hash": {"type": "keyword"},
+                "perceptual_hash_int": {"type": "unsigned_long"},
                 "video_embedding": {
                     "type": "dense_vector",
                     "dims": 4096,
                     "index": True,
                     "similarity": "cosine",
+                },
+                "character_appearances": {
+                    "type": "nested",
+                    "properties": {
+                        "name": {"type": "keyword"},
+                        "confidence": {"type": "float"},
+                        "emotion": {
+                            "properties": {
+                                "label": {"type": "keyword"},
+                                "confidence": {"type": "float"},
+                            },
+                        },
+                    },
+                },
+                "detected_objects": {
+                    "type": "nested",
+                    "properties": {
+                        "class": {"type": "keyword"},
+                        "count": {"type": "integer"},
+                    },
+                },
+                "scene_info": {
+                    "properties": {
+                        "scene_start_time": {"type": "float"},
+                        "scene_end_time": {"type": "float"},
+                        "scene_start_frame": {"type": "integer"},
+                        "scene_end_frame": {"type": "integer"},
+                    },
                 },
             },
         },
