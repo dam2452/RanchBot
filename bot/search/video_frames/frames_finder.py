@@ -105,7 +105,7 @@ class VideoFramesFinder:
         object_class: str,
         series_name: str,
         logger: logging.Logger,
-        season_filter: Optional[int] = None,
+        seasons: Optional[List[int]] = None,
         episode_filter: Optional[int] = None,
     ) -> List[VideoFrameSource]:
         await log_system_message(
@@ -123,8 +123,8 @@ class VideoFramesFinder:
                 },
             },
         ]
-        if season_filter is not None:
-            must_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season_filter}})
+        if seasons:
+            must_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         if episode_filter is not None:
             must_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_filter}})
 

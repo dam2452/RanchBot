@@ -195,6 +195,7 @@ class CharacterFinder:
         series_name: str,
         logger: logging.Logger,
         size: int = settings.MAX_ES_RESULTS_LONG,
+        seasons: Optional[List[int]] = None,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -203,10 +204,13 @@ class CharacterFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
+        filter_clauses: List[Dict[str, Any]] = [CharacterFinder.__nested_char_filter(character_name)]
+        if seasons:
+            filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.FILTER: [CharacterFinder.__nested_char_filter(character_name)],
+                    ElasticsearchQueryKeys.FILTER: filter_clauses,
                     ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },
@@ -230,6 +234,7 @@ class CharacterFinder:
         series_name: str,
         logger: logging.Logger,
         size: int = settings.MAX_ES_RESULTS_LONG,
+        seasons: Optional[List[int]] = None,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -256,10 +261,13 @@ class CharacterFinder:
             },
         }
 
+        filter_clauses: List[Dict[str, Any]] = [char_and_emotion_nested]
+        if seasons:
+            filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.FILTER: [char_and_emotion_nested],
+                    ElasticsearchQueryKeys.FILTER: filter_clauses,
                     ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },

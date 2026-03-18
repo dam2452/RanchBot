@@ -100,9 +100,11 @@ class ElasticsearchQueryKeys:
     REVERSE_NESTED: Final[str] = "reverse_nested"
     VALUE: Final[str] = "value"
     CASE_INSENSITIVE: Final[str] = "case_insensitive"
+    MINIMUM_SHOULD_MATCH: Final[str] = "minimum_should_match"
     MODE: Final[str] = "mode"
     PATH: Final[str] = "path"
     MAX: Final[str] = "max"
+    SHOULD: Final[str] = "should"
 
 
 class DatabaseKeys:

@@ -28,6 +28,9 @@
 - **`/mojeklipy`** / **`/mk`**: 📂 Twoje klipy.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyłanie klipu.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usunięcie klipu.
+- **`/filtr <filtry>`** / **`/filter`** / **`/f`**: 🔎 Ustawianie filtrów wyszukiwania.
+- **`/filtr reset`**: 🔄 Resetowanie filtrów.
+- **`/filtr info`**: ℹ️ Wyświetlanie aktywnych filtrów.
 - **`/postacie`** / **`/characters`** / **`/p`**: 👤 Przeglądanie postaci i scen.
 - **`/klippostac <postac> [emocja]`** / **`/kp`**: 🎭 Klip z postacią (i opcjonalnie emocją).
 - **`/klipobiekt <obiekt>`** / **`/ko`**: 🎯 Klip z danym obiektem.
@@ -78,6 +81,15 @@
 - **`/mojeklipy`** / **`/mk`**: 📂 Wyświetla listę zapisanych klipów.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyła zapisany klip o podanej nazwie. Przykład: `/wyslij moj_klip`.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usuwa zapisany klip o podanej nazwie. Przykład: `/uk moj_klip`.
+- **`/filtr <filtry>`** / **`/filter <filtry>`** / **`/f <filtry>`**: 🔎 Ustawia filtry wyszukiwania (działają na wszystkie komendy wyszukiwania). Przykład: `/filtr sezon:2 postac:Pawlak`.
+- **`/filtr reset`**: 🔄 Usuwa wszystkie aktywne filtry.
+- **`/filtr info`**: ℹ️ Wyświetla aktywne filtry. Filtry wygasają po 1h nieaktywności.
+  - `sezon:X` – filtr po sezonie (np. `sezon:2`, `sezon:1-3`, `sezon:1,3,5`)
+  - `odcinek:X` – filtr po odcinku (np. `odcinek:S01E05`, `odcinek:S01E03-S01E07`)
+  - `tytul:X` – filtr po tytule odcinka (fuzzy match)
+  - `postac:X` – postać widoczna na scenie (np. `postac:Pawlak`, `postac:Pawlak,Kusy`)
+  - `emocja:X` – emocja postaci na scenie (np. `emocja:radosny`)
+  - `obiekt:X` – obiekt na scenie z opcjonalnym filtrem ilości (np. `obiekt:krzeslo`, `obiekt:krzeslo>3`)
 - **`/postacie`** / **`/p`**: 👤 Wyświetla listę wszystkich postaci z liczbą odcinków.
 - **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/p Wilkowyska radosny`.

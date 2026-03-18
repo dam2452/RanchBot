@@ -7,6 +7,7 @@ import json
 import logging
 from pathlib import Path
 from typing import (
+    Any,
     Dict,
     List,
     Optional,
@@ -1066,3 +1067,54 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 """,
                 user_id, series_id,
             )
+
+    @staticmethod
+    async def get_user_filters(chat_id: int) -> Optional[Dict[str, Any]]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            row = await conn.fetchrow(
+                "SELECT filters, last_used_at FROM user_search_filters WHERE chat_id = $1",
+                chat_id,
+            )
+            if row is None:
+                return None
+            return {"filters": dict(row["filters"]), "last_used_at": row["last_used_at"]}
+
+    @staticmethod
+    async def get_and_touch_user_filters(chat_id: int) -> Optional[Dict[str, Any]]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE user_search_filters
+                SET last_used_at = CURRENT_TIMESTAMP
+                WHERE chat_id = $1 AND last_used_at >= NOW() - INTERVAL '1 hour'
+                RETURNING filters
+                """,
+                chat_id,
+            )
+            if row is None:
+                return None
+            return dict(row["filters"])
+
+    @staticmethod
+    async def upsert_user_filters(chat_id: int, filters_json: str) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    INSERT INTO user_search_filters (chat_id, filters, last_used_at)
+                    VALUES ($1, $2::jsonb, CURRENT_TIMESTAMP)
+                    ON CONFLICT (chat_id) DO UPDATE
+                    SET filters = user_search_filters.filters || $2::jsonb,
+                        last_used_at = CURRENT_TIMESTAMP
+                    """,
+                    chat_id, filters_json,
+                )
+
+    @staticmethod
+    async def reset_user_filters(chat_id: int) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "DELETE FROM user_search_filters WHERE chat_id = $1",
+                    chat_id,
+                )

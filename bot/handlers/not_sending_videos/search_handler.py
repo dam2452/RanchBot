@@ -13,12 +13,15 @@ from bot.responses.bot_message_handler_responses import (
     get_message_too_long_message,
     get_no_segments_found_message,
 )
+from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.not_sending_videos.search_handler_responses import (
     format_search_response,
     get_log_search_results_sent_message,
     get_no_quote_provided_message,
 )
+from bot.search.filter_applicator import FilterApplicator
 from bot.search.text_segments_finder import TextSegmentsFinder
+from bot.services.search_filter import SearchFilterService
 from bot.settings import settings
 
 
@@ -54,8 +57,21 @@ class SearchHandler(BotMessageHandler):
 
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
+        chat_id = self._message.get_chat_id()
 
-        segments = await TextSegmentsFinder.find_segment_by_quote(quote, self._logger, active_series, size=settings.MAX_ES_RESULTS_LONG)
+        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(chat_id)
+        if expired:
+            await self._reply(get_filter_expired_message())
+
+        segments = await TextSegmentsFinder.find_segment_by_quote(
+            quote, self._logger, active_series,
+            size=settings.MAX_ES_RESULTS_LONG,
+            search_filter=search_filter,
+        )
+        if search_filter:
+            segments = await FilterApplicator.apply_to_text_segments(
+                segments or [], search_filter, active_series, self._logger,
+            )
         if not segments:
             await self.__reply_no_segments_found(quote)
             return

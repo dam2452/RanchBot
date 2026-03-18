@@ -261,6 +261,7 @@ class ObjectFinder:
         class_name: str,
         series_name: str,
         logger: logging.Logger,
+        seasons: Optional[List[int]] = None,
     ) -> List[ObjectScene]:
         await log_system_message(
             logging.INFO, f"Fetching scenes for object '{class_name}' in series '{series_name}'.", logger,
@@ -269,6 +270,7 @@ class ObjectFinder:
             object_class=class_name,
             series_name=series_name,
             logger=logger,
+            seasons=seasons,
         )
         scenes = ObjectFinder.__group_frames_into_scenes(frames, class_name)
         scenes = ObjectFinder.__deduplicate_by_fragment(scenes)

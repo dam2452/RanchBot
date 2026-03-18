@@ -14,6 +14,7 @@ from bot.responses.bot_message_handler_responses import (
     get_log_no_segments_found_message,
     get_no_segments_found_message,
 )
+from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.not_sending_videos.semantic_search_handler_responses import (
     format_semantic_episodes_response,
     format_semantic_frames_response,
@@ -22,7 +23,10 @@ from bot.responses.not_sending_videos.semantic_search_handler_responses import (
     get_log_semantic_search_results_sent_message,
     get_no_query_provided_message,
 )
+from bot.search.filter_applicator import FilterApplicator
 from bot.search.semantic_segments_finder import SemanticSearchMode
+from bot.services.search_filter import SearchFilterService
+from bot.utils.constants import EpisodeMetadataKeys
 
 
 class SemanticSearchHandler(SemanticBotHandler):
@@ -59,6 +63,27 @@ class SemanticSearchHandler(SemanticBotHandler):
         if results is None:
             await self.__reply_embeddings_not_indexed(active_series, mode, query)
             return
+
+        if not results:
+            await self.__reply_no_segments_found(query)
+            return
+
+        chat_id = self._message.get_chat_id()
+        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(chat_id)
+        if expired:
+            await self._reply(get_filter_expired_message())
+
+        if search_filter and mode != SemanticSearchMode.EPISODE:
+            results = await FilterApplicator.apply_to_text_segments(
+                results, search_filter, active_series, self._logger,
+            )
+        elif search_filter:
+            seasons = FilterApplicator.get_seasons_list(search_filter)
+            if seasons:
+                results = [
+                    r for r in results
+                    if r.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON) in seasons
+                ]
 
         if not results:
             await self.__reply_no_segments_found(query)

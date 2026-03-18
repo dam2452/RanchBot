@@ -3,6 +3,7 @@ from typing import (
     Dict,
     List,
     NotRequired,
+    Optional,
     TypedDict,
     Union,
 )
@@ -234,6 +235,26 @@ class ObjectScene(TypedDict):
 class QuantityFilter(TypedDict):
     operator: str
     value: int
+
+
+class EpisodeSpec(TypedDict):
+    season: Optional[int]
+    episode: int
+
+
+class ObjectFilterSpec(TypedDict):
+    name: str
+    operator: Optional[str]
+    value: Optional[int]
+
+
+class SearchFilter(TypedDict, total=False):
+    seasons: List[int]
+    episodes: List[EpisodeSpec]
+    episode_title: str
+    character_groups: List[List[str]]
+    emotions: List[str]
+    object_groups: List[List["ObjectFilterSpec"]]
 
 
 DetectedObjectSource = TypedDict(
