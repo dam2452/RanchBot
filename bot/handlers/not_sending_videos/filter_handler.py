@@ -9,7 +9,6 @@ from bot.responses.not_sending_videos.filter_handler_responses import (
     get_filter_info_message,
     get_filter_parse_errors_message,
     get_filter_reset_message,
-    get_filter_resolution_notes_message,
     get_filter_set_message,
     get_log_filter_reset_message,
     get_log_filter_set_message,
@@ -68,9 +67,7 @@ class FilterHandler(BotMessageHandler):
             await self._reply(get_no_args_message())
             return
         resolved_filter, notes = await FilterValidator.resolve(search_filter, series_name, self._logger)
-        if notes:
-            await self._reply(get_filter_resolution_notes_message(notes))
         await SearchFilterService.update_filters(chat_id, resolved_filter)
         active = await SearchFilterService.get_filters_for_display(chat_id)
-        await self._reply(get_filter_set_message(active or resolved_filter))
+        await self._reply(get_filter_set_message(active or resolved_filter, notes))
         await self._log_system_message(logging.INFO, get_log_filter_set_message(chat_id))

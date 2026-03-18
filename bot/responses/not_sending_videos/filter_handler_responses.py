@@ -7,11 +7,6 @@ from bot.responses.bot_response import BotResponse
 from bot.types import SearchFilter
 
 
-def get_filter_resolution_notes_message(notes: List[str]) -> str:
-    body = "\n".join(f"• {n}" for n in notes)
-    return BotResponse.info("DOPASOWANIA FILTRÓW", body)
-
-
 def get_no_args_message() -> str:
     return BotResponse.usage(
         command="filtr",
@@ -31,8 +26,12 @@ def get_no_args_message() -> str:
     )
 
 
-def get_filter_set_message(search_filter: SearchFilter) -> str:
-    return BotResponse.success("FILTRY USTAWIONE", _format_filter(search_filter))
+def get_filter_set_message(search_filter: SearchFilter, notes: Optional[List[str]] = None) -> str:
+    body = _format_filter(search_filter)
+    if notes:
+        notes_str = "\n".join(f"• {n}" for n in notes)
+        body = f"{notes_str}\n\n{body}"
+    return BotResponse.success("FILTRY USTAWIONE", body)
 
 
 def get_filter_reset_message() -> str:

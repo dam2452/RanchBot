@@ -55,6 +55,7 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
         "last_clips",
         "subscription_keys",
         "user_command_limits",
+        "user_search_filters",
     ]
     await DatabaseManager.clear_test_db(tables=tables_to_clear, schema="ranczo")
     logger.info("The specified test database tables have been cleared.")
