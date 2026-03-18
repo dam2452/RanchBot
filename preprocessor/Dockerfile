@@ -64,10 +64,7 @@ RUN mkdir -p \
     /models/whisper \
     /models/insightface \
     /models/ultralytics \
-    /models/emotion_model \
-    /app/output_data/characters \
-    /app/output_data/scraped_pages \
-    /app/output_data/processing_metadata
+    /models/emotion_model
 
 COPY bot /app/bot
 COPY preprocessor /app/preprocessor
