@@ -227,7 +227,7 @@ class BotMessageHandler(ABC):
 
         duration = end_time - start_time
         bitrate_bps = file_size_bytes * 8 / duration
-        max_duration = limit_bytes * 8 / bitrate_bps * 0.85
+        max_duration = min(limit_bytes * 8 / bitrate_bps * 0.85, 30.0)
 
         output.unlink()
         await log_system_message(
