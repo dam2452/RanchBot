@@ -1,2 +1,3 @@
 from bot.services.search_filter.filter_parser import FilterParser
+from bot.services.search_filter.filter_validator import FilterValidator
 from bot.services.search_filter.search_filter_service import SearchFilterService

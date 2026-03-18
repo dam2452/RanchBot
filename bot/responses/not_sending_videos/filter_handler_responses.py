@@ -7,6 +7,11 @@ from bot.responses.bot_response import BotResponse
 from bot.types import SearchFilter
 
 
+def get_filter_resolution_notes_message(notes: List[str]) -> str:
+    body = "\n".join(f"• {n}" for n in notes)
+    return BotResponse.info("DOPASOWANIA FILTRÓW", body)
+
+
 def get_no_args_message() -> str:
     return BotResponse.usage(
         command="filtr",
