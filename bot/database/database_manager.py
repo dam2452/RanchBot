@@ -1077,7 +1077,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row is None:
                 return None
-            return {"filters": dict(row["filters"]), "last_used_at": row["last_used_at"]}
+            return {"filters": json.loads(row["filters"]), "last_used_at": row["last_used_at"]}
 
     @staticmethod
     async def get_and_touch_user_filters(chat_id: int) -> Optional[Dict[str, Any]]:
@@ -1093,7 +1093,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
             if row is None:
                 return None
-            return dict(row["filters"])
+            return json.loads(row["filters"])
 
     @staticmethod
     async def upsert_user_filters(chat_id: int, filters_json: str) -> None:

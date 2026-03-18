@@ -18,11 +18,11 @@ def get_no_args_message() -> str:
             ("sezon:X", "filtr po sezonie (np. sezon:1, sezon:1-3, sezon:1,3,5)"),
             ("odcinek:X", "filtr po odcinku (np. odcinek:S01E05, odcinek:S01E03-S01E07)"),
             ("tytul:X", "filtr po tytule odcinka (fuzzy match)"),
-            ("postac:X", "postać widoczna na scenie (np. postac:Pawlak, postac:Pawlak,Kusy)"),
+            ("postac:X", "postać widoczna na scenie (np. postac:Lucy, postac:Lucy,Kusy)"),
             ("emocja:X", "emocja postaci na scenie (np. emocja:radosny, emocja:smutny,neutralny)"),
             ("obiekt:X", "obiekt na scenie (np. obiekt:krzeslo, obiekt:krzeslo>3)"),
         ],
-        example="/filtr sezon:2 postac:Pawlak emocja:radosny",
+        example="/filtr sezon:2 postac:Kusy emocja:radosny",
     )
 
 
