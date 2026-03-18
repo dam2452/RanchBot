@@ -33,7 +33,7 @@ def map_emotion_to_en(label: str) -> Optional[str]:
     if lower in _EMOTIONS.inverse:
         return _EMOTIONS.inverse[lower]
     all_labels = list(_EMOTIONS.keys()) + list(_EMOTIONS.inverse.keys())
-    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.5)
+    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.75)
     if not matches:
         return None
     matched = matches[0]
