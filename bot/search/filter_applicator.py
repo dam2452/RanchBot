@@ -1,4 +1,5 @@
 import asyncio
+import bisect
 import logging
 import math
 from typing import (
@@ -9,6 +10,8 @@ from typing import (
     Set,
     Tuple,
 )
+
+from elasticsearch import RequestError
 
 from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
 from bot.search.infra.elastic_search_manager import ElasticSearchManager
@@ -55,7 +58,7 @@ class FilterApplicator:
             for seg in segments
         }
 
-        tasks = []
+        tasks = [FilterApplicator._get_all_frame_timestamps(episode_keys, series_name, logger)]
         for char_group in character_groups:
             tasks.append(FilterApplicator._get_character_frame_keys(char_group, episode_keys, series_name, logger))
         if emotions:
@@ -63,11 +66,12 @@ class FilterApplicator:
         for obj_group in object_groups:
             tasks.append(FilterApplicator._get_object_frame_keys(obj_group, episode_keys, series_name, logger))
 
-        frame_key_sets = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks)
+        all_timestamps, *frame_key_sets = results
 
         filtered = [
             seg for seg in segments
-            if FilterApplicator._segment_passes_all(seg, frame_key_sets)
+            if FilterApplicator._segment_passes_all(seg, frame_key_sets, all_timestamps)
         ]
         await log_system_message(
             logging.INFO,
@@ -80,21 +84,21 @@ class FilterApplicator:
     def _segment_passes_all(
         segment: SegmentWithScore,
         frame_key_sets: List[Set[Tuple[Optional[int], Optional[int], float]]],
+        all_timestamps: Dict[Tuple[Optional[int], Optional[int]], List[float]],
     ) -> bool:
         meta = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
         season = meta.get(EpisodeMetadataKeys.SEASON)
         episode = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
         start = segment.get(SegmentKeys.START_TIME, 0.0)
         end = segment.get(SegmentKeys.END_TIME, 0.0)
+        ep_timestamps = all_timestamps.get((season, episode), [])
 
         def __scene_overlaps(frame_keys: Set[Tuple[Optional[int], Optional[int], float]]) -> bool:
-            timestamps = sorted(
-                fk_ts
-                for fk_season, fk_episode, fk_ts in frame_keys
-                if fk_season == season and fk_episode == episode
-            )
-            for i, ts in enumerate(timestamps):
-                next_ts = timestamps[i + 1] if i + 1 < len(timestamps) else math.inf
+            for fk_season, fk_episode, ts in frame_keys:
+                if fk_season != season or fk_episode != episode:
+                    continue
+                idx = bisect.bisect_right(ep_timestamps, ts)
+                next_ts = ep_timestamps[idx] if idx < len(ep_timestamps) else math.inf
                 if ts <= end and next_ts >= start:
                     return True
             return False
@@ -266,6 +270,49 @@ class FilterApplicator:
                 frame_keys.add((season, episode, timestamp))
 
         return frame_keys
+
+    @staticmethod
+    async def _get_all_frame_timestamps(
+        episode_keys: Set[Tuple[Optional[int], Optional[int]]],
+        series_name: str,
+        logger: logging.Logger,
+    ) -> Dict[Tuple[Optional[int], Optional[int]], List[float]]:
+        es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+        season_list = list({k[0] for k in episode_keys if k[0] is not None})
+        filter_clauses = []
+        if season_list:
+            filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: season_list}})
+        query = {
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.FILTER: filter_clauses,
+                },
+            },
+            ElasticsearchQueryKeys.SOURCE: [
+                EpisodeMetadataKeys.SEASON_FIELD,
+                EpisodeMetadataKeys.EPISODE_NUMBER_FIELD,
+                VideoFrameKeys.TIMESTAMP,
+            ],
+            ElasticsearchQueryKeys.SIZE: 100000,
+        }
+        try:
+            resp = await es.search(index=_build_index(series_name), body=query)
+        except RequestError:
+            return {}
+        result = {}
+        for hit in resp[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]:
+            src = hit[ElasticsearchKeys.SOURCE]
+            meta = src.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            key = (meta.get(EpisodeMetadataKeys.SEASON), meta.get(EpisodeMetadataKeys.EPISODE_NUMBER))
+            result.setdefault(key, []).append(src.get(VideoFrameKeys.TIMESTAMP, 0.0))
+        for timestamps in result.values():
+            timestamps.sort()
+        await log_system_message(
+            logging.INFO,
+            f"FilterApplicator: loaded all-frame timestamps for {len(result)} episodes.",
+            logger,
+        )
+        return result
 
     @staticmethod
     def __frame_passes_object_group(
