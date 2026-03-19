@@ -1,5 +1,6 @@
 import difflib
 from typing import (
+    Dict,
     List,
     Optional,
 )
@@ -21,6 +22,16 @@ _EMOTIONS: bidict[str, str] = bidict({
     "contempt": "pogardliwy",
 })
 
+_EMOTION_ALIASES: Dict[str, str] = {
+    "happy": "happiness",
+    "sad": "sadness",
+    "angry": "anger",
+    "scared": "fear",
+    "surprised": "surprise",
+    "disgusted": "disgust",
+    "contemptful": "contempt",
+}
+
 
 def map_emotion_to_pl(label_en: str) -> str:
     return _EMOTIONS.get(label_en.lower(), label_en)
@@ -32,8 +43,10 @@ def map_emotion_to_en(label: str) -> Optional[str]:
         return lower
     if lower in _EMOTIONS.inverse:
         return _EMOTIONS.inverse[lower]
+    if lower in _EMOTION_ALIASES:
+        return _EMOTION_ALIASES[lower]
     all_labels = list(_EMOTIONS.keys()) + list(_EMOTIONS.inverse.keys())
-    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.6)
+    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.75)
     if not matches:
         return None
     matched = matches[0]
