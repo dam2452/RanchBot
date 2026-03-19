@@ -18,10 +18,6 @@ class CharacterBotHandler(BotMessageHandler):
     ) -> Tuple[Optional[str], str, str]:
         full_query = " ".join(args)
 
-        character = await CharacterFinder.find_best_matching_name(full_query, series_name, self._logger)
-        if character is not None:
-            return character, "", ""
-
         if len(args) >= 2:
             emotion_en = map_emotion_to_en(args[-1])
             if emotion_en:
@@ -29,6 +25,10 @@ class CharacterBotHandler(BotMessageHandler):
                 character = await CharacterFinder.find_best_matching_name(partial_query, series_name, self._logger)
                 if character is not None:
                     return character, args[-1], emotion_en
+
+        character = await CharacterFinder.find_best_matching_name(full_query, series_name, self._logger)
+        if character is not None:
+            return character, "", ""
 
         await self._reply_error(get_character_not_found_message(full_query))
         return None, "", ""
