@@ -23,6 +23,8 @@ from bot.services.search_filter import (
 
 
 class FilterHandler(BotMessageHandler):
+    __parser = FilterParser()
+
     def get_commands(self) -> List[str]:
         return ["filtr", "filter", "f"]
 
@@ -58,7 +60,7 @@ class FilterHandler(BotMessageHandler):
         await self._reply(get_filter_info_message(search_filter))
 
     async def __handle_set(self, chat_id: int, raw: str, series_name: str) -> None:
-        search_filter, errors = FilterParser().parse(raw)
+        search_filter, errors = self.__parser.parse(raw)
         if errors:
             await self._reply_error(get_filter_parse_errors_message(errors))
             return
