@@ -58,16 +58,23 @@ class FilterApplicator:
             for seg in segments
         }
 
-        tasks = [FilterApplicator._get_all_frame_timestamps(episode_keys, series_name, logger)]
+        char_tasks = []
         for char_group in character_groups:
-            tasks.append(FilterApplicator._get_character_frame_keys(char_group, episode_keys, series_name, logger))
+            char_tasks.append(FilterApplicator._get_character_frame_keys(char_group, episode_keys, series_name, logger))
         if emotions:
-            tasks.append(FilterApplicator._get_emotion_frame_keys(emotions, episode_keys, series_name, logger))
+            char_tasks.append(FilterApplicator._get_emotion_frame_keys(emotions, episode_keys, series_name, logger))
         for obj_group in object_groups:
-            tasks.append(FilterApplicator._get_object_frame_keys(obj_group, episode_keys, series_name, logger))
+            char_tasks.append(FilterApplicator._get_object_frame_keys(obj_group, episode_keys, series_name, logger))
 
-        results = await asyncio.gather(*tasks)
-        all_timestamps, *frame_key_sets = results
+        frame_key_sets = list(await asyncio.gather(*char_tasks))
+
+        hit_episode_keys = {
+            (fk_season, fk_episode)
+            for frame_keys in frame_key_sets
+            for fk_season, fk_episode, _ in frame_keys
+            if fk_season is not None and fk_episode is not None
+        }
+        all_timestamps = await FilterApplicator._get_all_frame_timestamps(hit_episode_keys, series_name, logger)
 
         filtered = [
             seg for seg in segments
