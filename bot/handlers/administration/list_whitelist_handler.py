@@ -3,10 +3,7 @@ from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.administration.list_whitelist_handler_responses import (
     create_whitelist_response,
     get_log_whitelist_empty_message,
@@ -18,9 +15,6 @@ from bot.responses.administration.list_whitelist_handler_responses import (
 class ListWhitelistHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["listwhitelist", "lw"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         users = await DatabaseManager.get_all_users()

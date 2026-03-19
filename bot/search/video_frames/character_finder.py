@@ -204,7 +204,7 @@ class CharacterFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        filter_clauses: List[Dict[str, Any]] = [CharacterFinder.__nested_char_filter(character_name)]
+        filter_clauses = [CharacterFinder.__nested_char_filter(character_name)]
         if seasons:
             filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         query = {
@@ -261,7 +261,7 @@ class CharacterFinder:
             },
         }
 
-        filter_clauses: List[Dict[str, Any]] = [char_and_emotion_nested]
+        filter_clauses = [char_and_emotion_nested]
         if seasons:
             filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         query = {

@@ -51,9 +51,8 @@ class ObjectsHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        if command in ObjectsHandler.__SEARCH_COMMANDS:
-            return await self._validate_argument_count(self._message, 1, math.inf)
-        return await self._validate_argument_count(self._message, 0, math.inf)
+        min_args = 1 if command in ObjectsHandler.__SEARCH_COMMANDS else 0
+        return await self._validate_argument_count(self._message, min_args, math.inf)
 
     async def _do_handle(self) -> None:
         text_parts = self._message.get_text().split()
@@ -63,14 +62,14 @@ class ObjectsHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
-        seasons = await SearchFilterService.get_seasons_from_active_filters(self._message.get_chat_id())
-
         if not args:
             await self.__handle_list_mode(series_name, is_full)
-        elif len(args) == 1:
-            await self.__handle_object_mode(args[0], series_name, is_full, seasons)
         else:
-            await self.__handle_object_filter_mode(args[0], args[1], series_name, is_full, seasons)
+            seasons = await SearchFilterService.get_seasons_from_active_filters(self._message.get_chat_id())
+            if len(args) == 1:
+                await self.__handle_object_mode(args[0], series_name, is_full, seasons)
+            else:
+                await self.__handle_object_filter_mode(args[0], args[1], series_name, is_full, seasons)
 
     async def __handle_list_mode(self, series_name: str, is_full: bool) -> None:
         objects = await ObjectFinder.get_all_objects(series_name=series_name, logger=self._logger)

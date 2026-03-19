@@ -121,9 +121,8 @@ class BotMessageHandler(ABC):
         pass
 
 
-    @abstractmethod
     async def _get_validator_functions(self) -> ValidatorFunctions:
-        pass
+        return []
 
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: Optional[float]) -> bool:
         if clip_duration is None:

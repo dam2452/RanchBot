@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import List
 
 from bot.handlers.bot_message_handler import (
@@ -26,19 +27,17 @@ class FilterHandler(BotMessageHandler):
         return ["filtr", "filter", "f"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
+        return [self.__check_argument_count]
 
     def _get_usage_message(self) -> str:
         return get_no_args_message()
 
+    async def __check_argument_count(self) -> bool:
+        return await self._validate_argument_count(self._message, 1, math.inf)
+
     async def _do_handle(self) -> None:
         args = self._message.get_text().split(maxsplit=1)
-        subcommand = args[1].strip() if len(args) > 1 else ""
-
-        if not subcommand:
-            await self._reply(get_no_args_message())
-            return
-
+        subcommand = args[1].strip()
         chat_id = self._message.get_chat_id()
 
         if subcommand.lower() == "reset":
@@ -59,7 +58,7 @@ class FilterHandler(BotMessageHandler):
         await self._reply(get_filter_info_message(search_filter))
 
     async def __handle_set(self, chat_id: int, raw: str, series_name: str) -> None:
-        search_filter, errors = FilterParser.parse(raw)
+        search_filter, errors = FilterParser().parse(raw)
         if errors:
             await self._reply_error(get_filter_parse_errors_message(errors))
             return

@@ -2,10 +2,7 @@ import logging
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.not_sending_videos.my_clips_handler_responses import (
     format_myclips_response,
     get_log_no_saved_clips_message,
@@ -18,9 +15,6 @@ from bot.search.text_segments_finder import TextSegmentsFinder
 class MyClipsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["mojeklipy", "myclips", "mk"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()

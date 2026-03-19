@@ -10,7 +10,6 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.bot_message_handler_responses import get_log_no_segments_found_message
-from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.sending_videos.clip_handler_responses import (
     get_clip_trimmed_message,
     get_log_clip_success_message,
@@ -60,9 +59,7 @@ class ClipHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(msg.get_chat_id())
-        if expired:
-            await self._reply(get_filter_expired_message())
+        search_filter = await SearchFilterService.get_active_filters(msg.get_chat_id())
 
         raw = await TextSegmentsFinder.find_segment_by_quote(
             quote, self._logger, active_series,

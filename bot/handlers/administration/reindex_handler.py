@@ -41,9 +41,7 @@ class ReindexHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         args = self._message.get_text().split()
-        if len(args) < 2:
-            return await self._validate_argument_count(self._message, 1)
-        if args[1] == "delete":
+        if len(args) > 1 and args[1] == "delete":
             return await self._validate_argument_count(self._message, 2)
         return await self._validate_argument_count(self._message, 1)
 

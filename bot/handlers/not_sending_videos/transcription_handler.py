@@ -14,7 +14,6 @@ from bot.responses.bot_message_handler_responses import (
     get_log_no_segments_found_message,
     get_no_segments_found_message,
 )
-from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.not_sending_videos.transcription_handler_responses import (
     get_log_transcription_response_sent_message,
     get_no_quote_provided_message,
@@ -49,9 +48,7 @@ class TranscriptionHandler(BotMessageHandler):
         quote = " ".join(args[1:])
 
         active_series = await self._get_user_active_series(self._message.get_user_id())
-        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(self._message.get_chat_id())
-        if expired:
-            await self._reply(get_filter_expired_message())
+        search_filter = await SearchFilterService.get_active_filters(self._message.get_chat_id())
 
         result = await TextSegmentsFinder.find_segment_with_context(
             quote, self._logger, active_series, context_size=15, search_filter=search_filter,

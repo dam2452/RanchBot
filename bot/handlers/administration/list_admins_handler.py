@@ -3,10 +3,7 @@ from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import UserProfile
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.administration.list_admins_handler_responses import (
     format_admins_list,
     get_log_admins_list_sent_message,
@@ -18,9 +15,6 @@ from bot.responses.administration.list_admins_handler_responses import (
 class ListAdminsHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["listadmins", "la"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         users = await DatabaseManager.get_admin_users()

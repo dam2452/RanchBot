@@ -49,12 +49,6 @@ def get_filter_parse_errors_message(errors: List[str]) -> str:
     return BotResponse.error("BŁĄD PARSOWANIA FILTRÓW", body)
 
 
-def get_filter_expired_message() -> str:
-    return BotResponse.warning(
-        "FILTRY WYGASŁY",
-        "Filtry zostały zresetowane po 1h nieaktywności. Wyszukiwanie bez filtrów.",
-    )
-
 
 def get_log_filter_set_message(chat_id: int) -> str:
     return f"Search filters updated for chat_id={chat_id}."

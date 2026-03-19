@@ -7,10 +7,7 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.administration.subscription_status_handler_responses import (
     format_subscription_status_response,
     get_log_no_active_subscription_message,
@@ -22,9 +19,6 @@ from bot.responses.administration.subscription_status_handler_responses import (
 class SubscriptionStatusHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["subskrypcja", "subscription", "sub"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         user_id = self._message.get_user_id()

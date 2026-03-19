@@ -3,10 +3,7 @@ from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import SubscriptionKey
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.administration.list_keys_handler_responses import (
     create_subscription_keys_response,
     get_log_subscription_keys_empty_message,
@@ -18,9 +15,6 @@ from bot.responses.administration.list_keys_handler_responses import (
 class ListKeysHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["listkey", "lk"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         keys = await DatabaseManager.get_all_subscription_keys()

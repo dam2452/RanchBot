@@ -14,7 +14,6 @@ from bot.responses.bot_message_handler_responses import (
     get_log_no_segments_found_message,
     get_no_segments_found_message,
 )
-from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.not_sending_videos.semantic_search_handler_responses import (
     format_semantic_episodes_response,
     format_semantic_frames_response,
@@ -69,9 +68,7 @@ class SemanticSearchHandler(SemanticBotHandler):
             return
 
         chat_id = self._message.get_chat_id()
-        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(chat_id)
-        if expired:
-            await self._reply(get_filter_expired_message())
+        search_filter = await SearchFilterService.get_active_filters(chat_id)
 
         if search_filter and mode != SemanticSearchMode.EPISODE:
             results = await FilterApplicator.apply_to_text_segments(

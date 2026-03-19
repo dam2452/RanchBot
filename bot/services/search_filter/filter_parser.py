@@ -12,13 +12,12 @@ from bot.types import (
     SearchFilter,
 )
 
-_SXXEXX_PATTERN = re.compile(r"^[Ss](\d+)[Ee](\d+)$")
-_QUANTITY_SUFFIX_PATTERN = re.compile(r"^(.+?)(>=|<=|>|<|=)(\d+)$")
-
 
 class FilterParser:
-    @staticmethod
-    def parse(raw: str) -> Tuple[Optional[SearchFilter], List[str]]:
+    __SXXEXX_PATTERN = re.compile(r"^[Ss](\d+)[Ee](\d+)$")
+    __QUANTITY_SUFFIX_PATTERN = re.compile(r"^(.+?)(>=|<=|>|<|=)(\d+)$")
+
+    def parse(self, raw: str) -> Tuple[Optional[SearchFilter], List[str]]:
         errors = []
         result = SearchFilter()
 
@@ -41,7 +40,7 @@ class FilterParser:
             if not value:
                 errors.append(f"Brak wartości dla klucza '{key}'")
                 continue
-            FilterParser.__process_token(key, value, result, character_groups, emotions, object_groups, errors)
+            self.__process_token(key, value, result, character_groups, emotions, object_groups, errors)
 
         if character_groups:
             result["character_groups"] = character_groups
@@ -52,8 +51,8 @@ class FilterParser:
 
         return result, errors
 
-    @staticmethod
     def __process_token(
+        self,
         key: str,
         value: str,
         result: SearchFilter,
@@ -63,14 +62,14 @@ class FilterParser:
         errors: List[str],
     ) -> None:
         if key in {"sezon", "s"}:
-            parsed = FilterParser._parse_seasons(value)
+            parsed = self._parse_seasons(value)
             if parsed is None:
                 errors.append(f"Nieprawidłowy format sezonu: '{value}'")
             else:
                 result["seasons"] = parsed
 
         elif key in {"odcinek", "ep"}:
-            parsed_eps = FilterParser._parse_episodes(value)
+            parsed_eps = self._parse_episodes(value)
             if parsed_eps is None:
                 errors.append(f"Nieprawidłowy format odcinka: '{value}'")
             else:
@@ -88,7 +87,7 @@ class FilterParser:
             emotions.extend(e.strip() for e in value.split(",") if e.strip())
 
         elif key in {"obiekt", "object", "obj", "o"}:
-            group = FilterParser._parse_object_group(value)
+            group = self._parse_object_group(value)
             if group is None:
                 errors.append(f"Nieprawidłowy format obiektu: '{value}'")
             else:
@@ -97,8 +96,7 @@ class FilterParser:
         else:
             errors.append(f"Nieznany filtr: '{key}'")
 
-    @staticmethod
-    def _parse_seasons(value: str) -> Optional[List[int]]:
+    def _parse_seasons(self, value: str) -> Optional[List[int]]:
         if "-" in value and "," not in value:
             parts = value.split("-", 1)
             if not parts[0].isdigit() or not parts[1].isdigit():
@@ -117,12 +115,11 @@ class FilterParser:
             seasons.append(int(part))
         return seasons if seasons else None
 
-    @staticmethod
-    def _parse_episodes(value: str) -> Optional[List[EpisodeSpec]]:
+    def _parse_episodes(self, value: str) -> Optional[List[EpisodeSpec]]:
         if "," in value:
             specs = []
             for item in value.split(","):
-                spec = FilterParser._parse_single_episode(item.strip())
+                spec = self._parse_single_episode(item.strip())
                 if spec is None:
                     return None
                 specs.append(spec)
@@ -130,8 +127,8 @@ class FilterParser:
 
         if "-" in value:
             parts = value.split("-", 1)
-            m0 = _SXXEXX_PATTERN.match(parts[0])
-            m1 = _SXXEXX_PATTERN.match(parts[1])
+            m0 = self.__SXXEXX_PATTERN.match(parts[0])
+            m1 = self.__SXXEXX_PATTERN.match(parts[1])
             if m0 and m1:
                 s0, e0 = int(m0.group(1)), int(m0.group(2))
                 s1, e1 = int(m1.group(1)), int(m1.group(2))
@@ -143,24 +140,22 @@ class FilterParser:
                 return [EpisodeSpec(season=None, episode=ep) for ep in range(e0, e1 + 1)]
             return None
 
-        spec = FilterParser._parse_single_episode(value)
+        spec = self._parse_single_episode(value)
         return [spec] if spec is not None else None
 
-    @staticmethod
-    def _parse_single_episode(value: str) -> Optional[EpisodeSpec]:
-        m = _SXXEXX_PATTERN.match(value)
+    def _parse_single_episode(self, value: str) -> Optional[EpisodeSpec]:
+        m = self.__SXXEXX_PATTERN.match(value)
         if m:
             return EpisodeSpec(season=int(m.group(1)), episode=int(m.group(2)))
         if value.isdigit():
             return EpisodeSpec(season=None, episode=int(value))
         return None
 
-    @staticmethod
-    def _parse_object_group(value: str) -> Optional[List[ObjectFilterSpec]]:
+    def _parse_object_group(self, value: str) -> Optional[List[ObjectFilterSpec]]:
         items = [v.strip() for v in value.split(",") if v.strip()]
         group = []
         for item in items:
-            m = _QUANTITY_SUFFIX_PATTERN.match(item)
+            m = self.__QUANTITY_SUFFIX_PATTERN.match(item)
             if m:
                 group.append(ObjectFilterSpec(name=m.group(1).strip(), operator=m.group(2), value=int(m.group(3))))
             else:

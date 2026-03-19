@@ -13,7 +13,6 @@ from bot.responses.bot_message_handler_responses import (
     get_message_too_long_message,
     get_no_segments_found_message,
 )
-from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.not_sending_videos.search_handler_responses import (
     format_search_response,
     get_log_search_results_sent_message,
@@ -59,9 +58,7 @@ class SearchHandler(BotMessageHandler):
         active_series = await self._get_user_active_series(user_id)
         chat_id = self._message.get_chat_id()
 
-        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(chat_id)
-        if expired:
-            await self._reply(get_filter_expired_message())
+        search_filter = await SearchFilterService.get_active_filters(chat_id)
 
         segments = await TextSegmentsFinder.find_segment_by_quote(
             quote, self._logger, active_series,

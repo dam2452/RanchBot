@@ -10,7 +10,6 @@ from typing import (
 
 from bot.database.database_manager import DatabaseManager
 from bot.handlers.semantic_bot_handler import SemanticBotHandler
-from bot.responses.not_sending_videos.filter_handler_responses import get_filter_expired_message
 from bot.responses.not_sending_videos.semantic_search_handler_responses import get_embeddings_not_indexed_message
 from bot.responses.sending_videos.semantic_clip_handler_responses import (
     get_log_semantic_clip_message,
@@ -46,9 +45,7 @@ class SemanticClipHandler(SemanticBotHandler):
             return
 
         chat_id = self._message.get_chat_id()
-        search_filter, expired = await SearchFilterService.get_active_filters_with_expiry(chat_id)
-        if expired:
-            await self._reply(get_filter_expired_message())
+        search_filter = await SearchFilterService.get_active_filters(chat_id)
 
         if search_filter:
             results = await FilterApplicator.apply_to_text_segments(

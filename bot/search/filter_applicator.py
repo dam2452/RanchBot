@@ -30,9 +30,6 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
-_EpisodeKey = Tuple[Optional[int], Optional[int]]
-_FrameKey = Tuple[Optional[int], Optional[int], float]
-
 
 class FilterApplicator:
     @staticmethod
@@ -49,7 +46,7 @@ class FilterApplicator:
         if not character_groups and not object_groups and not emotions:
             return segments
 
-        episode_keys: Set[_EpisodeKey] = {
+        episode_keys = {
             (
                 seg.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
                 seg.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
@@ -65,7 +62,7 @@ class FilterApplicator:
         for obj_group in object_groups:
             tasks.append(FilterApplicator._get_object_frame_keys(obj_group, episode_keys, series_name, logger))
 
-        frame_key_sets: List[Set[_FrameKey]] = await asyncio.gather(*tasks)
+        frame_key_sets = await asyncio.gather(*tasks)
 
         filtered = [
             seg for seg in segments
@@ -81,7 +78,7 @@ class FilterApplicator:
     @staticmethod
     def _segment_passes_all(
         segment: SegmentWithScore,
-        frame_key_sets: List[Set[_FrameKey]],
+        frame_key_sets: List[Set[Tuple[Optional[int], Optional[int], float]]],
     ) -> bool:
         meta = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
         season = meta.get(EpisodeMetadataKeys.SEASON)
@@ -100,10 +97,10 @@ class FilterApplicator:
     @staticmethod
     async def _get_character_frame_keys(
         char_names: List[str],
-        episode_keys: Set[_EpisodeKey],
+        episode_keys: Set[Tuple[Optional[int], Optional[int]]],
         series_name: str,
         logger: logging.Logger,
-    ) -> Set[_FrameKey]:
+    ) -> Set[Tuple[Optional[int], Optional[int], float]]:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         season_list = list({k[0] for k in episode_keys if k[0] is not None})
         should_clauses = [
@@ -122,7 +119,7 @@ class FilterApplicator:
             }
             for name in char_names
         ]
-        filter_clauses: List[Dict[str, Any]] = [
+        filter_clauses = [
             {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.SHOULD: should_clauses,
@@ -152,10 +149,10 @@ class FilterApplicator:
     @staticmethod
     async def _get_emotion_frame_keys(
         emotions: List[str],
-        episode_keys: Set[_EpisodeKey],
+        episode_keys: Set[Tuple[Optional[int], Optional[int]]],
         series_name: str,
         logger: logging.Logger,
-    ) -> Set[_FrameKey]:
+    ) -> Set[Tuple[Optional[int], Optional[int], float]]:
         emotion_labels_en = [en for e in emotions for en in (map_emotion_to_en(e),) if en]
         if not emotion_labels_en:
             return set()
@@ -175,7 +172,7 @@ class FilterApplicator:
             }
             for label in emotion_labels_en
         ]
-        filter_clauses: List[Dict[str, Any]] = [
+        filter_clauses = [
             {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.SHOULD: should_clauses,
@@ -203,10 +200,10 @@ class FilterApplicator:
     @staticmethod
     async def _get_object_frame_keys(
         obj_group: List[ObjectFilterSpec],
-        episode_keys: Set[_EpisodeKey],
+        episode_keys: Set[Tuple[Optional[int], Optional[int]]],
         series_name: str,
         logger: logging.Logger,
-    ) -> Set[_FrameKey]:
+    ) -> Set[Tuple[Optional[int], Optional[int], float]]:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         season_list = list({k[0] for k in episode_keys if k[0] is not None})
 
@@ -223,7 +220,7 @@ class FilterApplicator:
             }
             for spec in obj_group
         ]
-        filter_clauses: List[Dict[str, Any]] = [
+        filter_clauses = [
             {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.SHOULD: should_clauses,
@@ -249,7 +246,7 @@ class FilterApplicator:
         resp = await es.search(index=_build_index(series_name), body=query)
         hits = resp[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
-        frame_keys: Set[_FrameKey] = set()
+        frame_keys = set()
         for hit in hits:
             src = hit[ElasticsearchKeys.SOURCE]
             meta = src.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
@@ -286,8 +283,8 @@ class FilterApplicator:
         return False
 
     @staticmethod
-    def _hits_to_frame_keys(hits: List[Dict[str, Any]]) -> Set[_FrameKey]:
-        keys: Set[_FrameKey] = set()
+    def _hits_to_frame_keys(hits: List[Dict[str, Any]]) -> Set[Tuple[Optional[int], Optional[int], float]]:
+        keys = set()
         for hit in hits:
             src = hit[ElasticsearchKeys.SOURCE]
             meta = src.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
