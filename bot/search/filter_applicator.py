@@ -278,14 +278,31 @@ class FilterApplicator:
         logger: logging.Logger,
     ) -> Dict[Tuple[Optional[int], Optional[int]], List[float]]:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
-        season_list = list({k[0] for k in episode_keys if k[0] is not None})
-        filter_clauses = []
-        if season_list:
-            filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: season_list}})
+        valid_keys = [(s, e) for s, e in episode_keys if s is not None and e is not None]
+        episode_should = [
+            {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.FILTER: [
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: s}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: e}},
+                    ],
+                },
+            }
+            for s, e in valid_keys
+        ]
+        if not episode_should:
+            return {}
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.FILTER: filter_clauses,
+                    ElasticsearchQueryKeys.FILTER: [
+                        {
+                            ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.SHOULD: episode_should,
+                                ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                            },
+                        },
+                    ],
                 },
             },
             ElasticsearchQueryKeys.SOURCE: [
@@ -293,7 +310,7 @@ class FilterApplicator:
                 EpisodeMetadataKeys.EPISODE_NUMBER_FIELD,
                 VideoFrameKeys.TIMESTAMP,
             ],
-            ElasticsearchQueryKeys.SIZE: 100000,
+            ElasticsearchQueryKeys.SIZE: 10000,
         }
         try:
             resp = await es.search(index=_build_index(series_name), body=query)
