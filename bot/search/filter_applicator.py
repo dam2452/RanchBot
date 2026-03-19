@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 from typing import (
     Any,
     Dict,
@@ -85,14 +86,20 @@ class FilterApplicator:
         episode = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
         start = segment.get(SegmentKeys.START_TIME, 0.0)
         end = segment.get(SegmentKeys.END_TIME, 0.0)
-        return all(
-            any(
-                fk_season == season and fk_episode == episode and start <= fk_ts <= end
+
+        def __scene_overlaps(frame_keys: Set[Tuple[Optional[int], Optional[int], float]]) -> bool:
+            timestamps = sorted(
+                fk_ts
                 for fk_season, fk_episode, fk_ts in frame_keys
                 if fk_season == season and fk_episode == episode
             )
-            for frame_keys in frame_key_sets
-        )
+            for i, ts in enumerate(timestamps):
+                next_ts = timestamps[i + 1] if i + 1 < len(timestamps) else math.inf
+                if ts <= end and next_ts >= start:
+                    return True
+            return False
+
+        return all(__scene_overlaps(fk) for fk in frame_key_sets)
 
     @staticmethod
     async def _get_character_frame_keys(
