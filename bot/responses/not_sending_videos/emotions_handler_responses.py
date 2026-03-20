@@ -1,6 +1,5 @@
 import difflib
 from typing import (
-    Dict,
     List,
     Optional,
 )
@@ -11,7 +10,7 @@ from bot.responses.bot_response import BotResponse
 from bot.types import EmotionInfo
 from bot.utils.functions import convert_number_to_emoji
 
-_EMOTIONS: bidict[str, str] = bidict({
+_EMOTIONS = bidict({
     "happiness": "radosny",
     "sadness": "smutny",
     "anger": "zly",
@@ -22,7 +21,7 @@ _EMOTIONS: bidict[str, str] = bidict({
     "contempt": "pogardliwy",
 })
 
-_EMOTION_ALIASES: Dict[str, str] = {
+_EMOTION_ALIASES = {
     "happy": "happiness",
     "sad": "sadness",
     "angry": "anger",

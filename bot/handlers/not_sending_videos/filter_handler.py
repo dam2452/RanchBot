@@ -2,6 +2,7 @@ import logging
 import math
 from typing import List
 
+from bot.database.database_manager import DatabaseManager
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -18,7 +19,6 @@ from bot.responses.not_sending_videos.filter_handler_responses import (
 from bot.services.search_filter import (
     FilterParser,
     FilterValidator,
-    SearchFilterService,
 )
 
 
@@ -51,12 +51,12 @@ class FilterHandler(BotMessageHandler):
             await self.__handle_set(chat_id, subcommand, series_name)
 
     async def __handle_reset(self, chat_id: int) -> None:
-        await SearchFilterService.reset_filters(chat_id)
+        await DatabaseManager.reset_user_filters(chat_id)
         await self._reply(get_filter_reset_message())
         await self._log_system_message(logging.INFO, get_log_filter_reset_message(chat_id))
 
     async def __handle_info(self, chat_id: int) -> None:
-        search_filter = await SearchFilterService.get_filters_for_display(chat_id)
+        search_filter = await DatabaseManager.get_user_filters(chat_id)
         await self._reply(get_filter_info_message(search_filter))
 
     async def __handle_set(self, chat_id: int, raw: str, series_name: str) -> None:
@@ -68,7 +68,7 @@ class FilterHandler(BotMessageHandler):
             await self._reply(get_no_args_message())
             return
         resolved_filter, notes = await FilterValidator.resolve(search_filter, series_name, self._logger)
-        await SearchFilterService.update_filters(chat_id, resolved_filter)
-        active = await SearchFilterService.get_filters_for_display(chat_id)
+        await DatabaseManager.upsert_user_filters(chat_id, resolved_filter)
+        active = await DatabaseManager.get_user_filters(chat_id)
         await self._reply(get_filter_set_message(active or resolved_filter, notes))
         await self._log_system_message(logging.INFO, get_log_filter_set_message(chat_id))

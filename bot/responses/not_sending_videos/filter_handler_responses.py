@@ -27,7 +27,7 @@ def get_no_args_message() -> str:
 
 
 def get_filter_set_message(search_filter: SearchFilter, notes: Optional[List[str]] = None) -> str:
-    body = _format_filter(search_filter)
+    body = __format_filter(search_filter)
     if notes:
         notes_str = "\n".join(f"• {n}" for n in notes)
         body = f"{notes_str}\n\n{body}"
@@ -41,7 +41,7 @@ def get_filter_reset_message() -> str:
 def get_filter_info_message(search_filter: Optional[SearchFilter]) -> str:
     if not search_filter:
         return BotResponse.info("AKTYWNE FILTRY", "Brak aktywnych filtrów.")
-    return BotResponse.info("AKTYWNE FILTRY", _format_filter(search_filter))
+    return BotResponse.info("AKTYWNE FILTRY", __format_filter(search_filter))
 
 
 def get_filter_parse_errors_message(errors: List[str]) -> str:
@@ -58,14 +58,14 @@ def get_log_filter_reset_message(chat_id: int) -> str:
     return f"Search filters reset for chat_id={chat_id}."
 
 
-def _format_filter(search_filter: SearchFilter) -> str:
+def __format_filter(search_filter: SearchFilter) -> str:
     lines = []
     if search_filter.get("seasons"):
         lines.append(f"Sezony: {', '.join(str(s) for s in search_filter['seasons'])}")
     if search_filter.get("episodes"):
         ep_strs = []
         for ep in search_filter["episodes"]:
-            if ep.get("season") is not None:
+            if "season" in ep:
                 ep_strs.append(f"S{ep['season']:02d}E{ep['episode']:02d}")
             else:
                 ep_strs.append(f"E{ep['episode']:02d}")

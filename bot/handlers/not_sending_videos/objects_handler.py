@@ -25,7 +25,6 @@ from bot.responses.not_sending_videos.objects_handler_responses import (
     object_scene_to_search_segment,
 )
 from bot.search.video_frames import ObjectFinder
-from bot.services.search_filter import SearchFilterService
 from bot.settings import settings as s
 from bot.types import (
     ObjectScene,
@@ -51,7 +50,7 @@ class ObjectsHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        min_args = 1 if command in ObjectsHandler.__SEARCH_COMMANDS else 0
+        min_args = command in ObjectsHandler.__SEARCH_COMMANDS
         return await self._validate_argument_count(self._message, min_args, math.inf)
 
     async def _do_handle(self) -> None:
@@ -65,7 +64,8 @@ class ObjectsHandler(BotMessageHandler):
         if not args:
             await self.__handle_list_mode(series_name, is_full)
         else:
-            seasons = await SearchFilterService.get_seasons_from_active_filters(self._message.get_chat_id())
+            active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
+            seasons = active_filter.get("seasons") if active_filter else None
             if len(args) == 1:
                 await self.__handle_object_mode(args[0], series_name, is_full, seasons)
             else:

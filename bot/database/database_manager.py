@@ -31,6 +31,7 @@ from bot.database.models import (
 )
 from bot.exceptions import TooManyActiveTokensError
 from bot.settings import settings
+from bot.types import SearchFilter
 from bot.utils.constants import DatabaseKeys
 
 db_manager_logger = logging.getLogger(__name__)
@@ -1069,15 +1070,15 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
     @staticmethod
-    async def get_user_filters(chat_id: int) -> Optional[Dict[str, Any]]:
+    async def get_user_filters(chat_id: int) -> Optional[SearchFilter]:
         async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT filters, last_used_at FROM user_search_filters WHERE chat_id = $1",
+                "SELECT filters FROM user_search_filters WHERE chat_id = $1",
                 chat_id,
             )
             if row is None:
                 return None
-            return {"filters": json.loads(row["filters"]), "last_used_at": row["last_used_at"]}
+            return json.loads(row["filters"]) or None
 
     @staticmethod
     async def get_and_touch_user_filters(chat_id: int) -> Optional[Dict[str, Any]]:
@@ -1096,7 +1097,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             return json.loads(row["filters"])
 
     @staticmethod
-    async def upsert_user_filters(chat_id: int, filters_json: str) -> None:
+    async def upsert_user_filters(chat_id: int, filters: SearchFilter) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
                 await conn.execute(
@@ -1107,7 +1108,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     SET filters = user_search_filters.filters || $2::jsonb,
                         last_used_at = CURRENT_TIMESTAMP
                     """,
-                    chat_id, filters_json,
+                    chat_id, json.dumps(filters),
                 )
 
     @staticmethod

@@ -20,7 +20,6 @@ from bot.responses.not_sending_videos.search_handler_responses import (
 )
 from bot.search.filter_applicator import FilterApplicator
 from bot.search.text_segments_finder import TextSegmentsFinder
-from bot.services.search_filter import SearchFilterService
 from bot.settings import settings
 
 
@@ -58,7 +57,7 @@ class SearchHandler(BotMessageHandler):
         active_series = await self._get_user_active_series(user_id)
         chat_id = self._message.get_chat_id()
 
-        search_filter = await SearchFilterService.get_active_filters(chat_id)
+        search_filter = await DatabaseManager.get_and_touch_user_filters(chat_id)
 
         segments = await TextSegmentsFinder.find_segment_by_quote(
             quote, self._logger, active_series,

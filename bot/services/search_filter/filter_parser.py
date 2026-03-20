@@ -119,7 +119,7 @@ class FilterParser:
         if "," in value:
             specs = []
             for item in value.split(","):
-                spec = self._parse_single_episode(item.strip())
+                spec = self.__parse_single_episode(item.strip())
                 if spec is None:
                     return None
                 specs.append(spec)
@@ -140,10 +140,10 @@ class FilterParser:
                 return [EpisodeSpec(season=None, episode=ep) for ep in range(e0, e1 + 1)]
             return None
 
-        spec = self._parse_single_episode(value)
+        spec = self.__parse_single_episode(value)
         return [spec] if spec is not None else None
 
-    def _parse_single_episode(self, value: str) -> Optional[EpisodeSpec]:
+    def __parse_single_episode(self, value: str) -> Optional[EpisodeSpec]:
         m = self.__SXXEXX_PATTERN.match(value)
         if m:
             return EpisodeSpec(season=int(m.group(1)), episode=int(m.group(2)))

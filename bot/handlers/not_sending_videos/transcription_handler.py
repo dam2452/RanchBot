@@ -6,6 +6,7 @@ from typing import (
     Tuple,
 )
 
+from bot.database.database_manager import DatabaseManager
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
@@ -22,7 +23,6 @@ from bot.responses.not_sending_videos.transcription_handler_responses import (
 from bot.search.scene_finder import SceneFinder
 from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
-from bot.services.search_filter import SearchFilterService
 from bot.types import TranscriptionContext
 from bot.utils.constants import (
     EpisodeMetadataKeys,
@@ -48,7 +48,7 @@ class TranscriptionHandler(BotMessageHandler):
         quote = " ".join(args[1:])
 
         active_series = await self._get_user_active_series(self._message.get_user_id())
-        search_filter = await SearchFilterService.get_active_filters(self._message.get_chat_id())
+        search_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
 
         result = await TextSegmentsFinder.find_segment_with_context(
             quote, self._logger, active_series, context_size=15, search_filter=search_filter,

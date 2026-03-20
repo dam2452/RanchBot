@@ -13,7 +13,6 @@ from bot.responses.sending_videos.character_clip_handler_responses import (
     get_no_scenes_found_message,
 )
 from bot.search.video_frames import CharacterFinder
-from bot.services.search_filter import SearchFilterService
 from bot.settings import settings
 
 
@@ -35,7 +34,8 @@ class CharacterClipHandler(CharacterBotHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
-        seasons = await SearchFilterService.get_seasons_from_active_filters(self._message.get_chat_id())
+        active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
+        seasons = active_filter.get("seasons") if active_filter else None
 
         character, emotion_input, emotion_en = await self._find_character(args, series_name)
         if character is None:

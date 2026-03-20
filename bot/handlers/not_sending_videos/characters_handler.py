@@ -21,7 +21,6 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
     scene_to_search_segment,
 )
 from bot.search.video_frames import CharacterFinder
-from bot.services.search_filter import SearchFilterService
 from bot.settings import settings as s
 from bot.types import CharacterScene
 
@@ -52,7 +51,8 @@ class CharactersHandler(CharacterBotHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
-        seasons = await SearchFilterService.get_seasons_from_active_filters(self._message.get_chat_id())
+        active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
+        seasons = active_filter.get("seasons") if active_filter else None
 
         if not args:
             await self.__handle_list_mode(series_name, is_full)

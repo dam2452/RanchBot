@@ -375,7 +375,7 @@ class FilterApplicator:
 
     @staticmethod
     def build_es_season_episode_clauses(search_filter: SearchFilter) -> List[Dict[str, Any]]:
-        clauses: List[Dict[str, Any]] = []
+        clauses = []
         seasons = search_filter.get("seasons")
         if seasons:
             clauses.append({

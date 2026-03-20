@@ -24,7 +24,6 @@ from bot.responses.not_sending_videos.semantic_search_handler_responses import (
 )
 from bot.search.filter_applicator import FilterApplicator
 from bot.search.semantic_segments_finder import SemanticSearchMode
-from bot.services.search_filter import SearchFilterService
 from bot.utils.constants import EpisodeMetadataKeys
 
 
@@ -68,19 +67,20 @@ class SemanticSearchHandler(SemanticBotHandler):
             return
 
         chat_id = self._message.get_chat_id()
-        search_filter = await SearchFilterService.get_active_filters(chat_id)
+        search_filter = await DatabaseManager.get_and_touch_user_filters(chat_id)
 
-        if search_filter and mode != SemanticSearchMode.EPISODE:
-            results = await FilterApplicator.apply_to_text_segments(
-                results, search_filter, active_series, self._logger,
-            )
-        elif search_filter:
-            seasons = FilterApplicator.get_seasons_list(search_filter)
-            if seasons:
-                results = [
-                    r for r in results
-                    if r.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON) in seasons
-                ]
+        if search_filter:
+            if mode == SemanticSearchMode.EPISODE:
+                seasons = FilterApplicator.get_seasons_list(search_filter)
+                if seasons:
+                    results = [
+                        r for r in results
+                        if r.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON) in seasons
+                    ]
+            else:
+                results = await FilterApplicator.apply_to_text_segments(
+                    results, search_filter, active_series, self._logger,
+                )
 
         if not results:
             await self.__reply_no_segments_found(query)

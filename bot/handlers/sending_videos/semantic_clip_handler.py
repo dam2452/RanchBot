@@ -18,7 +18,6 @@ from bot.responses.sending_videos.semantic_clip_handler_responses import (
 )
 from bot.search.filter_applicator import FilterApplicator
 from bot.search.semantic_segments_finder import SemanticSearchMode
-from bot.services.search_filter import SearchFilterService
 from bot.settings import settings
 
 
@@ -45,7 +44,7 @@ class SemanticClipHandler(SemanticBotHandler):
             return
 
         chat_id = self._message.get_chat_id()
-        search_filter = await SearchFilterService.get_active_filters(chat_id)
+        search_filter = await DatabaseManager.get_and_touch_user_filters(chat_id)
 
         if search_filter:
             results = await FilterApplicator.apply_to_text_segments(

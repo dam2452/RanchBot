@@ -13,6 +13,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     Union,
 )
 
@@ -216,7 +217,7 @@ class BotMessageHandler(ABC):
         start_time: float,
         end_time: float,
         segment: Dict[str, Any],
-    ) -> tuple[Path, float, float]:
+    ) -> Tuple[Path, float, float]:
         output = await ClipsExtractor.extract_clip(video_path, start_time, end_time, self._logger)
         file_size_bytes = output.stat().st_size
         limit_bytes = settings.FILE_SIZE_LIMIT_MB * 1024 * 1024

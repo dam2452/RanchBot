@@ -22,7 +22,6 @@ from bot.responses.sending_videos.clip_handler_responses import (
 from bot.search.filter_applicator import FilterApplicator
 from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
-from bot.services.search_filter import SearchFilterService
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
@@ -59,7 +58,7 @@ class ClipHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        search_filter = await SearchFilterService.get_active_filters(msg.get_chat_id())
+        search_filter = await DatabaseManager.get_and_touch_user_filters(msg.get_chat_id())
 
         raw = await TextSegmentsFinder.find_segment_by_quote(
             quote, self._logger, active_series,
