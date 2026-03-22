@@ -26,8 +26,10 @@ from bot.types import CharacterScene
 
 
 class CharactersHandler(CharacterBotHandler):
+    __SEARCH_COMMANDS: List[str] = ["szukajpostac", "szp"]
+
     def get_commands(self) -> List[str]:
-        return ["postacie", "characters", "p", "pl", "postacie_lista"]
+        return ["postacie", "characters", "p", "pl", "postacie_lista"] + CharactersHandler.__SEARCH_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -36,6 +38,9 @@ class CharactersHandler(CharacterBotHandler):
         return get_invalid_args_count_message()
 
     async def __check_argument_count(self) -> bool:
+        command = self._message.get_text().split()[0].lstrip("/").lower()
+        if command in CharactersHandler.__SEARCH_COMMANDS:
+            return await self._validate_argument_count(self._message, 1, math.inf)
         return await self._validate_argument_count(self._message, 0, math.inf)
 
     async def _do_handle(self) -> None:
@@ -46,6 +51,9 @@ class CharactersHandler(CharacterBotHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
+        active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
+        seasons = active_filter.get("seasons") if active_filter else None
+
         if not args:
             await self.__handle_list_mode(series_name, is_full)
             return
@@ -55,9 +63,9 @@ class CharactersHandler(CharacterBotHandler):
             return
 
         if emotion_en:
-            await self.__handle_character_emotion_mode(character, emotion_input, emotion_en, series_name, is_full)
+            await self.__handle_character_emotion_mode(character, emotion_input, emotion_en, series_name, is_full, seasons)
         else:
-            await self.__handle_character_mode(character, series_name, is_full)
+            await self.__handle_character_mode(character, series_name, is_full, seasons)
 
     async def __handle_list_mode(self, series_name: str, is_full: bool) -> None:
         characters = await CharacterFinder.get_all_characters(series_name=series_name, logger=self._logger)
@@ -77,11 +85,14 @@ class CharactersHandler(CharacterBotHandler):
             get_log_characters_list_message(len(characters), self._message.get_username()),
         )
 
-    async def __handle_character_mode(self, character_name: str, series_name: str, is_full: bool) -> None:
+    async def __handle_character_mode(
+        self, character_name: str, series_name: str, is_full: bool, seasons: Optional[List[int]] = None,
+    ) -> None:
         scenes = await CharacterFinder.get_scenes_by_character(
             character_name=character_name,
             series_name=series_name,
             logger=self._logger,
+            seasons=seasons,
         )
         await self.__save_scenes_to_last_search(scenes, character_name)
         if is_full:
@@ -104,12 +115,14 @@ class CharactersHandler(CharacterBotHandler):
         emotion_en: str,
         series_name: str,
         is_full: bool,
+        seasons: Optional[List[int]] = None,
     ) -> None:
         scenes = await CharacterFinder.get_scenes_by_character_and_emotion(
             character_name=character_name,
             emotion_en=emotion_en,
             series_name=series_name,
             logger=self._logger,
+            seasons=seasons,
         )
         await self.__save_scenes_to_last_search(scenes, character_name, emotion_input)
         if is_full:

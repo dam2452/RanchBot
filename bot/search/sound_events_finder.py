@@ -66,7 +66,7 @@ class SoundEventsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        filter_clauses: List[Dict[str, Any]] = [
+        filter_clauses = [
             {ElasticsearchQueryKeys.TERM: {SoundEventKeys.SOUND_TYPE: sound_type}},
         ]
         if season_filter is not None:

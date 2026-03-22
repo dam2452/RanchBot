@@ -10,7 +10,7 @@ from bot.responses.bot_response import BotResponse
 from bot.types import EmotionInfo
 from bot.utils.functions import convert_number_to_emoji
 
-_EMOTIONS: bidict[str, str] = bidict({
+_EMOTIONS = bidict({
     "happiness": "radosny",
     "sadness": "smutny",
     "anger": "zly",
@@ -20,6 +20,16 @@ _EMOTIONS: bidict[str, str] = bidict({
     "neutral": "neutralny",
     "contempt": "pogardliwy",
 })
+
+_EMOTION_ALIASES = {
+    "happy": "happiness",
+    "sad": "sadness",
+    "angry": "anger",
+    "scared": "fear",
+    "surprised": "surprise",
+    "disgusted": "disgust",
+    "contemptful": "contempt",
+}
 
 
 def map_emotion_to_pl(label_en: str) -> str:
@@ -32,8 +42,10 @@ def map_emotion_to_en(label: str) -> Optional[str]:
         return lower
     if lower in _EMOTIONS.inverse:
         return _EMOTIONS.inverse[lower]
+    if lower in _EMOTION_ALIASES:
+        return _EMOTION_ALIASES[lower]
     all_labels = list(_EMOTIONS.keys()) + list(_EMOTIONS.inverse.keys())
-    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.5)
+    matches = difflib.get_close_matches(lower, all_labels, n=1, cutoff=0.75)
     if not matches:
         return None
     matched = matches[0]

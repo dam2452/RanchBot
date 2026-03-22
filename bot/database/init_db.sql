@@ -318,6 +318,15 @@ SELECT user_id
 FROM user_profiles
 ON CONFLICT (user_id) DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS user_search_filters (
+    id           SERIAL PRIMARY KEY,
+    chat_id      BIGINT NOT NULL UNIQUE,
+    filters      JSONB  NOT NULL DEFAULT '{}',
+    last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_search_filters_chat_id ON user_search_filters(chat_id);
+
 ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
 ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
 ALTER TABLE search_history ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;

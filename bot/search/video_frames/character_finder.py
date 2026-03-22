@@ -195,6 +195,7 @@ class CharacterFinder:
         series_name: str,
         logger: logging.Logger,
         size: int = settings.MAX_ES_RESULTS_LONG,
+        seasons: Optional[List[int]] = None,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -203,10 +204,13 @@ class CharacterFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
+        filter_clauses = [CharacterFinder.__nested_char_filter(character_name)]
+        if seasons:
+            filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.FILTER: [CharacterFinder.__nested_char_filter(character_name)],
+                    ElasticsearchQueryKeys.FILTER: filter_clauses,
                     ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },
@@ -230,6 +234,7 @@ class CharacterFinder:
         series_name: str,
         logger: logging.Logger,
         size: int = settings.MAX_ES_RESULTS_LONG,
+        seasons: Optional[List[int]] = None,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -256,10 +261,13 @@ class CharacterFinder:
             },
         }
 
+        filter_clauses = [char_and_emotion_nested]
+        if seasons:
+            filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.FILTER: [char_and_emotion_nested],
+                    ElasticsearchQueryKeys.FILTER: filter_clauses,
                     ElasticsearchQueryKeys.MUST_NOT: [CharacterFinder.__season_0_term()],
                 },
             },
@@ -318,6 +326,14 @@ class CharacterFinder:
         return labels
 
     @staticmethod
+    def __query_candidates(query: str) -> List[str]:
+        words = query.lower().split()
+        candidates = [" ".join(words)]
+        if len(words) >= 2:
+            candidates.append(" ".join(reversed(words)))
+        return candidates
+
+    @staticmethod
     async def find_best_matching_name(
         query: str,
         series_name: str,
@@ -326,7 +342,10 @@ class CharacterFinder:
         characters = await CharacterFinder.get_all_characters(series_name, logger)
         names = [c["name"] for c in characters]
         name_map = {n.lower(): n for n in names}
-        if query.lower() in name_map:
-            return name_map[query.lower()]
-        matches = difflib.get_close_matches(query.lower(), list(name_map.keys()), n=1, cutoff=0.6)
-        return name_map[matches[0]] if matches else None
+        for candidate in CharacterFinder.__query_candidates(query):
+            if candidate in name_map:
+                return name_map[candidate]
+            matches = difflib.get_close_matches(candidate, list(name_map.keys()), n=1, cutoff=0.6)
+            if matches:
+                return name_map[matches[0]]
+        return None

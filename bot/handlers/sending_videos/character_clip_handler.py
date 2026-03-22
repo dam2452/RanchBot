@@ -34,6 +34,9 @@ class CharacterClipHandler(CharacterBotHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
+        active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
+        seasons = active_filter.get("seasons") if active_filter else None
+
         character, emotion_input, emotion_en = await self._find_character(args, series_name)
         if character is None:
             return
@@ -45,6 +48,7 @@ class CharacterClipHandler(CharacterBotHandler):
                 series_name=series_name,
                 logger=self._logger,
                 size=settings.MAX_ES_RESULTS_QUICK,
+                seasons=seasons,
             )
         else:
             scenes = await CharacterFinder.get_scenes_by_character(
@@ -52,6 +56,7 @@ class CharacterClipHandler(CharacterBotHandler):
                 series_name=series_name,
                 logger=self._logger,
                 size=settings.MAX_ES_RESULTS_QUICK,
+                seasons=seasons,
             )
 
         if not scenes:

@@ -3,13 +3,11 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
 )
 
 from aiogram.utils.markdown import markdown_decoration
 
 from bot.responses.bot_response import BotResponse
-from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
 from bot.types import (
     CharacterScene,
     CharacterWithEpisodeCount,
@@ -26,17 +24,6 @@ from bot.utils.functions import (
 
 _PREVIEW_COUNT = 5
 _FRAME_SPAN_S = 3.0
-
-
-def parse_character_args(args: List[str]) -> Tuple[str, str, str]:
-    emotion_input, emotion_en = "", ""
-    if len(args) >= 2:
-        candidate_en = map_emotion_to_en(args[-1])
-        if candidate_en:
-            emotion_en = candidate_en
-            emotion_input = args[-1]
-            args = args[:-1]
-    return " ".join(args), emotion_input, emotion_en
 
 
 def scene_to_search_segment(scene: CharacterScene) -> Dict[str, Any]:

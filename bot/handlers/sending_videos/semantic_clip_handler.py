@@ -16,6 +16,7 @@ from bot.responses.sending_videos.semantic_clip_handler_responses import (
     get_no_query_provided_message,
     get_no_results_found_message,
 )
+from bot.search.filter_applicator import FilterApplicator
 from bot.search.semantic_segments_finder import SemanticSearchMode
 from bot.settings import settings
 
@@ -41,6 +42,14 @@ class SemanticClipHandler(SemanticBotHandler):
         if results is None:
             await self._reply_error(get_embeddings_not_indexed_message(active_series, mode))
             return
+
+        chat_id = self._message.get_chat_id()
+        search_filter = await DatabaseManager.get_and_touch_user_filters(chat_id)
+
+        if search_filter:
+            results = await FilterApplicator.apply_to_text_segments(
+                results, search_filter, active_series, self._logger,
+            )
 
         unique = self._deduplicate_semantic_results(results, mode)[:settings.MAX_ES_RESULTS_QUICK]
 

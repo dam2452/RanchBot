@@ -1,5 +1,7 @@
 import logging
 from typing import (
+    Any,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -8,12 +10,14 @@ from typing import (
 
 from elastic_transport import ObjectApiResponse
 
+from bot.search.filter_applicator import FilterApplicator
 from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.settings import settings
 from bot.types import (
     BaseSegment,
     ElasticsearchSegment,
     EpisodeInfo,
+    SearchFilter,
     SeasonInfoDict,
     SegmentWithScore,
     TranscriptionContext,
@@ -60,51 +64,91 @@ class TextSegmentsFinder:
         )
 
     @staticmethod
+    def __apply_search_filter_to_query(query: Dict[str, Any], search_filter: SearchFilter) -> None:
+        extra = FilterApplicator.build_es_season_episode_clauses(search_filter)
+        filter_list = query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][ElasticsearchQueryKeys.FILTER]
+        filter_list.extend(extra)
+
+        title = search_filter.get("episode_title")
+        if title:
+            filter_list.append({
+                ElasticsearchQueryKeys.MATCH: {
+                    f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.TITLE}": {
+                        ElasticsearchQueryKeys.QUERY: title,
+                        ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
+                    },
+                },
+            })
+
+    @staticmethod
+    def __merge_overlapping_segment(
+        incoming: SegmentWithScore,
+        collected: List[SegmentWithScore],
+        incoming_start: float,
+        incoming_end: float,
+    ) -> bool:
+        for i, existing_segment in enumerate(collected):
+            existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
+            existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+
+            seg_metadata = incoming.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+
+            seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
+            existing_season = existing_metadata.get(EpisodeMetadataKeys.SEASON)
+
+            seg_episode = seg_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+            existing_episode = existing_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+
+            if (
+                seg_season == existing_season and
+                seg_episode == existing_episode and
+                incoming_start <= existing_end and
+                incoming_end >= existing_start
+            ):
+                collected[i][SegmentKeys.START_TIME] = min(
+                    existing_segment[SegmentKeys.START_TIME],
+                    incoming[SegmentKeys.START_TIME],
+                )
+                collected[i][SegmentKeys.END_TIME] = max(
+                    existing_segment[SegmentKeys.END_TIME],
+                    incoming[SegmentKeys.END_TIME],
+                )
+                collected[i][ElasticsearchKeys.SCORE] = max(
+                    existing_segment[ElasticsearchKeys.SCORE],
+                    incoming[ElasticsearchKeys.SCORE],
+                )
+                return True
+        return False
+
+    @staticmethod
+    def __deduplicate_hits(hits: List[Dict[str, Any]]) -> List[SegmentWithScore]:
+        unique_segments: List[SegmentWithScore] = []
+        seen_segments = set()
+        for hit in hits:
+            segment: SegmentWithScore = hit[ElasticsearchKeys.SOURCE]
+            segment[ElasticsearchKeys.SCORE] = hit[ElasticsearchKeys.SCORE]
+            segment_key = (
+                segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
+                segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
+                segment.get(SegmentKeys.START_TIME),
+                segment.get(SegmentKeys.END_TIME),
+            )
+            if segment_key not in seen_segments:
+                seen_segments.add(segment_key)
+                start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
+                end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
+                if not TextSegmentsFinder.__merge_overlapping_segment(segment, unique_segments, start_time, end_time):
+                    unique_segments.append(segment)
+        return unique_segments
+
+    @staticmethod
     async def find_segment_by_quote(
             quote: str, logger: logging.Logger, series_name: str, season_filter: Optional[int] = None,
             episode_filter: Optional[int] = None,
             size: int = 1,
+            search_filter: Optional[SearchFilter] = None,
     ) -> Optional[Union[SegmentWithScore, List[SegmentWithScore]]]:
-        def __merge_overlapping_segment(
-            incoming: SegmentWithScore,
-            collected: List[SegmentWithScore],
-            incoming_start: float,
-            incoming_end: float,
-        ) -> bool:
-            for i, existing_segment in enumerate(collected):
-                existing_start = existing_segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
-                existing_end = existing_segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
-
-                seg_metadata = incoming.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-                existing_metadata = existing_segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-
-                seg_season = seg_metadata.get(EpisodeMetadataKeys.SEASON)
-                existing_season = existing_metadata.get(EpisodeMetadataKeys.SEASON)
-
-                seg_episode = seg_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
-                existing_episode = existing_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
-
-                if (
-                    seg_season == existing_season and
-                    seg_episode == existing_episode and
-                    incoming_start <= existing_end and
-                    incoming_end >= existing_start
-                ):
-                    collected[i][SegmentKeys.START_TIME] = min(
-                        existing_segment[SegmentKeys.START_TIME],
-                        incoming[SegmentKeys.START_TIME],
-                    )
-                    collected[i][SegmentKeys.END_TIME] = max(
-                        existing_segment[SegmentKeys.END_TIME],
-                        incoming[SegmentKeys.END_TIME],
-                    )
-                    collected[i][ElasticsearchKeys.SCORE] = max(
-                        existing_segment[ElasticsearchKeys.SCORE],
-                        incoming[ElasticsearchKeys.SCORE],
-                    )
-                    return True
-            return False
-
         await log_system_message(
             logging.INFO,
             f"Searching for quote: '{quote}' in series '{series_name}' with filters - Season: {season_filter}, Episode: {episode_filter}",
@@ -148,35 +192,16 @@ class TextSegmentsFinder:
                 {ElasticsearchQueryKeys.TERM: {f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": episode_filter}},
             )
 
+        if search_filter:
+            TextSegmentsFinder.__apply_search_filter_to_query(query, search_filter)
+
         hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None
 
-        unique_segments = []
-        seen_segments = set()
-
-        for hit in hits:
-            segment = hit[ElasticsearchKeys.SOURCE]
-            segment[ElasticsearchKeys.SCORE] = hit[ElasticsearchKeys.SCORE]
-            segment_key = (
-                segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
-                segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
-                segment.get(SegmentKeys.START_TIME),
-                segment.get(SegmentKeys.END_TIME),
-            )
-
-            if segment_key not in seen_segments:
-                seen_segments.add(segment_key)
-
-                start_time = segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE
-                end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
-
-                is_overlapping = __merge_overlapping_segment(segment, unique_segments, start_time, end_time)
-
-                if not is_overlapping:
-                    unique_segments.append(segment)
+        unique_segments = TextSegmentsFinder.__deduplicate_hits(hits)
 
         await log_system_message(
             logging.INFO, f"Found {len(unique_segments)} unique segments after merging.",
@@ -193,6 +218,7 @@ class TextSegmentsFinder:
             quote: str, logger: logging.Logger, series_name: str, context_size: int = 30,
             season_filter: Optional[int] = None, episode_filter: Optional[int] = None,
             index: Optional[str] = None,
+            search_filter: Optional[SearchFilter] = None,
     ) -> Optional[TranscriptionContext]:
         await log_system_message(
             logging.INFO,
@@ -204,7 +230,9 @@ class TextSegmentsFinder:
         if index is None:
             index = f"{series_name}_text_segments"
 
-        segment = await TextSegmentsFinder.find_segment_by_quote(quote, logger, series_name, season_filter, episode_filter)
+        segment = await TextSegmentsFinder.find_segment_by_quote(
+            quote, logger, series_name, season_filter, episode_filter, search_filter=search_filter,
+        )
         if not segment:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
             return None

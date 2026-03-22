@@ -48,8 +48,11 @@ def minutes_str_to_seconds(time_str: str) -> float:
 
 
 def format_seconds_to_mmss(seconds: float) -> str:
-    minutes, secs = divmod(seconds, 60)
-    return f"{int(minutes):02d}:{int(secs):02d}"
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
 
 
 def convert_seconds_to_time_str(seconds: int) -> str:
@@ -128,11 +131,10 @@ def format_segment(segment: json) -> FormattedSegmentInfo:
         episode_formatted = f"S{season}E{episode_number}"
 
     start_time = int(segment.get(SegmentKeys.START_TIME, segment.get(SegmentKeys.START, 0)))
-    minutes, seconds = divmod(start_time, 60)
 
     return FormattedSegmentInfo(
         episode_formatted=episode_formatted,
-        time_formatted=f"{minutes:02}:{seconds:02}",
+        time_formatted=format_seconds_to_mmss(start_time),
         episode_title=episode_info.get(EpisodeMetadataKeys.TITLE, "Unknown"),
     )
 

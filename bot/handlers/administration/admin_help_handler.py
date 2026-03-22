@@ -1,10 +1,7 @@
 import logging
 from typing import List
 
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.administration.admin_help_handler_responses import (
     get_admin_help_message,
     get_admin_shortcuts_message,
@@ -16,9 +13,6 @@ from bot.responses.administration.admin_help_handler_responses import (
 class AdminHelpHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["admin"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         keywords = ["skroty", "skróty", "skrot", "skrót"]

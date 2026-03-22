@@ -5,10 +5,7 @@ from typing import List
 
 from bot.database.database_manager import DatabaseManager
 from bot.database.models import ClipType
-from bot.handlers.bot_message_handler import (
-    BotMessageHandler,
-    ValidatorFunctions,
-)
+from bot.handlers.bot_message_handler import BotMessageHandler
 from bot.responses.sending_videos.snap_clip_handler_responses import (
     get_already_snapped_message,
     get_no_adjusted_times_message,
@@ -28,9 +25,6 @@ from bot.video.clips_extractor import ClipsExtractor
 class SnapClipHandler(BotMessageHandler):
     def get_commands(self) -> List[str]:
         return ["snap", "dopasuj", "sp"]
-
-    async def _get_validator_functions(self) -> ValidatorFunctions:
-        return []
 
     async def _do_handle(self) -> None:
         msg = self._message

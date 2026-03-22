@@ -190,18 +190,32 @@ class ReindexService:
                 self.__logger,
             )
 
-    async def __delete_series_indices(self, series_name: str) -> None:
-        index_types = [
-            "text_segments",
-            "text_embeddings",
-            "video_frames",
-            "episode_names",
-            "full_episode_embeddings",
-            "sound_events",
-            "sound_event_embeddings",
-        ]
+    _INDEX_TYPES: List[str] = [
+        "text_segments",
+        "text_embeddings",
+        "video_frames",
+        "episode_names",
+        "full_episode_embeddings",
+        "sound_events",
+        "sound_event_embeddings",
+    ]
 
-        for index_type in index_types:
+    async def delete_series(self, series_name: str) -> List[str]:
+        await self.__init_elasticsearch()
+        deleted = []
+        for index_type in self._INDEX_TYPES:
+            index_name = f"{series_name}_{index_type}"
+            try:
+                if await self.__es_manager.indices.exists(index=index_name):
+                    await self.__es_manager.indices.delete(index=index_name)
+                    self.__logger.info(f"Deleted index: {index_name}")
+                    deleted.append(index_name)
+            except Exception as e:
+                self.__logger.warning(f"Failed to delete index {index_name}: {e}")
+        return deleted
+
+    async def __delete_series_indices(self, series_name: str) -> None:
+        for index_type in self._INDEX_TYPES:
             index_name = f"{series_name}_{index_type}"
             try:
                 if await self.__es_manager.indices.exists(index=index_name):

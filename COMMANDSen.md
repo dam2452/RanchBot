@@ -8,6 +8,8 @@
 - **`/start`**: 👋 Launches the main menu.
 - **`/clip <quote>`** / **`/k <quote>`**: 🎥 Clip search.
 - **`/search <quote>`** / **`/sz <quote>`**: 🔍 Find clips.
+- **`/searchcharacter <character> [emotion]`** / **`/szp`**: 👤 Search scenes by character.
+- **`/searchobject <object> [filter]`** / **`/szo`**: 🎯 Search scenes by object.
 - **`/sens <query>`** / **`/meaning <query>`** / **`/sen <query>`**: 🧠 Semantic search - text mode.
 - **`/sensklatki <query>`** / **`/sensk <query>`**: 🧠 Semantic search - frames mode.
 - **`/sensodcinek <query>`** / **`/senso <query>`**: 🧠 Semantic search - episode mode.
@@ -29,6 +31,9 @@
 - **`/myclips`** / **`/mk`**: 📂 Your clips.
 - **`/send <name>`** / **`/wys <name>`**: 📤 Send a clip.
 - **`/deleteclip <clip_name>`** / **`/uk <clip_name>`**: 🗑️ Delete a clip.
+- **`/filter <filters>`** / **`/filtr <filters>`** / **`/f <filters>`**: 🔎 Set search filters (applies to all search commands).
+- **`/filter reset`**: 🔄 Clear all active filters.
+- **`/filter info`**: ℹ️ Show active filters.
 - **`/characters`** / **`/p`**: 👤 Browse characters and scenes.
 - **`/klippostac <character> [emotion]`** / **`/kp`**: 🎭 Clip with a character (and optional emotion).
 - **`/klipobiekt <object>`** / **`/ko`**: 🎯 Clip with a detected object.
@@ -79,12 +84,23 @@
 - **`/myclips`** / **`/mk`**: 📂 Displays a list of saved clips.
 - **`/send <name>`** / **`/wys <name>`**: 📤 Sends the saved clip with the specified name. Example: `/send my_clip`.
 - **`/deleteclip <clip_name>`** / **`/uk <clip_name>`**: 🗑️ Deletes the saved clip with the specified name. Example: `/uk my_clip`.
+- **`/filter <filters>`** / **`/filtr <filters>`** / **`/f <filters>`**: 🔎 Sets search filters that apply to all search commands. Example: `/filter season:2 character:Pawlak`.
+- **`/filter reset`**: 🔄 Removes all active filters.
+- **`/filter info`**: ℹ️ Shows active filters. Filters expire after 1h of inactivity.
+  - `season:X` – filter by season (e.g. `season:2`, `season:1-3`, `season:1,3,5`)
+  - `episode:X` – filter by episode (e.g. `episode:S01E05`, `episode:S01E03-S01E07`)
+  - `title:X` – filter by episode title (fuzzy match)
+  - `character:X` – character visible on scene (e.g. `character:Pawlak`, `character:Pawlak,Kusy`)
+  - `emotion:X` – character emotion on scene (e.g. `emotion:happy`)
+  - `object:X` – object on scene with optional quantity filter (e.g. `object:chair`, `object:chair>3`)
 - **`/characters`** / **`/p`**: 👤 Displays a list of all characters with episode count.
 - **`/characters <character_name>`** / **`/p <character_name>`**: 👤 Displays scenes with the given character. Example: `/characters Wilkowyska`.
 - **`/characters <character_name> <emotion>`** / **`/p <character_name> <emotion>`**: 👤 Scenes with character and emotion. Example: `/p Wilkowyska happy`.
 - **`/pl`** / **`/postacie_lista`**: 👤 Full list of characters or scenes (as document).
 - **`/klippostac <character> [emotion]`** / **`/kp`**: 🎭 Sends a clip with the given character (and optional emotion). Example: `/kp Wilkowyska happy`.
+- **`/szukajpostac <character> [emotion]`** / **`/szp`**: 👤 Lists scenes with the given character without sending a clip — results available via `/select` and `/list`. Example: `/szp Wilkowyska happy`.
 - **`/klipobiekt <object>`** / **`/ko`**: 🎯 Sends a clip with the given detected object. Example: `/klipobiekt dog`.
+- **`/szukajobiekt <object> [filter]`** / **`/szo`**: 🎯 Lists scenes with the given object without sending a clip — results available via `/select` and `/list`. Example: `/szo dog >3`.
 - **`/emotion`** / **`/e`**: 😊 Displays a list of available emotions.
 - **`/object`** / **`/obj`**: 🎯 Displays a list of all detected objects (most frequent first).
 - **`/object <name>`** / **`/obj <name>`**: 🎯 List of scenes with the given object. Example: `/object dog`.
