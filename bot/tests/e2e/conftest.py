@@ -6,7 +6,7 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
-from bot.tests.settings import settings as s
+from bot.tests.e2e.settings import settings as s
 
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()

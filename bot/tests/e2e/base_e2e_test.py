@@ -16,12 +16,12 @@ import requests
 
 from bot.database.database_manager import DatabaseManager
 from bot.search.text_segments_finder import TextSegmentsFinder
-from bot.tests.settings import settings as s
+from bot.tests.e2e.settings import settings as s
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-class BaseTest:
+class BaseE2ETest:
     client: requests.Session
     token: str
     default_admin: int
