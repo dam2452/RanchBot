@@ -104,7 +104,5 @@ async def run_signal_bot() -> None:
 
     try:
         await asyncio.Event().wait()
-    except asyncio.CancelledError:
-        pass
     finally:
         await rpc.stop()
