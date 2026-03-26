@@ -108,5 +108,12 @@ class PermissionLevelFactory(ABC):
     def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         pass
 
+    def get_middlewares(self) -> List[BotMiddleware]:
+        all_commands: List[str] = []
+        for handler_cls in self._create_handler_classes():
+            dummy = handler_cls(message=None, responder=None, logger=self._logger)
+            all_commands.extend(dummy.get_commands())
+        return self._create_middlewares(all_commands)
+
     def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
         return None

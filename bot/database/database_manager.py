@@ -222,6 +222,27 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     await conn.execute(query, *params)
 
     @staticmethod
+    async def get_or_create_signal_user(phone_number: str) -> int:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                existing = await conn.fetchval(
+                    "SELECT user_id FROM signal_users WHERE phone_number = $1",
+                    phone_number,
+                )
+                if existing is not None:
+                    return existing
+                new_id = await conn.fetchval("SELECT nextval('signal_user_id_seq')")
+                await conn.execute(
+                    "INSERT INTO user_profiles (user_id, username, full_name) VALUES ($1, $2, $3)",
+                    new_id, phone_number, phone_number,
+                )
+                await conn.execute(
+                    "INSERT INTO signal_users (phone_number, user_id) VALUES ($1, $2)",
+                    phone_number, new_id,
+                )
+                return new_id
+
+    @staticmethod
     async def remove_user(user_id: int) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():
