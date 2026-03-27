@@ -1,0 +1,37 @@
+{
+  "_comment": "Konfiguracja dla Pingwin\u00f3w z Madagaskaru - tylko zmiany wzgl\u0119dem defaults.json",
+  "_note": "Metadane odcink\u00f3w i bohater\u00f3w dostarczone r\u0119cznie. Transkrypcje przez ElevenLabs. Indeksowanie do ES r\u0119czne.",
+  "display_name": "Pingwiny z Madagaskaru",
+  "indexing": {
+    "elasticsearch": {
+      "index_name": "pingwiny_z_madagaskaru_clips"
+    }
+  },
+  "pipeline_mode": "selective",
+  "processing": {
+    "transcription": {
+      "mode": "elevenlabs"
+    }
+  },
+  "scraping": {
+    "character_references": {
+      "images_per_character": 2
+    },
+    "characters": {
+      "urls": [
+        "https://pl.wikipedia.org/wiki/Lista_postaci_serialu_Pingwiny_z_Madagaskaru"
+      ]
+    },
+    "episodes": {
+      "urls": [
+        "https://pl.wikipedia.org/wiki/Lista_odcink%C3%B3w_serialu_Pingwiny_z_Madagaskaru"
+      ]
+    }
+  },
+  "series_name": "pingwiny_z_madagaskaru",
+  "skip_steps": [
+    "episode_scraper",
+    "character_scraper",
+    "index_to_elasticsearch"
+  ]
+}
