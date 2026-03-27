@@ -82,7 +82,7 @@ class TranscriptionStep(
         )
 
     def __create_engine(self, context: ExecutionContext) -> TranscriptionEngine:
-        if self.config.mode == '11labs':
+        if self.config.mode in {'11labs', 'elevenlabs'}:
             context.logger.info('Creating ElevenLabs transcription engine')
             return ElevenLabsEngine(logger=context.logger)
 

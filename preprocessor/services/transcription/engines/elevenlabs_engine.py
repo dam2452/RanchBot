@@ -74,6 +74,7 @@ class ElevenLabsEngine(TranscriptionEngine):
                 tag_audio_events=True,
                 timestamps_granularity='character',
                 diarize=self.__diarize,
+                num_speakers=32,
                 use_multi_channel=False,
                 additional_formats=self.__additional_formats,
                 webhook=True,

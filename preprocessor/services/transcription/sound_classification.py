@@ -15,7 +15,7 @@ def is_sound_event(word: Dict[str, Any]) -> bool:
         return True
 
     text = word.get(WordKeys.TEXT, word.get(WordKeys.WORD, '')).strip()
-    return bool(re.match(r'^\(.*\)$', text))
+    return bool(re.match(r'^[\(\[].*[\)\]]$', text))
 
 
 def classify_segment(segment: Dict[str, Any]) -> str:

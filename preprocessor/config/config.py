@@ -130,7 +130,7 @@ class ElevenLabsSettings(BaseAPISettings):
     diarize: bool = True
     language_code: str = 'pol'
     max_attempts: int = 60
-    model_id: str = 'scribe_v1'
+    model_id: str = 'scribe_v2'
     polling_interval: int = 20
 
     @classmethod

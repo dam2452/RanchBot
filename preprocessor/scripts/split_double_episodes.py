@@ -1,3 +1,4 @@
+# pylint: skip-file
 import argparse
 import json
 import math

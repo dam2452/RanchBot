@@ -42,3 +42,4 @@ cookies.txt
 test_episodes.json
 /models
 /tmp
+/preprocessor/scripts/scribe_compare

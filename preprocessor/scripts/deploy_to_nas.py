@@ -1,3 +1,4 @@
+# pylint: skip-file
 import argparse
 from concurrent.futures import (
     ThreadPoolExecutor,
