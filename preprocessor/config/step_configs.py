@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import (
     Dict,
     List,
+    Literal,
     Optional,
 )
 
@@ -194,6 +195,10 @@ class FaceClusteringConfig(BaseModel):
     max_parallel_episodes: int = Field(default=1, ge=1, le=8)
 
 
+class SeriesFaceClusteringConfig(BaseModel):
+    prefetch_workers: int = Field(default=8, ge=1, le=32)
+
+
 class ObjectDetectionConfig(BaseModel):
     batch_size: int = Field(default=8, ge=1)
     conf_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
@@ -235,4 +240,5 @@ class CharacterReferenceConfig(BaseModel):
 
 
 class CharacterReferenceProcessorConfig(BaseModel):
+    reference_source: Literal["web", "clusters"] = "clusters"
     similarity_threshold: float = Field(default=0.45, ge=0.0, le=1.0)

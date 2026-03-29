@@ -41,6 +41,7 @@ class CharacterReferencesConfig:
     images_per_character: int
     search_engine: str
     search_query_template: str
+    source: str = 'clusters'
 
 
 @dataclass
@@ -155,6 +156,7 @@ class SeriesConfig:
                     search_engine=data['scraping']['character_references']['search_engine'],
                     images_per_character=data['scraping']['character_references']['images_per_character'],
                     search_query_template=data['scraping']['character_references']['search_query_template'],
+                    source=data['scraping']['character_references'].get('source', 'web'),
                 ),
             ),
             processing=SeriesConfig.__build_processing_config(data),

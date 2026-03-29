@@ -4,6 +4,7 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
 )
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -57,13 +58,28 @@ def _print_summary(total: int, copied: int, skipped: int, failed: int, dry_run: 
     print(f"  Failed      : {failed}")
 
 
+def _is_changed(src: Path, dst: Path) -> bool:
+    if not dst.exists():
+        return True
+    src_stat = os.stat(src)
+    dst_stat = os.stat(dst)
+    if src_stat.st_size != dst_stat.st_size:
+        return True
+    return src_stat.st_mtime > dst_stat.st_mtime + 1
+
+
 def _filter_files_to_copy(
-    pairs: List[Tuple[Path, Path]], overwrite: bool,
+    pairs: List[Tuple[Path, Path]], overwrite: bool, diff_only: bool,
 ) -> Tuple[List[Tuple[Path, Path]], int]:
     to_copy = []
     skipped = 0
     for src, dst in pairs:
-        if not overwrite and dst.exists():
+        if diff_only:
+            if _is_changed(src, dst):
+                to_copy.append((src, dst))
+            else:
+                skipped += 1
+        elif not overwrite and dst.exists():
             skipped += 1
         else:
             to_copy.append((src, dst))
@@ -101,6 +117,7 @@ def deploy(
     dry_run: bool,
     workers: int,
     overwrite: bool,
+    diff_only: bool,
 ) -> int:
     source_series_dir = source_base / series
     target_series_dir = target_base / series
@@ -109,9 +126,15 @@ def deploy(
         print(f"ERROR: Source directory not found: {source_series_dir}")
         return 1
 
+    mode_flags = f"{'DRY RUN' if dry_run else 'COPY'} | workers={workers}"
+    if diff_only:
+        mode_flags += " | diff-only"
+    elif overwrite:
+        mode_flags += " | overwrite"
+
     print(f"Source : {source_series_dir}")
     print(f"Target : {target_series_dir}")
-    print(f"Mode   : {'DRY RUN' if dry_run else 'COPY'} | workers={workers} | overwrite={overwrite}")
+    print(f"Mode   : {mode_flags}")
     print()
 
     pairs = _collect_files(source_series_dir, target_series_dir)
@@ -119,9 +142,10 @@ def deploy(
         print("No files found to copy.")
         return 0
 
-    to_copy, skipped = _filter_files_to_copy(pairs, overwrite)
+    to_copy, skipped = _filter_files_to_copy(pairs, overwrite, diff_only)
+    skip_reason = "unchanged (size+mtime)" if diff_only else "already exist, use --overwrite to replace"
     print(f"Files to copy : {len(to_copy)}")
-    print(f"Files skipped : {skipped} (already exist, use --overwrite to replace)")
+    print(f"Files skipped : {skipped} ({skip_reason})")
     print()
 
     if not to_copy:
@@ -166,6 +190,11 @@ def main() -> None:
         help="Show what would be copied without actually copying",
     )
     parser.add_argument(
+        "--diff-only",
+        action="store_true",
+        help="Only copy files that are missing or differ from target (by size or modification time)",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=_DEFAULT_WORKERS,
@@ -177,7 +206,7 @@ def main() -> None:
     source_base = _resolve_source_base(args.source_path)
     target_base = Path(args.target_path)
 
-    sys.exit(deploy(source_base, target_base, args.series, args.dry_run, args.workers, args.overwrite))
+    sys.exit(deploy(source_base, target_base, args.series, args.dry_run, args.workers, args.overwrite, args.diff_only))
 
 
 if __name__ == "__main__":

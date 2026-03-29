@@ -1,10 +1,17 @@
-from collections import defaultdict
+from collections import (
+    defaultdict,
+    deque,
+)
+from concurrent.futures import ThreadPoolExecutor
 import gc
+from itertools import islice
 from pathlib import Path
 from typing import (
     Any,
     Dict,
+    Generator,
     List,
+    Optional,
     Tuple,
 )
 
@@ -21,11 +28,12 @@ class FaceClusterer:
     def extract_face_embeddings(
             frame_files: List[Path],
             face_app: FaceAnalysis,
+            prefetch_workers: int = 4,
     ) -> List[Dict[str, Any]]:
         face_data: List[Dict[str, Any]] = []
 
-        for frame_path in frame_files:
-            img = cv2.imread(str(frame_path))
+        prefetch_size = prefetch_workers * 4
+        for frame_path, img in FaceClusterer._prefetch_images(frame_files, prefetch_workers, prefetch_size):
             if img is None:
                 continue
 
@@ -46,6 +54,27 @@ class FaceClusterer:
                 })
 
         return face_data
+
+    @staticmethod
+    def _prefetch_images(
+            frame_files: List[Path],
+            workers: int,
+            prefetch_size: int,
+    ) -> Generator[Tuple[Path, Optional[np.ndarray]], None, None]:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            it = iter(frame_files)
+            pending: deque = deque(
+                (path, pool.submit(cv2.imread, str(path)))
+                for path in islice(it, prefetch_size)
+            )
+            while pending:
+                path, future = pending.popleft()
+                try:
+                    next_path = next(it)
+                    pending.append((next_path, pool.submit(cv2.imread, str(next_path))))
+                except StopIteration:
+                    pass
+                yield path, future.result()
 
     @staticmethod
     def cluster_embeddings(

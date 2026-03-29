@@ -25,6 +25,7 @@ from preprocessor.config.step_configs import (
     ObjectDetectionConfig,
     ResolutionAnalysisConfig,
     SceneDetectionConfig,
+    SeriesFaceClusteringConfig,
     SoundEventEmbeddingConfig,
     SoundEventsConfig,
     SoundSeparationConfig,
@@ -72,6 +73,7 @@ from preprocessor.steps.vision.emotion_detection_step import EmotionDetectionSte
 from preprocessor.steps.vision.face_clustering_step import FaceClusteringStep
 from preprocessor.steps.vision.image_hashing_step import ImageHashStep
 from preprocessor.steps.vision.object_detection_step import ObjectDetectionStep
+from preprocessor.steps.vision.series_face_clustering_step import SeriesFaceClusteringStep
 
 # Phase Definitions
 SCRAPING = Phase("SCRAPING", color="blue")
@@ -82,6 +84,7 @@ VALIDATION = Phase("VALIDATION", color="magenta")
 
 def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=too-many-locals,too-many-statements
     series_config = SeriesConfig.load(series_name)
+    _reference_source = series_config.scraping.character_references.source
 
     # =========================================================
     # SCRAPING PHASE
@@ -127,43 +130,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         ),
     )
 
-    character_references = StepBuilder(
-        phase=SCRAPING,
-        step_class=CharacterReferenceStep,
-        description="Downloads character reference images from the web",
-        produces=[
-            DirectoryOutput(
-                pattern="character_faces",
-                subdir="",
-                expected_file_pattern="**/*.jpg",
-                min_files=1,
-                min_size_per_file_bytes=1024,
-            ),
-        ],
-        needs=[characters_metadata],
-        config=CharacterReferenceConfig(
-            search_engine=series_config.scraping.character_references.search_engine,
-            images_per_character=series_config.scraping.character_references.images_per_character,
-            search_query_template=series_config.scraping.character_references.search_query_template,
-        ),
-    )
-
-    character_reference_vectors = StepBuilder(
-        phase=SCRAPING,
-        step_class=CharacterReferenceProcessorStep,
-        description="Processes character reference images into face embedding vectors",
-        produces=[
-            DirectoryOutput(
-                pattern="character_references_processed",
-                subdir="",
-                expected_file_pattern="**/face_vector.npy",
-                min_files=1,
-                min_size_per_file_bytes=100,
-            ),
-        ],
-        needs=[character_references],
-        config=CharacterReferenceProcessorConfig(),
-    )
 
     # =========================================================
     # PROCESSING PHASE: VIDEO
@@ -406,6 +372,70 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     # =========================================================
     # PROCESSING PHASE: VISION
     # =========================================================
+    series_face_clusters = StepBuilder(
+        phase=PROCESSING,
+        step_class=SeriesFaceClusteringStep,
+        description="Clusters all faces across the series into numbered folders for manual labeling",
+        produces=[
+            JsonFileOutput(
+                pattern="_cluster_index.json",
+                subdir="character_clusters",
+                min_size_bytes=10,
+            ),
+        ],
+        needs=[exported_frames],
+        config=SeriesFaceClusteringConfig(),
+    )
+
+    _character_ref_vectors_output = DirectoryOutput(
+        pattern="character_references_processed",
+        subdir="",
+        expected_file_pattern="**/face_vector.npy",
+        min_files=1,
+        min_size_per_file_bytes=100,
+    )
+
+    if _reference_source == "clusters":
+        character_reference_vectors = StepBuilder(
+            phase=PROCESSING,
+            step_class=CharacterReferenceProcessorStep,
+            description="Builds character face vectors from manually labeled cluster frames",
+            produces=[_character_ref_vectors_output],
+            needs=[series_face_clusters],
+            config=CharacterReferenceProcessorConfig(reference_source="clusters"),
+        )
+        _character_ref_steps = [character_reference_vectors]
+    else:
+        character_references = StepBuilder(
+            phase=SCRAPING,
+            step_class=CharacterReferenceStep,
+            description="Downloads character reference images from the web",
+            produces=[
+                DirectoryOutput(
+                    pattern="character_faces",
+                    subdir="",
+                    expected_file_pattern="**/*.jpg",
+                    min_files=1,
+                    min_size_per_file_bytes=1024,
+                ),
+            ],
+            needs=[characters_metadata],
+            config=CharacterReferenceConfig(
+                search_engine=series_config.scraping.character_references.search_engine,
+                images_per_character=series_config.scraping.character_references.images_per_character,
+                search_query_template=series_config.scraping.character_references.search_query_template,
+            ),
+        )
+        character_reference_vectors = StepBuilder(
+            phase=SCRAPING,
+            step_class=CharacterReferenceProcessorStep,
+            description="Processes character reference images into face embedding vectors",
+            produces=[_character_ref_vectors_output],
+            needs=[character_references],
+            config=CharacterReferenceProcessorConfig(reference_source="web"),
+        )
+        _character_ref_steps = [character_references, character_reference_vectors]
+
     image_hashes = StepBuilder(
         phase=PROCESSING,
         step_class=ImageHashStep,
@@ -574,8 +604,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
 
     pipeline.register(episodes_metadata)
     pipeline.register(characters_metadata)
-    pipeline.register(character_references)
-    pipeline.register(character_reference_vectors)
 
     pipeline.register(resolution_analysis)
     pipeline.register(transcoded_videos)
@@ -595,6 +623,9 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(image_hashes)
     pipeline.register(video_embeddings)
 
+    pipeline.register(series_face_clusters)
+    for _step in _character_ref_steps:
+        pipeline.register(_step)
     pipeline.register(object_detections)
     pipeline.register(character_detections)
     pipeline.register(emotion_data)
