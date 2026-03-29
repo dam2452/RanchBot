@@ -57,7 +57,7 @@ class FaceDetector:
         return detected
 
     @staticmethod
-    def init() -> FaceAnalysis:
+    def init(det_thresh: Optional[float] = None) -> FaceAnalysis:
         model_root = os.getenv('INSIGHTFACE_HOME', os.path.expanduser('~/.insightface'))
         FaceDetector.__check_cuda_availability()
 
@@ -67,10 +67,10 @@ class FaceDetector:
             warnings.filterwarnings('ignore', category=UserWarning, module='onnxruntime')
             warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
 
-            face_app = FaceDetector.__init_face_app(model_root, providers)
+            face_app = FaceDetector.__init_face_app(model_root, providers, det_thresh)
             FaceDetector.__verify_active_providers(face_app)
 
-        FaceDetector.__print_init_success(model_root)
+        FaceDetector.__print_init_success(model_root, det_thresh)
         return face_app
 
     @staticmethod
@@ -156,8 +156,10 @@ class FaceDetector:
     def __init_face_app(
             model_root: str,
             providers: List[Tuple[str, Dict[str, Any]]],
+            det_thresh_override: Optional[float],
     ) -> FaceAnalysis:
         model_name = settings.face_recognition.model_name
+        det_thresh = det_thresh_override if det_thresh_override is not None else settings.character.face_detection_threshold
         console.print(f'[cyan]Loading {model_name} face detection model (GPU-only)...[/cyan]')
 
         try:
@@ -165,7 +167,7 @@ class FaceDetector:
             face_app.prepare(
                 ctx_id=0,
                 det_size=settings.face_recognition.detection_size,
-                det_thresh=settings.character.face_detection_threshold,
+                det_thresh=det_thresh,
             )
             return face_app
         except Exception as e:
@@ -183,10 +185,10 @@ class FaceDetector:
             raise RuntimeError('CUDA required but not available for face detection')
 
     @staticmethod
-    def __print_init_success(model_root: str) -> None:
+    def __print_init_success(model_root: str, det_thresh_override: Optional[float]) -> None:
         model_name = settings.face_recognition.model_name
         det_size = settings.face_recognition.detection_size
-        det_thresh = settings.character.face_detection_threshold
+        det_thresh = det_thresh_override if det_thresh_override is not None else settings.character.face_detection_threshold
 
         console.print(f'[green]Face detection initialized ({model_name})[/green]')
         console.print('[dim]  Device: GPU (CUDA)[/dim]')

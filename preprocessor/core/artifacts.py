@@ -117,11 +117,6 @@ class EmotionData(EpisodeArtifact):
 
 
 @dataclass(frozen=True)
-class ClusterData(EpisodeArtifact):
-    path: Path
-
-
-@dataclass(frozen=True)
 class ObjectDetectionData(EpisodeArtifact):
     path: Path
 

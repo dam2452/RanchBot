@@ -58,11 +58,14 @@ class SeriesFaceClusteringStep(PipelineStep[SourceVideo, SourceVideo, SeriesFace
             f"Extracting face embeddings from {len(frame_files)} frames across the series...",
         )
 
+        clustering = settings.face_clustering
         face_app = None
         try:
-            face_app = FaceDetector.init()
+            face_app = FaceDetector.init(det_thresh=clustering.min_det_score)
             face_data = FaceClusterer.extract_face_embeddings(
                 frame_files, face_app, self.config.prefetch_workers,
+                min_det_score=clustering.min_det_score,
+                min_face_px=clustering.min_face_px,
             )
 
             if not face_data:
@@ -71,7 +74,6 @@ class SeriesFaceClusteringStep(PipelineStep[SourceVideo, SourceVideo, SeriesFace
 
             context.logger.info(f"Clustering {len(face_data)} face embeddings series-wide...")
 
-            clustering = settings.face_clustering
             labels = FaceClusterer.cluster_embeddings(
                 face_data, clustering.min_cluster_size, clustering.min_samples,
             )

@@ -35,16 +35,7 @@ class ClusterFolderManager:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         for rank, (_, faces) in enumerate(sorted_clusters):
-            cluster_dir = output_dir / str(rank)
-            cluster_dir.mkdir(exist_ok=True)
-
-            ranked_frames = ClusterFolderManager._rank_frames_by_centrality(faces)
-            for frame_rank, (frame_path, _) in enumerate(ranked_frames):
-                hash8 = hashlib.sha256(str(frame_path).encode()).hexdigest()[:8]
-                dest_name = f"{frame_rank:04d}_{frame_path.stem}_{hash8}{frame_path.suffix}"
-                dest_path = cluster_dir / dest_name
-                if not dest_path.exists():
-                    shutil.copy2(frame_path, dest_path)
+            ClusterFolderManager.__populate_cluster_dir(output_dir / str(rank), faces)
 
         cluster_count = len(sorted_clusters)
         if logger:
@@ -52,23 +43,66 @@ class ClusterFolderManager:
         return cluster_count
 
     @staticmethod
+    def __populate_cluster_dir(
+        cluster_dir: Path,
+        faces: List[Dict[str, Any]],
+    ) -> None:
+        frames_dir = cluster_dir / 'frames'
+        faces_dir = cluster_dir / 'faces'
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        faces_dir.mkdir(parents=True, exist_ok=True)
+
+        for frame_rank, (frame_path, _, bbox) in enumerate(
+            ClusterFolderManager._rank_frames_by_centrality(faces),
+        ):
+            hash8 = hashlib.sha256(str(frame_path).encode()).hexdigest()[:8]
+            dest_name = f"{frame_rank:04d}_{frame_path.stem}_{hash8}{frame_path.suffix}"
+
+            frame_dest = frames_dir / dest_name
+            if not frame_dest.exists():
+                shutil.copy2(frame_path, frame_dest)
+
+            face_dest = faces_dir / dest_name
+            if not face_dest.exists():
+                ClusterFolderManager._save_face_crop(frame_path, bbox, face_dest)
+
+    @staticmethod
+    def _save_face_crop(
+        frame_path: Path,
+        bbox: Tuple[int, int, int, int],
+        dest_path: Path,
+    ) -> None:
+        img = cv2.imread(str(frame_path))
+        if img is None:
+            return
+        x1, y1, x2, y2 = bbox
+        crop = img[y1:y2, x1:x2]
+        if crop.size > 0:
+            cv2.imwrite(str(dest_path), crop)
+
+    @staticmethod
     def _rank_frames_by_centrality(
         faces: List[Dict[str, Any]],
-    ) -> List[Tuple[Path, float]]:
+    ) -> List[Tuple[Path, float, Tuple[int, int, int, int]]]:
         vectors = np.array([f['vector'] for f in faces])
         centroid = np.mean(vectors, axis=0)
         norm = np.linalg.norm(centroid)
         if norm > 1e-6:
             centroid /= norm
 
-        frame_max_sim: Dict[Path, float] = {}
+        frame_best: Dict[Path, Tuple[float, Tuple[int, int, int, int]]] = {}
         for face_info in faces:
             frame_path: Path = face_info['frame_path']
             sim = float(np.dot(face_info['vector'], centroid))
-            if frame_path not in frame_max_sim or sim > frame_max_sim[frame_path]:
-                frame_max_sim[frame_path] = sim
+            bbox: Tuple[int, int, int, int] = face_info['bbox']
+            if frame_path not in frame_best or sim > frame_best[frame_path][0]:
+                frame_best[frame_path] = (sim, bbox)
 
-        return sorted(frame_max_sim.items(), key=lambda x: x[1], reverse=True)
+        return sorted(
+            [(path, sim, bbox) for path, (sim, bbox) in frame_best.items()],
+            key=lambda x: x[1],
+            reverse=True,
+        )
 
     @staticmethod
     def get_labeled_folders(cluster_dir: Path) -> Dict[str, Path]:
@@ -99,7 +133,9 @@ class ClusterFolderManager:
         face_app: FaceAnalysis,
         logger: Optional[ErrorHandlingLogger] = None,
     ) -> Optional[np.ndarray]:
-        frame_files = sorted(cluster_folder.glob('*.jpg'))
+        frames_dir = cluster_folder / 'frames'
+        search_dir = frames_dir if frames_dir.exists() else cluster_folder
+        frame_files = sorted(search_dir.glob('*.jpg'))
         if not frame_files:
             if logger:
                 logger.warning(f"No frames in {cluster_folder}")

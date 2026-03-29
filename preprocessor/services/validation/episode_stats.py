@@ -47,7 +47,6 @@ class EpisodeStats(ValidationStatusMixin):
         from preprocessor.services.validation.validators import (
             CharacterValidator,
             ElasticValidator,
-            FaceClusterValidator,
             FrameValidator,
             ImageHashValidator,
             ObjectValidator,
@@ -59,7 +58,7 @@ class EpisodeStats(ValidationStatusMixin):
         validators = [
             TranscriptionValidator(), FrameValidator(), VideoValidator(),
             SceneValidator(), ImageHashValidator(), CharacterValidator(),
-            FaceClusterValidator(), ObjectValidator(), ElasticValidator(),
+            ObjectValidator(), ElasticValidator(),
         ]
 
         for validator in validators:

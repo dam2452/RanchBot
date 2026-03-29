@@ -18,7 +18,6 @@ from preprocessor.config.step_configs import (
     EmotionDetectionConfig,
     EpisodeNameEmbeddingConfig,
     EpisodeScraperConfig,
-    FaceClusteringConfig,
     FrameExportConfig,
     FullEpisodeEmbeddingConfig,
     ImageHashConfig,
@@ -70,7 +69,6 @@ from preprocessor.steps.vision.character_detection_step import CharacterDetector
 from preprocessor.steps.vision.character_reference_processor_step import CharacterReferenceProcessorStep
 from preprocessor.steps.vision.embeddings_step import VideoEmbeddingStep
 from preprocessor.steps.vision.emotion_detection_step import EmotionDetectionStep
-from preprocessor.steps.vision.face_clustering_step import FaceClusteringStep
 from preprocessor.steps.vision.image_hashing_step import ImageHashStep
 from preprocessor.steps.vision.object_detection_step import ObjectDetectionStep
 from preprocessor.steps.vision.series_face_clustering_step import SeriesFaceClusteringStep
@@ -496,20 +494,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
         config=EmotionDetectionConfig(),
     )
 
-    face_clusters = StepBuilder(
-        phase=PROCESSING,
-        step_class=FaceClusteringStep,
-        description="Face clustering using HDBSCAN",
-        produces=[
-            JsonFileOutput(
-                pattern="{season}/{episode}.json",
-                min_size_bytes=10,
-            ),
-        ],
-        needs=[exported_frames],
-        config=FaceClusteringConfig(),
-    )
-
     object_detections = StepBuilder(
         phase=PROCESSING,
         step_class=ObjectDetectionStep,
@@ -543,7 +527,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
             video_embeddings,
             character_detections,
             emotion_data,
-            face_clusters,
             object_detections,
         ],
         config=DocumentGenerationConfig(),
@@ -629,7 +612,6 @@ def build_pipeline(series_name: str) -> PipelineDefinition:  # pylint: disable=t
     pipeline.register(object_detections)
     pipeline.register(character_detections)
     pipeline.register(emotion_data)
-    pipeline.register(face_clusters)
 
     pipeline.register(elastic_documents)
     pipeline.register(episode_archives)

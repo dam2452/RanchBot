@@ -191,10 +191,6 @@ class EmotionDetectionConfig(BaseModel):
     max_parallel_episodes: int = Field(default=2, ge=1, le=4)
 
 
-class FaceClusteringConfig(BaseModel):
-    max_parallel_episodes: int = Field(default=1, ge=1, le=8)
-
-
 class SeriesFaceClusteringConfig(BaseModel):
     prefetch_workers: int = Field(default=8, ge=1, le=32)
 

@@ -29,6 +29,8 @@ class FaceClusterer:
             frame_files: List[Path],
             face_app: FaceAnalysis,
             prefetch_workers: int = 4,
+            min_det_score: float = 0.0,
+            min_face_px: int = 0,
     ) -> List[Dict[str, Any]]:
         face_data: List[Dict[str, Any]] = []
 
@@ -38,6 +40,9 @@ class FaceClusterer:
                 continue
 
             for face_idx, face in enumerate(face_app.get(img)):
+                if face.det_score < min_det_score:
+                    continue
+
                 bbox = face.bbox.astype(int)
                 x1 = max(0, bbox[0])
                 y1 = max(0, bbox[1])
@@ -46,11 +51,14 @@ class FaceClusterer:
 
                 if x2 <= x1 or y2 <= y1:
                     continue
+                if (x2 - x1) < min_face_px or (y2 - y1) < min_face_px:
+                    continue
 
                 face_data.append({
                     'vector': face.normed_embedding,
                     'frame_path': frame_path,
                     'face_idx': face_idx,
+                    'bbox': (x1, y1, x2, y2),
                 })
 
         return face_data

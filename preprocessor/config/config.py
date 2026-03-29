@@ -168,6 +168,7 @@ class EmbeddingSettings(OutputDirMixin):
 
 @dataclass(frozen=True)
 class FaceRecognitionSettings:
+    det_thresh: float = 0.55
     detection_size: Tuple[int, int] = (1280, 1280)
     model_name: str = 'buffalo_l'
 
@@ -176,8 +177,10 @@ class FaceRecognitionSettings:
 class FaceClusteringSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'face_clusters'
 
-    min_cluster_size: int = 5
-    min_samples: int = 3
+    min_cluster_size: int = 80
+    min_face_px: int = 60
+    min_samples: int = 15
+    min_det_score: float = 0.55
     save_noise: bool = True
 
 
