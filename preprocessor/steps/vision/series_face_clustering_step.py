@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import (
     Any,
@@ -86,6 +87,7 @@ class SeriesFaceClusteringStep(PipelineStep[SourceVideo, SourceVideo, SeriesFace
             )
 
             self.__write_cluster_index(output_dir, context.series_name, cluster_count, face_data, frame_files)
+            self.__create_character_label_folders(output_dir, context)
 
             context.logger.info(
                 f"Series clustering complete: {cluster_count} clusters → {output_dir}",
@@ -111,6 +113,21 @@ class SeriesFaceClusteringStep(PipelineStep[SourceVideo, SourceVideo, SeriesFace
             'total_frames': len(frame_files),
         }
         FileOperations.atomic_write_json(output_dir / '_cluster_index.json', index_data)
+
+    @staticmethod
+    def __create_character_label_folders(output_dir: Path, context: ExecutionContext) -> None:
+        characters_json = context.base_output_dir / f'{context.series_name}_characters.json'
+        if not characters_json.exists():
+            return
+        with open(characters_json, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        names = [c['name'] for c in data.get('characters', []) if c.get('name')]
+        for name in names:
+            folder = output_dir / name
+            if not folder.exists():
+                folder.mkdir(parents=True)
+        if names:
+            context.logger.info(f"Created {len(names)} empty character label folders")
 
     @staticmethod
     def __collect_frame_files(frames_root: Path) -> List[Path]:

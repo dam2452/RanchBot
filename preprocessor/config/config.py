@@ -177,9 +177,9 @@ class FaceClusteringSettings(OutputDirMixin):
     OUTPUT_SUBDIR: ClassVar[str] = 'face_clusters'
 
     min_cluster_size: int = 5
-    min_face_px: int = 0
+    min_face_px: int = 40
     min_samples: int = 3
-    min_det_score: float = 0.0
+    min_det_score: float = 0.4
     save_noise: bool = True
 
 

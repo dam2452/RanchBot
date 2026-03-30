@@ -26,16 +26,21 @@ class ClusterFolderManager:
         logger: Optional[ErrorHandlingLogger] = None,
     ) -> int:
         groups: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        noise: List[Dict[str, Any]] = []
         for face_info, label in zip(face_data, labels):
             if int(label) == -1:
-                continue
-            groups[int(label)].append(face_info)
+                noise.append(face_info)
+            else:
+                groups[int(label)].append(face_info)
 
         sorted_clusters = sorted(groups.items(), key=lambda x: len(x[1]), reverse=True)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         for rank, (_, faces) in enumerate(sorted_clusters):
             ClusterFolderManager.__populate_cluster_dir(output_dir / str(rank), faces)
+
+        if noise:
+            ClusterFolderManager.__populate_cluster_dir(output_dir / '_noise', noise)
 
         cluster_count = len(sorted_clusters)
         if logger:
