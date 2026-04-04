@@ -67,6 +67,7 @@ class ClipType(Enum):
     SELECTED = "selected"
     ADJUSTED = "adjusted"
     SINGLE = "single"
+    TIKTAK = "tiktak"
 
 
 @dataclass
