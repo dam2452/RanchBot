@@ -116,7 +116,7 @@ class ClusterFolderManager:
         return {
             d.name: d
             for d in sorted(cluster_dir.iterdir())
-            if d.is_dir() and not d.name.isdigit()
+            if d.is_dir() and not d.name.isdigit() and not d.name.startswith('_')
         }
 
     @staticmethod
