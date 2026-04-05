@@ -19,8 +19,12 @@ class TikTakProcessor:
     _ASPECT_9_16 = 9.0 / 16.0
     _MAX_PAN_SPEED = 120.0
     _PERSON_CLASS = "person"
-    _NVENC_CODEC = "h264_nvenc"
-    _SW_CODEC = "libx264"
+    _CODEC = "libx264"
+    _PRESET = "fast"
+    _CRF = "23"
+    _PROFILE = "high"
+    _LEVEL = "4.1"
+    _PIX_FMT = "yuv420p"
 
     @staticmethod
     async def process_single(
@@ -54,7 +58,7 @@ class TikTakProcessor:
             logger,
         )
         return await TikTakProcessor._run_ffmpeg(
-            video_path, start_time, duration, crop_w, height, x_expr, logger,
+            video_path, start_time, duration, crop_w, height, x_expr,
         )
 
     @staticmethod
@@ -76,7 +80,7 @@ class TikTakProcessor:
                 logger,
             )
             return await TikTakProcessor._run_ffmpeg(
-                tmp_input, 0.0, duration, crop_w, height, str(center_x), logger,
+                tmp_input, 0.0, duration, crop_w, height, str(center_x),
             )
         finally:
             if os.path.exists(tmp_input):
@@ -287,43 +291,35 @@ class TikTakProcessor:
         crop_w: int,
         height: int,
         x_expr: str,
-        logger: logging.Logger,
     ) -> Path:
         fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
         os.close(fd)
         output = Path(tmp_path)
 
-        filter_str = f"crop={crop_w}:{height}:'{x_expr}':0:eval=frame"
-
-        for codec, extra_args in (
-            (TikTakProcessor._NVENC_CODEC, ("-preset", "p4", "-cq", "23")),
-            (TikTakProcessor._SW_CODEC, ("-preset", "fast", "-crf", "23")),
-        ):
-            command = [
-                "ffmpeg", "-y",
-                "-ss", str(start_time),
-                "-i", str(video_path),
-                "-t", str(duration),
-                "-vf", filter_str,
-                "-c:v", codec,
-                *extra_args,
-                "-c:a", "copy",
-                "-movflags", "+faststart",
-                "-loglevel", "error",
-                str(output),
-            ]
-            process = await asyncio.create_subprocess_exec(
-                *command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await process.communicate()
-            if process.returncode == 0:
-                return output
-            await log_system_message(
-                logging.WARNING,
-                f"TikTak: codec {codec} failed: {stderr.decode()[:300]}",
-                logger,
-            )
-
-        raise FFMpegException("TikTak encoding failed with both NVENC and software encoder")
+        filter_str = f"crop={crop_w}:{height}:'{x_expr}':0"
+        command = [
+            "ffmpeg", "-y",
+            "-ss", str(start_time),
+            "-i", str(video_path),
+            "-t", str(duration),
+            "-vf", filter_str,
+            "-c:v", TikTakProcessor._CODEC,
+            "-preset", TikTakProcessor._PRESET,
+            "-crf", TikTakProcessor._CRF,
+            "-profile:v", TikTakProcessor._PROFILE,
+            "-level", TikTakProcessor._LEVEL,
+            "-pix_fmt", TikTakProcessor._PIX_FMT,
+            "-c:a", "copy",
+            "-movflags", "+faststart",
+            "-loglevel", "error",
+            str(output),
+        ]
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await process.communicate()
+        if process.returncode != 0:
+            raise FFMpegException(f"TikTak encoding failed: {stderr.decode()[:300]}")
+        return output
