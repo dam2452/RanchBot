@@ -10,3 +10,4 @@ from bot.handlers.sending_videos.select_clip_handler import SelectClipHandler
 from bot.handlers.sending_videos.semantic_clip_handler import SemanticClipHandler
 from bot.handlers.sending_videos.send_clip_handler import SendClipHandler
 from bot.handlers.sending_videos.snap_clip_handler import SnapClipHandler
+from bot.handlers.sending_videos.tiktak_handler import TikTakHandler

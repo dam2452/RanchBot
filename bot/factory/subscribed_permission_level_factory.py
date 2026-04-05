@@ -40,6 +40,7 @@ from bot.handlers import (
     SendClipHandler,
     SerialContextHandler,
     SnapClipHandler,
+    TikTakHandler,
     TranscriptionHandler,
 )
 from bot.middlewares import (
@@ -80,6 +81,7 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             SendClipHandler,
             SerialContextHandler,
             SnapClipHandler,
+            TikTakHandler,
             TranscriptionHandler,
         ]
 

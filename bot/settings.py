@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
     DISABLE_RATE_LIMITING: bool = Field(False)
 
+    TIKTAK_DETECTION_DIR: str = Field("")
+    SENSODCINEK_PREVIEW_DURATION_SEC: int = Field(30)
+
     VLLM_HOST: str = Field("http://localhost:11435")
     VLLM_EMBEDDINGS_MODEL: str = Field("qwen3vl-embed")
     VLLM_TIMEOUT_SECONDS: int = Field(30)
