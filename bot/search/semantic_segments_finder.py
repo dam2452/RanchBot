@@ -244,6 +244,49 @@ class SemanticSegmentsFinder:
         return unique
 
     @staticmethod
+    async def fetch_first_dialogue_times(
+        episode_ids: List[str],
+        series_name: str,
+        logger: logging.Logger,
+    ) -> Dict[str, float]:
+        if not episode_ids:
+            return {}
+        es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+        index = f"{series_name}{ElasticsearchIndexSuffixes.TEXT_SEGMENTS}"
+        query = {
+            "query": {"terms": {"episode_id": episode_ids}},
+            "size": 0,
+            "aggs": {
+                "per_episode": {
+                    "terms": {"field": "episode_id", "size": len(episode_ids)},
+                    "aggs": {
+                        "first_segment": {
+                            "top_hits": {
+                                "sort": [{"start_time": {"order": "asc"}}],
+                                "size": 1,
+                                "_source": ["start_time"],
+                            },
+                        },
+                    },
+                },
+            },
+        }
+        try:
+            response = await es.search(index=index, body=query)
+        except Exception:  # pylint: disable=broad-except
+            await log_system_message(logging.WARNING, "Failed to fetch first dialogue times.", logger)
+            return {}
+
+        result: Dict[str, float] = {}
+        buckets = response.get("aggregations", {}).get("per_episode", {}).get("buckets", [])
+        for bucket in buckets:
+            episode_id = bucket.get("key")
+            hits = bucket.get("first_segment", {}).get("hits", {}).get("hits", [])
+            if episode_id and hits:
+                result[episode_id] = hits[0]["_source"].get("start_time", 0.0)
+        return result
+
+    @staticmethod
     def deduplicate_episodes(episodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         seen = set()
         unique = []

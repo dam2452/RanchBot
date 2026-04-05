@@ -23,8 +23,15 @@ from bot.responses.not_sending_videos.semantic_search_handler_responses import (
     get_no_query_provided_message,
 )
 from bot.search.filter_applicator import FilterApplicator
-from bot.search.semantic_segments_finder import SemanticSearchMode
-from bot.utils.constants import EpisodeMetadataKeys
+from bot.search.semantic_segments_finder import (
+    SemanticSearchMode,
+    SemanticSegmentsFinder,
+)
+from bot.settings import settings
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 
 
 class SemanticSearchHandler(SemanticBotHandler):
@@ -88,12 +95,14 @@ class SemanticSearchHandler(SemanticBotHandler):
 
         unique = self._deduplicate_semantic_results(results, mode)
 
-        if mode != SemanticSearchMode.EPISODE:
-            await DatabaseManager.insert_last_search(
-                chat_id=self._message.get_chat_id(),
-                quote=query,
-                segments=json.dumps(unique),
-            )
+        if mode == SemanticSearchMode.EPISODE:
+            unique = await self.__enrich_episode_results_with_clip_times(unique, active_series)
+
+        await DatabaseManager.insert_last_search(
+            chat_id=self._message.get_chat_id(),
+            quote=query,
+            segments=json.dumps(unique),
+        )
 
         response = self.__format_response(unique, query, mode)
 
@@ -104,6 +113,20 @@ class SemanticSearchHandler(SemanticBotHandler):
                 query, self._message.get_username(), mode,
             ),
         )
+
+    async def __enrich_episode_results_with_clip_times(
+        self, episodes: list, active_series: str,
+    ) -> list:
+        episode_ids = [ep.get("episode_id") for ep in episodes if ep.get("episode_id")]
+        first_times = await SemanticSegmentsFinder.fetch_first_dialogue_times(
+            episode_ids, active_series, self._logger,
+        )
+        for ep in episodes:
+            episode_id = ep.get("episode_id", "")
+            first_time = first_times.get(episode_id, 0.0)
+            ep[SegmentKeys.START_TIME] = first_time
+            ep[SegmentKeys.END_TIME] = first_time + settings.SENSODCINEK_PREVIEW_DURATION_SEC
+        return episodes
 
     @staticmethod
     def __format_response(unique: list, query: str, mode: SemanticSearchMode) -> str:

@@ -5,7 +5,10 @@ from typing import (
 )
 
 from bot.responses.bot_response import BotResponse
-from bot.utils.constants import EpisodeMetadataKeys
+from bot.utils.constants import (
+    EpisodeMetadataKeys,
+    SegmentKeys,
+)
 from bot.utils.functions import (
     convert_number_to_emoji,
     format_segment,
@@ -83,8 +86,16 @@ def format_semantic_episodes_response(
         else:
             ep_fmt = f"S{str(season).zfill(2)}E{str(episode_num).zfill(2)}"
 
+        start_time = ep.get(SegmentKeys.START_TIME)
+        if start_time is not None:
+            minutes = int(start_time) // 60
+            seconds = int(start_time) % 60
+            clip_info = f" | klip od {minutes}:{seconds:02d}"
+        else:
+            clip_info = ""
+
         line = (
-            f"{convert_number_to_emoji(i)}  | 📺 {ep_fmt}\n"
+            f"{convert_number_to_emoji(i)}  | 📺 {ep_fmt}{clip_info}\n"
             f"   👉  {title}"
         )
         episode_lines.append(line)

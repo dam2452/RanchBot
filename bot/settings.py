@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     DISABLE_RATE_LIMITING: bool = Field(False)
 
     TIKTAK_DETECTION_DIR: str = Field("")
+    SENSODCINEK_PREVIEW_DURATION_SEC: int = Field(30)
 
     VLLM_HOST: str = Field("http://localhost:11435")
     VLLM_EMBEDDINGS_MODEL: str = Field("qwen3vl-embed")
