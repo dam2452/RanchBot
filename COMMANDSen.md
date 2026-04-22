@@ -93,6 +93,8 @@
   - `character:X` – character visible on scene (e.g. `character:Pawlak`, `character:Pawlak,Kusy`)
   - `emotion:X` – character emotion on scene (e.g. `emotion:happy`)
   - `object:X` – object on scene with optional quantity filter (e.g. `object:chair`, `object:chair>3`)
+- **`/clipfilter`** / **`/klipfiltr`** / **`/kf`**: 🎬 Sends a clip based on the active filter. Can take an optional quote (acts like `/k` but with filters applied). Example: `/kf genius`.
+- **`/searchfilter`** / **`/szukajfiltr`** / **`/szf`**: 🔎 Returns a list of segments matching the active filter. Can take an optional quote (acts like `/sz` but with filters applied). Example: `/szf genius`. Results saved in `last_search`, accessible for `/select` and `/list`.
 - **`/characters`** / **`/p`**: 👤 Displays a list of all characters with episode count.
 - **`/characters <character_name>`** / **`/p <character_name>`**: 👤 Displays scenes with the given character. Example: `/characters Wilkowyska`.
 - **`/characters <character_name> <emotion>`** / **`/p <character_name> <emotion>`**: 👤 Scenes with character and emotion. Example: `/p Wilkowyska happy`.

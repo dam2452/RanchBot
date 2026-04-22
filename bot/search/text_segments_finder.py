@@ -2,13 +2,18 @@ import logging
 from typing import (
     Any,
     Dict,
+    Iterable,
     List,
     Optional,
+    Tuple,
     Union,
 )
 
 from bot.search.filter_applicator import FilterApplicator
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_episode_restriction_filter,
+)
 from bot.settings import settings
 from bot.types import (
     BaseSegment,
@@ -246,11 +251,18 @@ class TextSegmentsFinder:
         return None
 
     @staticmethod
+    def __build_episode_restriction_clause(
+        episode_keys: Iterable[Tuple[int, int]],
+    ) -> Optional[Dict[str, Any]]:
+        return build_episode_restriction_filter(episode_keys)
+
+    @staticmethod
     async def find_segments_by_filter_only(
             logger: logging.Logger,
             series_name: str,
             search_filter: SearchFilter,
             size: int = 1000,
+            restrict_episode_keys: Optional[Iterable[Tuple[int, int]]] = None,
     ) -> List[SegmentWithScore]:
         await log_system_message(
             logging.INFO,
@@ -277,6 +289,19 @@ class TextSegmentsFinder:
         }
 
         TextSegmentsFinder.__apply_search_filter_to_query(query, search_filter)
+
+        if restrict_episode_keys is not None:
+            restriction = TextSegmentsFinder.__build_episode_restriction_clause(restrict_episode_keys)
+            if restriction is None:
+                await log_system_message(
+                    logging.INFO,
+                    "Filter-only search: no eligible episodes after video-frame prefilter.",
+                    logger,
+                )
+                return []
+            query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][
+                ElasticsearchQueryKeys.FILTER
+            ].append(restriction)
 
         hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 

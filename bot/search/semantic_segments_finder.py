@@ -21,6 +21,7 @@ from bot.utils.constants import (
     ElasticsearchQueryKeys,
     EmbeddingKeys,
     EpisodeMetadataKeys,
+    SceneInfoKeys,
     SegmentKeys,
     VideoFrameKeys,
 )
@@ -249,8 +250,8 @@ class SemanticSegmentsFinder:
         for frame in frames:
             scene = frame.get(VideoFrameKeys.SCENE_INFO, {})
             timestamp = frame.get(VideoFrameKeys.TIMESTAMP, 0.0)
-            frame[SegmentKeys.START_TIME] = scene.get("scene_start_time", timestamp)
-            frame[SegmentKeys.END_TIME] = scene.get("scene_end_time", timestamp)
+            frame[SegmentKeys.START_TIME] = scene.get(SceneInfoKeys.SCENE_START_TIME, timestamp)
+            frame[SegmentKeys.END_TIME] = scene.get(SceneInfoKeys.SCENE_END_TIME, timestamp)
         return frames
 
     @staticmethod

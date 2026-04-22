@@ -5,8 +5,10 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
+    Iterable,
     List,
     Optional,
+    Tuple,
     cast,
 )
 
@@ -54,6 +56,30 @@ def build_bool_must_query(
     return {
         ElasticsearchQueryKeys.QUERY: {
             ElasticsearchQueryKeys.BOOL: bool_clause,
+        },
+    }
+
+
+def build_episode_restriction_filter(
+    episode_keys: Iterable[Tuple[int, int]],
+) -> Optional[Dict[str, Any]]:
+    valid = [(s, e) for s, e in episode_keys if s is not None and e is not None]
+    if not valid:
+        return None
+    return {
+        ElasticsearchQueryKeys.BOOL: {
+            ElasticsearchQueryKeys.SHOULD: [
+                {
+                    ElasticsearchQueryKeys.BOOL: {
+                        ElasticsearchQueryKeys.FILTER: [
+                            {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
+                            {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode}},
+                        ],
+                    },
+                }
+                for season, episode in valid
+            ],
+            ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
         },
     }
 

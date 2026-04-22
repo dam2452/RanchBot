@@ -116,6 +116,10 @@ class ElasticsearchQueryKeys:
     GTE: Final[str] = "gte"
     LTE: Final[str] = "lte"
     SEARCH_AFTER: Final[str] = "search_after"
+    COMPOSITE: Final[str] = "composite"
+    SOURCES: Final[str] = "sources"
+    AFTER: Final[str] = "after"
+    AFTER_KEY: Final[str] = "after_key"
 
 
 class DatabaseKeys:

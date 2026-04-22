@@ -96,8 +96,8 @@
   - `postac:X` (aliasy: `character`, `p`) – postać widoczna na scenie (np. `postac:Pawlak`, `postac:Pawlak,Kusy`)
   - `emocja:X` (aliasy: `emotion`, `e`) – emocja postaci na scenie (np. `emocja:radosny`)
   - `obiekt:X` (aliasy: `object`, `obj`, `o`) – obiekt na scenie z opcjonalnym filtrem ilości (np. `obiekt:krzeslo`, `obiekt:krzeslo>3`)
-- **`/klipfiltr`** / **`/clipfilter`** / **`/kf`**: 🎬 Wysyła klip na podstawie aktywnego filtra bez podawania cytatu. Wybiera pierwszy segment pasujący do filtra (sezony/odcinki + postaci/emocje/obiekty). Użycie: ustaw `/filtr postac:Pawlak emocja:radosny sezon:3` i wywołaj `/kf`.
-- **`/szukajfiltr`** / **`/searchfilter`** / **`/szf`**: 🔎 Zwraca listę segmentów pasujących do aktywnego filtra (bez cytatu) — wyniki zapisane w `last_search`, dostępne dla `/wybierz` i `/lista`. Użycie: ustaw filtr, np. `/filtr postac:Pawlak sezon:3` i wywołaj `/szf`. W REST API zwraca `data.results` (lista segmentów) oraz `data.filter` (aktywny filtr).
+- **`/klipfiltr`** / **`/clipfilter`** / **`/kf`**: 🎬 Wysyła klip na podstawie aktywnego filtra. Może przyjmować opcjonalny cytat (działa wtedy jak `/k`, ale z nałożonymi filtrami). Przykład: `/kf wina wójta`.
+- **`/szukajfiltr`** / **`/searchfilter`** / **`/szf`**: 🔎 Zwraca listę segmentów pasujących do aktywnego filtra. Może przyjmować opcjonalny cytat (działa wtedy jak `/sz`, ale z nałożonymi filtrami). Przykład: `/szf wina wójta`. Wyniki zapisane w `last_search`, dostępne dla `/wybierz` i `/lista`.
 - **`/postacie`** / **`/p`**: 👤 Wyświetla listę wszystkich postaci z liczbą odcinków.
 - **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/p Wilkowyska radosny`.

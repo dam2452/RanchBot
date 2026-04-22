@@ -5,6 +5,7 @@ import math
 from typing import (
     Any,
     Dict,
+    Iterable,
     List,
     Optional,
     Set,
@@ -15,7 +16,10 @@ from typing import (
 from elasticsearch import RequestError
 
 from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_episode_restriction_filter,
+)
 from bot.search.video_frames.frames_finder import _build_index
 from bot.search.video_frames.object_finder import _OPERATORS
 from bot.types import (
@@ -35,9 +39,14 @@ from bot.utils.constants import (
 )
 from bot.utils.log import log_system_message
 
+EpisodeKey = Tuple[int, int]
+
 
 class FilterApplicator:
     __PAGE_SIZE = 1000
+    __EPISODE_AGG_NAME = "eligible_episodes"
+    __SEASON_SOURCE = "s"
+    __EPISODE_SOURCE = "e"
 
     @staticmethod
     def _extract_field_value(hit: Dict[str, Any], field: str, default: Any = None) -> Any:
@@ -49,28 +58,190 @@ class FilterApplicator:
         return source.get(field, default)
 
     @staticmethod
-    def _build_episode_pairs_filter(
+    def build_episode_pairs_filter(
         episode_keys: Set[Tuple[Optional[int], Optional[int]]],
     ) -> Optional[Dict[str, Any]]:
-        valid_keys = [(season, episode) for season, episode in episode_keys if season is not None and episode is not None]
-        if not valid_keys:
+        valid_keys = cast(Iterable[Tuple[int, int]], [(s, e) for s, e in episode_keys if s is not None and e is not None])
+        return build_episode_restriction_filter(valid_keys)
+
+    @staticmethod
+    def __build_character_group_query(char_names: List[str]) -> Optional[Dict[str, Any]]:
+        if not char_names:
             return None
+        should_clauses = [
+            {
+                ElasticsearchQueryKeys.NESTED: {
+                    ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
+                    ElasticsearchQueryKeys.QUERY: {
+                        ElasticsearchQueryKeys.TERM: {
+                            f"{ActorKeys.ACTORS}.{ActorKeys.NAME}": {
+                                ElasticsearchQueryKeys.VALUE: name,
+                                ElasticsearchQueryKeys.CASE_INSENSITIVE: True,
+                            },
+                        },
+                    },
+                },
+            }
+            for name in char_names
+        ]
         return {
             ElasticsearchQueryKeys.BOOL: {
-                ElasticsearchQueryKeys.SHOULD: [
-                    {
-                        ElasticsearchQueryKeys.BOOL: {
-                            ElasticsearchQueryKeys.FILTER: [
-                                {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
-                                {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode}},
-                            ],
-                        },
-                    }
-                    for season, episode in valid_keys
-                ],
+                ElasticsearchQueryKeys.SHOULD: should_clauses,
                 ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
             },
         }
+
+    @staticmethod
+    def __build_emotion_group_query(emotions: List[str]) -> Optional[Dict[str, Any]]:
+        labels_en = [en for e in emotions for en in (map_emotion_to_en(e),) if en]
+        if not labels_en:
+            return None
+        should_clauses = [
+            {
+                ElasticsearchQueryKeys.NESTED: {
+                    ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
+                    ElasticsearchQueryKeys.QUERY: {
+                        ElasticsearchQueryKeys.TERM: {
+                            f"{ActorKeys.ACTORS}.{ActorKeys.EMOTION}.{EmotionKeys.LABEL}": label,
+                        },
+                    },
+                },
+            }
+            for label in labels_en
+        ]
+        return {
+            ElasticsearchQueryKeys.BOOL: {
+                ElasticsearchQueryKeys.SHOULD: should_clauses,
+                ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+            },
+        }
+
+    @staticmethod
+    def __build_object_group_query(obj_group: List[ObjectFilterSpec]) -> Optional[Dict[str, Any]]:
+        if not obj_group:
+            return None
+        should_clauses = [
+            {
+                ElasticsearchQueryKeys.NESTED: {
+                    ElasticsearchQueryKeys.PATH: VideoFrameKeys.DETECTED_OBJECTS,
+                    ElasticsearchQueryKeys.QUERY: {
+                        ElasticsearchQueryKeys.TERM: {
+                            DetectedObjectKeys.OBJECT_CLASS_FIELD: spec["name"],
+                        },
+                    },
+                },
+            }
+            for spec in obj_group
+        ]
+        return {
+            ElasticsearchQueryKeys.BOOL: {
+                ElasticsearchQueryKeys.SHOULD: should_clauses,
+                ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+            },
+        }
+
+    @staticmethod
+    async def __paginate_composite_episodes(
+        es: Any,
+        index: str,
+        group_query: Dict[str, Any],
+    ) -> Set[EpisodeKey]:
+        episodes: Set[EpisodeKey] = set()
+        after: Optional[Dict[str, Any]] = None
+        while True:
+            composite: Dict[str, Any] = {
+                ElasticsearchQueryKeys.SIZE: FilterApplicator.__PAGE_SIZE,
+                ElasticsearchQueryKeys.SOURCES: [
+                    {
+                        FilterApplicator.__SEASON_SOURCE: {
+                            ElasticsearchQueryKeys.TERMS: {
+                                ElasticsearchQueryKeys.FIELD: EpisodeMetadataKeys.SEASON_FIELD,
+                            },
+                        },
+                    },
+                    {
+                        FilterApplicator.__EPISODE_SOURCE: {
+                            ElasticsearchQueryKeys.TERMS: {
+                                ElasticsearchQueryKeys.FIELD: EpisodeMetadataKeys.EPISODE_NUMBER_FIELD,
+                            },
+                        },
+                    },
+                ],
+            }
+            if after is not None:
+                composite[ElasticsearchQueryKeys.AFTER] = after
+
+            body = {
+                ElasticsearchQueryKeys.SIZE: 0,
+                ElasticsearchQueryKeys.QUERY: group_query,
+                ElasticsearchQueryKeys.AGGS: {
+                    FilterApplicator.__EPISODE_AGG_NAME: {
+                        ElasticsearchQueryKeys.COMPOSITE: composite,
+                    },
+                },
+            }
+            response = await es.search(index=index, body=body)
+            agg = response.get(ElasticsearchKeys.AGGREGATIONS, {}).get(FilterApplicator.__EPISODE_AGG_NAME, {})
+            buckets = agg.get(ElasticsearchKeys.BUCKETS, [])
+            for bucket in buckets:
+                key = bucket.get(ElasticsearchKeys.KEY, {})
+                season = key.get(FilterApplicator.__SEASON_SOURCE)
+                episode = key.get(FilterApplicator.__EPISODE_SOURCE)
+                if season is not None and episode is not None:
+                    episodes.add((int(season), int(episode)))
+            after = agg.get(ElasticsearchQueryKeys.AFTER_KEY)
+            if not after or not buckets:
+                break
+        return episodes
+
+    @staticmethod
+    async def collect_eligible_episodes(
+        search_filter: SearchFilter,
+        series_name: str,
+        logger: logging.Logger,
+    ) -> Optional[Set[EpisodeKey]]:
+        character_groups = search_filter.get("character_groups", [])
+        object_groups = search_filter.get("object_groups", [])
+        emotions = search_filter.get("emotions", [])
+
+        group_queries: List[Dict[str, Any]] = []
+        for char_group in character_groups:
+            q = FilterApplicator.__build_character_group_query(char_group)
+            if q is not None:
+                group_queries.append(q)
+        if emotions:
+            q = FilterApplicator.__build_emotion_group_query(emotions)
+            if q is not None:
+                group_queries.append(q)
+        for obj_group in object_groups:
+            q = FilterApplicator.__build_object_group_query(obj_group)
+            if q is not None:
+                group_queries.append(q)
+
+        if not group_queries:
+            return None
+
+        es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+        index = _build_index(series_name)
+
+        episode_sets = await asyncio.gather(
+            *(FilterApplicator.__paginate_composite_episodes(es, index, q) for q in group_queries),
+        )
+
+        if not episode_sets:
+            return set()
+
+        intersection: Set[EpisodeKey] = set(episode_sets[0])
+        for s in episode_sets[1:]:
+            intersection &= s
+
+        await log_system_message(
+            logging.INFO,
+            f"FilterApplicator: eligible episodes (AND across {len(group_queries)} filter groups): "
+            f"{sorted(intersection)}",
+            logger,
+        )
+        return intersection
 
     @staticmethod
     async def apply_to_text_segments(
@@ -157,7 +328,7 @@ class FilterApplicator:
     ) -> Set[Tuple[Optional[int], Optional[int], float]]:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         season_list = list({k[0] for k in episode_keys if k[0] is not None})
-        episode_pairs_filter = FilterApplicator._build_episode_pairs_filter(episode_keys)
+        episode_pairs_filter = FilterApplicator.build_episode_pairs_filter(episode_keys)
         should_clauses = [
             {
                 ElasticsearchQueryKeys.NESTED: {
@@ -219,7 +390,7 @@ class FilterApplicator:
 
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         season_list = list({k[0] for k in episode_keys if k[0] is not None})
-        episode_pairs_filter = FilterApplicator._build_episode_pairs_filter(episode_keys)
+        episode_pairs_filter = FilterApplicator.build_episode_pairs_filter(episode_keys)
         should_clauses = [
             {
                 ElasticsearchQueryKeys.NESTED: {
@@ -272,7 +443,7 @@ class FilterApplicator:
     ) -> Set[Tuple[Optional[int], Optional[int], float]]:
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         season_list = list({k[0] for k in episode_keys if k[0] is not None})
-        episode_pairs_filter = FilterApplicator._build_episode_pairs_filter(episode_keys)
+        episode_pairs_filter = FilterApplicator.build_episode_pairs_filter(episode_keys)
 
         should_clauses = [
             {

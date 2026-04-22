@@ -45,11 +45,22 @@ async def load_active_filter_text_segments(
         return ActiveFilterTextSegmentsOutcome(ActiveFilterTextSegmentsStatus.NO_FILTER)
 
     search_filter = cast(SearchFilter, raw)
+
+    eligible_episodes = await FilterApplicator.collect_eligible_episodes(
+        search_filter, series_name, logger,
+    )
+    if eligible_episodes is not None and not eligible_episodes:
+        return ActiveFilterTextSegmentsOutcome(
+            ActiveFilterTextSegmentsStatus.NO_CANDIDATES,
+            search_filter=search_filter,
+        )
+
     candidates = await TextSegmentsFinder.find_segments_by_filter_only(
         logger=logger,
         series_name=series_name,
         search_filter=search_filter,
         size=es_query_size,
+        restrict_episode_keys=eligible_episodes,
     )
     if not candidates:
         return ActiveFilterTextSegmentsOutcome(
