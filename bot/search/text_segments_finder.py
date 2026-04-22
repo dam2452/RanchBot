@@ -46,6 +46,26 @@ class TextSegmentsFinder:
     ]
 
     @staticmethod
+    def __hit_score(hit: Dict[str, Any]) -> float:
+        raw = hit.get(ElasticsearchKeys.SCORE)
+        if raw is None:
+            return 0.0
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def __segment_score(segment: SegmentWithScore) -> float:
+        raw = segment.get(ElasticsearchKeys.SCORE)
+        if raw is None:
+            return 0.0
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
     def is_segment_overlap(
             previous_segment: ElasticsearchSegment,
             segment: ElasticsearchSegment,
@@ -126,8 +146,8 @@ class TextSegmentsFinder:
                     incoming[SegmentKeys.END_TIME],
                 )
                 collected[i][ElasticsearchKeys.SCORE] = max(
-                    existing_segment[ElasticsearchKeys.SCORE],
-                    incoming[ElasticsearchKeys.SCORE],
+                    TextSegmentsFinder.__segment_score(existing_segment),
+                    TextSegmentsFinder.__segment_score(incoming),
                 )
                 return True
         return False
@@ -138,7 +158,7 @@ class TextSegmentsFinder:
         seen_segments = set()
         for hit in hits:
             segment: SegmentWithScore = hit[ElasticsearchKeys.SOURCE]
-            segment[ElasticsearchKeys.SCORE] = hit[ElasticsearchKeys.SCORE]
+            segment[ElasticsearchKeys.SCORE] = TextSegmentsFinder.__hit_score(hit)
             segment_key = (
                 segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
                 segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
@@ -265,7 +285,7 @@ class TextSegmentsFinder:
             return []
 
         for hit in hits:
-            hit.setdefault(ElasticsearchKeys.SCORE, 0.0)
+            hit[ElasticsearchKeys.SCORE] = TextSegmentsFinder.__hit_score(hit)
 
         unique_segments = TextSegmentsFinder.__deduplicate_hits(hits)
         await log_system_message(
