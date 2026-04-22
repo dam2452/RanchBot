@@ -45,7 +45,10 @@ class ReportIssueHandler(BotMessageHandler):
 
     async def __handle_user_report_submission(self, report: str) -> None:
         await DatabaseManager.add_report(self._message.get_user_id(), report)
-        await self._reply(get_report_received_message())
+        await self._reply(
+            get_report_received_message(),
+            data={"report": report},
+        )
         await self._log_system_message(
             logging.INFO,
             get_log_report_received_message(self._message.get_username(), report),

@@ -88,7 +88,10 @@ class DeleteClipHandler(BotMessageHandler):
         )
 
     async def __reply_clip_deleted(self, clip_name: str) -> None:
-        await self._reply(get_clip_deleted_message(clip_name))
+        await self._reply(
+            get_clip_deleted_message(clip_name),
+            data={"clip_name": clip_name},
+        )
         await self._log_system_message(
             logging.INFO,
             get_log_clip_deleted_message(clip_name, self._message.get_username()),

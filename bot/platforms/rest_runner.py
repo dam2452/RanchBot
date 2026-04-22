@@ -240,7 +240,7 @@ async def universal_handler(
         raise HTTPException(status_code=400, detail="Invalid JSON payload or request structure.") from exc
 
     message = RestMessage(payload=command_request_obj, user_data=payload)
-    responder = RestResponder()
+    responder = RestResponder(prefer_json=reply_json)
 
     handler = handler_cls(message, responder, logger)
     await handler.handle()
