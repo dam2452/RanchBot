@@ -8,6 +8,8 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.not_sending_videos.filter_handler_responses import (
+    get_filter_help_message,
+    get_filter_help_schema_json,
     get_filter_info_message,
     get_filter_parse_errors_message,
     get_filter_reset_message,
@@ -42,10 +44,13 @@ class FilterHandler(BotMessageHandler):
         subcommand = args[1].strip()
         chat_id = self._message.get_chat_id()
 
-        if subcommand.lower() == "reset":
+        sub = subcommand.lower()
+        if sub == "reset":
             await self.__handle_reset(chat_id)
-        elif subcommand.lower() == "info":
+        elif sub == "info":
             await self.__handle_info(chat_id)
+        elif sub in {"help", "pomoc", "?"}:
+            await self.__handle_help()
         else:
             series_name = await self._get_user_active_series(self._message.get_user_id())
             await self.__handle_set(chat_id, subcommand, series_name)
@@ -60,6 +65,12 @@ class FilterHandler(BotMessageHandler):
         await self._reply(
             get_filter_info_message(search_filter),
             data={"filter": search_filter},
+        )
+
+    async def __handle_help(self) -> None:
+        await self._reply(
+            get_filter_help_message(),
+            data={"schema": get_filter_help_schema_json()},
         )
 
     async def __handle_set(self, chat_id: int, raw: str, series_name: str) -> None:

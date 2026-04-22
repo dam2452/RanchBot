@@ -18,7 +18,6 @@ from bot.responses.not_sending_videos.search_handler_responses import (
     get_log_search_results_sent_message,
     get_no_quote_provided_message,
 )
-from bot.search.filter_applicator import FilterApplicator
 from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.settings import settings
 
@@ -55,19 +54,16 @@ class SearchHandler(BotMessageHandler):
 
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
-        chat_id = self._message.get_chat_id()
 
-        search_filter = await DatabaseManager.get_and_touch_user_filters(chat_id)
-
-        segments = await TextSegmentsFinder.find_segment_by_quote(
+        raw = await TextSegmentsFinder.find_segment_by_quote(
             quote, self._logger, active_series,
             size=settings.MAX_ES_RESULTS_LONG,
-            search_filter=search_filter,
         )
-        if search_filter:
-            segments = await FilterApplicator.apply_to_text_segments(
-                segments or [], search_filter, active_series, self._logger,
-            )
+        if not raw:
+            await self.__reply_no_segments_found(quote)
+            return
+
+        segments = raw if isinstance(raw, list) else [raw]
         if not segments:
             await self.__reply_no_segments_found(quote)
             return

@@ -16,6 +16,7 @@ from aiogram.exceptions import TelegramAPIError
 from bot.database.database_manager import DatabaseManager
 from bot.platforms.rest_runner import run_rest_api
 from bot.platforms.telegram_runner import run_telegram_bot
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.settings import settings as s
 from bot.utils.log import get_log_level
 
@@ -112,23 +113,26 @@ PLATFORM_REGISTRY: Tuple[PlatformConfig, ...] = (
 
 
 async def main():
-    await initialize_common_and_set_admin()
+    try:
+        await initialize_common_and_set_admin()
 
-    enabled_platforms = [p for p in PLATFORM_REGISTRY if p.enabled()]
-    disabled_platforms = [p for p in PLATFORM_REGISTRY if not p.enabled()]
+        enabled_platforms = [p for p in PLATFORM_REGISTRY if p.enabled()]
+        disabled_platforms = [p for p in PLATFORM_REGISTRY if not p.enabled()]
 
-    for platform in enabled_platforms:
-        logger.info(f"Starting {platform.name} platform")
+        for platform in enabled_platforms:
+            logger.info(f"Starting {platform.name} platform")
 
-    for platform in disabled_platforms:
-        logger.info(f"{platform.name} platform disabled")
+        for platform in disabled_platforms:
+            logger.info(f"{platform.name} platform disabled")
 
-    if not enabled_platforms:
-        logger.critical("CRITICAL: No platform enabled! Configure at least one platform.")
-        return
+        if not enabled_platforms:
+            logger.critical("CRITICAL: No platform enabled! Configure at least one platform.")
+            return
 
-    logger.info(f"Running {len(enabled_platforms)} platform(s)")
-    await asyncio.gather(*[p.runner() for p in enabled_platforms])
+        logger.info(f"Running {len(enabled_platforms)} platform(s)")
+        await asyncio.gather(*[p.runner() for p in enabled_platforms])
+    finally:
+        await ElasticSearchManager.close_shared_elasticsearch(logger)
 
 
 if __name__ == "__main__":
