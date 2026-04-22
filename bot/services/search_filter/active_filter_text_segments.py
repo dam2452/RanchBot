@@ -1,5 +1,3 @@
-"""Load text segments for the chat's active /filtr (ES + visual post-filter)."""
-
 from dataclasses import (
     dataclass,
     field,

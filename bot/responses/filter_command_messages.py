@@ -1,5 +1,3 @@
-"""Shared user-facing messages for /klipfiltr, /szukajfiltr and similar filter-only commands."""
-
 from bot.responses.bot_response import BotResponse
 
 

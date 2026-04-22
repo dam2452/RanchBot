@@ -17,8 +17,6 @@ from bot.services.search_filter.active_filter_text_segments import (
 
 
 class ActiveFilterTextCommandHandler(BotMessageHandler):
-    """Wspólna obsługa komend opartych wyłącznie o aktywny `/filtr` (tekst z ES + FilterApplicator)."""
-
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
@@ -27,11 +25,11 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
 
     @abstractmethod
     def _active_filter_es_query_size(self) -> int:
-        """Rozmiar zapytania ES w `find_segments_by_filter_only`."""
+        pass
 
     @abstractmethod
     def _log_no_filter_results_message(self, chat_id: int) -> str:
-        """Komunikat logu przy braku kandydatów lub po post-filtrze."""
+        pass
 
     @abstractmethod
     async def _handle_active_filter_segments_ok(
@@ -41,7 +39,7 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
             series_name: str,
             outcome: ActiveFilterTextSegmentsOutcome,
     ) -> None:
-        """Wywoływane gdy `outcome.status` jest OK (segmenty gotowe do dalszej obsługi)."""
+        pass
 
     async def _do_handle(self) -> None:
         msg = self._message
