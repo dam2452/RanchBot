@@ -31,6 +31,7 @@ from bot.utils.constants import (
     SegmentKeys,
     VideoFrameKeys,
 )
+from bot.utils.functions import escape_markdown_v2
 from bot.video.keyframe_extractor import KeyframeExtractor
 
 
@@ -161,5 +162,5 @@ class KeyframeHandler(BotMessageHandler):
         base = f"S{season:02d}E{episode_number:02d} | {seek_time:.2f}s"
         if frame_display:
             idx, total = frame_display
-            return f"{base} | klatka {idx + 1}/{total}"
-        return base
+            return escape_markdown_v2(f"{base} | klatka {idx + 1}/{total}")
+        return escape_markdown_v2(base)

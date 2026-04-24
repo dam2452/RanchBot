@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import difflib
 import json
 import logging
+import re
 from typing import (
     Dict,
     List,
@@ -173,6 +174,10 @@ def format_user_list(users: List[UserProfile], title: str) -> str:
     response = f"📃 {title}:\n"
     response += "```\n" + "\n\n".join(user_lines) + "\n```"
     return response
+
+def escape_markdown_v2(text: str) -> str:
+    return re.sub(r"([_*\[\]()~`>#+\-=|{}.!\\])", r"\\\1", text)
+
 
 def remove_diacritics_and_lowercase(text):
     normalized_text = unicodedata.normalize('NFKD', text)
