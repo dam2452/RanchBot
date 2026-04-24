@@ -81,10 +81,12 @@ async def initialize_common_and_set_admin():
         try:
             bot_instance = Bot(token=s.TELEGRAM_BOT_TOKEN.get_secret_value())
             user_data = await bot_instance.get_chat(admin_user_id)
+            password = s.DEFAULT_ADMIN_PASSWORD.get_secret_value() if s.DEFAULT_ADMIN_PASSWORD else None
             await DatabaseManager.set_default_admin(
                 user_id=admin_user_id,
                 username=user_data.username or f"tg_user_{admin_user_id}",
                 full_name=user_data.full_name or "Telegram Default Admin",
+                password=password,
             )
             logger.info("Default admin set using Telegram data.")
         except TelegramAPIError as e_tg:

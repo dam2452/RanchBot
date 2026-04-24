@@ -1,8 +1,15 @@
 from contextlib import asynccontextmanager
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 import logging
 import re
 from typing import Annotated
 
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
 from fastapi import (
     APIRouter,
     Depends,
@@ -38,11 +45,18 @@ from bot.adapters.rest.auth.auth_service import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
+    generate_linking_token,
+    generate_verification_code,
     revoke_all_user_refresh_tokens,
     revoke_refresh_token,
     verify_refresh_token,
 )
-from bot.adapters.rest.models import TextCompatibleCommandWrapper
+from bot.adapters.rest.models import (
+    ForgotPasswordRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TextCompatibleCommandWrapper,
+)
 from bot.adapters.rest.rest_message import RestMessage
 from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
@@ -185,6 +199,137 @@ async def logout_all(data: LoginRequest, request: Request):
     return {
         "message": f"Successfully logged out from all sessions. {revoked_count} active token(s) revoked.",
         "revoked_count": revoked_count,
+    }
+
+@api_router.post("/auth/register", tags=["Authentication"])
+@limiter.limit("3/hour")
+async def register(data: RegisterRequest, request: Request, response: Response):
+    existing = await DatabaseManager.get_user_profile_by_username(data.username)
+
+    if existing:
+        profile, has_credentials = existing
+        if has_credentials:
+            raise HTTPException(status_code=409, detail="Username already taken")
+        raise HTTPException(
+            status_code=409,
+            detail="telegram_linked",
+            headers={"X-User-Id": str(profile.user_id)},
+        )
+
+    user = await DatabaseManager.create_rest_user(
+        username=data.username,
+        password=data.password,
+        full_name=data.full_name,
+    )
+
+    access_token = create_access_token(user)
+    refresh_token_value = await create_refresh_token(
+        user,
+        ip_address=request.client.host,
+        user_agent=request.headers.get(HttpHeaderKeys.USER_AGENT),
+    )
+
+    response.set_cookie(
+        AuthKeys.REFRESH_TOKEN_COOKIE,
+        refresh_token_value,
+        httponly=True,
+        secure=s.ENVIRONMENT == "production",
+        samesite="strict",
+        path="/api/v1/auth",
+    )
+    return {AuthKeys.ACCESS_TOKEN: access_token, AuthKeys.TOKEN_TYPE: AuthKeys.BEARER}
+
+@api_router.post("/auth/forgot-password", tags=["Authentication"])
+@limiter.limit("3/minute")
+async def forgot_password(data: ForgotPasswordRequest, request: Request):  # pylint: disable=unused-argument
+    existing = await DatabaseManager.get_user_profile_by_username(data.username)
+    if not existing:
+        return {"message": "If the account exists, a reset code has been sent."}
+
+    profile, _ = existing
+    if profile.user_id < 0:
+        raise HTTPException(status_code=400, detail="No Telegram account linked. Cannot send reset code.")
+
+    code = generate_verification_code()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    await DatabaseManager.store_verification_token(
+        user_id=profile.user_id,
+        token=code,
+        purpose="password_reset",
+        expires_at=expires_at,
+    )
+
+    if s.ENABLE_TELEGRAM and s.TELEGRAM_BOT_TOKEN:
+        bot_instance = None
+        try:
+            bot_instance = Bot(token=s.TELEGRAM_BOT_TOKEN.get_secret_value())
+            await bot_instance.send_message(
+                chat_id=profile.user_id,
+                text=f"Your password reset code: {code}\nIt expires in 15 minutes.",
+            )
+        except TelegramAPIError as exc:
+            logger.error(f"Failed to send reset code to Telegram user {profile.user_id}: {exc}")
+            raise HTTPException(status_code=500, detail="Failed to send reset code.") from exc
+        finally:
+            if bot_instance:
+                await bot_instance.session.close()
+    else:
+        raise HTTPException(status_code=400, detail="Telegram is not enabled. Cannot send reset code.")
+
+    return {"message": "If the account exists, a reset code has been sent."}
+
+@api_router.post("/auth/reset-password", tags=["Authentication"])
+@limiter.limit("5/minute")
+async def reset_password(data: ResetPasswordRequest, request: Request):  # pylint: disable=unused-argument
+    existing = await DatabaseManager.get_user_profile_by_username(data.username)
+    if not existing:
+        raise HTTPException(status_code=400, detail="Invalid username or code.")
+
+    profile, _ = existing
+    user_id = await DatabaseManager.consume_verification_token(
+        token=data.code,
+        purpose="password_reset",
+    )
+
+    if user_id is None or user_id != profile.user_id:
+        raise HTTPException(status_code=400, detail="Invalid or expired code.")
+
+    await DatabaseManager.update_user_password(profile.user_id, data.new_password)
+    return {"message": "Password has been reset successfully."}
+
+@api_router.post("/auth/link-telegram", tags=["Authentication"])
+@limiter.limit("5/minute")
+async def link_telegram(
+    request: Request,  # pylint: disable=unused-argument
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            s.JWT_SECRET_KEY.get_secret_value(),
+            algorithms=[s.JWT_ALGORITHM],
+            issuer=s.JWT_ISSUER,
+            audience=s.JWT_AUDIENCE,
+        )
+        user_id = payload.get(JwtPayloadKeys.USER_ID)
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+    if user_id > 0:
+        raise HTTPException(status_code=400, detail="Account is already linked to Telegram.")
+
+    token = generate_linking_token()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    await DatabaseManager.store_verification_token(
+        user_id=user_id,
+        token=token,
+        purpose="telegram_link",
+        expires_at=expires_at,
+    )
+
+    return {
+        "linking_code": token,
+        "message": f"Send /link {token} to the bot on Telegram within 30 minutes.",
     }
 
 @api_router.post("/{command_name}", tags=["Commands"])
