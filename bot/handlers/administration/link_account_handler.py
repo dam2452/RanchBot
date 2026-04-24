@@ -25,7 +25,7 @@ class LinkAccountHandler(BotMessageHandler):
         return get_invalid_args_message()
 
     async def __check_argument_count(self) -> bool:
-        return await self._validate_argument_count(self._message, 2)
+        return await self._validate_argument_count(self._message, 1)
 
     async def _do_handle(self) -> None:
         telegram_user_id = self._message.get_user_id()

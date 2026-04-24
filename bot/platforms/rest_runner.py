@@ -61,6 +61,7 @@ from bot.adapters.rest.rest_message import RestMessage
 from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
 from bot.factory import create_all_factories
+from bot.responses.bot_response import BotResponse
 from bot.settings import settings as s
 from bot.utils.constants import (
     AuthKeys,
@@ -265,7 +266,10 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):  # pyl
             bot_instance = Bot(token=s.TELEGRAM_BOT_TOKEN.get_secret_value())
             await bot_instance.send_message(
                 chat_id=profile.user_id,
-                text=f"Your password reset code: {code}\nIt expires in 15 minutes.",
+                text=BotResponse.info(
+                    "RESET HASŁA",
+                    f"Twój kod resetujący: {code}\n\nWażny przez 15 minut.",
+                ),
             )
         except TelegramAPIError as exc:
             logger.error(f"Failed to send reset code to Telegram user {profile.user_id}: {exc}")
