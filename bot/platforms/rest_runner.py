@@ -270,6 +270,7 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):  # pyl
                     "RESET HASŁA",
                     f"Twój kod resetujący: {code}\n\nWażny przez 15 minut.",
                 ),
+                parse_mode="MarkdownV2",
             )
         except TelegramAPIError as exc:
             logger.error(f"Failed to send reset code to Telegram user {profile.user_id}: {exc}")
