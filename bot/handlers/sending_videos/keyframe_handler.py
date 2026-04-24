@@ -20,18 +20,11 @@ from bot.responses.sending_videos.keyframe_handler_responses import (
     get_invalid_result_index_message,
     get_log_keyframe_sent_message,
     get_log_no_last_clip_message,
-    get_no_frames_for_navigation_message,
     get_no_keyframes_provided_message,
     get_no_last_clip_message,
 )
-from bot.search.video_frames.frames_finder import VideoFramesFinder
 from bot.settings import settings
-from bot.utils.constants import (
-    EpisodeMetadataKeys,
-    SegmentKeys,
-    VideoFrameKeys,
-)
-from bot.utils.functions import escape_markdown_v2
+from bot.utils.constants import SegmentKeys
 from bot.video.keyframe_extractor import KeyframeExtractor
 
 
@@ -66,41 +59,19 @@ class KeyframeHandler(BotMessageHandler):
         if segment is None:
             return None
 
-        episode_metadata = segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-        season: Optional[int] = episode_metadata.get(EpisodeMetadataKeys.SEASON)
-        episode_number: Optional[int] = episode_metadata.get(EpisodeMetadataKeys.EPISODE_NUMBER)
-        series_name: Optional[str] = episode_metadata.get(EpisodeMetadataKeys.SERIES_NAME)
-
-        if season is None or episode_number is None or not series_name:
-            return await self._reply_error(get_no_last_clip_message())
-
-        active_series = await self._get_user_active_series(self._message.get_user_id())
-        frames = await VideoFramesFinder.find_frames_in_time_range(
-            season=season,
-            episode_number=episode_number,
-            start_time=start_time,
-            end_time=end_time,
-            series_name=active_series or series_name,
-            logger=self._logger,
-        )
-
-        if not frames:
-            if frame_selector != 0:
-                return await self._reply_error(get_no_frames_for_navigation_message())
-            seek_time = start_time
-            frame_display: Optional[Tuple[int, int]] = None
-        else:
-            try:
-                frame = frames[frame_selector]
-            except IndexError:
-                return await self._reply_error(get_invalid_frame_index_message(len(frames) - 1))
-            seek_time = float(frame[VideoFrameKeys.TIMESTAMP])
-            frame_display = (frame_selector % len(frames), len(frames))
-
         video_path = Path(segment[SegmentKeys.VIDEO_PATH])
+
+        keyframes = await KeyframeExtractor.get_keyframe_timestamps(video_path, start_time, end_time)
+        if not keyframes:
+            seek_time = start_time
+        else:
+            idx = frame_selector if frame_selector >= 0 else len(keyframes) + frame_selector
+            if idx < 0 or idx >= len(keyframes):
+                return await self._reply_error(get_invalid_frame_index_message(len(keyframes) - 1))
+            seek_time = keyframes[idx]
+
         frame_path = await KeyframeExtractor.extract_keyframe(video_path, seek_time)
-        caption = self.__build_caption(season, episode_number, seek_time, frame_display)
-        await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path, caption=caption)
+        await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path)
 
         return await self._log_system_message(
             logging.INFO,
@@ -151,16 +122,3 @@ class KeyframeHandler(BotMessageHandler):
             return int(raw)
         except ValueError:
             return None
-
-    @staticmethod
-    def __build_caption(
-        season: int,
-        episode_number: int,
-        seek_time: float,
-        frame_display: Optional[Tuple[int, int]],
-    ) -> str:
-        base = f"S{season:02d}E{episode_number:02d} | {seek_time:.2f}s"
-        if frame_display:
-            idx, total = frame_display
-            return escape_markdown_v2(f"{base} | klatka {idx + 1}/{total}")
-        return escape_markdown_v2(base)
