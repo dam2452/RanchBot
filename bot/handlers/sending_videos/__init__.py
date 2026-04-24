@@ -5,6 +5,7 @@ from bot.handlers.sending_videos.clip_filter_handler import ClipFilterHandler
 from bot.handlers.sending_videos.clip_handler import ClipHandler
 from bot.handlers.sending_videos.compile_clips_handler import CompileClipsHandler
 from bot.handlers.sending_videos.compile_selected_clips_handler import CompileSelectedClipsHandler
+from bot.handlers.sending_videos.keyframe_handler import KeyframeHandler
 from bot.handlers.sending_videos.manual_clip_handler import ManualClipHandler
 from bot.handlers.sending_videos.object_clip_handler import ObjectClipHandler
 from bot.handlers.sending_videos.select_clip_handler import SelectClipHandler

@@ -21,6 +21,7 @@
 - **`/adostosuj <przed> <po>`** / **`/ad`**: ⏳ Dostosowanie klipu (absolutnie).
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Dostosowanie klipu do granic scen.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównanie ostatniego klipu do cięć scen.
+- **`/klatka [numer]`** / **`/frame [numer]`** / **`/kr [numer]`**: 🖼️ Klatka kluczowa z ostatniego klipu.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Transkrypcja z kontekstem dla cytatu.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Kompilacja wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Kompilacja z zakresu klipów.
@@ -77,6 +78,7 @@
 - **`/adostosuj [numer_klipu] <przed> <po>`** / **`/ad`**: ⏳ Dostosowuje klip ABSOLUTNIE (względem oryginału). Przykład: `/adostosuj -5.5 1.2`.
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Rozszerza klip o podaną liczbę cięć scen w każdą stronę. Przykład: `/sdostosuj 1 2`.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównuje ostatni klip do najbliższych cięć scen. Bez zmiany → informuje.
+- **`/klatka [numer_wyniku] [klatka]`** / **`/frame`** / **`/kr`**: 🖼️ Zwraca klatkę kluczową jako obraz JPEG. `numer_wyniku` (1-5, domyślnie 1) — wynik z `/szukaj`; bez aktywnego wyszukiwania używa ostatniego klipu. `klatka` — selektor: `0`/`p`/`pierwsza` = pierwsza, `-1`/`o`/`ostatnia` = ostatnia, dowolna liczba całkowita (0-based, ujemne liczą od końca). Przykłady: `/klatka` · `/klatka 3` · `/klatka 2 ostatnia` · `/klatka 1 -2`.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: `/transkrypcja geniusz`.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Tworzy kompilację ze wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Tworzy kompilację z zakresu klipów. Przykład: `/kompiluj 1-4`.

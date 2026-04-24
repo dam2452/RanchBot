@@ -22,6 +22,7 @@
 - **`/aadjust <before> <after>`** / **`/ad`**: ⏳ Adjust clip (absolute).
 - **`/sadjust <n_before> <n_after>`** / **`/sd`**: 🎬 Adjust clip to scene cut boundaries.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Snap last clip to scene cuts.
+- **`/klatka [index]`** / **`/frame [index]`** / **`/kr [index]`**: 🖼️ Keyframe from the last clip.
 - **`/transcription <quote>`** / **`/t <quote>`**: 📝 Transcription with context for a quote.
 - **`/compile all`** / **`/kom all`**: 🎬 Compile all clips.
 - **`/compile <range>`** / **`/kom <range>`**: 🎬 Compile a range of clips.
@@ -75,6 +76,7 @@
 - **`/aadjust [clip_number] <before> <after>`** / **`/ad`**: ⏳ Adjusts clip ABSOLUTELY (based on original). Example: `/aadjust -5.5 1.2`.
 - **`/sadjust <n_before> <n_after>`** / **`/sd`**: 🎬 Expands clip by the given number of scene cuts in each direction. Example: `/sadjust 1 2`.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Snaps the last clip to the nearest scene cuts. No change → informs user.
+- **`/klatka [result] [frame]`** / **`/frame`** / **`/kr`**: 🖼️ Returns a keyframe as a JPEG image. `result` (1-5, default 1) — result number from `/search`; falls back to last clip when no active search. `frame` — selector: `0`/`p`/`pierwsza`/`first` = first, `-1`/`o`/`ostatnia`/`last` = last, any integer (0-based, negative counts from end). Examples: `/klatka` · `/klatka 3` · `/klatka 2 last` · `/klatka 1 -2`.
 - **`/transcription <quote>`** / **`/t <quote>`**: 📝 Displays transcription with context for the found quote. Example: `/transcription genius`.
 - **`/compile all`** / **`/kom all`**: 🎬 Compiles all clips.
 - **`/compile <range>`** / **`/kom <range>`**: 🎬 Compiles clips within a range. Example: `/compile 1-4`.
