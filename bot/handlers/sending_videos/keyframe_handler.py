@@ -75,7 +75,10 @@ class KeyframeHandler(BotMessageHandler):
             seek_time = keyframes[idx]
 
         frame_path = await KeyframeExtractor.extract_keyframe(video_path, seek_time)
-        await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path)
+        try:
+            await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path)
+        finally:
+            frame_path.unlink(missing_ok=True)
 
         return await self._log_system_message(
             logging.INFO,
