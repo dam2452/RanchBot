@@ -47,11 +47,15 @@ class KeyframeHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         content = self._get_message_content()
 
-        result_index = self.__parse_result_index(content[1] if len(content) >= 2 else "1")
+        if len(content) >= 3:
+            result_index = self.__parse_result_index(content[1])
+            frame_selector = self.__parse_frame_selector(content[2])
+        else:
+            result_index = 1
+            frame_selector = self.__parse_frame_selector(content[1] if len(content) >= 2 else "0")
+
         if result_index is None:
             return await self._reply_error(get_invalid_result_index_message())
-
-        frame_selector = self.__parse_frame_selector(content[2] if len(content) >= 3 else "0")
         if frame_selector is None:
             return await self._reply_error(get_invalid_frame_selector_message())
 
