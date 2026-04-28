@@ -42,7 +42,7 @@ class RestResponder(AbstractResponder):
         image_bytes: bytes,
         image_path: Path,
         caption: str,
-        background: Optional[BackgroundTask] = None,
+        _background: Optional[BackgroundTask] = None,
     ) -> None:
         if self.__prefer_json:
             payload: Dict[str, object] = {
@@ -55,14 +55,7 @@ class RestResponder(AbstractResponder):
                 payload["notices"] = self.__notices
             self.__set_response(JSONResponse(payload))
             return
-        self.__set_response(
-            FileResponse(
-                path=str(image_path),
-                media_type="image/jpeg",
-                filename=image_path.name,
-                background=background,
-            ),
-        )
+        self.__set_response(Response(content=image_bytes, media_type="image/jpeg"))
 
     async def send_video(
         self,
