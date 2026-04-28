@@ -26,16 +26,10 @@ class RestResponder(AbstractResponder):
         self.__notices: List[Dict[str, str]] = []
 
     async def send_text(self, text: str) -> None:
-        if self.__prefer_json:
-            self.__notices.append({"type": ResponseType.TEXT, "content": text})
-            return
-        self.__set_response(JSONResponse({"type": ResponseType.TEXT, "content": text}))
+        self.__notices.append({"type": ResponseType.TEXT, "content": text})
 
     async def send_markdown(self, text: str) -> None:
-        if self.__prefer_json:
-            self.__notices.append({"type": ResponseType.MARKDOWN, "content": text})
-            return
-        self.__set_response(JSONResponse({"type": ResponseType.MARKDOWN, "content": text}))
+        self.__notices.append({"type": ResponseType.MARKDOWN, "content": text})
 
     async def send_photo(
         self,
