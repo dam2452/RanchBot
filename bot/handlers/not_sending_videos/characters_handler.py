@@ -76,7 +76,7 @@ class CharactersHandler(CharacterBotHandler):
                 "Pełna lista postaci",
             )
         else:
-            await self._reply(format_characters_list(characters))
+            await self._reply(format_characters_list(characters), data={"characters": characters})
         await self._log_system_message(
             logging.INFO,
             get_log_characters_list_message(len(characters), self._message.get_username()),

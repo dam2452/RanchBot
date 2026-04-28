@@ -80,7 +80,7 @@ class ObjectsHandler(BotMessageHandler):
                 "Pełna lista obiektów",
             )
         else:
-            await self._reply(format_objects_list(objects))
+            await self._reply(format_objects_list(objects), data={"objects": objects})
         await self._log_system_message(
             logging.INFO,
             get_log_objects_list_message(len(objects), self._message.get_username()),
