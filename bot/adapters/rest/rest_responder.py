@@ -41,7 +41,7 @@ class RestResponder(AbstractResponder):
         self,
         image_bytes: bytes,
         image_path: Path,
-        caption: str,
+        caption: str = "",
         _background: Optional[BackgroundTask] = None,
     ) -> None:
         if self.__prefer_json:
