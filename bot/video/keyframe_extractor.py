@@ -13,10 +13,12 @@ class KeyframeExtractor:
         os.close(fd)
         output_path = Path(tmp_path)
 
+        pre_seek = max(0.0, seek_time - 2.0)
         command = [
             "ffmpeg", "-y",
-            "-ss", str(seek_time),
+            "-ss", str(pre_seek),
             "-i", str(video_path),
+            "-ss", str(seek_time - pre_seek),
             "-vframes", "1",
             "-q:v", "2",
             "-loglevel", "error",
@@ -32,7 +34,8 @@ class KeyframeExtractor:
             "ffprobe",
             "-v", "error",
             "-select_streams", "v:0",
-            "-show_entries", "packet=pts_time",
+            "-skip_frame", "noref",
+            "-show_entries", "packet=pts_time,flags",
             "-of", "csv=p=0",
             "-read_intervals", f"{start_time}%{end_time}",
             str(video_path),
@@ -47,8 +50,11 @@ class KeyframeExtractor:
 
         timestamps = []
         for line in stdout.decode().strip().splitlines():
+            parts = line.strip().split(",")
+            if len(parts) < 2 or "K" not in parts[1]:
+                continue
             try:
-                ts = float(line.strip())
+                ts = float(parts[0])
                 if start_time <= ts <= end_time:
                     timestamps.append(ts)
             except ValueError:
