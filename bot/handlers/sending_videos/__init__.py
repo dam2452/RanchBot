@@ -8,6 +8,7 @@ from bot.handlers.sending_videos.compile_selected_clips_handler import CompileSe
 from bot.handlers.sending_videos.keyframe_handler import KeyframeHandler
 from bot.handlers.sending_videos.manual_clip_handler import ManualClipHandler
 from bot.handlers.sending_videos.object_clip_handler import ObjectClipHandler
+from bot.handlers.sending_videos.save_clip_by_index_handler import SaveClipByIndexHandler
 from bot.handlers.sending_videos.select_clip_handler import SelectClipHandler
 from bot.handlers.sending_videos.semantic_clip_handler import SemanticClipHandler
 from bot.handlers.sending_videos.send_clip_handler import SendClipHandler
