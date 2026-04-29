@@ -130,7 +130,7 @@ class SaveClipHandler(BotMessageHandler):
             episode_number=clip_info.episode_number,
         )
 
-        await self.__reply_clip_saved_successfully(clip_name)
+        await self.__reply_clip_saved_successfully(clip_name, duration)
 
     async def __prepare_clip(self, last_clip: LastClip) -> ClipInfo:
         segment_json = json.loads(last_clip.segment)
@@ -204,6 +204,9 @@ class SaveClipHandler(BotMessageHandler):
         await self._reply_error(get_no_segment_selected_message())
         await self._log_system_message(logging.INFO, get_log_no_segment_selected_message())
 
-    async def __reply_clip_saved_successfully(self, clip_name: str) -> None:
-        await self._reply(get_clip_saved_successfully_message(clip_name))
+    async def __reply_clip_saved_successfully(self, clip_name: str, duration: float) -> None:
+        await self._reply(
+            get_clip_saved_successfully_message(clip_name),
+            data={"clip_name": clip_name, "duration": duration},
+        )
         await self._log_system_message(logging.INFO, get_log_clip_saved_successfully_message(clip_name, self._message.get_username()))

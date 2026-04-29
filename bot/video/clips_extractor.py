@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 from pathlib import Path
@@ -6,8 +5,8 @@ import tempfile
 
 from bot.utils.log import log_system_message
 from bot.video.utils import (
-    FFMpegException,
     get_video_duration,
+    run_ffmpeg_command,
 )
 
 
@@ -43,16 +42,7 @@ class ClipsExtractor:
             str(output_filename),
         ]
 
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        _, stderr = await process.communicate()
-
-        if process.returncode != 0:
-            raise FFMpegException(stderr.decode())
+        await run_ffmpeg_command(command)
 
         await log_system_message(
             logging.INFO,

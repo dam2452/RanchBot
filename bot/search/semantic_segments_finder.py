@@ -6,6 +6,7 @@ from typing import (
     List,
     Optional,
     Set,
+    Tuple,
 )
 
 from elasticsearch import NotFoundError
@@ -14,10 +15,15 @@ from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.search.infra.vllm_client import VllmClient
 from bot.settings import settings
 from bot.utils.constants import (
+    ActorKeys,
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
+    ElasticsearchQueryKeys,
+    EmbeddingKeys,
     EpisodeMetadataKeys,
+    SceneInfoKeys,
     SegmentKeys,
+    VideoFrameKeys,
 )
 from bot.utils.log import log_system_message
 
@@ -48,6 +54,37 @@ class SemanticSearchMode(str, Enum):
 
 
 class SemanticSegmentsFinder:
+    __SOURCE_FIELDS_BY_SUFFIX = {
+        settings.ES_TEXT_EMBEDDINGS_INDEX_SUFFIX: [
+            EmbeddingKeys.EPISODE_ID,
+            EpisodeMetadataKeys.EPISODE_METADATA,
+            EmbeddingKeys.EMBEDDING_ID,
+            SegmentKeys.SEGMENT_ID,
+            EmbeddingKeys.SEGMENT_RANGE,
+            SegmentKeys.TEXT,
+            SegmentKeys.START_TIME,
+            SegmentKeys.END_TIME,
+            SegmentKeys.VIDEO_PATH,
+        ],
+        settings.ES_VIDEO_EMBEDDINGS_INDEX_SUFFIX: [
+            EmbeddingKeys.EPISODE_ID,
+            EpisodeMetadataKeys.EPISODE_METADATA,
+            EmbeddingKeys.FRAME_NUMBER,
+            VideoFrameKeys.TIMESTAMP,
+            VideoFrameKeys.FRAME_TYPE,
+            VideoFrameKeys.SCENE_NUMBER,
+            SegmentKeys.VIDEO_PATH,
+            VideoFrameKeys.SCENE_INFO,
+            ActorKeys.ACTORS,
+            VideoFrameKeys.DETECTED_OBJECTS,
+        ],
+        settings.ES_FULL_EPISODE_EMBEDDINGS_INDEX_SUFFIX: [
+            EmbeddingKeys.EPISODE_ID,
+            EpisodeMetadataKeys.EPISODE_METADATA,
+            EmbeddingKeys.FULL_TRANSCRIPT,
+        ],
+    }
+
     @staticmethod
     async def find_by_text(
         query: str,
@@ -69,7 +106,7 @@ class SemanticSegmentsFinder:
                 logger=logger,
                 series_name=series_name,
                 index_suffix=settings.ES_VIDEO_EMBEDDINGS_INDEX_SUFFIX,
-                embedding_field="video_embedding",
+                embedding_field=EmbeddingKeys.VIDEO_EMBEDDING,
                 size=size,
             )
             return SemanticSegmentsFinder.__normalize_frames(frames) if frames is not None else None
@@ -79,7 +116,7 @@ class SemanticSegmentsFinder:
                 logger=logger,
                 series_name=series_name,
                 index_suffix=settings.ES_FULL_EPISODE_EMBEDDINGS_INDEX_SUFFIX,
-                embedding_field="full_episode_embedding",
+                embedding_field=EmbeddingKeys.FULL_EPISODE_EMBEDDING,
                 size=size,
             )
         segments = await SemanticSegmentsFinder.__search_index(
@@ -87,7 +124,7 @@ class SemanticSegmentsFinder:
             logger=logger,
             series_name=series_name,
             index_suffix=settings.ES_TEXT_EMBEDDINGS_INDEX_SUFFIX,
-            embedding_field="text_embedding",
+            embedding_field=EmbeddingKeys.TEXT_EMBEDDING,
             size=size,
         )
         if segments is not None:
@@ -102,49 +139,61 @@ class SemanticSegmentsFinder:
     ) -> None:
         episode_to_seg_ids: Dict[str, Set[int]] = {}
         for seg in segments:
-            episode_id = seg.get("episode_id", "")
-            seg_range = seg.get("segment_range", [])
+            episode_id = seg.get(EmbeddingKeys.EPISODE_ID, "")
+            seg_range = seg.get(EmbeddingKeys.SEGMENT_RANGE, [])
             if not episode_id or len(seg_range) < 2:
                 continue
             episode_to_seg_ids.setdefault(episode_id, set()).update({seg_range[0], seg_range[-1]})
 
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         index = f"{series_name}{ElasticsearchIndexSuffixes.TEXT_SEGMENTS}"
-        lookup = {}
-
-        for episode_id, seg_ids in episode_to_seg_ids.items():
-            query = {
-                "query": {
+        lookup: Dict[Tuple[str, int], Dict[str, Any]] = {}
+        if episode_to_seg_ids:
+            should_filters = [
+                {
                     "bool": {
-                        "filter": [
-                            {"term": {"episode_id": episode_id}},
-                            {"terms": {"segment_id": list(seg_ids)}},
+                        ElasticsearchQueryKeys.FILTER: [
+                            {ElasticsearchQueryKeys.TERM: {EmbeddingKeys.EPISODE_ID: episode_id}},
+                            {ElasticsearchQueryKeys.TERMS: {SegmentKeys.SEGMENT_ID: list(seg_ids)}},
                         ],
                     },
+                }
+                for episode_id, seg_ids in episode_to_seg_ids.items()
+            ]
+            max_hits = sum(len(seg_ids) for seg_ids in episode_to_seg_ids.values())
+            query = {
+                ElasticsearchQueryKeys.QUERY: {
+                    ElasticsearchQueryKeys.BOOL: {
+                        ElasticsearchQueryKeys.SHOULD: should_filters,
+                        ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                    },
                 },
-                "size": len(seg_ids) * 2,
-                "_source": ["segment_id", "start_time", "end_time", "video_path"],
+                ElasticsearchQueryKeys.SIZE: max(1, max_hits),
+                ElasticsearchQueryKeys.SOURCE: [
+                    EmbeddingKeys.EPISODE_ID,
+                    SegmentKeys.SEGMENT_ID,
+                    SegmentKeys.START_TIME,
+                    SegmentKeys.END_TIME,
+                    SegmentKeys.VIDEO_PATH,
+                ],
             }
-            try:
-                response = await es.search(index=index, body=query)
-                for hit in response["hits"]["hits"]:
-                    src = hit["_source"]
-                    lookup[(episode_id, src["segment_id"])] = src
-            except Exception:  # pylint: disable=broad-except
-                pass
+            response = await es.search(index=index, body=query)
+            for hit in response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]:
+                src = hit[ElasticsearchKeys.SOURCE]
+                lookup[(src[EmbeddingKeys.EPISODE_ID], src[SegmentKeys.SEGMENT_ID])] = src
 
         for seg in segments:
-            episode_id = seg.get("episode_id", "")
-            seg_range = seg.get("segment_range", [])
+            episode_id = seg.get(EmbeddingKeys.EPISODE_ID, "")
+            seg_range = seg.get(EmbeddingKeys.SEGMENT_RANGE, [])
             if not episode_id or len(seg_range) < 2:
                 continue
             start_data = lookup.get((episode_id, seg_range[0]))
             end_data = lookup.get((episode_id, seg_range[-1]))
             if start_data:
-                seg[SegmentKeys.START_TIME] = start_data["start_time"]
-                seg[SegmentKeys.VIDEO_PATH] = start_data.get("video_path", "")
+                seg[SegmentKeys.START_TIME] = start_data[SegmentKeys.START_TIME]
+                seg[SegmentKeys.VIDEO_PATH] = start_data.get(SegmentKeys.VIDEO_PATH, "")
             if end_data:
-                seg[SegmentKeys.END_TIME] = end_data["end_time"]
+                seg[SegmentKeys.END_TIME] = end_data[SegmentKeys.END_TIME]
 
     @staticmethod
     async def __search_index(
@@ -160,19 +209,12 @@ class SemanticSegmentsFinder:
 
         knn_query = {
             "knn": {
-                "field": embedding_field,
+                ElasticsearchQueryKeys.FIELD: embedding_field,
                 "query_vector": embedding,
                 "k": size,
                 "num_candidates": min(size * 10, 10000),
-                "filter": [
-                    {
-                        "term": {
-                            f"{EpisodeMetadataKeys.EPISODE_METADATA}"
-                            f".{EpisodeMetadataKeys.SERIES_NAME}": series_name,
-                        },
-                    },
-                ],
             },
+            ElasticsearchQueryKeys.SOURCE: SemanticSegmentsFinder.__SOURCE_FIELDS_BY_SUFFIX.get(index_suffix, True),
         }
 
         try:
@@ -206,10 +248,10 @@ class SemanticSegmentsFinder:
     @staticmethod
     def __normalize_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for frame in frames:
-            scene = frame.get("scene_info", {})
-            timestamp = frame.get("timestamp", 0.0)
-            frame[SegmentKeys.START_TIME] = scene.get("scene_start_time", timestamp)
-            frame[SegmentKeys.END_TIME] = scene.get("scene_end_time", timestamp)
+            scene = frame.get(VideoFrameKeys.SCENE_INFO, {})
+            timestamp = frame.get(VideoFrameKeys.TIMESTAMP, 0.0)
+            frame[SegmentKeys.START_TIME] = scene.get(SceneInfoKeys.SCENE_START_TIME, timestamp)
+            frame[SegmentKeys.END_TIME] = scene.get(SceneInfoKeys.SCENE_END_TIME, timestamp)
         return frames
 
     @staticmethod
@@ -220,7 +262,7 @@ class SemanticSegmentsFinder:
             key = (
                 frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
                 frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
-                frame.get("scene_number"),
+                frame.get(VideoFrameKeys.SCENE_NUMBER),
             )
             if key not in seen:
                 seen.add(key)

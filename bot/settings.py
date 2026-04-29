@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: Optional[SecretStr] = None
     BOT_USERNAME: str = Field(...)
     DEFAULT_ADMIN: str = Field(...)
+    DEFAULT_ADMIN_PASSWORD: Optional[SecretStr] = None
     INLINE_CACHE_CHANNEL_ID: Optional[int] = Field(...)
     DEFAULT_RESOLUTION_KEY: str = Field("720p")
     DEFAULT_SERIES: str = Field("ranczo")

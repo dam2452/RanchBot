@@ -7,21 +7,25 @@ from typing import (
 
 from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.utils.constants import (
+    ElasticsearchAggregationKeys,
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
     EpisodeMetadataKeys,
+    SceneInfoKeys,
+    VideoFrameKeys,
 )
 from bot.utils.log import log_system_message
 
 
 class SceneFinder:
-    __SCENE_INFO_FIELD = "scene_info"
-    __SCENE_NUMBER_FIELD = "scene_info.scene_number"
-    __SCENE_START_TIME = "scene_info.scene_start_time"
-    __SCENE_END_TIME = "scene_info.scene_end_time"
-    __UNIQUE_SCENES_AGG = "unique_scenes"
-    __SCENE_DATA_AGG = "scene_data"
+    __SCENE_INFO_FIELD = VideoFrameKeys.SCENE_INFO
+    __SCENE_NUMBER_FIELD = f"{VideoFrameKeys.SCENE_INFO}.{SceneInfoKeys.SCENE_NUMBER}"
+    __SCENE_START_TIME = f"{VideoFrameKeys.SCENE_INFO}.{SceneInfoKeys.SCENE_START_TIME}"
+    __SCENE_END_TIME = f"{VideoFrameKeys.SCENE_INFO}.{SceneInfoKeys.SCENE_END_TIME}"
+    __UNIQUE_SCENES_AGG = ElasticsearchAggregationKeys.UNIQUE_SCENES
+    __SCENE_START_AGG = ElasticsearchAggregationKeys.SCENE_START
+    __SCENE_END_AGG = ElasticsearchAggregationKeys.SCENE_END
 
     @staticmethod
     def __build_scene_cuts_query(season: int, episode_number: int) -> Dict[str, Any]:
@@ -29,7 +33,7 @@ class SceneFinder:
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
+                    ElasticsearchQueryKeys.FILTER: [
                         {
                             ElasticsearchQueryKeys.TERM: {
                                 EpisodeMetadataKeys.SEASON_FIELD: season,
@@ -55,16 +59,11 @@ class SceneFinder:
                         ElasticsearchQueryKeys.SIZE: 2000,
                     },
                     ElasticsearchQueryKeys.AGGS: {
-                        SceneFinder.__SCENE_DATA_AGG: {
-                            ElasticsearchQueryKeys.TOP_HITS: {
-                                ElasticsearchQueryKeys.SIZE: 1,
-                                ElasticsearchQueryKeys.SOURCE: {
-                                    ElasticsearchQueryKeys.INCLUDES: [
-                                        SceneFinder.__SCENE_START_TIME,
-                                        SceneFinder.__SCENE_END_TIME,
-                                    ],
-                                },
-                            },
+                        SceneFinder.__SCENE_START_AGG: {
+                            "min": {ElasticsearchQueryKeys.FIELD: SceneFinder.__SCENE_START_TIME},
+                        },
+                        SceneFinder.__SCENE_END_AGG: {
+                            "max": {ElasticsearchQueryKeys.FIELD: SceneFinder.__SCENE_END_TIME},
                         },
                     },
                 },
@@ -75,12 +74,8 @@ class SceneFinder:
     def __extract_cuts_from_buckets(buckets: List[Dict[str, Any]]) -> List[float]:
         raw_cuts = []
         for bucket in buckets:
-            hits = bucket[SceneFinder.__SCENE_DATA_AGG][ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-            if not hits:
-                continue
-            scene_info = hits[0][ElasticsearchKeys.SOURCE].get(SceneFinder.__SCENE_INFO_FIELD, {})
-            start = scene_info.get("scene_start_time")
-            end = scene_info.get("scene_end_time")
+            start = bucket.get(SceneFinder.__SCENE_START_AGG, {}).get(ElasticsearchAggregationKeys.VALUE)
+            end = bucket.get(SceneFinder.__SCENE_END_AGG, {}).get(ElasticsearchAggregationKeys.VALUE)
             if start is not None:
                 raw_cuts.append(float(start))
             if end is not None:

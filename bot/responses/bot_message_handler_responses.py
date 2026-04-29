@@ -55,6 +55,17 @@ def get_message_too_long_message() -> str:
     return BotResponse.error("WIADOMOŚĆ ZA DŁUGA", "Skróć treść wiadomości")
 
 
+def get_clip_trimmed_message(max_seconds: int) -> str:
+    return BotResponse.warning(
+        "KLIP SKRÓCONY",
+        f"Klip był za długi i został skrócony do {max_seconds}s. Możesz go rozszerzyć komendą /rozszerz.",
+    )
+
+
+def get_log_clip_trimmed_message(segment_id: str, original_duration: float, trimmed_duration: float) -> str:
+    return f"Clip {segment_id} trimmed from {original_duration:.1f}s to {trimmed_duration:.1f}s before extraction."
+
+
 def get_log_clip_duration_exceeded_message(user_id: int) -> str:
     return f"Clip duration limit exceeded for user '{user_id}'"
 

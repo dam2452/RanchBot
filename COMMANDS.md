@@ -21,6 +21,7 @@
 - **`/adostosuj <przed> <po>`** / **`/ad`**: ⏳ Dostosowanie klipu (absolutnie).
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Dostosowanie klipu do granic scen.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównanie ostatniego klipu do cięć scen.
+- **`/klatka [numer]`** / **`/frame [numer]`** / **`/kr [numer]`**: 🖼️ Klatka kluczowa z ostatniego klipu.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Transkrypcja z kontekstem dla cytatu.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Kompilacja wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Kompilacja z zakresu klipów.
@@ -30,9 +31,12 @@
 - **`/mojeklipy`** / **`/mk`**: 📂 Twoje klipy.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyłanie klipu.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usunięcie klipu.
-- **`/filtr <filtry>`** / **`/filter`** / **`/f`**: 🔎 Ustawianie filtrów wyszukiwania.
+- **`/filtr <filtry>`** / **`/filter`** / **`/f`**: 🔎 Ustawianie filtrów wyszukiwania (działa TYLKO z komendami z sufiksem `filtr`/`filter`/`f`: `/kf`, `/szf`).
 - **`/filtr reset`**: 🔄 Resetowanie filtrów.
 - **`/filtr info`**: ℹ️ Wyświetlanie aktywnych filtrów.
+- **`/filtr help`**: 📖 Lista wszystkich dostępnych kluczy filtra z aliasami i przykładami.
+- **`/klipfiltr`** / **`/kf`**: 🎬 Klip na podstawie aktywnego filtra (bez cytatu).
+- **`/szukajfiltr`** / **`/szf`**: 🔎 Lista scen pasujących do aktywnego filtra (bez cytatu).
 - **`/postacie`** / **`/characters`** / **`/p`**: 👤 Przeglądanie postaci i scen.
 - **`/klippostac <postac> [emocja]`** / **`/kp`**: 🎭 Klip z postacią (i opcjonalnie emocją).
 - **`/klipobiekt <obiekt>`** / **`/ko`**: 🎯 Klip z danym obiektem.
@@ -74,6 +78,7 @@
 - **`/adostosuj [numer_klipu] <przed> <po>`** / **`/ad`**: ⏳ Dostosowuje klip ABSOLUTNIE (względem oryginału). Przykład: `/adostosuj -5.5 1.2`.
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Rozszerza klip o podaną liczbę cięć scen w każdą stronę. Przykład: `/sdostosuj 1 2`.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównuje ostatni klip do najbliższych cięć scen. Bez zmiany → informuje.
+- **`/klatka [numer_wyniku] [klatka]`** / **`/frame`** / **`/kr`**: 🖼️ Zwraca klatkę kluczową jako obraz JPEG. `numer_wyniku` (1-5, domyślnie 1) — wynik z `/szukaj`; bez aktywnego wyszukiwania używa ostatniego klipu. `klatka` — selektor: `0`/`p`/`pierwsza` = pierwsza, `-1`/`o`/`ostatnia` = ostatnia, dowolna liczba całkowita (0-based, ujemne liczą od końca). Przykłady: `/klatka` · `/klatka 3` · `/klatka 2 ostatnia` · `/klatka 1 -2`.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: `/transkrypcja geniusz`.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Tworzy kompilację ze wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Tworzy kompilację z zakresu klipów. Przykład: `/kompiluj 1-4`.
@@ -83,15 +88,18 @@
 - **`/mojeklipy`** / **`/mk`**: 📂 Wyświetla listę zapisanych klipów.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyła zapisany klip o podanej nazwie. Przykład: `/wyslij moj_klip`.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usuwa zapisany klip o podanej nazwie. Przykład: `/uk moj_klip`.
-- **`/filtr <filtry>`** / **`/filter <filtry>`** / **`/f <filtry>`**: 🔎 Ustawia filtry wyszukiwania (działają na wszystkie komendy wyszukiwania). Przykład: `/filtr sezon:2 postac:Pawlak`.
+- **`/filtr <filtry>`** / **`/filter <filtry>`** / **`/f <filtry>`**: 🔎 Ustawia filtry wyszukiwania. **Zakres filtra:** działa WYŁĄCZNIE z dedykowanymi komendami „filter-aware" (`/klipfiltr`/`/kf`, `/szukajfiltr`/`/szf`). Pozostałe komendy (`/k`, `/sz`, `/kp`, `/szp`, `/ko`, `/szo`, `/sens`, `/sensk`, `/senso`, `/klipsens`, `/transkrypcja`, `/postacie`, `/obiekt`) filtr IGNORUJĄ — pracują wyłącznie na swoich argumentach. Przykład: `/filtr sezon:2 postac:Pawlak`.
 - **`/filtr reset`**: 🔄 Usuwa wszystkie aktywne filtry.
 - **`/filtr info`**: ℹ️ Wyświetla aktywne filtry. Filtry wygasają po 1h nieaktywności.
-  - `sezon:X` – filtr po sezonie (np. `sezon:2`, `sezon:1-3`, `sezon:1,3,5`)
-  - `odcinek:X` – filtr po odcinku (np. `odcinek:S01E05`, `odcinek:S01E03-S01E07`)
-  - `tytul:X` – filtr po tytule odcinka (fuzzy match)
-  - `postac:X` – postać widoczna na scenie (np. `postac:Pawlak`, `postac:Pawlak,Kusy`)
-  - `emocja:X` – emocja postaci na scenie (np. `emocja:radosny`)
-  - `obiekt:X` – obiekt na scenie z opcjonalnym filtrem ilości (np. `obiekt:krzeslo`, `obiekt:krzeslo>3`)
+- **`/filtr help`** (aliasy: `/filtr pomoc`, `/filtr ?`): 📖 Lista wszystkich kluczy filtra wraz z aliasami, formatem wartości, opisem i przykładami. W REST API zwraca `data.schema` (tablica obiektów).
+  - `sezon:X` (aliasy: `season`, `s`) – filtr po sezonie (np. `sezon:2`, `sezon:1-3`, `sezon:1,3,5`)
+  - `odcinek:X` (aliasy: `episode`, `ep`) – filtr po odcinku (np. `odcinek:S01E05`, `odcinek:S01E03-S01E07`)
+  - `tytul:X` (aliasy: `title`, `t`) – filtr po tytule odcinka (fuzzy match)
+  - `postac:X` (aliasy: `character`, `p`) – postać widoczna na scenie (np. `postac:Pawlak`, `postac:Pawlak,Kusy`)
+  - `emocja:X` (aliasy: `emotion`, `e`) – emocja postaci na scenie (np. `emocja:radosny`)
+  - `obiekt:X` (aliasy: `object`, `obj`, `o`) – obiekt na scenie z opcjonalnym filtrem ilości (np. `obiekt:krzeslo`, `obiekt:krzeslo>3`)
+- **`/klipfiltr`** / **`/clipfilter`** / **`/kf`**: 🎬 Wysyła klip na podstawie aktywnego filtra. Może przyjmować opcjonalny cytat (działa wtedy jak `/k`, ale z nałożonymi filtrami). Przykład: `/kf wina wójta`.
+- **`/szukajfiltr`** / **`/searchfilter`** / **`/szf`**: 🔎 Zwraca listę segmentów pasujących do aktywnego filtra. Może przyjmować opcjonalny cytat (działa wtedy jak `/sz`, ale z nałożonymi filtrami). Przykład: `/szf wina wójta`. Wyniki zapisane w `last_search`, dostępne dla `/wybierz` i `/lista`.
 - **`/postacie`** / **`/p`**: 👤 Wyświetla listę wszystkich postaci z liczbą odcinków.
 - **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/p Wilkowyska radosny`.

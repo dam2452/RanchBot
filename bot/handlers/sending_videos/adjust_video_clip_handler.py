@@ -70,7 +70,11 @@ class AdjustVideoClipHandler(BotMessageHandler):
         if additional_start_offset is None:
             return None
 
-        is_consecutive_adjustment = command in AdjustVideoClipHandler.__RELATIVE_COMMANDS and last_clip and last_clip.is_adjusted
+        is_consecutive_adjustment = (
+            command in AdjustVideoClipHandler.__RELATIVE_COMMANDS
+            and last_clip is not None
+            and last_clip.adjusted_start_time is not None
+        )
 
         if is_consecutive_adjustment:
             original_start_time = last_clip.adjusted_start_time or original_start_time
