@@ -1073,7 +1073,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def get_user_filters(chat_id: int) -> Optional[SearchFilter]:
         async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT filters FROM user_search_filters WHERE chat_id = $1",
+                """
+                WITH expired AS (
+                    DELETE FROM user_search_filters
+                    WHERE chat_id = $1 AND last_used_at < NOW() - INTERVAL '1 hour'
+                    RETURNING chat_id
+                )
+                SELECT filters FROM user_search_filters WHERE chat_id = $1
+                """,
                 chat_id,
             )
             if row is None:

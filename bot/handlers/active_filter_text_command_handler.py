@@ -3,7 +3,9 @@ import logging
 import math
 from typing import (
     Any,
+    List,
     Optional,
+    cast,
 )
 
 from bot.database.database_manager import DatabaseManager
@@ -15,6 +17,10 @@ from bot.responses.bot_message_handler_responses import get_message_too_long_mes
 from bot.responses.filter_command_messages import (
     get_no_filter_set_message,
     get_no_segments_match_active_filter_message,
+)
+from bot.services.search_filter.active_filter_scene_segments import (
+    ActiveFilterSceneSegmentsStatus,
+    load_active_filter_scene_segments,
 )
 from bot.services.search_filter.active_filter_text_segments import (
     ActiveFilterTextSegmentsOutcome,
@@ -117,7 +123,6 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
             await self._handle_with_quote(quote, chat_id, series_name, msg)
             return
 
-
         outcome = await load_active_filter_text_segments(
             chat_id=chat_id,
             series_name=series_name,
@@ -142,3 +147,42 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
             series_name=series_name,
             outcome=outcome,
         )
+
+    async def _do_handle_scene_segments(
+            self,
+            include_search_filter: bool = False,
+    ) -> None:
+        msg = self._message
+        assert msg is not None
+        chat_id = msg.get_chat_id()
+        series_name = await self._get_user_active_series(msg.get_user_id())
+
+        if len(msg.get_text().split()) > 1:
+            await ActiveFilterTextCommandHandler._do_handle(self)
+            return
+
+        scene_outcome = await load_active_filter_scene_segments(
+            chat_id=chat_id,
+            series_name=series_name,
+            logger=self._logger,
+            size=self._active_filter_es_query_size(),
+        )
+
+        if scene_outcome.status == ActiveFilterSceneSegmentsStatus.NO_FILTER:
+            await self._reply_error(get_no_filter_set_message())
+            return
+
+        if scene_outcome.status == ActiveFilterSceneSegmentsStatus.OK:
+            outcome = ActiveFilterTextSegmentsOutcome(
+                status=ActiveFilterTextSegmentsStatus.OK,
+                search_filter=scene_outcome.search_filter if include_search_filter else None,
+                segments=cast(List, scene_outcome.segments),
+            )
+            await self._handle_active_filter_segments_ok(
+                chat_id=chat_id,
+                series_name=series_name,
+                outcome=outcome,
+            )
+            return
+
+        await ActiveFilterTextCommandHandler._do_handle(self)

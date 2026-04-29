@@ -9,10 +9,6 @@ from typing import (
 
 from bot.database.database_manager import DatabaseManager
 from bot.handlers.active_filter_text_command_handler import ActiveFilterTextCommandHandler
-from bot.responses.filter_command_messages import (
-    get_no_filter_set_message,
-    get_no_segments_match_active_filter_message,
-)
 from bot.responses.sending_videos.clip_filter_handler_responses import (
     get_clip_filter_usage_message,
     get_log_clip_filter_no_results_message,
@@ -24,14 +20,7 @@ from bot.responses.sending_videos.clip_handler_responses import (
     get_no_segments_found_message,
 )
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
-from bot.services.search_filter.active_filter_scene_segments import (
-    ActiveFilterSceneSegmentsStatus,
-    load_active_filter_scene_segments,
-)
-from bot.services.search_filter.active_filter_text_segments import (
-    ActiveFilterTextSegmentsOutcome,
-    ActiveFilterTextSegmentsStatus,
-)
+from bot.services.search_filter.active_filter_text_segments import ActiveFilterTextSegmentsOutcome
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
@@ -51,47 +40,7 @@ class ClipFilterHandler(ActiveFilterTextCommandHandler):
         return get_clip_filter_usage_message()
 
     async def _do_handle(self) -> None:
-        msg = self._message
-        assert msg is not None
-        chat_id = msg.get_chat_id()
-        series_name = await self._get_user_active_series(msg.get_user_id())
-
-        content = msg.get_text().split()
-        if len(content) > 1:
-            await super()._do_handle()
-            return
-
-        scene_outcome = await load_active_filter_scene_segments(
-            chat_id=chat_id,
-            series_name=series_name,
-            logger=self._logger,
-            size=self._active_filter_es_query_size(),
-        )
-
-        if scene_outcome.status == ActiveFilterSceneSegmentsStatus.NO_FILTER:
-            await self._reply_error(get_no_filter_set_message())
-            return
-
-        if scene_outcome.status == ActiveFilterSceneSegmentsStatus.OK:
-            await self._handle_active_filter_segments_ok(
-                chat_id=chat_id,
-                series_name=series_name,
-                outcome=ActiveFilterTextSegmentsOutcome(
-                    status=ActiveFilterTextSegmentsStatus.OK,
-                    segments=scene_outcome.segments,
-                ),
-            )
-            return
-
-        if scene_outcome.status == ActiveFilterSceneSegmentsStatus.NO_MATCHES:
-            await self._reply_error(get_no_segments_match_active_filter_message())
-            await self._log_system_message(
-                logging.INFO,
-                self._log_no_filter_results_message(chat_id),
-            )
-            return
-
-        await super()._do_handle()
+        await self._do_handle_scene_segments()
 
     async def _handle_with_quote(
             self,
