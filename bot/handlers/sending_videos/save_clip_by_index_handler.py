@@ -41,7 +41,7 @@ from bot.video.utils import get_video_duration
 class SaveClipByIndexHandler(BotMessageHandler):
 
     def get_commands(self) -> List[str]:
-        return ["zapiszn", "zn"]
+        return ["zapisznumer", "zn"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
