@@ -47,7 +47,7 @@ async def _handle_incoming_event(
     envelope = data.get("envelope", {})
     data_msg = envelope.get("dataMessage", {})
     text = (data_msg.get("message") or "").strip()
-    source = envelope.get("source", "")
+    source = envelope.get("sourceNumber", "") or envelope.get("source", "")
 
     if not source or not text.startswith("/"):
         return
