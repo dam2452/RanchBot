@@ -44,10 +44,16 @@ async def _handle_incoming_event(
     command_handlers: Dict[str, Type[BotMessageHandler]],
     all_middlewares: List[BotMiddleware],
 ) -> None:
+    if data.get("exception"):
+        return
+
     envelope = data.get("envelope", {})
-    data_msg = envelope.get("dataMessage", {})
+    data_msg = envelope.get("dataMessage")
+    if not data_msg:
+        return
+
     text = (data_msg.get("message") or "").strip()
-    source = envelope.get("sourceNumber", "") or envelope.get("source", "")
+    source = envelope.get("sourceNumber") or envelope.get("sourceUuid", "")
 
     if not source or not text.startswith("/"):
         return
