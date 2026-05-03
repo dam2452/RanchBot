@@ -44,16 +44,22 @@ async def _handle_incoming_event(
     command_handlers: Dict[str, Type[BotMessageHandler]],
     all_middlewares: List[BotMiddleware],
 ) -> None:
+    logger.debug(f"Signal raw event: {data}")
+
     if data.get("exception"):
+        logger.debug("Signal: skipping event with exception")
         return
 
     envelope = data.get("envelope", {})
     data_msg = envelope.get("dataMessage")
     if not data_msg:
+        logger.debug(f"Signal: no dataMessage, envelope keys: {list(envelope.keys())}")
         return
 
     text = (data_msg.get("message") or "").strip()
     source = envelope.get("sourceNumber") or envelope.get("sourceUuid", "")
+
+    logger.debug(f"Signal: source={source!r} text={text!r}")
 
     if not source or not text.startswith("/"):
         return
