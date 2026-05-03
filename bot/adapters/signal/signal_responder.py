@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from bot.adapters.signal.signal_rpc import SignalRPC
+from bot.adapters.signal.signal_http_client import SignalHttpClient
 from bot.interfaces.responder import AbstractResponder
 
 
@@ -15,8 +15,8 @@ class SignalResponder(AbstractResponder):
     __MD_UNESCAPE = re.compile(r'\\([*_`\[\]()~>#+=|{}.!\-])')
     __MD_FORMAT = re.compile(r'[*_`~]')
 
-    def __init__(self, rpc: SignalRPC, recipient: str) -> None:
-        self.__rpc = rpc
+    def __init__(self, client: SignalHttpClient, recipient: str) -> None:
+        self.__client = client
         self.__recipient = recipient
 
     @staticmethod
@@ -25,15 +25,15 @@ class SignalResponder(AbstractResponder):
         return SignalResponder.__MD_FORMAT.sub('', text)
 
     async def send_text(self, text: str) -> None:
-        await self.__rpc.send_text(self.__recipient, text)
+        await self.__client.send_text(self.__recipient, text)
 
     async def send_markdown(self, text: str) -> None:
-        await self.__rpc.send_text(self.__recipient, self.__strip_markdown(text))
+        await self.__client.send_text(self.__recipient, self.__strip_markdown(text))
 
     async def send_photo(self, image_bytes: bytes, image_path: Path, caption: str) -> None:
         image_path.write_bytes(image_bytes)
         try:
-            await self.__rpc.send_file(self.__recipient, str(image_path), self.__strip_markdown(caption))
+            await self.__client.send_file(self.__recipient, str(image_path), self.__strip_markdown(caption))
         finally:
             image_path.unlink(missing_ok=True)
 
@@ -47,7 +47,7 @@ class SignalResponder(AbstractResponder):
         suggestions: Optional[List[str]] = None,
     ) -> None:
         try:
-            await self.__rpc.send_file(self.__recipient, str(file_path))
+            await self.__client.send_file(self.__recipient, str(file_path))
         finally:
             if delete_after_send:
                 file_path.unlink(missing_ok=True)
@@ -60,7 +60,7 @@ class SignalResponder(AbstractResponder):
         cleanup_dir: Optional[Path] = None,
     ) -> None:
         try:
-            await self.__rpc.send_file(self.__recipient, str(file_path), self.__strip_markdown(caption))
+            await self.__client.send_file(self.__recipient, str(file_path), self.__strip_markdown(caption))
         finally:
             if cleanup_dir:
                 shutil.rmtree(cleanup_dir, ignore_errors=True)

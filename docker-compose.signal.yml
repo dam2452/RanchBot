@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  signal-api:
+    image: bbernhard/signal-cli-rest-api:latest
+    environment:
+      MODE: native
+    ports:
+      - "${SIGNAL_API_PORT:-8473}:8080"
+    volumes:
+      - signal-cli-data:/home/.local/share/signal-cli
+    restart: ${RESTART_POLICY:-unless-stopped}
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  signal-cli-data:

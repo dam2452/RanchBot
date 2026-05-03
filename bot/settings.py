@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     ENABLE_REST: bool = Field(False)
     ENABLE_SIGNAL: bool = Field(False)
     SIGNAL_PHONE_NUMBER: str = Field("")
-    SIGNAL_CLI_PATH: str = Field("signal-cli")
+    SIGNAL_API_URL: str = Field("http://localhost:8080")
 
     JWT_SECRET_KEY: Optional[SecretStr] = Field("tests")
     JWT_ALGORITHM: str = "HS256"
@@ -109,6 +109,11 @@ class Settings(BaseSettings):
         if self.ENABLE_SIGNAL and not self.SIGNAL_PHONE_NUMBER:
             raise ValueError(
                 "SIGNAL_PHONE_NUMBER is required when ENABLE_SIGNAL=true",
+            )
+
+        if self.ENABLE_SIGNAL and not self.SIGNAL_API_URL:
+            raise ValueError(
+                "SIGNAL_API_URL is required when ENABLE_SIGNAL=true",
             )
 
         return self

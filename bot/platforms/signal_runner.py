@@ -8,9 +8,9 @@ from typing import (
     Type,
 )
 
+from bot.adapters.signal.signal_http_client import SignalHttpClient
 from bot.adapters.signal.signal_message import SignalMessage
 from bot.adapters.signal.signal_responder import SignalResponder
-from bot.adapters.signal.signal_rpc import SignalRPC
 from bot.database.database_manager import DatabaseManager
 from bot.factory import create_all_factories
 from bot.handlers import BotMessageHandler
@@ -40,14 +40,11 @@ async def _run_middleware_chain(
 
 async def _handle_incoming_event(
     data: Dict,
-    rpc: SignalRPC,
+    client: SignalHttpClient,
     command_handlers: Dict[str, Type[BotMessageHandler]],
     all_middlewares: List[BotMiddleware],
 ) -> None:
-    if data.get("method") != "receive":
-        return
-
-    envelope = data.get("params", {}).get("envelope", {})
+    envelope = data.get("envelope", {})
     data_msg = envelope.get("dataMessage", {})
     text = (data_msg.get("message") or "").strip()
     source = envelope.get("source", "")
@@ -64,7 +61,7 @@ async def _handle_incoming_event(
 
     user_id = await DatabaseManager.get_or_create_signal_user(source)
     message = SignalMessage(source=source, text=text, user_id=user_id)
-    responder = SignalResponder(rpc=rpc, recipient=source)
+    responder = SignalResponder(client=client, recipient=source)
 
     async def execute() -> None:
         handler = handler_cls(message, responder, logger)
@@ -74,9 +71,9 @@ async def _handle_incoming_event(
 
 
 async def run_signal_bot() -> None:
-    rpc = SignalRPC(
+    client = SignalHttpClient(
+        base_url=settings.SIGNAL_API_URL,
         phone=settings.SIGNAL_PHONE_NUMBER,
-        signal_cli_path=settings.SIGNAL_CLI_PATH,
     )
 
     factories = create_all_factories(logger, bot=None)
@@ -90,19 +87,19 @@ async def run_signal_bot() -> None:
 
     logger.info(f"Signal: {len(command_handlers)} commands registered, {len(all_middlewares)} middlewares loaded.")
 
+    await client.start()
+
     async def on_event(data: Dict) -> None:
         try:
-            await _handle_incoming_event(data, rpc, command_handlers, all_middlewares)
+            await _handle_incoming_event(data, client, command_handlers, all_middlewares)
         except Exception as exc:
             logger.exception(f"Signal: error handling event: {exc}")
 
-    rpc.set_event_handler(on_event)
-    await rpc.start()
-    await rpc.subscribe()
+    client.start_receiving(on_event)
 
-    logger.info(f"Signal bot listening on {settings.SIGNAL_PHONE_NUMBER}.")
+    logger.info(f"Signal bot listening on {settings.SIGNAL_PHONE_NUMBER} via {settings.SIGNAL_API_URL}.")
 
     try:
         await asyncio.Event().wait()
     finally:
-        await rpc.stop()
+        await client.stop()

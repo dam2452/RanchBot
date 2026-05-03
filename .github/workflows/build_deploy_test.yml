@@ -56,6 +56,9 @@ jobs:
       VIDEO_DATA_DIR: ${{ secrets.VIDEO_DATA_DIR }}
       VLLM_HOST: ${{ secrets.VLLM_HOST }}
       VLLM_EMBEDDINGS_MODEL: ${{ secrets.VLLM_EMBEDDINGS_MODEL }}
+      ENABLE_SIGNAL: ${{ secrets.ENABLE_SIGNAL }}
+      SIGNAL_PHONE_NUMBER: ${{ secrets.SIGNAL_PHONE_NUMBER }}
+      SIGNAL_API_URL: ${{ secrets.SIGNAL_API_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
