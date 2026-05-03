@@ -74,7 +74,7 @@ class SignalHttpClient:
             try:
                 async with self.__session.get(url, timeout=_POLL_TIMEOUT) as resp:
                     resp.raise_for_status()
-                    messages: List[Dict] = await resp.json()
+                    messages: List[Dict] = await resp.json(content_type=None)
 
                 for msg in messages:
                     asyncio.create_task(handler(msg))
