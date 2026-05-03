@@ -1,18 +1,20 @@
 import asyncio
 import base64
-import json
 import logging
 from pathlib import Path
 from typing import (
     Awaitable,
     Callable,
     Dict,
+    List,
     Optional,
 )
 
 import aiohttp
 
 logger = logging.getLogger(__name__)
+
+_POLL_TIMEOUT = aiohttp.ClientTimeout(total=10)
 
 
 class SignalHttpClient:
@@ -65,24 +67,18 @@ class SignalHttpClient:
             resp.raise_for_status()
 
     async def __receive_loop(self, handler: Callable[[Dict], Awaitable[None]]) -> None:
-        ws_url = self.__base_url.replace("http://", "ws://").replace("https://", "wss://")
-        ws_url = f"{ws_url}/v1/receive/{self.__phone}"
+        url = f"{self.__base_url}/v1/receive/{self.__phone}"
+        logger.info(f"Signal polling started: {url}")
 
         while True:
             try:
-                async with self.__session.ws_connect(ws_url) as ws:
-                    logger.info("Signal WebSocket connected.")
-                    async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            try:
-                                data = json.loads(msg.data)
-                            except json.JSONDecodeError:
-                                logger.debug(f"Signal WS non-JSON: {msg.data}")
-                                continue
-                            asyncio.create_task(handler(data))
-                        elif msg.type == aiohttp.WSMsgType.ERROR:
-                            logger.error(f"Signal WS error: {ws.exception()}")
-                            break
+                async with self.__session.get(url, timeout=_POLL_TIMEOUT) as resp:
+                    resp.raise_for_status()
+                    messages: List[Dict] = await resp.json()
+
+                for msg in messages:
+                    asyncio.create_task(handler(msg))
+
             except Exception as exc:
-                logger.warning(f"Signal WS disconnected: {exc}. Reconnecting in 5s...")
+                logger.warning(f"Signal poll error: {exc}. Retrying in 5s...")
                 await asyncio.sleep(5)
