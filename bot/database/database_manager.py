@@ -373,8 +373,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    async def get_saved_clips(user_id: int, series_id: Optional[int] = None) -> List[VideoClip]:
-        resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
+    async def get_saved_clips(user_id: int, series_id: Optional[int] = None, all_series: bool = False) -> List[VideoClip]:
+        resolved_series_id = None if all_series else await DatabaseManager.__resolve_series_id(user_id, series_id)
 
         async with DatabaseManager.__get_db_connection() as conn:
             if resolved_series_id:
