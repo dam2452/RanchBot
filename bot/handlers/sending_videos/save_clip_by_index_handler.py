@@ -183,7 +183,7 @@ class SaveClipByIndexHandler(BotMessageHandler):
         start_time, end_time = await self.__compute_clip_bounds(segment, active_series)
 
         start_time, end_time = self.__apply_adjustments(start_time, end_time, left_adj, right_adj)
-        start_time, end_time = await self._trim_clip_if_needed(
+        start_time, end_time, _ = await self._trim_clip_if_needed(
             start_time=start_time, end_time=end_time, segment_id=index,
         )
 
