@@ -29,8 +29,6 @@ from bot.video.keyframe_extractor import KeyframeExtractor
 
 
 class KeyframeHandler(BotMessageHandler):
-    __FIRST_ALIASES = frozenset({"p", "pierwsza", "first"})
-    __LAST_ALIASES = frozenset({"o", "ostatnia", "last"})
 
     def get_commands(self) -> List[str]:
         return ["klatka", "frame", "kl"]
@@ -74,11 +72,7 @@ class KeyframeHandler(BotMessageHandler):
                 return await self._reply_error(get_invalid_frame_index_message(len(keyframes) - 1))
             seek_time = keyframes[idx]
 
-        frame_path = await KeyframeExtractor.extract_keyframe(video_path, seek_time)
-        try:
-            await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path)
-        finally:
-            frame_path.unlink(missing_ok=True)
+        await self._send_keyframe(video_path, seek_time)
 
         return await self._log_system_message(
             logging.INFO,
@@ -111,21 +105,13 @@ class KeyframeHandler(BotMessageHandler):
         end_time = last_clip.adjusted_end_time or float(segment.get(SegmentKeys.END_TIME, 0))
         return segment, start_time, end_time
 
-    @classmethod
-    def __parse_result_index(cls, raw: str) -> Optional[int]:
+    @staticmethod
+    def __parse_result_index(raw: str) -> Optional[int]:
         if not raw.isdigit():
             return None
         val = int(raw)
         return val if val >= 1 else None
 
-    @classmethod
-    def __parse_frame_selector(cls, raw: str) -> Optional[int]:
-        lower = raw.lower()
-        if lower in cls.__FIRST_ALIASES:
-            return 0
-        if lower in cls.__LAST_ALIASES:
-            return -1
-        try:
-            return int(raw)
-        except ValueError:
-            return None
+    @staticmethod
+    def __parse_frame_selector(raw: str) -> Optional[int]:
+        return KeyframeExtractor.parse_frame_selector(raw)

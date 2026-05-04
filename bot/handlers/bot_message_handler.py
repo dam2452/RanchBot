@@ -27,6 +27,7 @@ from bot.exceptions import (
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
+    get_clip_limit_exceeded_message,
     get_clip_trimmed_message,
     get_extraction_failure_message,
     get_general_error_message,
@@ -60,6 +61,7 @@ from bot.video.clips_compiler import (
     process_compiled_clip,
 )
 from bot.video.clips_extractor import ClipsExtractor
+from bot.video.keyframe_extractor import KeyframeExtractor
 from bot.video.utils import FFMpegException
 
 ValidatorFunctions = List[Callable[[], Awaitable[bool]]]
@@ -239,6 +241,14 @@ class BotMessageHandler(ABC):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
 
+    async def _check_clip_limit_not_exceeded(self) -> bool:
+        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(self._message.get_user_id())
+        user_clip_count = await DatabaseManager.get_user_clip_count(self._message.get_chat_id())
+        if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
+            return True
+        await self._reply_error(get_clip_limit_exceeded_message())
+        return False
+
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: Optional[float]) -> bool:
         if clip_duration is None:
             return False
@@ -416,6 +426,13 @@ class BotMessageHandler(ABC):
             )
         except VideoTooLargeException as e:
             raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions) from e
+
+    async def _send_keyframe(self, video_path: Path, seek_time: float) -> None:
+        frame_path = await KeyframeExtractor.extract_keyframe(video_path, seek_time)
+        try:
+            await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path)
+        finally:
+            frame_path.unlink(missing_ok=True)
 
     async def _send_document(self, content: str, filename: str, caption: str) -> None:
         file_path = Path(tempfile.gettempdir()) / filename

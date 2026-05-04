@@ -12,7 +12,6 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.sending_videos.save_clip_by_index_handler_responses import (
-    get_clip_limit_exceeded_message,
     get_clip_name_exists_message,
     get_clip_name_length_exceeded_message,
     get_clip_name_numeric_message,
@@ -35,6 +34,7 @@ from bot.utils.constants import (
     SegmentKeys,
 )
 from bot.video.clips_extractor import ClipsExtractor
+from bot.video.keyframe_extractor import KeyframeExtractor
 from bot.video.utils import get_video_duration
 
 
@@ -130,14 +130,7 @@ class SaveClipByIndexHandler(BotMessageHandler):
         return True
 
     async def __check_clip_limit_not_exceeded(self) -> bool:
-        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(self._message.get_user_id())
-        user_clip_count = await DatabaseManager.get_user_clip_count(self._message.get_chat_id())
-
-        if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
-            return True
-
-        await self._reply_error(get_clip_limit_exceeded_message())
-        return False
+        return await self._check_clip_limit_not_exceeded()
 
     def __parse_args(self) -> Optional[Tuple[int, float, float, str]]:
         content = self._message.get_text().split()
@@ -195,6 +188,7 @@ class SaveClipByIndexHandler(BotMessageHandler):
             video_data = f.read()
 
         duration = await get_video_duration(output_filename)
+        thumbnail_data = await KeyframeExtractor.extract_thumbnail_bytes(output_filename, start_time, duration)
 
         episode_info = segment.get(
             EpisodeMetadataKeys.EPISODE_METADATA,
@@ -214,6 +208,7 @@ class SaveClipByIndexHandler(BotMessageHandler):
             is_compilation=False,
             season=season,
             episode_number=episode_number,
+            thumbnail_data=thumbnail_data,
         )
 
         await self._reply(

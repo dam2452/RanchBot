@@ -75,11 +75,14 @@ CREATE TABLE IF NOT EXISTS video_clips (
     duration FLOAT,
     season INT,
     episode_number INT,
-    is_compilation BOOLEAN NOT NULL DEFAULT FALSE
+    is_compilation BOOLEAN NOT NULL DEFAULT FALSE,
+    thumbnail_data BYTEA NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_video_clips_user_id ON video_clips(user_id);
 CREATE INDEX IF NOT EXISTS idx_video_clips_clip_name ON video_clips(clip_name);
+
+ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA NULL;
 
 CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,

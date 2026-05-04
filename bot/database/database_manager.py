@@ -399,6 +399,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             chat_id: int, user_id: int, clip_name: str, video_data: bytes, start_time: float,
             end_time: float, duration: float, is_compilation: bool,
             season: Optional[int] = None, episode_number: Optional[int] = None, series_id: Optional[int] = None,
+            thumbnail_data: Optional[bytes] = None,
     ) -> None:
         resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
 
@@ -406,10 +407,10 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             async with conn.transaction():
                 await conn.execute(
                     "INSERT INTO video_clips (chat_id, user_id, clip_name, video_data, start_time, "
-                    "end_time, duration, season, episode_number, is_compilation, series_id) "
-                    "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11)",
+                    "end_time, duration, season, episode_number, is_compilation, series_id, thumbnail_data) "
+                    "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11, $12::bytea)",
                     chat_id, user_id, clip_name, video_data, start_time, end_time, duration,
-                    season, episode_number, is_compilation, resolved_series_id,
+                    season, episode_number, is_compilation, resolved_series_id, thumbnail_data,
                 )
 
     @staticmethod
@@ -447,6 +448,15 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT video_data FROM video_clips WHERE user_id = $1 AND clip_name = $2",
+                user_id, clip_name,
+            )
+        return result
+
+    @staticmethod
+    async def get_thumbnail_by_name(user_id: int, clip_name: str) -> Optional[bytes]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            result = await conn.fetchval(
+                "SELECT thumbnail_data FROM video_clips WHERE user_id = $1 AND clip_name = $2",
                 user_id, clip_name,
             )
         return result

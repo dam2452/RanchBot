@@ -55,6 +55,10 @@ def get_message_too_long_message() -> str:
     return BotResponse.error("WIADOMOŚĆ ZA DŁUGA", "Skróć treść wiadomości")
 
 
+def get_clip_limit_exceeded_message() -> str:
+    return BotResponse.error("LIMIT ZAPISANYCH KLIPÓW", "Usuń stare klipy, aby zapisać nowy")
+
+
 def get_clip_trimmed_message(max_seconds: int) -> str:
     return BotResponse.warning(
         "KLIP SKRÓCONY",

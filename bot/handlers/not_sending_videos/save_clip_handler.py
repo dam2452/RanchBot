@@ -20,7 +20,6 @@ from bot.handlers.bot_message_handler import (
     ValidatorFunctions,
 )
 from bot.responses.not_sending_videos.save_clip_handler_responses import (
-    get_clip_limit_exceeded_message,
     get_clip_name_exists_message,
     get_clip_name_length_exceeded_message,
     get_clip_name_not_provided_message,
@@ -39,6 +38,7 @@ from bot.utils.constants import (
     SegmentKeys,
 )
 from bot.video.clips_extractor import ClipsExtractor
+from bot.video.keyframe_extractor import KeyframeExtractor
 from bot.video.utils import get_video_duration
 
 
@@ -89,14 +89,7 @@ class SaveClipHandler(BotMessageHandler):
         return True
 
     async def __check_clip_limit_not_exceeded(self) -> bool:
-        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(self._message.get_user_id())
-        user_clip_count = await DatabaseManager.get_user_clip_count(self._message.get_chat_id())
-
-        if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
-            return True
-
-        await self._reply_error(get_clip_limit_exceeded_message())
-        return False
+        return await self._check_clip_limit_not_exceeded()
 
     async def __check_last_clip_exists(self) -> bool:
         last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id())
@@ -116,6 +109,7 @@ class SaveClipHandler(BotMessageHandler):
             video_data = f.read()
 
         duration = await get_video_duration(clip_info.output_filename)
+        thumbnail_data = await KeyframeExtractor.extract_thumbnail_bytes(clip_info.output_filename, clip_info.start_time, duration)
 
         await DatabaseManager.save_clip(
             chat_id=self._message.get_chat_id(),
@@ -128,9 +122,11 @@ class SaveClipHandler(BotMessageHandler):
             is_compilation=clip_info.is_compilation,
             season=clip_info.season,
             episode_number=clip_info.episode_number,
+            thumbnail_data=thumbnail_data,
         )
 
         await self.__reply_clip_saved_successfully(clip_name, duration)
+
 
     async def __prepare_clip(self, last_clip: LastClip) -> ClipInfo:
         segment_json = json.loads(last_clip.segment)

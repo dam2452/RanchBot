@@ -2,11 +2,27 @@ import asyncio
 import os
 from pathlib import Path
 import tempfile
+from typing import Optional
 
 from bot.video.utils import run_ffmpeg_command
 
 
 class KeyframeExtractor:
+    FIRST_ALIASES = frozenset({"p", "pierwsza", "first"})
+    LAST_ALIASES = frozenset({"o", "ostatnia", "last"})
+
+    @staticmethod
+    def parse_frame_selector(raw: str) -> Optional[int]:
+        lower = raw.lower()
+        if lower in KeyframeExtractor.FIRST_ALIASES:
+            return 0
+        if lower in KeyframeExtractor.LAST_ALIASES:
+            return -1
+        try:
+            return int(raw)
+        except ValueError:
+            return None
+
     @staticmethod
     async def extract_keyframe(video_path: Path, seek_time: float) -> Path:
         fd, tmp_path = tempfile.mkstemp(suffix=".jpg")
@@ -27,6 +43,17 @@ class KeyframeExtractor:
 
         await run_ffmpeg_command(command)
         return output_path
+
+    @staticmethod
+    async def extract_thumbnail_bytes(video_path: Path, start_time: float, duration: float) -> Optional[bytes]:
+        try:
+            seek_time = start_time + duration * 0.1
+            frame_path = await KeyframeExtractor.extract_keyframe(video_path, seek_time)
+            thumbnail_data = frame_path.read_bytes()
+            frame_path.unlink(missing_ok=True)
+            return thumbnail_data
+        except Exception:
+            return None
 
     @staticmethod
     async def get_keyframe_timestamps(video_path: Path, start_time: float, end_time: float) -> list[float]:
