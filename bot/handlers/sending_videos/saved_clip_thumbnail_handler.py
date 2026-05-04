@@ -67,15 +67,19 @@ class SavedClipThumbnailHandler(BotMessageHandler):
         try:
             video_path.write_bytes(clip.video_data)
 
-            keyframes = await KeyframeExtractor.get_keyframe_timestamps(
-                video_path, clip.start_time, clip.end_time,
-            )
+            duration = clip.duration or 0.0
+            if clip.end_time > clip.start_time:
+                keyframes = await KeyframeExtractor.get_keyframe_timestamps(
+                    video_path, clip.start_time, clip.end_time,
+                )
+            else:
+                keyframes = []
+
             if not keyframes:
-                seek_time = clip.start_time
+                seek_time = clip.start_time if clip.end_time > clip.start_time else duration * 0.1
             else:
                 idx = frame_selector if frame_selector >= 0 else len(keyframes) + frame_selector
-                if idx < 0 or idx >= len(keyframes):
-                    idx = max(0, min(idx, len(keyframes) - 1))
+                idx = max(0, min(idx, len(keyframes) - 1))
                 seek_time = keyframes[idx]
 
             await self._send_keyframe(video_path, seek_time)
