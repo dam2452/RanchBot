@@ -1,4 +1,7 @@
-import bisect
+from bisect import (
+    bisect_left,
+    bisect_right,
+)
 import logging
 from typing import (
     Any,
@@ -15,6 +18,8 @@ class ScenesMerger:
         self,
         text_segments: List[Dict[str, Any]],
         video_frames: List[Dict[str, Any]],
+        frame_before: float = 0.0,
+        frame_after: float = 0.0,
     ) -> List[Dict[str, Any]]:
         sorted_frames = sorted(
             (f for f in video_frames if f.get("timestamp") is not None),
@@ -27,8 +32,8 @@ class ScenesMerger:
             start = float(segment.get("start_time", 0.0))
             end = float(segment.get("end_time", 0.0))
 
-            lo = bisect.bisect_left(timestamps, start)
-            hi = bisect.bisect_left(timestamps, end)
+            lo = bisect_left(timestamps, max(0.0, start - frame_before))
+            hi = bisect_right(timestamps, end + frame_after)
             segment_frames = [
                 self.__build_frame(sorted_frames[i]) for i in range(lo, hi)
             ]

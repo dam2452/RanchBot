@@ -44,8 +44,15 @@ class ReindexResult:
 
 
 class ReindexService:
-    def __init__(self, logger: logging.Logger) -> None:
+    def __init__(
+        self,
+        logger: logging.Logger,
+        frame_before: float = 0.0,
+        frame_after: float = 0.0,
+    ) -> None:
         self.__logger = logger
+        self.__frame_before = frame_before
+        self.__frame_after = frame_after
         self.__scanner = SeriesScanner(logger)
         self.__zip_extractor = ZipExtractor(logger)
         self.__video_transformer = VideoPathTransformer(logger)
@@ -320,7 +327,12 @@ class ReindexService:
             indexed_count += len(documents)
 
         if "text_segments" in parsed and "video_frames" in parsed:
-            scenes = self.__scenes_merger.merge(parsed["text_segments"], parsed["video_frames"])
+            scenes = self.__scenes_merger.merge(
+                parsed["text_segments"],
+                parsed["video_frames"],
+                frame_before=self.__frame_before,
+                frame_after=self.__frame_after,
+            )
             index_name = self.__get_index_name(series_name, "scenes")
             await self.__bulk_index_documents(index_name, "scenes", scenes)
             indexed_count += len(scenes)
