@@ -1122,7 +1122,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     INSERT INTO user_search_filters (chat_id, filters, last_used_at)
                     VALUES ($1, $2::jsonb, CURRENT_TIMESTAMP)
                     ON CONFLICT (chat_id) DO UPDATE
-                    SET filters = user_search_filters.filters || $2::jsonb,
+                    SET filters = $2::jsonb,
                         last_used_at = CURRENT_TIMESTAMP
                     """,
                     chat_id, json.dumps(filters),
