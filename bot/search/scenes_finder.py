@@ -55,7 +55,7 @@ class ScenesFinder:
         results: List[SegmentWithScore] = []
         for hit in hits:
             source = hit[ElasticsearchKeys.SOURCE]
-            source[ElasticsearchKeys.SCORE] = hit.get(ElasticsearchKeys.SCORE, 0.0)
+            source[ElasticsearchKeys.SCORE] = hit.get(ElasticsearchKeys.SCORE) or 0.0
             results.append(source)
         return results
 
@@ -107,8 +107,8 @@ class ScenesFinder:
                     existing[SegmentKeys.END_TIME], incoming[SegmentKeys.END_TIME],
                 )
                 collected[i][ElasticsearchKeys.SCORE] = max(
-                    float(existing.get(ElasticsearchKeys.SCORE, 0.0)),
-                    float(incoming.get(ElasticsearchKeys.SCORE, 0.0)),
+                    float(existing.get(ElasticsearchKeys.SCORE) or 0.0),
+                    float(incoming.get(ElasticsearchKeys.SCORE) or 0.0),
                 )
                 return True
         return False
