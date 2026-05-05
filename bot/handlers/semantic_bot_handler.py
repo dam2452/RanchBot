@@ -95,7 +95,8 @@ class SemanticBotHandler(BotMessageHandler):
         mode: SemanticSearchMode,
     ) -> List[Dict[str, Any]]:
         if mode == SemanticSearchMode.FRAMES:
-            return SemanticSegmentsFinder.deduplicate_frames(results)
+            deduped = SemanticSegmentsFinder.deduplicate_frames(results)
+            return SemanticSegmentsFinder.merge_overlapping_frames(deduped)
         if mode == SemanticSearchMode.EPISODE:
             return SemanticSegmentsFinder.deduplicate_episodes(results)
         return SemanticSegmentsFinder.deduplicate_segments(results)

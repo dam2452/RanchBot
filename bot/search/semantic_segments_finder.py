@@ -1,3 +1,4 @@
+import copy
 from enum import Enum
 import logging
 from typing import (
@@ -259,15 +260,50 @@ class SemanticSegmentsFinder:
         seen = set()
         unique = []
         for frame in frames:
-            key = (
-                frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.SEASON),
-                frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {}).get(EpisodeMetadataKeys.EPISODE_NUMBER),
-                frame.get(VideoFrameKeys.SCENE_NUMBER),
-            )
+            meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            season = meta.get(EpisodeMetadataKeys.SEASON)
+            episode = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+            scene_number = frame.get(VideoFrameKeys.SCENE_NUMBER)
+            frame_number = frame.get(EmbeddingKeys.FRAME_NUMBER)
+            scene_key = scene_number if scene_number is not None else frame_number
+            key = (season, episode, scene_key)
             if key not in seen:
                 seen.add(key)
                 unique.append(frame)
         return unique
+
+    @staticmethod
+    def merge_overlapping_frames(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        groups: Dict[Tuple[Any, Any], List[Dict[str, Any]]] = {}
+        for frame in frames:
+            meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            key = (
+                meta.get(EpisodeMetadataKeys.SEASON),
+                meta.get(EpisodeMetadataKeys.EPISODE_NUMBER),
+            )
+            groups.setdefault(key, []).append(frame)
+
+        merged: List[Dict[str, Any]] = []
+        for group in groups.values():
+            sorted_group = sorted(group, key=lambda f: f.get(SegmentKeys.START_TIME, 0.0))
+            current = copy.copy(sorted_group[0])
+            for frame in sorted_group[1:]:
+                frame_start = frame.get(SegmentKeys.START_TIME, 0.0)
+                frame_end = frame.get(SegmentKeys.END_TIME, 0.0)
+                current_end = current.get(SegmentKeys.END_TIME, 0.0)
+                if frame_start <= current_end:
+                    new_end = max(current_end, frame_end)
+                    if frame.get(ElasticsearchKeys.SCORE, 0.0) > current.get(ElasticsearchKeys.SCORE, 0.0):
+                        window_start = current.get(SegmentKeys.START_TIME, 0.0)
+                        current = copy.copy(frame)
+                        current[SegmentKeys.START_TIME] = window_start
+                    current[SegmentKeys.END_TIME] = new_end
+                else:
+                    merged.append(current)
+                    current = copy.copy(frame)
+            merged.append(current)
+
+        return sorted(merged, key=lambda f: f.get(ElasticsearchKeys.SCORE, 0.0), reverse=True)
 
     @staticmethod
     def deduplicate_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
