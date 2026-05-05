@@ -41,10 +41,8 @@ from bot.responses.bot_message_handler_responses import (
     get_no_video_path_message,
 )
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
-from bot.search.filter_applicator import FilterApplicator
 from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.search.scenes_finder import ScenesFinder
-from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
@@ -53,10 +51,7 @@ from bot.types import (
     SearchFilter,
     SegmentWithScore,
 )
-from bot.utils.constants import (
-    ElasticsearchIndexSuffixes,
-    SegmentKeys,
-)
+from bot.utils.constants import SegmentKeys
 from bot.utils.log import (
     log_system_message,
     log_user_activity,
@@ -179,33 +174,14 @@ class BotMessageHandler(ABC):
         error_message: str,
     ) -> Optional[List[SegmentWithScore]]:
         es = await ElasticSearchManager.connect_to_elasticsearch(self._logger)
-        scenes_index = f"{series_name}{ElasticsearchIndexSuffixes.SCENES}"
-
-        if await es.indices.exists(index=scenes_index):
-            segments = await ScenesFinder.find_by_text_and_filter(
-                es=es,
-                series_name=series_name,
-                quote=quote,
-                search_filter=search_filter,
-                size=es_size,
-                logger=self._logger,
-            )
-        else:
-            raw = await TextSegmentsFinder.find_segment_by_quote(
-                quote,
-                self._logger,
-                series_name,
-                size=es_size,
-                search_filter=search_filter,
-            )
-            if not raw:
-                segments = []
-            else:
-                segments = raw if isinstance(raw, list) else [raw]
-                if search_filter:
-                    segments = await FilterApplicator.apply_to_text_segments(
-                        segments, search_filter, series_name, self._logger,
-                    )
+        segments = await ScenesFinder.find_by_text_and_filter(
+            es=es,
+            series_name=series_name,
+            quote=quote,
+            search_filter=search_filter,
+            size=es_size,
+            logger=self._logger,
+        )
 
         if not segments:
             await self._reply_error(error_message)
@@ -216,24 +192,14 @@ class BotMessageHandler(ABC):
 
     async def _search_segments(self, quote: str, series_name: str, size: int) -> List[SegmentWithScore]:
         es = await ElasticSearchManager.connect_to_elasticsearch(self._logger)
-        scenes_index = f"{series_name}{ElasticsearchIndexSuffixes.SCENES}"
-
-        if await es.indices.exists(index=scenes_index):
-            return await ScenesFinder.find_by_text_and_filter(
-                es=es,
-                series_name=series_name,
-                quote=quote,
-                search_filter=None,
-                size=size,
-                logger=self._logger,
-            )
-
-        raw = await TextSegmentsFinder.find_segment_by_quote(
-            quote, self._logger, series_name, size=size,
+        return await ScenesFinder.find_by_text_and_filter(
+            es=es,
+            series_name=series_name,
+            quote=quote,
+            search_filter=None,
+            size=size,
+            logger=self._logger,
         )
-        if not raw:
-            return []
-        return raw if isinstance(raw, list) else [raw]
 
     async def _trim_clip_if_needed(
         self,
