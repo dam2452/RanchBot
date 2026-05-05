@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     MAX_ADJUSTMENT_DURATION: int = Field(20)
     MAX_ES_RESULTS_LONG: int = Field(333)
     MAX_ES_RESULTS_QUICK: int = Field(10)
+    SEMANTIC_FRAMES_MERGE_GAP_SECONDS: float = Field(30.0)
     MAX_SEARCH_QUERY_LENGTH: int = Field(200)
     MAX_CLIP_DURATION: int = Field(60)
     MAX_CLIP_DURATION_HARD_LIMIT: int = Field(120)

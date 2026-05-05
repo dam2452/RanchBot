@@ -260,16 +260,42 @@ class SemanticSegmentsFinder:
         unique = []
         for frame in frames:
             meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
-            key = (
-                meta.get(EpisodeMetadataKeys.SEASON),
-                meta.get(EpisodeMetadataKeys.EPISODE_NUMBER),
-                frame.get(SegmentKeys.START_TIME),
-                frame.get(SegmentKeys.END_TIME),
-            )
+            season = meta.get(EpisodeMetadataKeys.SEASON)
+            episode = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+            scene_number = frame.get(VideoFrameKeys.SCENE_NUMBER)
+            scene_key = scene_number if scene_number is not None else frame.get(EmbeddingKeys.FRAME_NUMBER)
+            key = (season, episode, scene_key)
             if key not in seen:
                 seen.add(key)
                 unique.append(frame)
         return unique
+
+    @staticmethod
+    def merge_nearby_frames(
+        frames: List[Dict[str, Any]],
+        max_gap_seconds: float = settings.SEMANTIC_FRAMES_MERGE_GAP_SECONDS,
+    ) -> List[Dict[str, Any]]:
+        groups: Dict[Tuple[Any, Any], List[Dict[str, Any]]] = {}
+        for frame in frames:
+            meta = frame.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            key = (meta.get(EpisodeMetadataKeys.SEASON), meta.get(EpisodeMetadataKeys.EPISODE_NUMBER))
+            groups.setdefault(key, []).append(frame)
+
+        merged: List[Dict[str, Any]] = []
+        for group in groups.values():
+            sorted_group = sorted(group, key=lambda f: f.get(SegmentKeys.START_TIME, 0.0))
+            current = sorted_group[0]
+            for frame in sorted_group[1:]:
+                gap = frame.get(SegmentKeys.START_TIME, 0.0) - current.get(SegmentKeys.START_TIME, 0.0)
+                if gap <= max_gap_seconds:
+                    if frame.get(ElasticsearchKeys.SCORE, 0.0) > current.get(ElasticsearchKeys.SCORE, 0.0):
+                        current = frame
+                else:
+                    merged.append(current)
+                    current = frame
+            merged.append(current)
+
+        return sorted(merged, key=lambda f: f.get(ElasticsearchKeys.SCORE, 0.0), reverse=True)
 
     @staticmethod
     def deduplicate_segments(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
