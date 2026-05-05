@@ -259,6 +259,60 @@ class ElasticSearchManager:
         },
     }
 
+    SCENES_INDEX_MAPPING = {
+        "mappings": {
+            "properties": {
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
+                "segment_id": {"type": "integer"},
+                "text": {"type": "text"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "speaker": {"type": "keyword"},
+                "video_path": {"type": "keyword"},
+                "scene_info": {"type": "object"},
+                "frames": {
+                    "type": "nested",
+                    "properties": {
+                        "frame_number": {"type": "integer"},
+                        "timestamp": {"type": "float"},
+                        "frame_type": {"type": "keyword"},
+                        "scene_number": {"type": "integer"},
+                        "scene_info": {"type": "object"},
+                        "perceptual_hash": {"type": "keyword"},
+                        "perceptual_hash_int": {"type": "unsigned_long"},
+                        "video_embedding": {
+                            "type": "dense_vector",
+                            "dims": 4096,
+                            "index": True,
+                            "similarity": "cosine",
+                        },
+                        "character_appearances": {
+                            "type": "nested",
+                            "properties": {
+                                "name": {"type": "keyword"},
+                                "confidence": {"type": "float"},
+                                "emotion": {
+                                    "properties": {
+                                        "label": {"type": "keyword"},
+                                        "confidence": {"type": "float"},
+                                    },
+                                },
+                            },
+                        },
+                        "detected_objects": {
+                            "type": "nested",
+                            "properties": {
+                                "class": {"type": "keyword"},
+                                "count": {"type": "integer"},
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
     @staticmethod
     async def connect_to_elasticsearch(logger: logging.Logger) -> AsyncElasticsearch:
         if ElasticSearchManager._shared_es_client is not None:

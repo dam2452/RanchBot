@@ -188,6 +188,7 @@ class JwtPayloadKeys:
 class ElasticsearchIndexSuffixes:
     TEXT_SEGMENTS: Final[str] = "_text_segments"
     VIDEO_FRAMES: Final[str] = "_video_frames"
+    SCENES: Final[str] = "_scenes"
     TEXT_EMBEDDINGS: Final[str] = "_text_embeddings"
     FULL_EPISODE_EMBEDDINGS: Final[str] = "_full_episode_embeddings"
     EPISODE_NAMES: Final[str] = "_episode_names"

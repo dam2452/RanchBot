@@ -290,18 +290,17 @@ class TextSegmentsFinder:
 
         TextSegmentsFinder.__apply_search_filter_to_query(query, search_filter)
 
-        if restrict_episode_keys is not None:
-            restriction = TextSegmentsFinder.__build_episode_restriction_clause(restrict_episode_keys)
-            if restriction is None:
-                await log_system_message(
-                    logging.INFO,
-                    "Filter-only search: no eligible episodes after video-frame prefilter.",
-                    logger,
-                )
-                return []
-            query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][
-                ElasticsearchQueryKeys.FILTER
-            ].append(restriction)
+        restriction = TextSegmentsFinder.__build_episode_restriction_clause(restrict_episode_keys)
+        if restriction is None:
+            await log_system_message(
+                logging.INFO,
+                "Filter-only search: no eligible episodes after video-frame prefilter.",
+                logger,
+            )
+            return []
+        query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][
+            ElasticsearchQueryKeys.FILTER
+        ].append(restriction)
 
         hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 

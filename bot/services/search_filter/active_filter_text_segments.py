@@ -7,12 +7,11 @@ import logging
 from typing import (
     List,
     Optional,
-    cast,
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.search.filter_applicator import FilterApplicator
-from bot.search.text_segments_finder import TextSegmentsFinder
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.scenes_finder import ScenesFinder
 from bot.types import (
     SearchFilter,
     SegmentWithScore,
@@ -44,41 +43,25 @@ async def load_active_filter_text_segments(
     if not raw:
         return ActiveFilterTextSegmentsOutcome(ActiveFilterTextSegmentsStatus.NO_FILTER)
 
-    search_filter = cast(SearchFilter, raw)
+    search_filter: SearchFilter = raw
 
-    eligible_episodes = await FilterApplicator.collect_eligible_episodes(
-        search_filter, series_name, logger,
-    )
-    if eligible_episodes is not None and not eligible_episodes:
-        return ActiveFilterTextSegmentsOutcome(
-            ActiveFilterTextSegmentsStatus.NO_CANDIDATES,
-            search_filter=search_filter,
-        )
-
-    candidates = await TextSegmentsFinder.find_segments_by_filter_only(
-        logger=logger,
+    es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+    segments = await ScenesFinder.find_by_filter(
+        es=es,
         series_name=series_name,
         search_filter=search_filter,
         size=es_query_size,
-        restrict_episode_keys=eligible_episodes,
+        logger=logger,
     )
-    if not candidates:
+
+    if not segments:
         return ActiveFilterTextSegmentsOutcome(
             ActiveFilterTextSegmentsStatus.NO_CANDIDATES,
-            search_filter=search_filter,
-        )
-
-    filtered = await FilterApplicator.apply_to_text_segments(
-        candidates, search_filter, series_name, logger,
-    )
-    if not filtered:
-        return ActiveFilterTextSegmentsOutcome(
-            ActiveFilterTextSegmentsStatus.NO_MATCHES_POST_FILTER,
             search_filter=search_filter,
         )
 
     return ActiveFilterTextSegmentsOutcome(
         ActiveFilterTextSegmentsStatus.OK,
         search_filter=search_filter,
-        segments=list(filtered),
+        segments=segments,
     )

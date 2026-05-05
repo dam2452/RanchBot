@@ -42,6 +42,36 @@ from bot.utils.log import log_system_message
 EpisodeKey = Tuple[int, int]
 
 
+def _build_season_episode_clauses(
+    search_filter: SearchFilter,
+    season_field: str,
+    episode_field: str,
+) -> List[Dict[str, Any]]:
+    clauses: List[Dict[str, Any]] = []
+    seasons = search_filter.get("seasons")
+    if seasons:
+        clauses.append({ElasticsearchQueryKeys.TERMS: {season_field: seasons}})
+    episodes = search_filter.get("episodes")
+    if episodes:
+        episode_should: List[Dict[str, Any]] = []
+        for ep in episodes:
+            must_parts: List[Dict[str, Any]] = [
+                {ElasticsearchQueryKeys.TERM: {episode_field: ep["episode"]}},
+            ]
+            if ep.get("season") is not None:
+                must_parts.append({ElasticsearchQueryKeys.TERM: {season_field: ep["season"]}})
+            episode_should.append({
+                ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.FILTER: must_parts},
+            })
+        clauses.append({
+            ElasticsearchQueryKeys.BOOL: {
+                ElasticsearchQueryKeys.SHOULD: episode_should,
+                ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+            },
+        })
+    return clauses
+
+
 class FilterApplicator:
     __PAGE_SIZE = 1000
     __EPISODE_AGG_NAME = "eligible_episodes"
@@ -268,12 +298,18 @@ class FilterApplicator:
         char_tasks = []
         for char_group in character_groups:
             char_tasks.append(FilterApplicator._get_character_frame_keys(char_group, episode_keys, series_name, logger))
-        if emotions:
-            char_tasks.append(FilterApplicator._get_emotion_frame_keys(emotions, episode_keys, series_name, logger))
         for obj_group in object_groups:
             char_tasks.append(FilterApplicator._get_object_frame_keys(obj_group, episode_keys, series_name, logger))
 
-        frame_key_sets = list(await asyncio.gather(*char_tasks))
+        gathered = list(await asyncio.gather(*char_tasks))
+        emotion_confidence_map: Dict[Tuple[Optional[int], Optional[int], float], float] = {}
+        if emotions:
+            emotion_frame_keys, emotion_confidence_map = await FilterApplicator._get_emotion_frame_keys(
+                emotions, episode_keys, series_name, logger,
+            )
+            gathered.append(emotion_frame_keys)
+
+        frame_key_sets = gathered
 
         hit_episode_keys: Set[Tuple[Optional[int], Optional[int]]] = {
             (fk_season, fk_episode)
@@ -292,6 +328,10 @@ class FilterApplicator:
             f"FilterApplicator: {len(segments)} → {len(filtered)} segments after video-frame filters.",
             logger,
         )
+
+        if emotions and not character_groups and not object_groups and filtered:
+            filtered = FilterApplicator._sort_by_emotion_confidence(filtered, emotion_confidence_map, all_timestamps)
+
         return filtered
 
     @staticmethod
@@ -383,10 +423,10 @@ class FilterApplicator:
         episode_keys: Set[Tuple[Optional[int], Optional[int]]],
         series_name: str,
         logger: logging.Logger,
-    ) -> Set[Tuple[Optional[int], Optional[int], float]]:
+    ) -> Tuple[Set[Tuple[Optional[int], Optional[int], float]], Dict[Tuple[Optional[int], Optional[int], float], float]]:
         emotion_labels_en = [en for e in emotions for en in (map_emotion_to_en(e),) if en]
         if not emotion_labels_en:
-            return set()
+            return set(), {}
 
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
         season_list = list({k[0] for k in episode_keys if k[0] is not None})
@@ -424,6 +464,7 @@ class FilterApplicator:
             ElasticsearchQueryKeys.SOURCE: [
                 EpisodeMetadataKeys.EPISODE_METADATA,
                 VideoFrameKeys.TIMESTAMP,
+                ActorKeys.ACTORS,
             ],
         }
         hits = await ElasticSearchManager.search_all_hits(
@@ -432,7 +473,32 @@ class FilterApplicator:
             query,
             page_size=FilterApplicator.__PAGE_SIZE,
         )
-        return FilterApplicator._hits_to_frame_keys(hits)
+
+        return FilterApplicator._extract_emotion_confidences(hits, emotion_labels_en)
+
+    @staticmethod
+    def _extract_emotion_confidences(
+        hits: List[Dict[str, Any]],
+        emotion_labels: List[str],
+    ) -> Tuple[Set[Tuple[Optional[int], Optional[int], float]], Dict[Tuple[Optional[int], Optional[int], float], float]]:
+        frame_keys: Set[Tuple[Optional[int], Optional[int], float]] = set()
+        confidence_map: Dict[Tuple[Optional[int], Optional[int], float], float] = {}
+        for hit in hits:
+            src = hit.get(ElasticsearchKeys.SOURCE, {})
+            meta = src.get(EpisodeMetadataKeys.EPISODE_METADATA, {})
+            season = meta.get(EpisodeMetadataKeys.SEASON)
+            episode = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+            timestamp = float(src.get(VideoFrameKeys.TIMESTAMP, 0.0))
+            key = (season, episode, timestamp)
+            frame_keys.add(key)
+            max_conf = 0.0
+            for actor in src.get(ActorKeys.ACTORS, []):
+                emo = actor.get(ActorKeys.EMOTION, {})
+                if emo.get(EmotionKeys.LABEL) in emotion_labels:
+                    max_conf = max(max_conf, float(emo.get(EmotionKeys.CONFIDENCE, 0.0)))
+            if max_conf > 0.0:
+                confidence_map[key] = max_conf
+        return frame_keys, confidence_map
 
     @staticmethod
     async def _get_object_frame_keys(
@@ -568,6 +634,33 @@ class FilterApplicator:
         )
         return result
 
+
+
+    @staticmethod
+    def _sort_by_emotion_confidence(
+        segments: List[SegmentWithScore],
+        confidence_map: Dict[Tuple[Optional[int], Optional[int], float], float],
+        all_timestamps: Dict[Tuple[Optional[int], Optional[int]], List[float]],
+    ) -> List[SegmentWithScore]:
+        def __best_confidence(segment: SegmentWithScore) -> float:
+            meta = cast(Dict[str, Any], segment.get(EpisodeMetadataKeys.EPISODE_METADATA, {}))
+            season = meta.get(EpisodeMetadataKeys.SEASON)
+            episode = meta.get(EpisodeMetadataKeys.EPISODE_NUMBER)
+            start = float(segment.get(SegmentKeys.START_TIME, 0.0))
+            end = float(segment.get(SegmentKeys.END_TIME, 0.0))
+            ep_timestamps = all_timestamps.get((season, episode), [])
+            best = 0.0
+            for (fk_season, fk_episode, ts), conf in confidence_map.items():
+                if fk_season != season or fk_episode != episode:
+                    continue
+                idx = bisect.bisect_right(ep_timestamps, ts)
+                next_ts = ep_timestamps[idx] if idx < len(ep_timestamps) else math.inf
+                if ts <= end and next_ts >= start:
+                    best = max(best, conf)
+            return best
+
+        return sorted(segments, key=__best_confidence, reverse=True)
+
     @staticmethod
     def __frame_passes_object_group(
         detected: List[Dict[str, Any]],
@@ -614,41 +707,9 @@ class FilterApplicator:
 
     @staticmethod
     def build_es_season_episode_clauses(search_filter: SearchFilter) -> List[Dict[str, Any]]:
-        clauses: List[Dict[str, Any]] = []
-        seasons = search_filter.get("seasons")
-        if seasons:
-            clauses.append({
-                ElasticsearchQueryKeys.TERMS: {
-                    f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": seasons,
-                },
-            })
-        episodes = search_filter.get("episodes")
-        if episodes:
-            episode_should: List[Dict[str, Any]] = []
-            for ep in episodes:
-                must_parts: List[Dict[str, Any]] = [
-                    {
-                        ElasticsearchQueryKeys.TERM: {
-                            f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}": ep["episode"],
-                        },
-                    },
-                ]
-                if ep.get("season") is not None:
-                    must_parts.append({
-                        ElasticsearchQueryKeys.TERM: {
-                            f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}": ep["season"],
-                        },
-                    })
-                episode_should.append({
-                    ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.FILTER: must_parts},
-                })
-            clauses.append({
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.SHOULD: episode_should,
-                    ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
-                },
-            })
-        return clauses
+        season_field = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.SEASON}"
+        episode_field = f"{EpisodeMetadataKeys.EPISODE_METADATA}.{EpisodeMetadataKeys.EPISODE_NUMBER}"
+        return _build_season_episode_clauses(search_filter, season_field, episode_field)
 
     @staticmethod
     def get_seasons_list(search_filter: SearchFilter) -> Optional[List[int]]:

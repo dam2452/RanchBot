@@ -19,6 +19,7 @@ from elasticsearch.helpers import (
 )
 
 from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.services.reindex.scenes_merger import ScenesMerger
 from bot.services.reindex.series_scanner import SeriesScanner
 from bot.services.reindex.video_path_transformer import VideoPathTransformer
 from bot.services.reindex.zip_extractor import ZipExtractor
@@ -48,6 +49,7 @@ class ReindexService:
         self.__scanner = SeriesScanner(logger)
         self.__zip_extractor = ZipExtractor(logger)
         self.__video_transformer = VideoPathTransformer(logger)
+        self.__scenes_merger = ScenesMerger(logger)
         self.__es_manager: Optional[ElasticSearchManager] = None
 
     async def __aenter__(self) -> "ReindexService":
@@ -198,6 +200,7 @@ class ReindexService:
         "full_episode_embeddings",
         "sound_events",
         "sound_event_embeddings",
+        "scenes",
     ]
 
     async def delete_series(self, series_name: str) -> List[str]:
@@ -305,21 +308,22 @@ class ReindexService:
         jsonl_contents = self.__zip_extractor.extract_to_memory(zip_path)
         indexed_count = 0
 
+        parsed: Dict[str, List[Dict[str, Any]]] = {}
         for jsonl_type, buffer in jsonl_contents.items():
             documents = self.__zip_extractor.parse_jsonl_from_memory(buffer)
-
             for doc in documents:
                 self.__video_transformer.transform_video_path(doc, mp4_path)
+            parsed[jsonl_type] = documents
 
             index_name = self.__get_index_name(series_name, jsonl_type)
-
-            await self.__bulk_index_documents(
-                index_name,
-                jsonl_type,
-                documents,
-            )
-
+            await self.__bulk_index_documents(index_name, jsonl_type, documents)
             indexed_count += len(documents)
+
+        if "text_segments" in parsed and "video_frames" in parsed:
+            scenes = self.__scenes_merger.merge(parsed["text_segments"], parsed["video_frames"])
+            index_name = self.__get_index_name(series_name, "scenes")
+            await self.__bulk_index_documents(index_name, "scenes", scenes)
+            indexed_count += len(scenes)
 
         return episode_code, indexed_count
 
@@ -333,6 +337,7 @@ class ReindexService:
             "full_episode_embeddings": ElasticSearchManager.FULL_EPISODE_EMBEDDINGS_INDEX_MAPPING,
             "sound_events": ElasticSearchManager.SOUND_EVENTS_INDEX_MAPPING,
             "sound_event_embeddings": ElasticSearchManager.SOUND_EVENT_EMBEDDINGS_INDEX_MAPPING,
+            "scenes": ElasticSearchManager.SCENES_INDEX_MAPPING,
         }
         return mappings.get(index_type, ElasticSearchManager.SEGMENTS_INDEX_MAPPING)
 
