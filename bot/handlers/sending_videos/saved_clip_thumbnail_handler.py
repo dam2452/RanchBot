@@ -19,6 +19,7 @@ from bot.responses.sending_videos.saved_clip_thumbnail_handler_responses import 
     get_log_keyframe_sent_message,
     get_no_clip_identifier_provided_message,
 )
+from bot.utils.functions import parse_frame_selector
 from bot.video.keyframe_extractor import KeyframeExtractor
 
 
@@ -106,4 +107,4 @@ class SavedClipThumbnailHandler(BotMessageHandler):
 
     @staticmethod
     def __parse_frame_selector(raw: str) -> Optional[int]:
-        return KeyframeExtractor.parse_frame_selector(raw)
+        return parse_frame_selector(raw)

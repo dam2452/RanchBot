@@ -185,6 +185,22 @@ def remove_diacritics_and_lowercase(text):
     return cleaned_text.lower()
 
 
+_FRAME_FIRST_ALIASES: frozenset = frozenset({"p", "pierwsza", "first"})
+_FRAME_LAST_ALIASES: frozenset = frozenset({"o", "ostatnia", "last"})
+
+
+def parse_frame_selector(raw: str) -> Optional[int]:
+    lower = raw.lower()
+    if lower in _FRAME_FIRST_ALIASES:
+        return 0
+    if lower in _FRAME_LAST_ALIASES:
+        return -1
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
 def find_matching_series(query: str, available_series: List[str]) -> Optional[str]:
     normalized_query = query.lower().replace("_", " ").strip()
     normalized_series = {s: s.lower().replace("_", " ") for s in available_series}

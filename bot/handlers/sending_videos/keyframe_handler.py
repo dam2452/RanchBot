@@ -25,6 +25,7 @@ from bot.responses.sending_videos.keyframe_handler_responses import (
 )
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
+from bot.utils.functions import parse_frame_selector
 from bot.video.keyframe_extractor import KeyframeExtractor
 
 
@@ -114,4 +115,4 @@ class KeyframeHandler(BotMessageHandler):
 
     @staticmethod
     def __parse_frame_selector(raw: str) -> Optional[int]:
-        return KeyframeExtractor.parse_frame_selector(raw)
+        return parse_frame_selector(raw)

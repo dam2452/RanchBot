@@ -8,20 +8,6 @@ from bot.video.utils import run_ffmpeg_command
 
 
 class KeyframeExtractor:
-    FIRST_ALIASES = frozenset({"p", "pierwsza", "first"})
-    LAST_ALIASES = frozenset({"o", "ostatnia", "last"})
-
-    @staticmethod
-    def parse_frame_selector(raw: str) -> Optional[int]:
-        lower = raw.lower()
-        if lower in KeyframeExtractor.FIRST_ALIASES:
-            return 0
-        if lower in KeyframeExtractor.LAST_ALIASES:
-            return -1
-        try:
-            return int(raw)
-        except ValueError:
-            return None
 
     @staticmethod
     async def extract_keyframe(video_path: Path, seek_time: float) -> Path:
