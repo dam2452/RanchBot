@@ -40,6 +40,7 @@ from bot.responses.bot_message_handler_responses import (
     get_log_no_segments_found_message,
     get_no_video_path_message,
 )
+from bot.responses.bot_response import BotResponse
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
 from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.search.scenes_finder import ScenesFinder
@@ -294,7 +295,7 @@ class BotMessageHandler(ABC):
         if self._message.should_reply_json():
             response_data: Dict[str, Any] = {
                 "status": status,
-                "message": message,
+                "message": BotResponse.to_plain(message),
             }
             if data:
                 response_data["data"] = data
