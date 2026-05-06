@@ -121,7 +121,7 @@ class SaveClipByIndexHandler(BotMessageHandler):
             return False
         _, _, _, clip_name = parsed
         if not await DatabaseManager.is_clip_name_unique(self._message.get_chat_id(), clip_name):
-            await self._reply_error(get_clip_name_exists_message(clip_name))
+            await self._reply_warning(get_clip_name_exists_message(clip_name))
             await self._log_system_message(
                 logging.INFO,
                 get_log_clip_name_exists_message(clip_name, self._message.get_username()),

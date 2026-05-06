@@ -47,3 +47,4 @@ class ResetPasswordRequest(BaseModel):
 class ResponseStatus(str, Enum):
     SUCCESS = "success"
     ERROR = "error"
+    WARNING = "warning"

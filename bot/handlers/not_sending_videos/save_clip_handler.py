@@ -193,7 +193,7 @@ class SaveClipHandler(BotMessageHandler):
         return path
 
     async def __reply_clip_name_exists(self, clip_name: str) -> None:
-        await self._reply_error(get_clip_name_exists_message(clip_name))
+        await self._reply_warning(get_clip_name_exists_message(clip_name))
         await self._log_system_message(logging.INFO, get_log_clip_name_exists_message(clip_name, self._message.get_username()))
 
     async def __reply_no_segment_selected(self) -> None:

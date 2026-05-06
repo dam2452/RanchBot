@@ -305,6 +305,9 @@ class BotMessageHandler(ABC):
     async def _reply_error(self, message: str, data: Optional[Dict[str, Any]] = None):
         await self._reply(message, data, RS.ERROR)
 
+    async def _reply_warning(self, message: str, data: Optional[Dict[str, Any]] = None):
+        await self._reply(message, data, RS.WARNING)
+
     async def _handle_ffmpeg_exception(self, exception: FFMpegException) -> None:
         await self._reply_error(get_extraction_failure_message())
         await self._log_system_message(logging.ERROR, get_log_extraction_failure_message(exception))
