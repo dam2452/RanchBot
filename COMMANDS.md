@@ -28,7 +28,7 @@
 - **`/kompiluj <numer1> <numer2> ...`** / **`/kom ...`**: 🎬 Kompilacja z wybranych klipów.
 - **`/polaczklipy <numer1> <numer2> ...`** / **`/pk ...`**: 🔗 Łączenie zapisanych klipów.
 - **`/zapisz <nazwa>`** / **`/z <nazwa>`**: 💾 Zapisanie klipu.
-- **`/mojeklipy`** / **`/mk`**: 📂 Twoje klipy.
+- **`/mojeklipy [serial]`** / **`/mk [serial]`**: 📂 Twoje klipy.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyłanie klipu.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usunięcie klipu.
 - **`/filtr <filtry>`** / **`/filter`** / **`/f`**: 🔎 Ustawianie filtrów wyszukiwania (działa TYLKO z komendami z sufiksem `filtr`/`filter`/`f`: `/kf`, `/szf`).
@@ -88,7 +88,7 @@
 - **`/kompiluj <numer1> <numer2> ...`** / **`/kom ...`**: 🎬 Tworzy kompilację z wybranych klipów. Przykład: `/kompiluj 1 5 7`.
 - **`/polaczklipy <numer1> <numer2> ...`** / **`/pk ...`**: 🔗 Łączy zapisane klipy w jeden. Przykład: `/polaczklipy 4 2 3`.
 - **`/zapisz <nazwa>`** / **`/z <nazwa>`**: 💾 Zapisuje wybrany klip z podaną nazwą. Przykład: `/zapisz moj_klip`.
-- **`/mojeklipy`** / **`/mk`**: 📂 Wyświetla listę zapisanych klipów.
+- **`/mojeklipy [serial]`** / **`/mk [serial]`**: 📂 Wyświetla listę zapisanych klipów ze wszystkich seriali. Z parametrem `serial` filtruje tylko do serialu ustawionego przez `/serial`.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyła zapisany klip o podanej nazwie. Przykład: `/wyslij moj_klip`.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usuwa zapisany klip o podanej nazwie. Przykład: `/uk moj_klip`.
 - **`/filtr <filtry>`** / **`/filter <filtry>`** / **`/f <filtry>`**: 🔎 Ustawia filtry wyszukiwania. **Zakres filtra:** działa WYŁĄCZNIE z dedykowanymi komendami „filter-aware" (`/klipfiltr`/`/kf`, `/szukajfiltr`/`/szf`). Pozostałe komendy (`/k`, `/sz`, `/kp`, `/szp`, `/ko`, `/szo`, `/sens`, `/sensk`, `/senso`, `/klipsens`, `/transkrypcja`, `/postacie`, `/obiekt`) filtr IGNORUJĄ — pracują wyłącznie na swoich argumentach. Przykład: `/filtr sezon:2 postac:Pawlak`.

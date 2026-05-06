@@ -29,7 +29,7 @@
 - **`/compile <num1> <num2> ...`** / **`/kom ...`**: 🎬 Compile selected clips.
 - **`/concatclips <num1> <num2> ...`** / **`/pk ...`**: 🔗 Concatenate saved clips.
 - **`/save <name>`** / **`/z <name>`**: 💾 Save a clip.
-- **`/myclips`** / **`/mk`**: 📂 Your clips.
+- **`/myclips [serial]`** / **`/mk [serial]`**: 📂 Your clips.
 - **`/send <name>`** / **`/wys <name>`**: 📤 Send a clip.
 - **`/deleteclip <clip_name>`** / **`/uk <clip_name>`**: 🗑️ Delete a clip.
 - **`/filter <filters>`** / **`/filtr <filters>`** / **`/f <filters>`**: 🔎 Set search filters (applies to all search commands).
@@ -86,7 +86,7 @@
 - **`/compile <num1> <num2> ...`** / **`/kom ...`**: 🎬 Compiles selected clips. Example: `/compile 1 5 7`.
 - **`/concatclips <num1> <num2> ...`** / **`/pk ...`**: 🔗 Concatenates saved clips into one. Example: `/concatclips 4 2 3`.
 - **`/save <name>`** / **`/z <name>`**: 💾 Saves the selected clip with a specified name. Example: `/save my_clip`.
-- **`/myclips`** / **`/mk`**: 📂 Displays a list of saved clips.
+- **`/myclips [serial]`** / **`/mk [serial]`**: 📂 Displays a list of saved clips from all series. With the `serial` parameter, filters to the series set by `/serial`.
 - **`/send <name>`** / **`/wys <name>`**: 📤 Sends the saved clip with the specified name. Example: `/send my_clip`.
 - **`/deleteclip <clip_name>`** / **`/uk <clip_name>`**: 🗑️ Deletes the saved clip with the specified name. Example: `/uk my_clip`.
 - **`/filter <filters>`** / **`/filtr <filters>`** / **`/f <filters>`**: 🔎 Sets search filters that apply to all search commands. Example: `/filter season:2 character:Pawlak`.

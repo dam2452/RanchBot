@@ -6,10 +6,20 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def reset_es_client():
+    ElasticSearchManager._shared_es_client = None
+    yield
+    if ElasticSearchManager._shared_es_client is not None:
+        await ElasticSearchManager._shared_es_client.close()
+    ElasticSearchManager._shared_es_client = None
+
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def db_pool():
