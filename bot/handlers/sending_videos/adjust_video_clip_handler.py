@@ -73,7 +73,7 @@ class AdjustVideoClipHandler(BotMessageHandler):
         is_consecutive_adjustment = (
             command in AdjustVideoClipHandler.__RELATIVE_COMMANDS
             and last_clip is not None
-            and last_clip.adjusted_start_time is not None
+            and last_clip.is_adjusted
         )
 
         if is_consecutive_adjustment:
