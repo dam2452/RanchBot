@@ -30,10 +30,6 @@ class LinkAccountHandler(BotMessageHandler):
     async def _do_handle(self) -> None:
         telegram_user_id = self._message.get_user_id()
 
-        if await DatabaseManager.has_credentials(telegram_user_id):
-            await self._reply(get_already_linked_message())
-            return
-
         args = self._message.get_text().split()
         code = args[1].strip()
 
@@ -45,6 +41,10 @@ class LinkAccountHandler(BotMessageHandler):
         if rest_user_id is None:
             await self._reply_error(get_invalid_code_message())
             await self._log_system_message(logging.INFO, f"Invalid link code from Telegram user {telegram_user_id}")
+            return
+
+        if await DatabaseManager.has_credentials(telegram_user_id):
+            await self._reply(get_already_linked_message())
             return
 
         rest_profile = await DatabaseManager.get_user_by_id(rest_user_id)
