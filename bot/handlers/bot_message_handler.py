@@ -27,20 +27,31 @@ from bot.exceptions import (
 from bot.interfaces.message import AbstractMessage
 from bot.interfaces.responder import AbstractResponder
 from bot.responses.bot_message_handler_responses import (
+    get_clip_limit_exceeded_message,
+    get_clip_trimmed_message,
     get_extraction_failure_message,
     get_general_error_message,
     get_invalid_args_count_message,
     get_log_clip_duration_exceeded_message,
     get_log_clip_too_large_message,
+    get_log_clip_trimmed_message,
     get_log_compilation_too_large_message,
     get_log_extraction_failure_message,
+    get_log_no_segments_found_message,
     get_no_video_path_message,
 )
+from bot.responses.bot_response import BotResponse
 from bot.responses.sending_videos.manual_clip_handler_responses import get_limit_exceeded_clip_duration_message
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.scenes_finder import ScenesFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.services.serial_context.serial_context_manager import SerialContextManager
 from bot.settings import settings
-from bot.types import ClipSegment
+from bot.types import (
+    ClipSegment,
+    SearchFilter,
+    SegmentWithScore,
+)
 from bot.utils.constants import SegmentKeys
 from bot.utils.log import (
     log_system_message,
@@ -51,6 +62,7 @@ from bot.video.clips_compiler import (
     process_compiled_clip,
 )
 from bot.video.clips_extractor import ClipsExtractor
+from bot.video.keyframe_extractor import KeyframeExtractor
 from bot.video.utils import FFMpegException
 
 ValidatorFunctions = List[Callable[[], Awaitable[bool]]]
@@ -106,6 +118,13 @@ class BotMessageHandler(ABC):
         active_series = await self._get_user_active_series(user_id)
         return await DatabaseManager.get_or_create_series(active_series)
 
+    def _get_message_content(self) -> List[str]:
+        return self._message.get_text().split()
+
+    def _get_quote(self) -> str:
+        content = self._get_message_content()
+        return " ".join(content[1:])
+
     async def _reply_invalid_args_count(self, response: str) -> None:
         await self._responder.send_markdown(response)
         await self._log_system_message(logging.INFO, get_invalid_args_count_message(self.__get_action_name(), self._message.get_user_id()))
@@ -122,8 +141,116 @@ class BotMessageHandler(ABC):
         pass
 
 
+    async def _handle_search_results(
+        self,
+        *,
+        chat_id: int,
+        quote: str,
+        segments: List[Dict[str, Any]],
+        response_text: str,
+        log_message: str,
+    ) -> None:
+        await DatabaseManager.insert_last_search(
+            chat_id=chat_id,
+            quote=quote,
+            segments=json.dumps(segments),
+        )
+
+        await self._reply(
+            response_text,
+            data={
+                "quote": quote,
+                "results": segments,
+            },
+        )
+        await self._log_system_message(logging.INFO, log_message)
+
+    async def _find_and_filter_segments(
+        self,
+        *,
+        quote: str,
+        series_name: str,
+        search_filter: Optional[SearchFilter],
+        es_size: int,
+        error_message: str,
+    ) -> Optional[List[SegmentWithScore]]:
+        es = await ElasticSearchManager.connect_to_elasticsearch(self._logger)
+        segments = await ScenesFinder.find_by_text_and_filter(
+            es=es,
+            series_name=series_name,
+            quote=quote,
+            search_filter=search_filter,
+            size=es_size,
+            logger=self._logger,
+        )
+
+        if not segments:
+            await self._reply_error(error_message)
+            await self._log_system_message(logging.INFO, get_log_no_segments_found_message(quote))
+            return None
+
+        return segments
+
+    async def _search_segments(self, quote: str, series_name: str, size: int) -> List[SegmentWithScore]:
+        es = await ElasticSearchManager.connect_to_elasticsearch(self._logger)
+        return await ScenesFinder.find_by_text_and_filter(
+            es=es,
+            series_name=series_name,
+            quote=quote,
+            search_filter=None,
+            size=size,
+            logger=self._logger,
+        )
+
+    async def _trim_clip_if_needed(
+        self,
+        *,
+        start_time: float,
+        end_time: float,
+        segment_id: Any,
+    ) -> Tuple[float, float, float]:
+        is_admin = await DatabaseManager.is_admin_or_moderator(self._message.get_user_id())
+        max_duration = settings.MAX_CLIP_DURATION_HARD_LIMIT if is_admin else settings.MAX_CLIP_DURATION
+        clip_duration = end_time - start_time
+        if clip_duration > max_duration:
+            await self._responder.send_markdown(get_clip_trimmed_message(max_duration))
+            await self._log_system_message(
+                logging.INFO,
+                get_log_clip_trimmed_message(str(segment_id), clip_duration, max_duration),
+            )
+            end_time = start_time + max_duration
+            clip_duration = max_duration
+        return start_time, end_time, clip_duration
+
+    async def _insert_last_single_clip(
+        self,
+        *,
+        chat_id: int,
+        segment: Dict[str, Any],
+        start_time: float,
+        end_time: float,
+        is_adjusted: bool = False,
+    ) -> None:
+        await DatabaseManager.insert_last_clip(
+            chat_id=chat_id,
+            segment=segment,
+            compiled_clip=None,
+            clip_type=ClipType.SINGLE,
+            adjusted_start_time=start_time,
+            adjusted_end_time=end_time,
+            is_adjusted=is_adjusted,
+        )
+
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return []
+
+    async def _check_clip_limit_not_exceeded(self) -> bool:
+        is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(self._message.get_user_id())
+        user_clip_count = await DatabaseManager.get_user_clip_count(self._message.get_chat_id())
+        if is_admin_or_moderator or user_clip_count < settings.MAX_CLIPS_PER_USER:
+            return True
+        await self._reply_error(get_clip_limit_exceeded_message())
+        return False
 
     async def _handle_clip_duration_limit_exceeded(self, clip_duration: Optional[float]) -> bool:
         if clip_duration is None:
@@ -168,7 +295,7 @@ class BotMessageHandler(ABC):
         if self._message.should_reply_json():
             response_data: Dict[str, Any] = {
                 "status": status,
-                "message": message,
+                "message": BotResponse.to_plain(message),
             }
             if data:
                 response_data["data"] = data
@@ -178,6 +305,9 @@ class BotMessageHandler(ABC):
 
     async def _reply_error(self, message: str, data: Optional[Dict[str, Any]] = None):
         await self._reply(message, data, RS.ERROR)
+
+    async def _reply_warning(self, message: str, data: Optional[Dict[str, Any]] = None):
+        await self._reply(message, data, RS.WARNING)
 
     async def _handle_ffmpeg_exception(self, exception: FFMpegException) -> None:
         await self._reply_error(get_extraction_failure_message())
@@ -302,6 +432,13 @@ class BotMessageHandler(ABC):
             )
         except VideoTooLargeException as e:
             raise CompilationTooLargeException(total_duration=total_duration, suggestions=e.suggestions) from e
+
+    async def _send_keyframe(self, video_path: Path, seek_time: float) -> None:
+        frame_path = await KeyframeExtractor.extract_keyframe(video_path, seek_time)
+        try:
+            await self._responder.send_photo(image_bytes=frame_path.read_bytes(), image_path=frame_path)
+        finally:
+            frame_path.unlink(missing_ok=True)
 
     async def _send_document(self, content: str, filename: str, caption: str) -> None:
         file_path = Path(tempfile.gettempdir()) / filename

@@ -38,16 +38,22 @@ class SceneSnapService:
         if not scene_cuts:
             return clip_start, clip_end
 
-        valid_starts = [c for c in scene_cuts if c <= speech_start]
-        if valid_starts:
-            nearest_start = min(valid_starts, key=lambda c: abs(c - clip_start))
+        snappable_starts = [
+            c for c in scene_cuts
+            if c <= speech_start and SceneSnapService.__apply_keyframe_offset(c, is_start=True) <= speech_start
+        ]
+        if snappable_starts:
+            nearest_start = min(snappable_starts, key=lambda c: abs(c - clip_start))
             snapped_start = SceneSnapService.__apply_keyframe_offset(nearest_start, is_start=True)
         else:
             snapped_start = clip_start
 
-        valid_ends = [c for c in scene_cuts if c >= speech_end]
-        if valid_ends:
-            nearest_end = min(valid_ends, key=lambda c: abs(c - clip_end))
+        snappable_ends = [
+            c for c in scene_cuts
+            if c >= speech_end and SceneSnapService.__apply_keyframe_offset(c, is_start=False) >= speech_end
+        ]
+        if snappable_ends:
+            nearest_end = min(snappable_ends, key=lambda c: abs(c - clip_end))
             snapped_end = SceneSnapService.__apply_keyframe_offset(nearest_end, is_start=False)
         else:
             snapped_end = clip_end

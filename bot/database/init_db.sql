@@ -75,11 +75,14 @@ CREATE TABLE IF NOT EXISTS video_clips (
     duration FLOAT,
     season INT,
     episode_number INT,
-    is_compilation BOOLEAN NOT NULL DEFAULT FALSE
+    is_compilation BOOLEAN NOT NULL DEFAULT FALSE,
+    thumbnail_data BYTEA NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_video_clips_user_id ON video_clips(user_id);
 CREATE INDEX IF NOT EXISTS idx_video_clips_clip_name ON video_clips(clip_name);
+
+ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA NULL;
 
 CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,
@@ -326,6 +329,22 @@ CREATE TABLE IF NOT EXISTS user_search_filters (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_search_filters_chat_id ON user_search_filters(chat_id);
+
+CREATE SEQUENCE IF NOT EXISTS rest_user_id_seq START WITH -1 INCREMENT BY -1 MINVALUE -999999999999;
+
+CREATE TABLE IF NOT EXISTS verification_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES user_profiles(user_id) ON DELETE CASCADE,
+    token VARCHAR(32) NOT NULL,
+    purpose TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_token ON verification_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_user_id ON verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_expires_at ON verification_tokens(expires_at);
 
 ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;
 ALTER TABLE video_clips ADD COLUMN IF NOT EXISTS series_id INT REFERENCES series(id) ON DELETE SET NULL;

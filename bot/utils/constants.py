@@ -24,6 +24,10 @@ class EpisodeMetadataKeys:
     VIEWERSHIP: Final[str] = "viewership"
     SEASON_FIELD: Final[str] = f"{EPISODE_METADATA}.{SEASON}"
     EPISODE_NUMBER_FIELD: Final[str] = f"{EPISODE_METADATA}.{EPISODE_NUMBER}"
+    SERIES_NAME_FIELD: Final[str] = f"{EPISODE_METADATA}.{SERIES_NAME}"
+    TITLE_FIELD: Final[str] = f"{EPISODE_METADATA}.{TITLE}"
+    PREMIERE_DATE_FIELD: Final[str] = f"{EPISODE_METADATA}.{PREMIERE_DATE}"
+    VIEWERSHIP_FIELD: Final[str] = f"{EPISODE_METADATA}.{VIEWERSHIP}"
 
 
 class ElasticsearchKeys:
@@ -48,6 +52,10 @@ class ElasticsearchAggregationKeys:
     OBJECTS: Final[str] = "objects"
     CLASSES: Final[str] = "classes"
     BACK_TO_ROOT: Final[str] = "back_to_root"
+    SOUND_TYPES: Final[str] = "sound_types"
+    UNIQUE_SCENES: Final[str] = "unique_scenes"
+    SCENE_START: Final[str] = "scene_start"
+    SCENE_END: Final[str] = "scene_end"
 
 
 class ActorKeys:
@@ -105,6 +113,13 @@ class ElasticsearchQueryKeys:
     PATH: Final[str] = "path"
     MAX: Final[str] = "max"
     SHOULD: Final[str] = "should"
+    GTE: Final[str] = "gte"
+    LTE: Final[str] = "lte"
+    SEARCH_AFTER: Final[str] = "search_after"
+    COMPOSITE: Final[str] = "composite"
+    SOURCES: Final[str] = "sources"
+    AFTER: Final[str] = "after"
+    AFTER_KEY: Final[str] = "after_key"
 
 
 class DatabaseKeys:
@@ -173,6 +188,7 @@ class JwtPayloadKeys:
 class ElasticsearchIndexSuffixes:
     TEXT_SEGMENTS: Final[str] = "_text_segments"
     VIDEO_FRAMES: Final[str] = "_video_frames"
+    SCENES: Final[str] = "_scenes"
     TEXT_EMBEDDINGS: Final[str] = "_text_embeddings"
     FULL_EPISODE_EMBEDDINGS: Final[str] = "_full_episode_embeddings"
     EPISODE_NAMES: Final[str] = "_episode_names"
@@ -187,6 +203,7 @@ class VideoFrameKeys:
     DETECTED_OBJECTS: Final[str] = "detected_objects"
     SCENE_INFO: Final[str] = "scene_info"
     EPISODE_ID: Final[str] = "episode_id"
+    SCENE_NUMBER: Final[str] = "scene_number"
 
 
 class DetectedObjectKeys:
@@ -204,6 +221,20 @@ class SceneInfoKeys:
 class SoundEventKeys:
     SOUND_TYPE: Final[str] = "sound_type"
     TEXT: Final[str] = "text"
+    SOUND_TYPES: Final[str] = "sound_types"
+
+
+class EmbeddingKeys:
+    EPISODE_ID: Final[str] = "episode_id"
+    EMBEDDING_ID: Final[str] = "embedding_id"
+    SEGMENT_RANGE: Final[str] = "segment_range"
+    FRAME_NUMBER: Final[str] = "frame_number"
+    FULL_TRANSCRIPT: Final[str] = "full_transcript"
+    TITLE_EMBEDDING: Final[str] = "title_embedding"
+    TEXT_EMBEDDING: Final[str] = "text_embedding"
+    VIDEO_EMBEDDING: Final[str] = "video_embedding"
+    FULL_EPISODE_EMBEDDING: Final[str] = "full_episode_embedding"
+    SOUND_EVENT_EMBEDDING: Final[str] = "sound_event_embedding"
 
 
 class ResponseKeys:

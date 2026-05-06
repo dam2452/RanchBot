@@ -1,4 +1,9 @@
 import asyncio
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 import logging
 from urllib.parse import urljoin
 
@@ -6,10 +11,20 @@ import pytest_asyncio
 import requests
 
 from bot.database.database_manager import DatabaseManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.tests.settings import settings as s
 
 logger = logging.getLogger(__name__)
 _test_lock = asyncio.Lock()
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def reset_es_client():
+    ElasticSearchManager._shared_es_client = None
+    yield
+    if ElasticSearchManager._shared_es_client is not None:
+        await ElasticSearchManager._shared_es_client.close()
+    ElasticSearchManager._shared_es_client = None
+
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def db_pool():
@@ -56,6 +71,7 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
         "subscription_keys",
         "user_command_limits",
         "user_search_filters",
+        "verification_tokens",
     ]
     await DatabaseManager.clear_test_db(tables=tables_to_clear, schema="ranczo")
     logger.info("The specified test database tables have been cleared.")
@@ -70,6 +86,15 @@ async def prepare_database(db_pool):  # pylint: disable=redefined-outer-name,unu
         )
         logger.info(f"Admin with user_id {admin_id} has been added.")
         i+=1
+
+    first_admin_id = int(s.TEST_ADMINS.split(",")[0])
+    await DatabaseManager.store_verification_token(
+        user_id=first_admin_id,
+        token="jakiskod",
+        purpose="telegram_link",
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+    logger.info("Seeded 'jakiskod' verification token for test_link_already_linked.")
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)

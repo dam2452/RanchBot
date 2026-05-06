@@ -4,23 +4,18 @@ import math
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
-from bot.database.models import ClipType
 from bot.handlers.bot_message_handler import (
     BotMessageHandler,
     ValidatorFunctions,
 )
 from bot.responses.bot_message_handler_responses import get_log_no_segments_found_message
 from bot.responses.sending_videos.clip_handler_responses import (
-    get_clip_trimmed_message,
     get_log_clip_success_message,
-    get_log_clip_trimmed_message,
     get_log_segment_saved_message,
     get_message_too_long_message,
     get_no_quote_provided_message,
     get_no_segments_found_message,
 )
-from bot.search.filter_applicator import FilterApplicator
-from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.services.scene_snap.scene_snap_service import SceneSnapService
 from bot.settings import settings
 from bot.utils.constants import SegmentKeys
@@ -53,26 +48,11 @@ class ClipHandler(BotMessageHandler):
 
     async def _do_handle(self) -> None:
         msg = self._message
-        content = msg.get_text().split()
-        quote = " ".join(content[1:])
+        quote = self._get_quote()
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        search_filter = await DatabaseManager.get_and_touch_user_filters(msg.get_chat_id())
-
-        raw = await TextSegmentsFinder.find_segment_by_quote(
-            quote, self._logger, active_series,
-            size=settings.MAX_ES_RESULTS_QUICK,
-            search_filter=search_filter,
-        )
-        if not raw:
-            return await self.__reply_no_segments_found(quote)
-
-        segments = raw if isinstance(raw, list) else [raw]
-        if search_filter:
-            segments = await FilterApplicator.apply_to_text_segments(
-                segments, search_filter, active_series, self._logger,
-            )
+        segments = await self._search_segments(quote, active_series, settings.MAX_ES_RESULTS_QUICK)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 
@@ -91,14 +71,11 @@ class ClipHandler(BotMessageHandler):
         )
 
         segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
-        is_admin = await DatabaseManager.is_admin_or_moderator(msg.get_user_id())
-        max_duration = settings.MAX_CLIP_DURATION_HARD_LIMIT if is_admin else settings.MAX_CLIP_DURATION
-        clip_duration = end_time - start_time
-        if clip_duration > max_duration:
-            await self._responder.send_markdown(get_clip_trimmed_message(max_duration))
-            await self._log_system_message(logging.INFO, get_log_clip_trimmed_message(segment_id, clip_duration, max_duration))
-            end_time = start_time + max_duration
-            clip_duration = max_duration
+        start_time, end_time, clip_duration = await self._trim_clip_if_needed(
+            start_time=start_time,
+            end_time=end_time,
+            segment_id=segment_id,
+        )
 
         output_filename = await ClipsExtractor.extract_clip(segment[SegmentKeys.VIDEO_PATH], start_time, end_time, self._logger)
 
@@ -108,14 +85,11 @@ class ClipHandler(BotMessageHandler):
             suggestions=["Uzyj /w N aby wybrac inny wynik"],
         )
 
-        await DatabaseManager.insert_last_clip(
+        await self._insert_last_single_clip(
             chat_id=msg.get_chat_id(),
             segment=segment,
-            compiled_clip=None,
-            clip_type=ClipType.SINGLE,
-            adjusted_start_time=start_time,
-            adjusted_end_time=end_time,
-            is_adjusted=False,
+            start_time=start_time,
+            end_time=end_time,
         )
 
         return await self.__log_segment_and_clip_success(msg.get_chat_id(), msg.get_username())

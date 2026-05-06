@@ -5,8 +5,11 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
+    Iterable,
     List,
     Optional,
+    Tuple,
+    cast,
 )
 
 from elasticsearch import (
@@ -24,8 +27,11 @@ from bot.settings import settings as s
 from bot.utils.constants import (
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
+    EmbeddingKeys,
     EpisodeMetadataKeys,
     SegmentKeys,
+    SoundEventKeys,
+    VideoFrameKeys,
 )
 from bot.utils.log import log_system_message
 
@@ -54,12 +60,51 @@ def build_bool_must_query(
     }
 
 
+def build_episode_restriction_filter(
+    episode_keys: Iterable[Tuple[int, int]],
+) -> Optional[Dict[str, Any]]:
+    valid = [(s, e) for s, e in episode_keys if s is not None and e is not None]
+    if not valid:
+        return None
+    return {
+        ElasticsearchQueryKeys.BOOL: {
+            ElasticsearchQueryKeys.SHOULD: [
+                {
+                    ElasticsearchQueryKeys.BOOL: {
+                        ElasticsearchQueryKeys.FILTER: [
+                            {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
+                            {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode}},
+                        ],
+                    },
+                }
+                for season, episode in valid
+            ],
+            ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+        },
+    }
+
+
 class ElasticSearchManager:
+    _shared_es_client: Optional[AsyncElasticsearch] = None
+    EPISODE_METADATA_PROPERTIES = {
+        "season": {"type": "integer"},
+        "episode_number": {"type": "integer"},
+        "title": {"type": "text"},
+        "premiere_date": {
+            "type": "date",
+            "format": "dd.MM.yyyy||d.MM.yyyy||d.M.yyyy||yyyy-MM-dd||strict_date_optional_time||epoch_millis",
+        },
+        "series_name": {"type": "keyword"},
+        "viewership": {"type": "keyword"},
+    }
+
     SEGMENTS_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": EPISODE_METADATA_PROPERTIES,
+                },
                 "segment_id": {"type": "integer"},
                 "text": {"type": "text"},
                 "start_time": {"type": "float"},
@@ -74,16 +119,18 @@ class ElasticSearchManager:
     TEXT_EMBEDDINGS_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {
+                    "properties": EPISODE_METADATA_PROPERTIES,
+                },
                 "embedding_id": {"type": "integer"},
                 "segment_id": {"type": "integer"},
-                "segment_range": {"type": "integer"},
+                EmbeddingKeys.SEGMENT_RANGE: {"type": "integer"},
                 "text": {"type": "text"},
                 "start_time": {"type": "float"},
                 "end_time": {"type": "float"},
                 "video_path": {"type": "keyword"},
-                "text_embedding": {
+                EmbeddingKeys.TEXT_EMBEDDING: {
                     "type": "dense_vector",
                     "dims": 4096,
                     "index": True,
@@ -96,27 +143,16 @@ class ElasticSearchManager:
     VIDEO_EMBEDDINGS_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {
-                    "properties": {
-                        "season": {"type": "integer"},
-                        "episode_number": {"type": "integer"},
-                        "title": {"type": "text"},
-                        "premiere_date": {
-                            "type": "date",
-                            "format": "dd.MM.yyyy||d.MM.yyyy||d.M.yyyy||yyyy-MM-dd||strict_date_optional_time||epoch_millis",
-                        },
-                        "series_name": {"type": "keyword"},
-                    },
-                },
-                "frame_number": {"type": "integer"},
-                "timestamp": {"type": "float"},
-                "frame_type": {"type": "keyword"},
-                "scene_number": {"type": "integer"},
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
+                EmbeddingKeys.FRAME_NUMBER: {"type": "integer"},
+                VideoFrameKeys.TIMESTAMP: {"type": "float"},
+                VideoFrameKeys.FRAME_TYPE: {"type": "keyword"},
+                VideoFrameKeys.SCENE_NUMBER: {"type": "integer"},
                 "video_path": {"type": "keyword"},
                 "perceptual_hash": {"type": "keyword"},
                 "perceptual_hash_int": {"type": "unsigned_long"},
-                "video_embedding": {
+                EmbeddingKeys.VIDEO_EMBEDDING: {
                     "type": "dense_vector",
                     "dims": 4096,
                     "index": True,
@@ -157,10 +193,10 @@ class ElasticSearchManager:
     EPISODE_NAMES_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
                 "title": {"type": "text"},
-                "title_embedding": {
+                EmbeddingKeys.TITLE_EMBEDDING: {
                     "type": "dense_vector",
                     "dims": 4096,
                     "index": True,
@@ -173,10 +209,10 @@ class ElasticSearchManager:
     FULL_EPISODE_EMBEDDINGS_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
-                "full_transcript": {"type": "text"},
-                "full_episode_embedding": {
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
+                EmbeddingKeys.FULL_TRANSCRIPT: {"type": "text"},
+                EmbeddingKeys.FULL_EPISODE_EMBEDDING: {
                     "type": "dense_vector",
                     "dims": 4096,
                     "index": True,
@@ -189,11 +225,11 @@ class ElasticSearchManager:
     SOUND_EVENTS_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
                 "segment_id": {"type": "integer"},
                 "text": {"type": "text"},
-                "sound_type": {"type": "keyword"},
+                SoundEventKeys.SOUND_TYPE: {"type": "keyword"},
                 "start_time": {"type": "float"},
                 "end_time": {"type": "float"},
                 "video_path": {"type": "keyword"},
@@ -205,15 +241,15 @@ class ElasticSearchManager:
     SOUND_EVENT_EMBEDDINGS_INDEX_MAPPING = {
         "mappings": {
             "properties": {
-                "episode_id": {"type": "keyword"},
-                "episode_metadata": {"type": "object"},
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
                 "embedding_id": {"type": "integer"},
-                "segment_range": {"type": "object"},
+                EmbeddingKeys.SEGMENT_RANGE: {"type": "object"},
                 "text": {"type": "text"},
-                "sound_types": {"type": "keyword"},
+                SoundEventKeys.SOUND_TYPES: {"type": "keyword"},
                 "start_time": {"type": "float"},
                 "end_time": {"type": "float"},
-                "sound_event_embedding": {
+                EmbeddingKeys.SOUND_EVENT_EMBEDDING: {
                     "type": "dense_vector",
                     "dims": 4096,
                     "index": True,
@@ -223,21 +259,123 @@ class ElasticSearchManager:
         },
     }
 
+    SCENES_INDEX_MAPPING = {
+        "mappings": {
+            "properties": {
+                EmbeddingKeys.EPISODE_ID: {"type": "keyword"},
+                "episode_metadata": {"properties": EPISODE_METADATA_PROPERTIES},
+                "segment_id": {"type": "integer"},
+                "text": {"type": "text"},
+                "start_time": {"type": "float"},
+                "end_time": {"type": "float"},
+                "speaker": {"type": "keyword"},
+                "video_path": {"type": "keyword"},
+                "scene_info": {"type": "object"},
+                "frames": {
+                    "type": "nested",
+                    "properties": {
+                        "frame_number": {"type": "integer"},
+                        "timestamp": {"type": "float"},
+                        "frame_type": {"type": "keyword"},
+                        "scene_number": {"type": "integer"},
+                        "scene_info": {"type": "object"},
+                        "perceptual_hash": {"type": "keyword"},
+                        "perceptual_hash_int": {"type": "unsigned_long"},
+                        "video_embedding": {
+                            "type": "dense_vector",
+                            "dims": 4096,
+                            "index": True,
+                            "similarity": "cosine",
+                        },
+                        "character_appearances": {
+                            "type": "nested",
+                            "properties": {
+                                "name": {"type": "keyword"},
+                                "confidence": {"type": "float"},
+                                "emotion": {
+                                    "properties": {
+                                        "label": {"type": "keyword"},
+                                        "confidence": {"type": "float"},
+                                    },
+                                },
+                            },
+                        },
+                        "detected_objects": {
+                            "type": "nested",
+                            "properties": {
+                                "class": {"type": "keyword"},
+                                "count": {"type": "integer"},
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
     @staticmethod
     async def connect_to_elasticsearch(logger: logging.Logger) -> AsyncElasticsearch:
+        if ElasticSearchManager._shared_es_client is not None:
+            return ElasticSearchManager._shared_es_client
+
+        es_password = (
+            s.ES_PASS.get_secret_value()
+            if hasattr(s.ES_PASS, "get_secret_value")
+            else str(s.ES_PASS)
+        )
         es = AsyncElasticsearch(
             hosts=[s.ES_HOST],
-            basic_auth=(s.ES_USER, s.ES_PASS.get_secret_value()),
+            basic_auth=(s.ES_USER, es_password),
             verify_certs=False,
+            request_timeout=30,
+            retry_on_timeout=True,
+            max_retries=2,
         )
         try:
             if not await es.ping():
                 raise es_exceptions.ConnectionError("Failed to connect to Elasticsearch.")
+            ElasticSearchManager._shared_es_client = es
             await log_system_message(logging.INFO, "Connected to Elasticsearch.", logger)
             return es
         except es_exceptions.ConnectionError as e:
             await log_system_message(logging.ERROR, f"Connection error: {str(e)}", logger)
             raise
+
+    @staticmethod
+    async def close_shared_elasticsearch(logger: logging.Logger) -> None:
+        if ElasticSearchManager._shared_es_client is None:
+            return
+        try:
+            await ElasticSearchManager._shared_es_client.close()
+            await log_system_message(logging.INFO, "Closed shared Elasticsearch client.", logger)
+        finally:
+            ElasticSearchManager._shared_es_client = None
+
+    @staticmethod
+    async def search_all_hits(
+        es: AsyncElasticsearch,
+        index: str,
+        query: Dict[str, Any],
+        page_size: int = 1000,
+    ) -> List[Dict[str, Any]]:
+        payload = dict(query)
+        payload[ElasticsearchQueryKeys.SIZE] = page_size
+
+        all_hits: List[Dict[str, Any]] = []
+        search_after = None
+        while True:
+            if search_after:
+                payload[ElasticsearchQueryKeys.SEARCH_AFTER] = search_after
+            response = await es.search(index=index, body=payload)
+            hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+            if not hits:
+                break
+            all_hits.extend(hits)
+            search_after = hits[-1].get(ElasticsearchQueryKeys.SORT)
+            if not search_after:
+                break
+
+        return all_hits
 
     @staticmethod
     async def create_index(es: AsyncElasticsearch, index_name: str, logger: logging.Logger) -> None:
@@ -326,7 +464,7 @@ class ElasticSearchManager:
         video_base_path: Path,
         logger: logging.Logger,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[Dict[str, Any]]:
         actions = []
         for season_path in base_path.iterdir():
             if not season_path.is_dir():
@@ -347,7 +485,7 @@ class ElasticSearchManager:
         season_path: Path,
         video_base_path: Path,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[Dict[str, Any]]:
         season_actions = []
         season_dir = season_path.name
 
@@ -374,7 +512,7 @@ class ElasticSearchManager:
         season_dir: str,
         video_base_path: Path,
         index_name: str,
-    ) -> List[json]:
+    ) -> List[Dict[str, Any]]:
         actions = []
         with episode_file.open("r", encoding="utf-8") as f:
             data = json.load(f)
@@ -418,7 +556,7 @@ class ElasticSearchManager:
             index_name: str = s.ES_TRANSCRIPTION_INDEX,
     ) -> None:
         response = await es.search(index=index_name, size=1)
-        hits = extract_hits(response)
+        hits = extract_hits(cast(Dict[str, Any], response))
         if hits:
             document = hits[0][ElasticsearchKeys.SOURCE]
             document[SegmentKeys.VIDEO_PATH] = document[SegmentKeys.VIDEO_PATH].replace("\\", "/")

@@ -29,6 +29,13 @@ from bot.utils.log import log_system_message
 
 
 class CharacterFinder:
+    __CHARACTER_SCENE_SOURCE_FIELDS = [
+        EpisodeMetadataKeys.EPISODE_METADATA,
+        VideoFrameKeys.TIMESTAMP,
+        SegmentKeys.VIDEO_PATH,
+        ActorKeys.ACTORS,
+    ]
+
     @staticmethod
     def __character_field(subfield: str) -> str:
         return f"{ActorKeys.ACTORS}.{subfield}"
@@ -106,7 +113,7 @@ class CharacterFinder:
                     ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
                     ElasticsearchQueryKeys.FILTER: {
                         ElasticsearchQueryKeys.BOOL: {
-                            ElasticsearchQueryKeys.MUST: [
+                            ElasticsearchQueryKeys.FILTER: [
                                 CharacterFinder.__char_term(character_name),
                                 {
                                     ElasticsearchQueryKeys.TERM: {
@@ -219,6 +226,7 @@ class CharacterFinder:
                 *CharacterFinder.__episode_sort(),
             ],
             ElasticsearchQueryKeys.SIZE: size,
+            ElasticsearchQueryKeys.SOURCE: CharacterFinder.__CHARACTER_SCENE_SOURCE_FIELDS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -248,7 +256,7 @@ class CharacterFinder:
                 ElasticsearchQueryKeys.PATH: ActorKeys.ACTORS,
                 ElasticsearchQueryKeys.QUERY: {
                     ElasticsearchQueryKeys.BOOL: {
-                        ElasticsearchQueryKeys.MUST: [
+                        ElasticsearchQueryKeys.FILTER: [
                             CharacterFinder.__char_term(character_name),
                             {
                                 ElasticsearchQueryKeys.TERM: {
@@ -277,6 +285,7 @@ class CharacterFinder:
                 *CharacterFinder.__episode_sort(),
             ],
             ElasticsearchQueryKeys.SIZE: size,
+            ElasticsearchQueryKeys.SOURCE: CharacterFinder.__CHARACTER_SCENE_SOURCE_FIELDS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)

@@ -1,4 +1,3 @@
-import json
 import logging
 import math
 from typing import List
@@ -18,8 +17,6 @@ from bot.responses.not_sending_videos.search_handler_responses import (
     get_log_search_results_sent_message,
     get_no_quote_provided_message,
 )
-from bot.search.filter_applicator import FilterApplicator
-from bot.search.text_segments_finder import TextSegmentsFinder
 from bot.settings import settings
 
 
@@ -40,8 +37,7 @@ class SearchHandler(BotMessageHandler):
         return await self._validate_argument_count(self._message, 1, math.inf)
 
     async def __check_quote_length(self) -> bool:
-        args = self._message.get_text().split()
-        quote = " ".join(args[1:])
+        quote = self._get_quote()
         if not await DatabaseManager.is_admin_or_moderator(self._message.get_user_id()) and len(
                 quote,
         ) > settings.MAX_SEARCH_QUERY_LENGTH:
@@ -50,44 +46,24 @@ class SearchHandler(BotMessageHandler):
         return True
 
     async def _do_handle(self) -> None:
-        args = self._message.get_text().split()
-        quote = " ".join(args[1:])
+        quote = self._get_quote()
 
         user_id = self._message.get_user_id()
         active_series = await self._get_user_active_series(user_id)
-        chat_id = self._message.get_chat_id()
 
-        search_filter = await DatabaseManager.get_and_touch_user_filters(chat_id)
-
-        segments = await TextSegmentsFinder.find_segment_by_quote(
-            quote, self._logger, active_series,
-            size=settings.MAX_ES_RESULTS_LONG,
-            search_filter=search_filter,
-        )
-        if search_filter:
-            segments = await FilterApplicator.apply_to_text_segments(
-                segments or [], search_filter, active_series, self._logger,
-            )
+        segments = await self._search_segments(quote, active_series, settings.MAX_ES_RESULTS_LONG)
         if not segments:
             await self.__reply_no_segments_found(quote)
             return
 
-        await DatabaseManager.insert_last_search(
+        response = format_search_response(len(segments), segments, quote)
+        await self._handle_search_results(
             chat_id=self._message.get_chat_id(),
             quote=quote,
-            segments=json.dumps(segments),
+            segments=segments,
+            response_text=response,
+            log_message=get_log_search_results_sent_message(quote, self._message.get_username()),
         )
-
-        response = format_search_response(len(segments), segments, quote)
-
-        await self._reply(
-            response,
-            data={
-                "quote": quote,
-                "results": segments,
-            },
-        )
-        await self._log_system_message(logging.INFO, get_log_search_results_sent_message(quote, self._message.get_username()))
 
     async def __reply_no_segments_found(self, quote: str) -> None:
         await self._reply_error(get_no_segments_found_message(quote))
