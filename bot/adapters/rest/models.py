@@ -44,6 +44,12 @@ class ResetPasswordRequest(BaseModel):
     new_password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
 
 
+class AttachCredentialsRequest(BaseModel):
+    token: Annotated[str, StringConstraints(min_length=8, max_length=64)]
+    username: Annotated[str, StringConstraints(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9._-]+$")]
+    password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
+
+
 class ResponseStatus(str, Enum):
     SUCCESS = "success"
     ERROR = "error"

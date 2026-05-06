@@ -52,6 +52,7 @@ from bot.adapters.rest.auth.auth_service import (
     verify_refresh_token,
 )
 from bot.adapters.rest.models import (
+    AttachCredentialsRequest,
     ForgotPasswordRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -301,6 +302,47 @@ async def reset_password(data: ResetPasswordRequest, request: Request):  # pylin
 
     await DatabaseManager.update_user_password(profile.user_id, data.new_password)
     return {"message": "Password has been reset successfully."}
+
+@api_router.post("/auth/attach-credentials", tags=["Authentication"])
+@limiter.limit("5/minute")
+async def attach_credentials(data: AttachCredentialsRequest, request: Request, response: Response):  # pylint: disable=unused-argument
+    user_id = await DatabaseManager.consume_verification_token(
+        token=data.token,
+        purpose="attach_credentials",
+    )
+    if user_id is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired token.")
+
+    existing = await DatabaseManager.get_user_profile_by_username(data.username)
+    if existing:
+        profile, _ = existing
+        if profile.user_id != user_id:
+            raise HTTPException(status_code=409, detail="Username already taken.")
+
+    if not await DatabaseManager.get_user_by_id(user_id):
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if await DatabaseManager.has_credentials(user_id):
+        raise HTTPException(status_code=409, detail="Account already has credentials.")
+
+    await DatabaseManager.attach_rest_credentials(user_id, data.username, data.password)
+
+    user = await DatabaseManager.get_user_by_id(user_id)
+    access_token = create_access_token(user)
+    refresh_token_value = await create_refresh_token(
+        user,
+        ip_address=request.client.host,
+        user_agent=request.headers.get(HttpHeaderKeys.USER_AGENT),
+    )
+    response.set_cookie(
+        AuthKeys.REFRESH_TOKEN_COOKIE,
+        refresh_token_value,
+        httponly=True,
+        secure=s.ENVIRONMENT == "production",
+        samesite="strict",
+        path="/api/v1/auth",
+    )
+    return {AuthKeys.ACCESS_TOKEN: access_token, AuthKeys.TOKEN_TYPE: AuthKeys.BEARER}
 
 @api_router.post("/auth/link-telegram", tags=["Authentication"])
 @limiter.limit("5/minute")

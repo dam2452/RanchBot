@@ -5,6 +5,7 @@ from typing import (
 
 from bot.factory.permission_level_factory import PermissionLevelFactory
 from bot.handlers import SaveUserKeyHandler
+from bot.handlers.administration.account_code_handler import AccountCodeHandler
 from bot.handlers.administration.link_account_handler import LinkAccountHandler
 from bot.middlewares import AnyMiddleware
 from bot.middlewares.bot_middleware import BotMiddleware
@@ -12,7 +13,7 @@ from bot.middlewares.bot_middleware import BotMiddleware
 
 class AnyUserPermissionLevelFactory(PermissionLevelFactory):
     def _create_handler_classes(self) -> List[Type]:
-        return [SaveUserKeyHandler, LinkAccountHandler]
+        return [SaveUserKeyHandler, LinkAccountHandler, AccountCodeHandler]
 
     def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         return [AnyMiddleware(self._logger, commands)]

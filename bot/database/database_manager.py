@@ -1223,6 +1223,41 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 return row["user_id"]
 
     @staticmethod
+    async def remove_credentials(user_id: int) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                "DELETE FROM user_credentials WHERE user_id = $1",
+                user_id,
+            )
+
+    @staticmethod
+    async def has_credentials(user_id: int) -> bool:
+        async with DatabaseManager.__get_db_connection() as conn:
+            return await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM user_credentials WHERE user_id = $1)",
+                user_id,
+            )
+
+    @staticmethod
+    async def attach_rest_credentials(user_id: int, username: str, password: str) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                salt = bcrypt.gensalt()
+                hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+                await conn.execute(
+                    "UPDATE user_profiles SET username = $1 WHERE user_id = $2",
+                    username, user_id,
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO user_credentials (user_id, hashed_password)
+                    VALUES ($1, $2)
+                    ON CONFLICT (user_id) DO UPDATE SET hashed_password = EXCLUDED.hashed_password
+                    """,
+                    user_id, hashed_password,
+                )
+
+    @staticmethod
     async def link_telegram_account(rest_user_id: int, telegram_user_id: int, telegram_username: Optional[str], telegram_full_name: Optional[str]) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             async with conn.transaction():

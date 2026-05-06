@@ -44,6 +44,7 @@
 - **`/obiekt`** / **`/object`** / **`/obj`**: 🎯 Przeglądanie scen z obiektami.
 - **`/objl`** / **`/objlista`**: 🎯 Pełna lista obiektów lub scen (jako dokument).
 - **`/link <kod>`**: 🔗 Powiązanie konta Telegram z kontem REST.
+- **`/kodkonta`** / **`/accountcode`**: 🔑 Generowanie kodu do założenia konta w REST API dla istniejącego konta Telegram.
 - **`/zapisznumer <numer> [odstep_l odstep_p] <nazwa>`** / **`/zn`**: 💾 Zapisanie klipu z wyników wyszukiwania po numerze.
 - **`/klatkaklipu <nazwa_lub_numer> [klatka]`** / **`/kk`**: 🖼️ Klatka kluczowa z zapisanego klipu.
 - **`/subskrypcja`** / **`/sub`**: 🔔 Status subskrypcji.
@@ -118,7 +119,8 @@
 - **`/objl`**: 🎯 Pełna lista wszystkich obiektów (jako dokument).
 - **`/objl <nazwa>`**: 🎯 Pełna lista scen z danym obiektem (jako dokument).
 - **`/objl <nazwa> <filtr>`**: 🎯 Pełna lista scen z filtrem (jako dokument).
-- **`/link <kod>`**: 🔗 Powiązuje konto Telegram z kontem REST przy użyciu kodu weryfikacyjnego. Przykład: `/link abc123`.
+- **`/link <kod>`**: 🔗 Powiązuje konto Telegram z kontem REST przy użyciu kodu weryfikacyjnego. Kod generuje REST API (strona www). Używane gdy masz juz konto REST i chcesz przypiąć do niego Telegram. Przykład: `/link abc123`.
+- **`/kodkonta`** / **`/accountcode`**: 🔑 Generuje jednorazowy kod (ważny 30 minut) do założenia konta REST API dla istniejącego konta Telegram. Używane gdy masz konto w bocie (przez Telegram) i chcesz dorobić login/hasło do strony www. Kod wpisz na stronie podczas rejestracji zamiast standardowego formularza.
 - **`/zapisznumer <numer> <nazwa>`** / **`/zn <numer> <nazwa>`**: 💾 Zapisuje klip o podanym numerze z ostatnich wyników wyszukiwania. Opcjonalnie z dostosowaniem granic: `/zn <numer> <odstep_l> <odstep_p> <nazwa>`. Przykład: `/zn 2 moj_klip`.
 - **`/klatkaklipu <nazwa_lub_numer> [klatka]`** / **`/kk <nazwa_lub_numer>`**: 🖼️ Zwraca klatkę kluczową z zapisanego klipu. `nazwa_lub_numer` — nazwa klipu lub jego numer z `/mojeklipy`. `klatka` — selektor jak w `/klatka`. Przykład: `/kk moj_klip` · `/kk 1 ostatnia`.
 - **`/subskrypcja`** / **`/sub`**: 🔔 Sprawdza stan Twojej subskrypcji.
