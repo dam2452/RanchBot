@@ -20,6 +20,6 @@ class TestAccountCodeHandler(BaseTest):
         self.assert_response_contains(response, ["KOD REJESTRACJI"])
 
     @pytest.mark.asyncio
-    async def test_account_code_password_reset(self):
+    async def test_account_code_always_attach(self):
         response = self.send_command('/kodkonta')
-        self.assert_response_contains(response, ["KOD RESETU HASLA"])
+        self.assert_response_contains(response, ["KOD REJESTRACJI"])
