@@ -31,21 +31,21 @@ class TestKeyframeHandler(BaseTest):
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_keyframe_invalid_result_index(self):
-        self.send_command('/szukaj geniusz')
-        response = self.send_command('/klatka abc')
-        self.assert_response_contains(response, [msg.get_invalid_result_index_message()])
-
-    @pytest.mark.asyncio
     async def test_keyframe_invalid_frame_selector(self):
         self.send_command('/szukaj geniusz')
-        response = self.send_command('/klatka 1 abc')
+        response = self.send_command('/klatka abc')
         self.assert_response_contains(response, [msg.get_invalid_frame_selector_message()])
+
+    @pytest.mark.asyncio
+    async def test_keyframe_invalid_result_index(self):
+        self.send_command('/szukaj geniusz')
+        response = self.send_command('/klatka abc 0')
+        self.assert_response_contains(response, [msg.get_invalid_result_index_message()])
 
     @pytest.mark.asyncio
     async def test_keyframe_result_index_out_of_range(self):
         self.send_command('/szukaj geniusz')
-        response = self.send_command('/klatka 999')
+        response = self.send_command('/klatka 999 0')
         self.assert_response_contains(response, [msg.get_invalid_result_index_message()])
 
     @pytest.mark.asyncio

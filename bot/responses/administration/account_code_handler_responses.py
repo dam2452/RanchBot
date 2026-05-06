@@ -8,8 +8,8 @@ def get_code_generated_message(token: str) -> str:
     )
 
 
-def get_already_has_credentials_message() -> str:
-    return BotResponse.error(
-        "KONTO JUZ ISTNIEJE",
-        "Twoje konto Telegram jest juz polaczone z kontem REST API (ma juz haslo).",
+def get_password_reset_code_message(code: str) -> str:
+    return BotResponse.success(
+        "KOD RESETU HASLA",
+        f"Twoj jednorazowy kod do resetu hasla:\n\n{code}\n\nWazny przez 30 minut. Uzyj go na stronie w formularzu resetu hasla.",
     )
