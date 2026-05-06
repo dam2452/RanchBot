@@ -21,7 +21,7 @@
 - **`/adostosuj <przed> <po>`** / **`/ad`**: ⏳ Dostosowanie klipu (absolutnie).
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Dostosowanie klipu do granic scen.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównanie ostatniego klipu do cięć scen.
-- **`/klatka [numer]`** / **`/frame [numer]`** / **`/kr [numer]`**: 🖼️ Klatka kluczowa z ostatniego klipu.
+- **`/klatka [numer]`** / **`/frame [numer]`** / **`/kl [numer]`**: 🖼️ Klatka kluczowa z ostatniego klipu.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Transkrypcja z kontekstem dla cytatu.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Kompilacja wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Kompilacja z zakresu klipów.
@@ -43,6 +43,9 @@
 - **`/emocje`** / **`/emotion`** / **`/e`**: 😊 Lista dostępnych emocji.
 - **`/obiekt`** / **`/object`** / **`/obj`**: 🎯 Przeglądanie scen z obiektami.
 - **`/objl`** / **`/objlista`**: 🎯 Pełna lista obiektów lub scen (jako dokument).
+- **`/link <kod>`**: 🔗 Powiązanie konta Telegram z kontem REST.
+- **`/zapisznumer <numer> [odstep_l odstep_p] <nazwa>`** / **`/zn`**: 💾 Zapisanie klipu z wyników wyszukiwania po numerze.
+- **`/klatkaklipu <nazwa_lub_numer> [klatka]`** / **`/kk`**: 🖼️ Klatka kluczowa z zapisanego klipu.
 - **`/subskrypcja`** / **`/sub`**: 🔔 Status subskrypcji.
 - **`/report <opis>`** / **`/r <opis>`**: ⚠️ Zgłaszanie problemu.
 - **`/serial <nazwa_serialu>`** / **`/ser <nazwa_serialu>`**: 📺 Zmiana aktywnego serialu.
@@ -78,7 +81,7 @@
 - **`/adostosuj [numer_klipu] <przed> <po>`** / **`/ad`**: ⏳ Dostosowuje klip ABSOLUTNIE (względem oryginału). Przykład: `/adostosuj -5.5 1.2`.
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Rozszerza klip o podaną liczbę cięć scen w każdą stronę. Przykład: `/sdostosuj 1 2`.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównuje ostatni klip do najbliższych cięć scen. Bez zmiany → informuje.
-- **`/klatka [numer_wyniku] [klatka]`** / **`/frame`** / **`/kr`**: 🖼️ Zwraca klatkę kluczową jako obraz JPEG. `numer_wyniku` (1-5, domyślnie 1) — wynik z `/szukaj`; bez aktywnego wyszukiwania używa ostatniego klipu. `klatka` — selektor: `0`/`p`/`pierwsza` = pierwsza, `-1`/`o`/`ostatnia` = ostatnia, dowolna liczba całkowita (0-based, ujemne liczą od końca). Przykłady: `/klatka` · `/klatka 3` · `/klatka 2 ostatnia` · `/klatka 1 -2`.
+- **`/klatka [numer_wyniku] [klatka]`** / **`/frame`** / **`/kl`**: 🖼️ Zwraca klatkę kluczową jako obraz JPEG. `numer_wyniku` (1-5, domyślnie 1) — wynik z `/szukaj`; bez aktywnego wyszukiwania używa ostatniego klipu. `klatka` — selektor: `0`/`p`/`pierwsza` = pierwsza, `-1`/`o`/`ostatnia` = ostatnia, dowolna liczba całkowita (0-based, ujemne liczą od końca). Przykłady: `/klatka` · `/klatka 3` · `/klatka 2 ostatnia` · `/klatka 1 -2`.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: `/transkrypcja geniusz`.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Tworzy kompilację ze wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Tworzy kompilację z zakresu klipów. Przykład: `/kompiluj 1-4`.
@@ -115,6 +118,9 @@
 - **`/objl`**: 🎯 Pełna lista wszystkich obiektów (jako dokument).
 - **`/objl <nazwa>`**: 🎯 Pełna lista scen z danym obiektem (jako dokument).
 - **`/objl <nazwa> <filtr>`**: 🎯 Pełna lista scen z filtrem (jako dokument).
+- **`/link <kod>`**: 🔗 Powiązuje konto Telegram z kontem REST przy użyciu kodu weryfikacyjnego. Przykład: `/link abc123`.
+- **`/zapisznumer <numer> <nazwa>`** / **`/zn <numer> <nazwa>`**: 💾 Zapisuje klip o podanym numerze z ostatnich wyników wyszukiwania. Opcjonalnie z dostosowaniem granic: `/zn <numer> <odstep_l> <odstep_p> <nazwa>`. Przykład: `/zn 2 moj_klip`.
+- **`/klatkaklipu <nazwa_lub_numer> [klatka]`** / **`/kk <nazwa_lub_numer>`**: 🖼️ Zwraca klatkę kluczową z zapisanego klipu. `nazwa_lub_numer` — nazwa klipu lub jego numer z `/mojeklipy`. `klatka` — selektor jak w `/klatka`. Przykład: `/kk moj_klip` · `/kk 1 ostatnia`.
 - **`/subskrypcja`** / **`/sub`**: 🔔 Sprawdza stan Twojej subskrypcji.
 - **`/report <opis_problemu>`** / **`/r <opis>`**: ⚠️ Zgłasza problem do administratorów.
 - **`/serial <nazwa_serialu>`** / **`/ser <nazwa_serialu>`**: 📺 Zmienia aktywny serial dla użytkownika. Przykład: `/serial ranczo`.

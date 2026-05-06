@@ -22,7 +22,7 @@
 - **`/aadjust <before> <after>`** / **`/ad`**: ⏳ Adjust clip (absolute).
 - **`/sadjust <n_before> <n_after>`** / **`/sd`**: 🎬 Adjust clip to scene cut boundaries.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Snap last clip to scene cuts.
-- **`/klatka [index]`** / **`/frame [index]`** / **`/kr [index]`**: 🖼️ Keyframe from the last clip.
+- **`/klatka [index]`** / **`/frame [index]`** / **`/kl [index]`**: 🖼️ Keyframe from the last clip.
 - **`/transcription <quote>`** / **`/t <quote>`**: 📝 Transcription with context for a quote.
 - **`/compile all`** / **`/kom all`**: 🎬 Compile all clips.
 - **`/compile <range>`** / **`/kom <range>`**: 🎬 Compile a range of clips.
@@ -41,6 +41,9 @@
 - **`/emotion`** / **`/e`**: 😊 List of available emotions.
 - **`/object`** / **`/obj`**: 🎯 Browse scenes with objects.
 - **`/objl`** / **`/objlista`**: 🎯 Full list of objects or scenes (as document).
+- **`/link <code>`**: 🔗 Link Telegram account to REST account.
+- **`/saveclipbyindex <index> [left_adj right_adj] <name>`** / **`/zn`**: 💾 Save a clip from search results by index.
+- **`/savedclipthumbnail <name_or_index> [frame]`** / **`/kk`**: 🖼️ Keyframe from a saved clip.
 - **`/subscription`** / **`/sub`**: 🔔 Subscription status.
 - **`/report <description>`** / **`/r <description>`**: ⚠️ Report an issue.
 - **`/serial <series_name>`** / **`/ser <series_name>`**: 📺 Change active series.
@@ -76,7 +79,7 @@
 - **`/aadjust [clip_number] <before> <after>`** / **`/ad`**: ⏳ Adjusts clip ABSOLUTELY (based on original). Example: `/aadjust -5.5 1.2`.
 - **`/sadjust <n_before> <n_after>`** / **`/sd`**: 🎬 Expands clip by the given number of scene cuts in each direction. Example: `/sadjust 1 2`.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Snaps the last clip to the nearest scene cuts. No change → informs user.
-- **`/klatka [result] [frame]`** / **`/frame`** / **`/kr`**: 🖼️ Returns a keyframe as a JPEG image. `result` (1-5, default 1) — result number from `/search`; falls back to last clip when no active search. `frame` — selector: `0`/`p`/`pierwsza`/`first` = first, `-1`/`o`/`ostatnia`/`last` = last, any integer (0-based, negative counts from end). Examples: `/klatka` · `/klatka 3` · `/klatka 2 last` · `/klatka 1 -2`.
+- **`/klatka [result] [frame]`** / **`/frame`** / **`/kl`**: 🖼️ Returns a keyframe as a JPEG image. `result` (1-5, default 1) — result number from `/search`; falls back to last clip when no active search. `frame` — selector: `0`/`p`/`pierwsza`/`first` = first, `-1`/`o`/`ostatnia`/`last` = last, any integer (0-based, negative counts from end). Examples: `/klatka` · `/klatka 3` · `/klatka 2 last` · `/klatka 1 -2`.
 - **`/transcription <quote>`** / **`/t <quote>`**: 📝 Displays transcription with context for the found quote. Example: `/transcription genius`.
 - **`/compile all`** / **`/kom all`**: 🎬 Compiles all clips.
 - **`/compile <range>`** / **`/kom <range>`**: 🎬 Compiles clips within a range. Example: `/compile 1-4`.
@@ -112,6 +115,9 @@
 - **`/objl`**: 🎯 Full list of all objects (as document).
 - **`/objl <name>`**: 🎯 Full list of scenes with the given object (as document).
 - **`/objl <name> <filter>`**: 🎯 Full list of scenes with filter (as document).
+- **`/link <code>`**: 🔗 Links your Telegram account to a REST account using a verification code. Example: `/link abc123`.
+- **`/zapisznumer <index> <name>`** / **`/zn <index> <name>`**: 💾 Saves a clip from the last search results by index. Optionally with boundary adjustments: `/zn <index> <left_adj> <right_adj> <name>`. Example: `/zn 2 my_clip`.
+- **`/klatkaklipu <name_or_index> [frame]`** / **`/kk <name_or_index>`**: 🖼️ Returns a keyframe from a saved clip. `name_or_index` — clip name or its number from `/myclips`. `frame` — selector like in `/klatka`. Example: `/kk my_clip` · `/kk 1 last`.
 - **`/subscription`** / **`/sub`**: 🔔 Checks your subscription status.
 - **`/report <issue_description>`** / **`/r <issue>`**: ⚠️ Reports an issue to administrators.
 - **`/serial <series_name>`** / **`/ser <series_name>`**: 📺 Changes the active series for the user. Example: `/serial ranczo`.
