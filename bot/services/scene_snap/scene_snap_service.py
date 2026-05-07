@@ -20,12 +20,78 @@ from bot.utils.log import log_system_message
 
 class SceneSnapService:
     __KEYFRAME_INTERVAL = 0.5
+    __MAX_EXPANSION = 5.0
+    __MAX_SHRINK = 2.0
 
     @staticmethod
     def __apply_keyframe_offset(boundary: float, is_start: bool) -> float:
         if is_start:
             return boundary + SceneSnapService.__KEYFRAME_INTERVAL
         return boundary - SceneSnapService.__KEYFRAME_INTERVAL
+
+    @staticmethod
+    def __snap_start(
+        clip_start: float,
+        speech_start: float,
+        scene_cuts: List[float],
+    ) -> float:
+        def __snapped(c: float) -> float:
+            return SceneSnapService.__apply_keyframe_offset(c, is_start=True)
+
+        valid = [
+            c for c in scene_cuts
+            if c <= speech_start and __snapped(c) <= speech_start
+        ]
+
+        expanding = [
+            c for c in valid
+            if __snapped(c) <= clip_start
+            and clip_start - __snapped(c) <= SceneSnapService.__MAX_EXPANSION
+        ]
+        if expanding:
+            return __snapped(min(expanding, key=lambda c: abs(__snapped(c) - clip_start)))
+
+        shrinking = [
+            c for c in valid
+            if __snapped(c) > clip_start
+            and __snapped(c) - clip_start <= SceneSnapService.__MAX_SHRINK
+        ]
+        if shrinking:
+            return __snapped(min(shrinking, key=lambda c: abs(__snapped(c) - clip_start)))
+
+        return clip_start
+
+    @staticmethod
+    def __snap_end(
+        clip_end: float,
+        speech_end: float,
+        scene_cuts: List[float],
+    ) -> float:
+        def __snapped(c: float) -> float:
+            return SceneSnapService.__apply_keyframe_offset(c, is_start=False)
+
+        valid = [
+            c for c in scene_cuts
+            if c >= speech_end and __snapped(c) >= speech_end
+        ]
+
+        expanding = [
+            c for c in valid
+            if __snapped(c) >= clip_end
+            and __snapped(c) - clip_end <= SceneSnapService.__MAX_EXPANSION
+        ]
+        if expanding:
+            return __snapped(min(expanding, key=lambda c: abs(__snapped(c) - clip_end)))
+
+        shrinking = [
+            c for c in valid
+            if __snapped(c) < clip_end
+            and clip_end - __snapped(c) <= SceneSnapService.__MAX_SHRINK
+        ]
+        if shrinking:
+            return __snapped(min(shrinking, key=lambda c: abs(__snapped(c) - clip_end)))
+
+        return clip_end
 
     @staticmethod
     def snap_boundaries(
@@ -38,26 +104,8 @@ class SceneSnapService:
         if not scene_cuts:
             return clip_start, clip_end
 
-        snappable_starts = [
-            c for c in scene_cuts
-            if c <= speech_start and SceneSnapService.__apply_keyframe_offset(c, is_start=True) <= speech_start
-        ]
-        if snappable_starts:
-            nearest_start = min(snappable_starts, key=lambda c: abs(c - clip_start))
-            snapped_start = SceneSnapService.__apply_keyframe_offset(nearest_start, is_start=True)
-        else:
-            snapped_start = clip_start
-
-        snappable_ends = [
-            c for c in scene_cuts
-            if c >= speech_end and SceneSnapService.__apply_keyframe_offset(c, is_start=False) >= speech_end
-        ]
-        if snappable_ends:
-            nearest_end = min(snappable_ends, key=lambda c: abs(c - clip_end))
-            snapped_end = SceneSnapService.__apply_keyframe_offset(nearest_end, is_start=False)
-        else:
-            snapped_end = clip_end
-
+        snapped_start = SceneSnapService.__snap_start(clip_start, speech_start, scene_cuts)
+        snapped_end = SceneSnapService.__snap_end(clip_end, speech_end, scene_cuts)
         return snapped_start, snapped_end
 
     @staticmethod

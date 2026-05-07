@@ -84,7 +84,10 @@ class KeyframeHandler(BotMessageHandler):
         self,
         result_index: int,
     ) -> Tuple[Optional[Dict[str, Any]], float, float]:
-        last_search = await DatabaseManager.get_last_search_by_chat_id(self._message.get_chat_id())
+        chat_id = self._message.get_chat_id()
+        last_clip = await DatabaseManager.get_last_clip_by_chat_id(chat_id)
+        last_search = await DatabaseManager.get_last_search_by_chat_id(chat_id)
+
         if last_search:
             segments = json.loads(last_search.segments)
             if result_index > len(segments):
@@ -93,9 +96,16 @@ class KeyframeHandler(BotMessageHandler):
             segment = segments[result_index - 1]
             start_time = max(0.0, float(segment[SegmentKeys.START_TIME]) - settings.EXTEND_BEFORE)
             end_time = float(segment[SegmentKeys.END_TIME]) + settings.EXTEND_AFTER
+            if (
+                result_index == 1
+                and last_clip is not None
+                and last_clip.adjusted_start_time is not None
+                and last_clip.adjusted_end_time is not None
+            ):
+                start_time = last_clip.adjusted_start_time
+                end_time = last_clip.adjusted_end_time
             return segment, start_time, end_time
 
-        last_clip = await DatabaseManager.get_last_clip_by_chat_id(self._message.get_chat_id())
         if not last_clip:
             await self._reply_error(get_no_last_clip_message())
             await self._log_system_message(logging.INFO, get_log_no_last_clip_message())
