@@ -22,6 +22,7 @@ class KeyframeExtractor:
             "-i", str(video_path),
             "-ss", str(seek_time - pre_seek),
             "-vframes", "1",
+            "-vf", "format=yuvj420p",
             "-q:v", "2",
             "-loglevel", "error",
             str(output_path),
