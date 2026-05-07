@@ -36,12 +36,10 @@ class TelegramResponder(AbstractResponder):
         except Exception:
             pass
 
-    async def send_photo(self, image_bytes: bytes, image_path: Path, caption: str) -> None:
+    async def send_photo(self, image_bytes: bytes, image_path: Path, caption: Optional[str] = None) -> None:
         await self._message.answer_photo(
             photo=BufferedInputFile(image_bytes, str(image_path)),
             caption=caption,
-            show_caption_above_media=True,
-            parse_mode="MarkdownV2",
             reply_to_message_id=self._message.message_id,
             disable_notification=True,
         )

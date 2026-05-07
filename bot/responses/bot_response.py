@@ -29,6 +29,16 @@ class BotResponse:
         return BotResponse.__to_code_block(f"✅ SUKCES - {title}", body)
 
     @staticmethod
+    def to_plain(formatted: str) -> str:
+        text = formatted.replace(BotResponse.__NBSP, " ")
+        lines = text.split("\n")
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].endswith("```"):
+            lines[-1] = lines[-1][:-3]
+        return "\n".join(lines).strip()
+
+    @staticmethod
     def usage(
         command: str,
         error_title: str,

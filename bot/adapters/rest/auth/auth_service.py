@@ -3,6 +3,8 @@ from datetime import (
     datetime,
     timedelta,
 )
+import secrets
+import string
 from typing import Optional
 
 from fastapi import HTTPException
@@ -30,6 +32,15 @@ def hash_password(password: str) -> str:
 
 def _verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+def generate_verification_code() -> str:
+    return "".join(secrets.choice(string.digits) for _ in range(6))
+
+
+def generate_linking_token() -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(8))
 
 
 async def authenticate_user(username: str, password: str) -> Optional[UserProfile]:

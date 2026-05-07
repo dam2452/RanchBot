@@ -6,6 +6,7 @@ from bot.handlers.not_sending_videos.filter_handler import FilterHandler
 from bot.handlers.not_sending_videos.my_clips_handler import MyClipsHandler
 from bot.handlers.not_sending_videos.objects_handler import ObjectsHandler
 from bot.handlers.not_sending_videos.save_clip_handler import SaveClipHandler
+from bot.handlers.not_sending_videos.search_filter_handler import SearchFilterHandler
 from bot.handlers.not_sending_videos.search_handler import SearchHandler
 from bot.handlers.not_sending_videos.search_list_handler import SearchListHandler
 from bot.handlers.not_sending_videos.semantic_search_handler import SemanticSearchHandler

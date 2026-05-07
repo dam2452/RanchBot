@@ -2,7 +2,7 @@ from bot.responses.bot_response import BotResponse
 
 
 def get_basic_message() -> str:
-    return """```🐐\u00A0Witaj\u00A0w\u00A0RanczoKlipy!\u00A0🐐
+    return """```🐐 Witaj w RanczoKlipy! 🐐
 ════════════════════════
 🔍 Podstawowe komendy 🔍
 ════════════════════════
@@ -14,7 +14,7 @@ def get_basic_message() -> str:
 
 
 def get_list_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0-\u00A0Działy\u00A0Komend\u00A0🐐
+    return """```🐐 RanczoKlipy - Działy Komend 🐐
 ══════════════════════════
 🔍 Wyszukiwanie:
    👉 /start wyszukiwanie
@@ -41,7 +41,7 @@ def get_list_message() -> str:
 
 
 def get_all_message() -> str:
-    return """```🐐\u00A0Witaj\u00A0w\u00A0RanczoKlipy!\u00A0🐐
+    return """```🐐 Witaj w RanczoKlipy! 🐐
 ═════════════════════════════════════════
 🔍 Wyszukiwanie i przeglądanie klipów 🔍
 ═════════════════════════════════════════
@@ -57,6 +57,19 @@ def get_all_message() -> str:
 🧠 /sensklatki <zapytanie> - Wyszukiwanie semantyczne po klatkach. Przykład: /sensklatki biesiada.
 🧠 /sensodcinek <zapytanie> - Wyszukiwanie semantyczne po odcinkach. Przykład: /sensodcinek ślub.
 🎬 /klipsens <zapytanie> - Wyszukuje semantycznie i wysyła klip. Przykład: /klipsens ucieczka.
+👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen. Przyklad: /postacie Wilkowyska.
+👤 /szukajpostac <postac> [emocja] - Lista scen z daną postacią (bez wysyłania klipu). Przykład: /szp Wilkowyska.
+🎭 /klippostac <postac> [emocja] - Klip z daną postacią. Przykład: /klippostac Wilkowyska.
+🎯 /szukajobiekt <obiekt> [filtr] - Lista scen z danym obiektem (bez wysyłania klipu). Przykład: /szo dog >3.
+🎯 /klipobiekt <obiekt> - Klip z danym obiektem. Przykład: /klipobiekt dog.
+😊 /emocje - Wyświetla listę dostępnych emocji.
+🎯 /obiekt [obiekt] [filtr] - Sceny z danym obiektem, np. /obiekt dog >3.
+🔎 /filtr <filtry> - Ustawia filtry wyszukiwania. Przykład: /filtr sezon:2 postac:Pawlak.
+🔎 /filtr reset - Usuwa wszystkie aktywne filtry.
+ℹ️ /filtr info - Wyświetla aktywne filtry.
+🎬 /klipfiltr [cytat] - Klip na podstawie aktywnego filtra. Przykład: /kf wina wójta.
+🔎 /szukajfiltr [cytat] - Lista scen na podstawie aktywnego filtra. Przykład: /szf wina wójta.
+🖼️ /klatka [numer_wyniku] [klatka] - Klatka kluczowa jako obraz JPEG. Przykład: /klatka 2 ostatnia.
 
 ════════════════════
 ✂️ Edycja klipów ✂️
@@ -71,6 +84,7 @@ def get_all_message() -> str:
    Przykład 1: /adostosuj -5.5 1.2 (dla wybranego klipu)
    Przykład 2: /adostosuj 1 10.0 -3 (dla klipu nr 1 z listy)
 
+🎞️ /sdostosuj <n_przed> <n_po> - Rozszerza klip o podaną liczbę cięć scen. Przykład: /sdostosuj 1 2.
 🎯 /snap - Wyrównuje ostatni klip do najbliższych cięć scen (bez zmiany → informuje).
 
 🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.
@@ -80,19 +94,19 @@ def get_all_message() -> str:
 ═════════════════════════════════════
 📁 Zarządzanie zapisanymi klipami 📁
 ═════════════════════════════════════
-💾 /zapisz <nazwa> - Zapisuje wybrany klip z podaną nazwą. Przykład: /zapisz traktor.\n
-📂 /mojeklipy - Wyświetla listę zapisanych klipów.\n
-📤 /wyslij <numer_klipu> - Wysyła zapisany klip o podanej nazwie. Przykład: /wyslij 1.\n
-🔗 /polaczklipy <numer_klipu1> <numer_klipu2> ... - Łączy zapisane klipy w jeden. Numery klipów można znaleźć używając komendy /mojeklipy. Przykład: /polaczklipy 4 2 3.\n
-🗑️ /usunklip <numer_klipu> - Usuwa zapisany klip o podanej nazwie. Przykład: /usunklip 2.\n
+💾 /zapisz <nazwa> - Zapisuje wybrany klip z podaną nazwą. Przykład: /zapisz traktor.
+💾 /zapisznumer <numer> [odstep_l odstep_p] <nazwa> - Zapisuje klip z wyników wyszukiwania po numerze. Przykład: /zn 2 moj_klip.
+📂 /mojeklipy [serial] - Wyświetla listę zapisanych klipów.
+📤 /wyslij <nazwa> - Wysyła zapisany klip o podanej nazwie. Przykład: /wyslij traktor.
+🔗 /polaczklipy <numer1> <numer2> ... - Łączy zapisane klipy w jeden. Przykład: /polaczklipy 4 2 3.
+🗑️ /usunklip <nazwa> - Usuwa zapisany klip o podanej nazwie. Przykład: /usunklip traktor.
+🖼️ /klatkaklipu <nazwa_lub_numer> [klatka] - Klatka kluczowa z zapisanego klipu. Przykład: /kk traktor.
+🔗 /link <kod> - Powiązuje konto Telegram z kontem REST. Przykład: /link abc123.
+🔑 /kodkonta - Generuje kod do założenia konta REST API dla istniejącego konta Telegram.
 
 ════════════════════════
 🛠️ Raportowanie błędów ️
 ════════════════════════
-👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen.
-😊 /emocje - Lista dostepnych emocji.
-🎯 /obiekt [obiekt] [filtr] - Przegladanie scen z danym obiektem. Przyklad: /obiekt dog.
-
 🐛 /report - Raportuje błąd do administratora.
 
 ══════════════════
@@ -103,7 +117,7 @@ def get_all_message() -> str:
 
 
 def get_search_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0Wyszukiwanie\u00A0klipów\u00A0🐐
+    return """```🐐 RanczoKlipy Wyszukiwanie klipów 🐐
 ════════════════════
 🔍 Wyszukiwanie 🔍
 ════════════════════
@@ -121,15 +135,23 @@ def get_search_message() -> str:
 🧠 /sensodcinek <zapytanie> - Wyszukiwanie semantyczne po odcinkach. Przykład: /sensodcinek ślub.\n
 🎬 /klipsens <zapytanie> - Wyszukuje semantycznie i wysyła klip. Przykład: /klipsens ucieczka.\n
 👤 /postacie [postac] [emocja] - Przegladanie postaci i ich scen. Przyklad: /postacie Wilkowyska.\n
+👤 /szukajpostac <postac> [emocja] - Lista scen z daną postacią (bez wysyłania klipu). Przykład: /szp Wilkowyska.\n
 🎭 /klippostac <postac> [emocja] - Klip z daną postacią. Przykład: /klippostac Wilkowyska.\n
+🎯 /szukajobiekt <obiekt> [filtr] - Lista scen z danym obiektem (bez wysyłania klipu). Przykład: /szo dog >3.\n
 🎯 /klipobiekt <obiekt> - Klip z danym obiektem. Przykład: /klipobiekt dog.\n
 😊 /emocje - Wyswietla liste dostepnych emocji.\n
 🎯 /obiekt [obiekt] [filtr] - Sceny z danym obiektem, np. /obiekt dog >3.\n
+🔎 /filtr <filtry> - Ustawia filtry wyszukiwania. Przykład: /filtr sezon:2 postac:Pawlak.\n
+🔎 /filtr reset - Usuwa wszystkie aktywne filtry.\n
+ℹ️ /filtr info - Wyświetla aktywne filtry.\n
+🎬 /klipfiltr [cytat] - Klip na podstawie aktywnego filtra. Przykład: /kf wina wójta.\n
+🔎 /szukajfiltr [cytat] - Lista scen na podstawie aktywnego filtra. Przykład: /szf wina wójta.\n
+🖼️ /klatka [numer_wyniku] [klatka] - Klatka kluczowa jako obraz JPEG. Przykład: /klatka 2 ostatnia.\n
 ```"""
 
 
 def get_edit_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0Edycja\u00A0klipów\u00A0🐐
+    return """```🐐 RanczoKlipy Edycja klipów 🐐
 ════════════════════
 ✂️ Edycja klipów ✂️
 ════════════════════
@@ -143,7 +165,9 @@ def get_edit_message() -> str:
    Przykład 1: /adostosuj -5.5 1.2 (dla wybranego klipu)
    Przykład 2: /adostosuj 1 10.0 -3 (dla klipu nr 1 z listy)
 
+🎞️ /sdostosuj <n_przed> <n_po> - Rozszerza klip o podaną liczbę cięć scen w każdą stronę. Przykład: /sdostosuj 1 2.
 🎯 /snap - Wyrównuje ostatni klip do najbliższych cięć scen (bez zmiany → informuje).
+🖼️ /klatka [numer_wyniku] [klatka] - Klatka kluczowa jako obraz JPEG. Przykład: /klatka 2 ostatnia.
 
 🎞️ /kompiluj wszystko - Tworzy kompilację ze wszystkich klipów.
 🎞️ /kompiluj <zakres> - Tworzy kompilację z zakresu klipów. Przykład: /kompiluj 1-4.
@@ -152,20 +176,24 @@ def get_edit_message() -> str:
 
 
 def get_menagement_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0Zarządzanie\u00A0zapisanymi\u00A0klipami\u00A0🐐
+    return """```🐐 RanczoKlipy Zarządzanie zapisanymi klipami 🐐
 ═════════════════════════════════════
 📁 Zarządzanie zapisanymi klipami 📁
 ═════════════════════════════════════
 💾 /zapisz <nazwa> - Zapisuje wybrany klip z podaną nazwą. Przykład: /zapisz traktor.\n
-📂 /mojeklipy - Wyświetla listę zapisanych klipów.\n
-📤 /wyslij <numer_klipu> - Wysyła zapisany klip o podanej nazwie. Przykład: /wyslij 1.\n
-🔗 /polaczklipy <numer_klipu1> <numer_klipu2> ... - Łączy zapisane klipy w jeden. Numery klipów można znaleźć używając komendy /mojeklipy. Przykład: /polaczklipy 4 2 3.\n
-🗑️ /usunklip <numer_klipu> - Usuwa zapisany klip o podanej nazwie. Przykład: /usunklip 2.\n
+💾 /zapisznumer <numer> [odstep_l odstep_p] <nazwa> - Zapisuje klip z wyników wyszukiwania po numerze. Przykład: /zn 2 moj_klip.\n
+📂 /mojeklipy [serial] - Wyświetla listę zapisanych klipów.\n
+📤 /wyslij <nazwa> - Wysyła zapisany klip o podanej nazwie. Przykład: /wyslij traktor.\n
+🔗 /polaczklipy <numer1> <numer2> ... - Łączy zapisane klipy w jeden. Przykład: /polaczklipy 4 2 3.\n
+🗑️ /usunklip <nazwa> - Usuwa zapisany klip o podanej nazwie. Przykład: /usunklip traktor.\n
+🖼️ /klatkaklipu <nazwa_lub_numer> [klatka] - Klatka kluczowa z zapisanego klipu. Przykład: /kk traktor.\n
+🔗 /link <kod> - Powiązuje konto Telegram z kontem REST. Przykład: /link abc123.\n
+🔑 /kodkonta - Generuje kod do założenia konta REST API dla istniejącego konta Telegram.\n
 ```"""
 
 
 def get_reporting_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0Raportowanie\u00A0błędów\u00A0🐐
+    return """```🐐 RanczoKlipy Raportowanie błędów 🐐
 ════════════════════════
 🛠️ Raportowanie błędów ️
 ════════════════════════
@@ -174,22 +202,23 @@ def get_reporting_message() -> str:
 
 
 def get_subscriptions_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0Subskrypcje\u00A0🐐
+    return """```🐐 RanczoKlipy Subskrypcje 🐐
 ══════════════════
 🔔 Subskrypcje 🔔
 ══════════════════
 📊 /subskrypcja - Sprawdza stan Twojej subskrypcji.\n
+🔑 /klucz <key_content> - Używa klucza subskrypcyjnego. Przykład: /klucz some_key.\n
 ```"""
 
 
 def get_shortcuts_message() -> str:
-    return """```🐐\u00A0RanczoKlipy\u00A0Skróty\u00A0komend\u00A0🐐
+    return """```🐐 RanczoKlipy Skróty komend 🐐
 ═════════════════════
 📋 Skróty komend 📋
 ═════════════════════
 🐐 /s, /start - Uruchamia główne menu.\n
 🔎 /k, /klip - Wyszukuje klip na podstawie cytatu.\n
-🔎 /sz, /szukaj - Wyszukuje klip na podstawie cytatu.\n
+🔎 /sz, /szukaj - Wyszukuje klipy pasujące do cytatu.\n
 📝 /t, /transkrypcja - Wyświetla transkrypcję z kontekstem.\n
 📋 /l, /lista - Wyświetla wszystkie klipy znalezione przez /szukaj.\n
 ✅ /w, /wybierz - Wybiera klip z listy uzyskanej przez /szukaj.\n
@@ -204,17 +233,28 @@ def get_shortcuts_message() -> str:
 🗑️ /uk, /usunklip - Usuwa zapisany klip.\n
 📂 /mk, /mojeklipy - Wyświetla listę zapisanych klipów.\n
 💾 /z, /zapisz - Zapisuje wybrany klip.\n
+💾 /zn, /zapisznumer - Zapisuje klip z wyników wyszukiwania po numerze.\n
 📤 /wys, /wyślij - Wysyła zapisany klip.\n
 🧠 /sen, /sens - Wyszukiwanie semantyczne (tekst).\n
 🧠 /sensk, /sensklatki - Wyszukiwanie semantyczne (klatki).\n
 🧠 /senso, /sensodcinek - Wyszukiwanie semantyczne (odcinek).\n
 🎬 /ks, /ksen, /klipsens - Wyszukuje semantycznie i wysyła klip.\n
 👤 /p, /postacie - Przegladanie postaci i scen.\n
+👤 /szp, /szukajpostac - Lista scen z daną postacią.\n
 🎭 /kp, /klippostac - Klip z daną postacią.\n
+🎯 /szo, /szukajobiekt - Lista scen z danym obiektem.\n
 🎯 /ko, /klipobiekt - Klip z danym obiektem.\n
 😊 /e, /emocje - Lista dostepnych emocji.\n
 🎯 /obj, /obiekt - Przegladanie scen z obiektami.\n
-🎯 /objl, /objlista - Pelna lista obiektow lub scen.\n
+🎯 /objl - Pelna lista obiektow lub scen.\n
+👤 /pl, /postacie_lista - Pelna lista postaci lub scen.\n
+🔎 /f, /filtr - Ustawia filtry wyszukiwania.\n
+🎬 /kf, /klipfiltr - Klip na podstawie aktywnego filtra.\n
+🔎 /szf, /szukajfiltr - Lista scen na podstawie aktywnego filtra.\n
+🖼️ /kl, /klatka - Klatka kluczowa z ostatniego klipu.\n
+🖼️ /kk, /klatkaklipu - Klatka kluczowa z zapisanego klipu.\n
+🔗 /link - Powiązuje konto Telegram z kontem REST.\n
+🔑 /kodkonta - Generuje kod do założenia konta REST API.\n
 🐛 /r, /report - Raportuje błąd do administratora.\n
 🔔 /sub, /subskrypcja - Sprawdza stan Twojej subskrypcji.\n
 ```"""

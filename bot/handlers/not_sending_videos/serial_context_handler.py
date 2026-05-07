@@ -38,7 +38,13 @@ class SerialContextHandler(BotMessageHandler):
 
         if len(args) == 1:
             current_series = await self._serial_manager.get_user_active_series(user_id)
-            await self._reply(get_serial_current_message(current_series, available_series))
+            await self._reply(
+                get_serial_current_message(current_series, available_series),
+                data={
+                    "current_series": current_series,
+                    "available_series": available_series,
+                },
+            )
             return
 
         query = " ".join(args[1:])
@@ -52,7 +58,13 @@ class SerialContextHandler(BotMessageHandler):
 
         await self._serial_manager.set_user_active_series(user_id, matched)
 
-        await self._reply(get_serial_changed_message(matched))
+        await self._reply(
+            get_serial_changed_message(matched),
+            data={
+                "current_series": matched,
+                "available_series": available_series,
+            },
+        )
         await self._log_system_message(
             logging.INFO,
             f"User {user_id} changed series to: {matched}",

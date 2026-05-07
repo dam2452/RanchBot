@@ -6,6 +6,7 @@ from typing import (
     Tuple,
 )
 
+from bot.services.search_filter.filter_schema import alias_to_canonical
 from bot.types import (
     EpisodeSpec,
     ObjectFilterSpec,
@@ -61,40 +62,42 @@ class FilterParser:
         object_groups: List[List[ObjectFilterSpec]],
         errors: List[str],
     ) -> None:
-        if key in {"sezon", "s"}:
+        canonical = alias_to_canonical(key)
+        if canonical is None:
+            errors.append(f"Nieznany filtr: '{key}'")
+            return
+
+        if canonical == "sezon":
             parsed = self._parse_seasons(value)
             if parsed is None:
                 errors.append(f"Nieprawidłowy format sezonu: '{value}'")
             else:
                 result["seasons"] = parsed
 
-        elif key in {"odcinek", "ep"}:
+        elif canonical == "odcinek":
             parsed_eps = self._parse_episodes(value)
             if parsed_eps is None:
                 errors.append(f"Nieprawidłowy format odcinka: '{value}'")
             else:
                 result["episodes"] = parsed_eps
 
-        elif key in {"tytul", "title", "t"}:
+        elif canonical == "tytul":
             result["episode_title"] = value
 
-        elif key in {"postac", "character", "p"}:
+        elif canonical == "postac":
             names = [n.strip() for n in value.split(",") if n.strip()]
             if names:
                 character_groups.append(names)
 
-        elif key in {"emocja", "emotion", "e"}:
+        elif canonical == "emocja":
             emotions.extend(e.strip() for e in value.split(",") if e.strip())
 
-        elif key in {"obiekt", "object", "obj", "o"}:
+        elif canonical == "obiekt":
             group = self._parse_object_group(value)
             if group is None:
                 errors.append(f"Nieprawidłowy format obiektu: '{value}'")
             else:
                 object_groups.append(group)
-
-        else:
-            errors.append(f"Nieznany filtr: '{key}'")
 
     def _parse_seasons(self, value: str) -> Optional[List[int]]:
         if "-" in value and "," not in value:

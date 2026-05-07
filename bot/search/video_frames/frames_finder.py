@@ -1,5 +1,6 @@
 import logging
 from typing import (
+    Any,
     List,
     Optional,
 )
@@ -14,6 +15,7 @@ from bot.utils.constants import (
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
     EpisodeMetadataKeys,
+    SegmentKeys,
     VideoFrameKeys,
 )
 from bot.utils.log import log_system_message
@@ -24,6 +26,17 @@ def _build_index(series_name: str) -> str:
 
 
 class VideoFramesFinder:
+    __FRAME_SOURCE_FIELDS = [
+        EpisodeMetadataKeys.EPISODE_METADATA,
+        VideoFrameKeys.TIMESTAMP,
+        VideoFrameKeys.FRAME_NUMBER,
+        VideoFrameKeys.FRAME_TYPE,
+        VideoFrameKeys.DETECTED_OBJECTS,
+        VideoFrameKeys.SCENE_INFO,
+        SegmentKeys.VIDEO_PATH,
+        VideoFrameKeys.EPISODE_ID,
+    ]
+
     @staticmethod
     async def find_frames_in_episode(  # pylint: disable=duplicate-code
         season: int,
@@ -41,7 +54,7 @@ class VideoFramesFinder:
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
+                    ElasticsearchQueryKeys.FILTER: [
                         {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
                         {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_number}},
                     ],
@@ -49,6 +62,7 @@ class VideoFramesFinder:
             },
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
+            ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -56,6 +70,54 @@ class VideoFramesFinder:
         frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
             logging.INFO, f"Found {len(frames)} frames for S{season:02d}E{episode_number:02d}.", logger,
+        )
+        return frames
+
+    @staticmethod
+    async def find_frames_in_time_range(
+        season: int,
+        episode_number: int,
+        start_time: float,
+        end_time: float,
+        series_name: str,
+        logger: logging.Logger,
+    ) -> List[VideoFrameSource]:
+        await log_system_message(
+            logging.INFO,
+            f"Fetching frames in [{start_time:.2f}s, {end_time:.2f}s] in S{season:02d}E{episode_number:02d}.",
+            logger,
+        )
+        es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+
+        query = {
+            ElasticsearchQueryKeys.QUERY: {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.FILTER: [
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_number}},
+                        {
+                            ElasticsearchQueryKeys.RANGE: {
+                                VideoFrameKeys.TIMESTAMP: {
+                                    ElasticsearchQueryKeys.GTE: start_time,
+                                    ElasticsearchQueryKeys.LTE: end_time,
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+            ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
+            ElasticsearchQueryKeys.SIZE: 50,
+            ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
+        }
+
+        response = await es.search(index=_build_index(series_name), body=query)
+        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        await log_system_message(
+            logging.INFO,
+            f"Found {len(frames)} frames in time range for S{season:02d}E{episode_number:02d}.",
+            logger,
         )
         return frames
 
@@ -78,7 +140,7 @@ class VideoFramesFinder:
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
+                    ElasticsearchQueryKeys.FILTER: [
                         {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: season}},
                         {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_number}},
                         {
@@ -94,6 +156,7 @@ class VideoFramesFinder:
             },
             ElasticsearchQueryKeys.SORT: [{VideoFrameKeys.TIMESTAMP: ElasticsearchQueryKeys.ASC}],
             ElasticsearchQueryKeys.SIZE: 100,
+            ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -113,7 +176,7 @@ class VideoFramesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        must_clauses = [
+        must_clauses: List[dict[str, Any]] = [
             {
                 ElasticsearchQueryKeys.NESTED: {
                     ElasticsearchQueryKeys.PATH: VideoFrameKeys.DETECTED_OBJECTS,
@@ -131,7 +194,7 @@ class VideoFramesFinder:
         object_count_field = f"{VideoFrameKeys.DETECTED_OBJECTS}.count"
         query = {
             ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.MUST: must_clauses},
+                ElasticsearchQueryKeys.BOOL: {ElasticsearchQueryKeys.FILTER: must_clauses},
             },
             ElasticsearchQueryKeys.SORT: [
                 {
@@ -148,6 +211,7 @@ class VideoFramesFinder:
                 },
             ],
             ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
+            ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)

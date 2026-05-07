@@ -2,6 +2,7 @@ from bot.handlers.administration.add_subscription_handler import AddSubscription
 from bot.handlers.administration.add_whitelist_handler import AddWhitelistHandler
 from bot.handlers.administration.admin_help_handler import AdminHelpHandler
 from bot.handlers.administration.create_key_handler import CreateKeyHandler
+from bot.handlers.administration.link_account_handler import LinkAccountHandler
 from bot.handlers.administration.list_admins_handler import ListAdminsHandler
 from bot.handlers.administration.list_keys_handler import ListKeysHandler
 from bot.handlers.administration.list_moderators_handler import ListModeratorsHandler

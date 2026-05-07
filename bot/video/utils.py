@@ -1,12 +1,25 @@
+import asyncio
 import os
 from pathlib import Path
 import subprocess
+from typing import List
 
 
 class FFMpegException(Exception):
     def __init__(self, stderr: str) -> None:
         self.message = f"FFMpeg error: {stderr}"
         super().__init__(self.message)
+
+
+async def run_ffmpeg_command(command: List[str]) -> None:
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await process.communicate()
+    if process.returncode != 0:
+        raise FFMpegException(stderr.decode())
 
 
 async def get_video_duration(file_path: Path) -> float:

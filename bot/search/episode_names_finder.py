@@ -6,11 +6,15 @@ from typing import (
     Optional,
 )
 
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_fuzzy_with_boost_query,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
+    EmbeddingKeys,
     EpisodeMetadataKeys,
 )
 from bot.utils.log import log_system_message
@@ -33,22 +37,13 @@ class EpisodeNamesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.MATCH: {
-                    EpisodeMetadataKeys.TITLE: {
-                        ElasticsearchQueryKeys.QUERY: title_query,
-                        ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
-                    },
-                },
-            },
-            ElasticsearchQueryKeys.SORT: [
-                {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
-            ],
-            ElasticsearchQueryKeys.SIZE: size,
-        }
+        query = build_fuzzy_with_boost_query(field=EpisodeMetadataKeys.TITLE, query=title_query)
+        query[ElasticsearchQueryKeys.SORT] = [
+            {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
+            {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
+        ]
+        query[ElasticsearchQueryKeys.SIZE] = size
 
         response = await es.search(index=_build_index(series_name), body=query)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
@@ -69,25 +64,32 @@ class EpisodeNamesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
+        query_filter: Dict[str, Any] = {"match_all": {}}
+        if exclude_season_0:
+            query_filter = {
+                ElasticsearchQueryKeys.BOOL: {
+                    ElasticsearchQueryKeys.MUST_NOT: [
+                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}},
+                    ],
+                },
+            }
+
         query = {
-            ElasticsearchQueryKeys.QUERY: {ElasticsearchQueryKeys.BOOL: {}},
+            ElasticsearchQueryKeys.QUERY: query_filter,
             ElasticsearchQueryKeys.SORT: [
                 {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
                 {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
+                {EmbeddingKeys.EPISODE_ID: ElasticsearchQueryKeys.ASC},
             ],
-            ElasticsearchQueryKeys.SIZE: 9999,
+            ElasticsearchQueryKeys.SOURCE: [
+                EmbeddingKeys.EPISODE_ID,
+                EpisodeMetadataKeys.EPISODE_METADATA,
+                EpisodeMetadataKeys.TITLE,
+            ],
         }
 
-        if exclude_season_0:
-            query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL] = {
-                ElasticsearchQueryKeys.MUST_NOT: [
-                    {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SEASON_FIELD: 0}},
-                ],
-            }
-
-        response = await es.search(index=_build_index(series_name), body=query)
-        hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
-        episodes = [h[ElasticsearchKeys.SOURCE] for h in hits]
+        hits = await ElasticSearchManager.search_all_hits(es, _build_index(series_name), query)
+        episodes: List[Dict[str, Any]] = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(logging.INFO, f"Found {len(episodes)} episodes.", logger)
         return episodes
 
@@ -104,7 +106,7 @@ class EpisodeNamesFinder:
 
         query = {
             ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.TERM: {"episode_id": episode_id},
+                ElasticsearchQueryKeys.TERM: {EmbeddingKeys.EPISODE_ID: episode_id},
             },
             ElasticsearchQueryKeys.SIZE: 1,
         }

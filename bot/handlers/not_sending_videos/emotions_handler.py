@@ -44,7 +44,7 @@ class EmotionsHandler(BotMessageHandler):
         emotions.sort(key=lambda e: e["label_pl"])
 
         response = format_emotions_list(emotions)
-        await self._reply(response)
+        await self._reply(response, data={"emotions": emotions})
         await self._log_system_message(
             logging.INFO,
             get_log_emotions_listed_message(len(emotions), self._message.get_username()),

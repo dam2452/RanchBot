@@ -1,9 +1,16 @@
 from typing import (
+    Any,
+    Dict,
     List,
     Optional,
+    Tuple,
 )
 
 from bot.responses.bot_response import BotResponse
+from bot.services.search_filter.filter_schema import (
+    FILTER_SCHEMA,
+    FilterKeySpec,
+)
 from bot.types import SearchFilter
 
 
@@ -11,10 +18,11 @@ def get_no_args_message() -> str:
     return BotResponse.usage(
         command="filtr",
         error_title="BRAK ARGUMENTÓW",
-        usage_syntax="[reset|info|<filtry>]",
+        usage_syntax="[reset|info|help|<filtry>]",
         params=[
             ("reset", "usuwa wszystkie aktywne filtry"),
             ("info", "wyświetla aktywne filtry"),
+            ("help", "lista wszystkich dostępnych kluczy filtra z aliasami i przykładami"),
             ("sezon:X", "filtr po sezonie (np. sezon:1, sezon:1-3, sezon:1,3,5)"),
             ("odcinek:X", "filtr po odcinku (np. odcinek:S01E05, odcinek:S01E03-S01E07)"),
             ("tytul:X", "filtr po tytule odcinka (fuzzy match)"),
@@ -56,6 +64,47 @@ def get_log_filter_set_message(chat_id: int) -> str:
 
 def get_log_filter_reset_message(chat_id: int) -> str:
     return f"Search filters reset for chat_id={chat_id}."
+
+
+def get_filter_help_message() -> str:
+    blocks = [__format_help_block(spec) for spec in FILTER_SCHEMA]
+    subcommands = (
+        "Subkomendy:\n"
+        "• /filtr reset — usuwa aktywne filtry\n"
+        "• /filtr info  — pokazuje aktywne filtry\n"
+        "• /filtr help  — ta strona"
+    )
+    body = "\n\n".join(blocks) + "\n\n" + subcommands
+    return BotResponse.info("POMOC - FILTRY", body)
+
+
+def get_filter_help_schema_json() -> List[Dict[str, Any]]:
+    return [__spec_to_json(spec) for spec in FILTER_SCHEMA]
+
+
+def __format_help_block(spec: FilterKeySpec) -> str:
+    aliases = ", ".join(spec.aliases) if spec.aliases else "(brak)"
+    examples = "\n    ".join(spec.examples)
+    extras: List[Tuple[str, str]] = [
+        ("Aliasy", aliases),
+        ("Format", spec.value_format),
+        ("Opis", spec.description_pl),
+    ]
+    if spec.list_command:
+        extras.append(("Lista wartości", spec.list_command))
+    extras_str = "\n  ".join(f"{name}: {val}" for name, val in extras)
+    return f"{spec.canonical}:\n  {extras_str}\n  Przykłady:\n    {examples}"
+
+
+def __spec_to_json(spec: FilterKeySpec) -> Dict[str, Any]:
+    return {
+        "canonical": spec.canonical,
+        "aliases": list(spec.aliases),
+        "value_format": spec.value_format,
+        "description_pl": spec.description_pl,
+        "examples": list(spec.examples),
+        "list_command": spec.list_command,
+    }
 
 
 def __format_filter(search_filter: SearchFilter) -> str:

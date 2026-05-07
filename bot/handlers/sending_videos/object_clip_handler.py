@@ -37,9 +37,6 @@ class ObjectClipHandler(BotMessageHandler):
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
-        active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
-        seasons = active_filter.get("seasons") if active_filter else None
-
         object_name = await ObjectFinder.find_best_matching_object(object_query, series_name, self._logger)
         if object_name is None:
             await self._reply_error(get_object_not_found_message(object_query))
@@ -49,7 +46,6 @@ class ObjectClipHandler(BotMessageHandler):
             class_name=object_name,
             series_name=series_name,
             logger=self._logger,
-            seasons=seasons,
         )
 
         if not scenes:

@@ -21,24 +21,32 @@
 - **`/adostosuj <przed> <po>`** / **`/ad`**: ⏳ Dostosowanie klipu (absolutnie).
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Dostosowanie klipu do granic scen.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównanie ostatniego klipu do cięć scen.
+- **`/klatka [numer]`** / **`/frame [numer]`** / **`/kl [numer]`**: 🖼️ Klatka kluczowa z ostatniego klipu.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Transkrypcja z kontekstem dla cytatu.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Kompilacja wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Kompilacja z zakresu klipów.
 - **`/kompiluj <numer1> <numer2> ...`** / **`/kom ...`**: 🎬 Kompilacja z wybranych klipów.
 - **`/polaczklipy <numer1> <numer2> ...`** / **`/pk ...`**: 🔗 Łączenie zapisanych klipów.
 - **`/zapisz <nazwa>`** / **`/z <nazwa>`**: 💾 Zapisanie klipu.
-- **`/mojeklipy`** / **`/mk`**: 📂 Twoje klipy.
+- **`/mojeklipy [serial]`** / **`/mk [serial]`**: 📂 Twoje klipy.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyłanie klipu.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usunięcie klipu.
-- **`/filtr <filtry>`** / **`/filter`** / **`/f`**: 🔎 Ustawianie filtrów wyszukiwania.
+- **`/filtr <filtry>`** / **`/filter`** / **`/f`**: 🔎 Ustawianie filtrów wyszukiwania (działa TYLKO z komendami z sufiksem `filtr`/`filter`/`f`: `/kf`, `/szf`).
 - **`/filtr reset`**: 🔄 Resetowanie filtrów.
 - **`/filtr info`**: ℹ️ Wyświetlanie aktywnych filtrów.
+- **`/filtr help`**: 📖 Lista wszystkich dostępnych kluczy filtra z aliasami i przykładami.
+- **`/klipfiltr`** / **`/kf`**: 🎬 Klip na podstawie aktywnego filtra (bez cytatu).
+- **`/szukajfiltr`** / **`/szf`**: 🔎 Lista scen pasujących do aktywnego filtra (bez cytatu).
 - **`/postacie`** / **`/characters`** / **`/p`**: 👤 Przeglądanie postaci i scen.
 - **`/klippostac <postac> [emocja]`** / **`/kp`**: 🎭 Klip z postacią (i opcjonalnie emocją).
 - **`/klipobiekt <obiekt>`** / **`/ko`**: 🎯 Klip z danym obiektem.
 - **`/emocje`** / **`/emotion`** / **`/e`**: 😊 Lista dostępnych emocji.
 - **`/obiekt`** / **`/object`** / **`/obj`**: 🎯 Przeglądanie scen z obiektami.
 - **`/objl`** / **`/objlista`**: 🎯 Pełna lista obiektów lub scen (jako dokument).
+- **`/link <kod>`**: 🔗 Powiązanie konta Telegram z kontem REST.
+- **`/kodkonta`** / **`/accountcode`**: 🔑 Generowanie kodu do założenia konta w REST API dla istniejącego konta Telegram.
+- **`/zapisznumer <numer> [odstep_l odstep_p] <nazwa>`** / **`/zn`**: 💾 Zapisanie klipu z wyników wyszukiwania po numerze.
+- **`/klatkaklipu <nazwa_lub_numer> [klatka]`** / **`/kk`**: 🖼️ Klatka kluczowa z zapisanego klipu.
 - **`/subskrypcja`** / **`/sub`**: 🔔 Status subskrypcji.
 - **`/report <opis>`** / **`/r <opis>`**: ⚠️ Zgłaszanie problemu.
 - **`/serial <nazwa_serialu>`** / **`/ser <nazwa_serialu>`**: 📺 Zmiana aktywnego serialu.
@@ -74,24 +82,28 @@
 - **`/adostosuj [numer_klipu] <przed> <po>`** / **`/ad`**: ⏳ Dostosowuje klip ABSOLUTNIE (względem oryginału). Przykład: `/adostosuj -5.5 1.2`.
 - **`/sdostosuj <n_przed> <n_po>`** / **`/sd`**: 🎬 Rozszerza klip o podaną liczbę cięć scen w każdą stronę. Przykład: `/sdostosuj 1 2`.
 - **`/snap`** / **`/dopasuj`** / **`/sp`**: 🎯 Wyrównuje ostatni klip do najbliższych cięć scen. Bez zmiany → informuje.
+- **`/klatka [numer_wyniku] [klatka]`** / **`/frame`** / **`/kl`**: 🖼️ Zwraca klatkę kluczową jako obraz JPEG. `numer_wyniku` (1-5, domyślnie 1) — wynik z `/szukaj`; bez aktywnego wyszukiwania używa ostatniego klipu. `klatka` — selektor: `0`/`p`/`pierwsza` = pierwsza, `-1`/`o`/`ostatnia` = ostatnia, dowolna liczba całkowita (0-based, ujemne liczą od końca). Przykłady: `/klatka` · `/klatka 3` · `/klatka 2 ostatnia` · `/klatka 1 -2`.
 - **`/transkrypcja <cytat>`** / **`/t <cytat>`**: 📝 Wyświetla transkrypcję z kontekstem dla znalezionego cytatu. Przykład: `/transkrypcja geniusz`.
 - **`/kompiluj wszystko`** / **`/kom wszystko`**: 🎬 Tworzy kompilację ze wszystkich klipów.
 - **`/kompiluj <zakres>`** / **`/kom <zakres>`**: 🎬 Tworzy kompilację z zakresu klipów. Przykład: `/kompiluj 1-4`.
 - **`/kompiluj <numer1> <numer2> ...`** / **`/kom ...`**: 🎬 Tworzy kompilację z wybranych klipów. Przykład: `/kompiluj 1 5 7`.
 - **`/polaczklipy <numer1> <numer2> ...`** / **`/pk ...`**: 🔗 Łączy zapisane klipy w jeden. Przykład: `/polaczklipy 4 2 3`.
 - **`/zapisz <nazwa>`** / **`/z <nazwa>`**: 💾 Zapisuje wybrany klip z podaną nazwą. Przykład: `/zapisz moj_klip`.
-- **`/mojeklipy`** / **`/mk`**: 📂 Wyświetla listę zapisanych klipów.
+- **`/mojeklipy [serial]`** / **`/mk [serial]`**: 📂 Wyświetla listę zapisanych klipów ze wszystkich seriali. Z parametrem `serial` filtruje tylko do serialu ustawionego przez `/serial`.
 - **`/wyslij <nazwa>`** / **`/wys <nazwa>`**: 📤 Wysyła zapisany klip o podanej nazwie. Przykład: `/wyslij moj_klip`.
 - **`/usunklip <nazwa_klipu>`** / **`/uk <nazwa_klipu>`**: 🗑️ Usuwa zapisany klip o podanej nazwie. Przykład: `/uk moj_klip`.
-- **`/filtr <filtry>`** / **`/filter <filtry>`** / **`/f <filtry>`**: 🔎 Ustawia filtry wyszukiwania (działają na wszystkie komendy wyszukiwania). Przykład: `/filtr sezon:2 postac:Pawlak`.
+- **`/filtr <filtry>`** / **`/filter <filtry>`** / **`/f <filtry>`**: 🔎 Ustawia filtry wyszukiwania. **Zakres filtra:** działa WYŁĄCZNIE z dedykowanymi komendami „filter-aware" (`/klipfiltr`/`/kf`, `/szukajfiltr`/`/szf`). Pozostałe komendy (`/k`, `/sz`, `/kp`, `/szp`, `/ko`, `/szo`, `/sens`, `/sensk`, `/senso`, `/klipsens`, `/transkrypcja`, `/postacie`, `/obiekt`) filtr IGNORUJĄ — pracują wyłącznie na swoich argumentach. Przykład: `/filtr sezon:2 postac:Pawlak`.
 - **`/filtr reset`**: 🔄 Usuwa wszystkie aktywne filtry.
 - **`/filtr info`**: ℹ️ Wyświetla aktywne filtry. Filtry wygasają po 1h nieaktywności.
-  - `sezon:X` – filtr po sezonie (np. `sezon:2`, `sezon:1-3`, `sezon:1,3,5`)
-  - `odcinek:X` – filtr po odcinku (np. `odcinek:S01E05`, `odcinek:S01E03-S01E07`)
-  - `tytul:X` – filtr po tytule odcinka (fuzzy match)
-  - `postac:X` – postać widoczna na scenie (np. `postac:Pawlak`, `postac:Pawlak,Kusy`)
-  - `emocja:X` – emocja postaci na scenie (np. `emocja:radosny`)
-  - `obiekt:X` – obiekt na scenie z opcjonalnym filtrem ilości (np. `obiekt:krzeslo`, `obiekt:krzeslo>3`)
+- **`/filtr help`** (aliasy: `/filtr pomoc`, `/filtr ?`): 📖 Lista wszystkich kluczy filtra wraz z aliasami, formatem wartości, opisem i przykładami. W REST API zwraca `data.schema` (tablica obiektów).
+  - `sezon:X` (aliasy: `season`, `s`) – filtr po sezonie (np. `sezon:2`, `sezon:1-3`, `sezon:1,3,5`)
+  - `odcinek:X` (aliasy: `episode`, `ep`) – filtr po odcinku (np. `odcinek:S01E05`, `odcinek:S01E03-S01E07`)
+  - `tytul:X` (aliasy: `title`, `t`) – filtr po tytule odcinka (fuzzy match)
+  - `postac:X` (aliasy: `character`, `p`) – postać widoczna na scenie (np. `postac:Pawlak`, `postac:Pawlak,Kusy`)
+  - `emocja:X` (aliasy: `emotion`, `e`) – emocja postaci na scenie (np. `emocja:radosny`)
+  - `obiekt:X` (aliasy: `object`, `obj`, `o`) – obiekt na scenie z opcjonalnym filtrem ilości (np. `obiekt:krzeslo`, `obiekt:krzeslo>3`)
+- **`/klipfiltr`** / **`/clipfilter`** / **`/kf`**: 🎬 Wysyła klip na podstawie aktywnego filtra. Może przyjmować opcjonalny cytat (działa wtedy jak `/k`, ale z nałożonymi filtrami). Przykład: `/kf wina wójta`.
+- **`/szukajfiltr`** / **`/searchfilter`** / **`/szf`**: 🔎 Zwraca listę segmentów pasujących do aktywnego filtra. Może przyjmować opcjonalny cytat (działa wtedy jak `/sz`, ale z nałożonymi filtrami). Przykład: `/szf wina wójta`. Wyniki zapisane w `last_search`, dostępne dla `/wybierz` i `/lista`.
 - **`/postacie`** / **`/p`**: 👤 Wyświetla listę wszystkich postaci z liczbą odcinków.
 - **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/p Wilkowyska radosny`.
@@ -107,6 +119,10 @@
 - **`/objl`**: 🎯 Pełna lista wszystkich obiektów (jako dokument).
 - **`/objl <nazwa>`**: 🎯 Pełna lista scen z danym obiektem (jako dokument).
 - **`/objl <nazwa> <filtr>`**: 🎯 Pełna lista scen z filtrem (jako dokument).
+- **`/link <kod>`**: 🔗 Powiązuje konto Telegram z kontem REST przy użyciu kodu weryfikacyjnego. Kod generuje REST API (strona www). Używane gdy masz juz konto REST i chcesz przypiąć do niego Telegram. Przykład: `/link abc123`.
+- **`/kodkonta`** / **`/accountcode`**: 🔑 Generuje jednorazowy kod (ważny 30 minut) do założenia konta REST API dla istniejącego konta Telegram. Używane gdy masz konto w bocie (przez Telegram) i chcesz dorobić login/hasło do strony www. Kod wpisz na stronie podczas rejestracji zamiast standardowego formularza.
+- **`/zapisznumer <numer> <nazwa>`** / **`/zn <numer> <nazwa>`**: 💾 Zapisuje klip o podanym numerze z ostatnich wyników wyszukiwania. Opcjonalnie z dostosowaniem granic: `/zn <numer> <odstep_l> <odstep_p> <nazwa>`. Przykład: `/zn 2 moj_klip`.
+- **`/klatkaklipu <nazwa_lub_numer> [klatka]`** / **`/kk <nazwa_lub_numer>`**: 🖼️ Zwraca klatkę kluczową z zapisanego klipu. `nazwa_lub_numer` — nazwa klipu lub jego numer z `/mojeklipy`. `klatka` — selektor jak w `/klatka`. Przykład: `/kk moj_klip` · `/kk 1 ostatnia`.
 - **`/subskrypcja`** / **`/sub`**: 🔔 Sprawdza stan Twojej subskrypcji.
 - **`/report <opis_problemu>`** / **`/r <opis>`**: ⚠️ Zgłasza problem do administratorów.
 - **`/serial <nazwa_serialu>`** / **`/ser <nazwa_serialu>`**: 📺 Zmienia aktywny serial dla użytkownika. Przykład: `/serial ranczo`.

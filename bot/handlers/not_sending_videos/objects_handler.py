@@ -63,13 +63,10 @@ class ObjectsHandler(BotMessageHandler):
 
         if not args:
             await self.__handle_list_mode(series_name, is_full)
+        elif len(args) == 1:
+            await self.__handle_object_mode(args[0], series_name, is_full)
         else:
-            active_filter = await DatabaseManager.get_and_touch_user_filters(self._message.get_chat_id())
-            seasons = active_filter.get("seasons") if active_filter else None
-            if len(args) == 1:
-                await self.__handle_object_mode(args[0], series_name, is_full, seasons)
-            else:
-                await self.__handle_object_filter_mode(args[0], args[1], series_name, is_full, seasons)
+            await self.__handle_object_filter_mode(args[0], args[1], series_name, is_full)
 
     async def __handle_list_mode(self, series_name: str, is_full: bool) -> None:
         objects = await ObjectFinder.get_all_objects(series_name=series_name, logger=self._logger)
@@ -83,7 +80,7 @@ class ObjectsHandler(BotMessageHandler):
                 "Pełna lista obiektów",
             )
         else:
-            await self._reply(format_objects_list(objects))
+            await self._reply(format_objects_list(objects), data={"objects": objects})
         await self._log_system_message(
             logging.INFO,
             get_log_objects_list_message(len(objects), self._message.get_username()),
@@ -94,7 +91,6 @@ class ObjectsHandler(BotMessageHandler):
         query: str,
         series_name: str,
         is_full: bool,
-        seasons: Optional[List[int]] = None,
     ) -> None:
         class_name = await self.__resolve_object_class(query, series_name)
         if class_name is None:
@@ -103,7 +99,6 @@ class ObjectsHandler(BotMessageHandler):
             class_name=class_name,
             series_name=series_name,
             logger=self._logger,
-            seasons=seasons,
         )
         await self.__save_scenes_to_last_search(scenes, class_name)
         if is_full:
@@ -125,7 +120,6 @@ class ObjectsHandler(BotMessageHandler):
         qty_raw: str,
         series_name: str,
         is_full: bool,
-        seasons: Optional[List[int]] = None,
     ) -> None:
         qty_filter = ObjectsHandler.__parse_quantity_filter(qty_raw)
         if qty_filter is None:
@@ -138,7 +132,6 @@ class ObjectsHandler(BotMessageHandler):
             class_name=class_name,
             series_name=series_name,
             logger=self._logger,
-            seasons=seasons,
         )
         filtered = ObjectFinder.apply_quantity_filter(scenes, qty_filter)
         await self.__save_scenes_to_last_search(filtered, class_name, qty_raw)

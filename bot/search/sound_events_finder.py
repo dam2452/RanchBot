@@ -6,9 +6,13 @@ from typing import (
     Optional,
 )
 
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_fuzzy_with_boost_query,
+)
 from bot.settings import settings
 from bot.utils.constants import (
+    ElasticsearchAggregationKeys,
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
     ElasticsearchQueryKeys,
@@ -24,6 +28,16 @@ def _build_index(series_name: str) -> str:
 
 
 class SoundEventsFinder:
+    __SOUND_SEGMENT_SOURCE_FIELDS = [
+        EpisodeMetadataKeys.EPISODE_METADATA,
+        SegmentKeys.SEGMENT_ID,
+        SegmentKeys.TEXT,
+        SegmentKeys.START_TIME,
+        SegmentKeys.END_TIME,
+        SegmentKeys.VIDEO_PATH,
+        SoundEventKeys.SOUND_TYPE,
+    ]
+
     @staticmethod
     async def get_all_sound_types(
         series_name: str,
@@ -37,7 +51,7 @@ class SoundEventsFinder:
         query = {
             ElasticsearchQueryKeys.SIZE: 0,
             ElasticsearchQueryKeys.AGGS: {
-                "sound_types": {
+                ElasticsearchAggregationKeys.SOUND_TYPES: {
                     ElasticsearchQueryKeys.TERMS: {
                         ElasticsearchQueryKeys.FIELD: SoundEventKeys.SOUND_TYPE,
                         ElasticsearchQueryKeys.SIZE: 100,
@@ -48,7 +62,7 @@ class SoundEventsFinder:
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
-        buckets = response[ElasticsearchKeys.AGGREGATIONS]["sound_types"][ElasticsearchKeys.BUCKETS]
+        buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.SOUND_TYPES][ElasticsearchKeys.BUCKETS]
         sound_types = [b[ElasticsearchKeys.KEY] for b in buckets]
         await log_system_message(logging.INFO, f"Found {len(sound_types)} sound types.", logger)
         return sound_types
@@ -66,7 +80,7 @@ class SoundEventsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        filter_clauses = [
+        filter_clauses: List[Dict[str, Any]] = [
             {ElasticsearchQueryKeys.TERM: {SoundEventKeys.SOUND_TYPE: sound_type}},
         ]
         if season_filter is not None:
@@ -84,6 +98,7 @@ class SoundEventsFinder:
                 {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
             ],
             ElasticsearchQueryKeys.SIZE: settings.MAX_ES_RESULTS_LONG,
+            ElasticsearchQueryKeys.SOURCE: SoundEventsFinder.__SOUND_SEGMENT_SOURCE_FIELDS,
         }
 
         response = await es.search(index=_build_index(series_name), body=query)
@@ -106,23 +121,15 @@ class SoundEventsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.MATCH: {
-                    SoundEventKeys.TEXT: {
-                        ElasticsearchQueryKeys.QUERY: text_query,
-                        ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
-                    },
-                },
-            },
-            ElasticsearchQueryKeys.SORT: [
-                {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
-                {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
-            ],
-            ElasticsearchQueryKeys.SIZE: size,
-        }
+        query = build_fuzzy_with_boost_query(field=SoundEventKeys.TEXT, query=text_query)
+        query[ElasticsearchQueryKeys.SORT] = [
+            {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
+            {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
+            {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
+        ]
+        query[ElasticsearchQueryKeys.SIZE] = size
+        query[ElasticsearchQueryKeys.SOURCE] = SoundEventsFinder.__SOUND_SEGMENT_SOURCE_FIELDS
 
         response = await es.search(index=_build_index(series_name), body=query)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]

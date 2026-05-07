@@ -373,8 +373,8 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         )
 
     @staticmethod
-    async def get_saved_clips(user_id: int, series_id: Optional[int] = None) -> List[VideoClip]:
-        resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
+    async def get_saved_clips(user_id: int, series_id: Optional[int] = None, all_series: bool = False) -> List[VideoClip]:
+        resolved_series_id = None if all_series else await DatabaseManager.__resolve_series_id(user_id, series_id)
 
         async with DatabaseManager.__get_db_connection() as conn:
             if resolved_series_id:
@@ -399,6 +399,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             chat_id: int, user_id: int, clip_name: str, video_data: bytes, start_time: float,
             end_time: float, duration: float, is_compilation: bool,
             season: Optional[int] = None, episode_number: Optional[int] = None, series_id: Optional[int] = None,
+            thumbnail_data: Optional[bytes] = None,
     ) -> None:
         resolved_series_id = await DatabaseManager.__resolve_series_id(user_id, series_id)
 
@@ -406,10 +407,10 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             async with conn.transaction():
                 await conn.execute(
                     "INSERT INTO video_clips (chat_id, user_id, clip_name, video_data, start_time, "
-                    "end_time, duration, season, episode_number, is_compilation, series_id) "
-                    "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11)",
+                    "end_time, duration, season, episode_number, is_compilation, series_id, thumbnail_data) "
+                    "VALUES ($1, $2, $3, $4::bytea, $5, $6, $7, $8, $9, $10, $11, $12::bytea)",
                     chat_id, user_id, clip_name, video_data, start_time, end_time, duration,
-                    season, episode_number, is_compilation, resolved_series_id,
+                    season, episode_number, is_compilation, resolved_series_id, thumbnail_data,
                 )
 
     @staticmethod
@@ -447,6 +448,15 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
         async with DatabaseManager.__get_db_connection() as conn:
             result = await conn.fetchval(
                 "SELECT video_data FROM video_clips WHERE user_id = $1 AND clip_name = $2",
+                user_id, clip_name,
+            )
+        return result
+
+    @staticmethod
+    async def get_thumbnail_by_name(user_id: int, clip_name: str) -> Optional[bytes]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            result = await conn.fetchval(
+                "SELECT thumbnail_data FROM video_clips WHERE user_id = $1 AND clip_name = $2",
                 user_id, clip_name,
             )
         return result
@@ -1073,7 +1083,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
     async def get_user_filters(chat_id: int) -> Optional[SearchFilter]:
         async with DatabaseManager.__get_db_connection() as conn:
             row = await conn.fetchrow(
-                "SELECT filters FROM user_search_filters WHERE chat_id = $1",
+                """
+                WITH expired AS (
+                    DELETE FROM user_search_filters
+                    WHERE chat_id = $1 AND last_used_at < NOW() - INTERVAL '1 hour'
+                    RETURNING chat_id
+                )
+                SELECT filters FROM user_search_filters WHERE chat_id = $1
+                """,
                 chat_id,
             )
             if row is None:
@@ -1105,7 +1122,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                     INSERT INTO user_search_filters (chat_id, filters, last_used_at)
                     VALUES ($1, $2::jsonb, CURRENT_TIMESTAMP)
                     ON CONFLICT (chat_id) DO UPDATE
-                    SET filters = user_search_filters.filters || $2::jsonb,
+                    SET filters = $2::jsonb,
                         last_used_at = CURRENT_TIMESTAMP
                     """,
                     chat_id, json.dumps(filters),
@@ -1118,4 +1135,150 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 await conn.execute(
                     "DELETE FROM user_search_filters WHERE chat_id = $1",
                     chat_id,
+                )
+
+    @staticmethod
+    async def get_user_profile_by_username(username: str) -> Optional[Tuple[UserProfile, bool]]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT up.user_id, up.username, up.full_name, up.subscription_end, up.note,
+                       EXISTS(SELECT 1 FROM user_credentials WHERE user_id = up.user_id) AS has_credentials
+                FROM user_profiles up
+                WHERE up.username = $1
+                """,
+                username,
+            )
+            if row:
+                profile = UserProfile(
+                    user_id=row[DatabaseKeys.USER_ID],
+                    username=row[DatabaseKeys.USERNAME],
+                    full_name=row[DatabaseKeys.FULL_NAME],
+                    subscription_end=row[DatabaseKeys.SUBSCRIPTION_END],
+                    note=row[DatabaseKeys.NOTE],
+                )
+                return profile, row["has_credentials"]
+            return None
+
+    @staticmethod
+    async def create_rest_user(username: str, password: str, full_name: Optional[str] = None) -> UserProfile:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                user_id = await conn.fetchval("SELECT nextval('rest_user_id_seq')")
+                salt = bcrypt.gensalt()
+                hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
+                await conn.execute(
+                    "INSERT INTO user_profiles (user_id, username, full_name) VALUES ($1, $2, $3)",
+                    user_id, username, full_name,
+                )
+                await conn.execute(
+                    "INSERT INTO user_credentials (user_id, hashed_password) VALUES ($1, $2)",
+                    user_id, hashed_password,
+                )
+                return UserProfile(user_id=user_id, username=username, full_name=full_name)
+
+    @staticmethod
+    async def update_user_password(user_id: int, new_password: str) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode("utf-8")
+            await conn.execute(
+                """
+                INSERT INTO user_credentials (user_id, hashed_password)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id) DO UPDATE SET hashed_password = EXCLUDED.hashed_password
+                """,
+                user_id, hashed_password,
+            )
+
+    @staticmethod
+    async def store_verification_token(user_id: int, token: str, purpose: str, expires_at: datetime) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO verification_tokens (user_id, token, purpose, expires_at)
+                VALUES ($1, $2, $3, $4)
+                """,
+                user_id, token, purpose, expires_at,
+            )
+
+    @staticmethod
+    async def consume_verification_token(token: str, purpose: str) -> Optional[int]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """
+                    SELECT id, user_id FROM verification_tokens
+                    WHERE token = $1 AND purpose = $2 AND used_at IS NULL AND expires_at > NOW()
+                    """,
+                    token, purpose,
+                )
+                if not row:
+                    return None
+                await conn.execute(
+                    "UPDATE verification_tokens SET used_at = NOW() WHERE id = $1",
+                    row["id"],
+                )
+                return row["user_id"]
+
+    @staticmethod
+    async def remove_credentials(user_id: int) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                "DELETE FROM user_credentials WHERE user_id = $1",
+                user_id,
+            )
+
+    @staticmethod
+    async def has_credentials(user_id: int) -> bool:
+        async with DatabaseManager.__get_db_connection() as conn:
+            return await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM user_credentials WHERE user_id = $1)",
+                user_id,
+            )
+
+    @staticmethod
+    async def attach_rest_credentials(user_id: int, username: str, password: str) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                salt = bcrypt.gensalt()
+                hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+                await conn.execute(
+                    "UPDATE user_profiles SET username = $1 WHERE user_id = $2",
+                    username, user_id,
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO user_credentials (user_id, hashed_password)
+                    VALUES ($1, $2)
+                    ON CONFLICT (user_id) DO UPDATE SET hashed_password = EXCLUDED.hashed_password
+                    """,
+                    user_id, hashed_password,
+                )
+
+    @staticmethod
+    async def link_telegram_account(rest_user_id: int, telegram_user_id: int, telegram_username: Optional[str], telegram_full_name: Optional[str]) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    UPDATE user_credentials
+                    SET user_id = $1
+                    WHERE user_id = $2
+                    """,
+                    telegram_user_id, rest_user_id,
+                )
+                await conn.execute(
+                    """
+                    UPDATE user_profiles
+                    SET username = COALESCE($1, username),
+                        full_name = COALESCE($2, full_name)
+                    WHERE user_id = $3
+                    """,
+                    telegram_username, telegram_full_name, telegram_user_id,
+                )
+                await conn.execute(
+                    "DELETE FROM user_profiles WHERE user_id = $1",
+                    rest_user_id,
                 )

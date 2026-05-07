@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import difflib
 import json
 import logging
+import re
 from typing import (
     Dict,
     List,
@@ -174,10 +175,30 @@ def format_user_list(users: List[UserProfile], title: str) -> str:
     response += "```\n" + "\n\n".join(user_lines) + "\n```"
     return response
 
+def escape_markdown_v2(text: str) -> str:
+    return re.sub(r"([_*\[\]()~`>#+\-=|{}.!\\])", r"\\\1", text)
+
+
 def remove_diacritics_and_lowercase(text):
     normalized_text = unicodedata.normalize('NFKD', text)
     cleaned_text = ''.join([char for char in normalized_text if not unicodedata.combining(char)])
     return cleaned_text.lower()
+
+
+_FRAME_FIRST_ALIASES: frozenset = frozenset({"p", "pierwsza", "first"})
+_FRAME_LAST_ALIASES: frozenset = frozenset({"o", "ostatnia", "last"})
+
+
+def parse_frame_selector(raw: str) -> Optional[int]:
+    lower = raw.lower()
+    if lower in _FRAME_FIRST_ALIASES:
+        return 0
+    if lower in _FRAME_LAST_ALIASES:
+        return -1
+    try:
+        return int(raw)
+    except ValueError:
+        return None
 
 
 def find_matching_series(query: str, available_series: List[str]) -> Optional[str]:
