@@ -117,6 +117,8 @@ class ElasticsearchQueryKeys:
     LTE: Final[str] = "lte"
     SEARCH_AFTER: Final[str] = "search_after"
     COMPOSITE: Final[str] = "composite"
+    MATCH_PHRASE: Final[str] = "match_phrase"
+    BOOST: Final[str] = "boost"
     SOURCES: Final[str] = "sources"
     AFTER: Final[str] = "after"
     AFTER_KEY: Final[str] = "after_key"

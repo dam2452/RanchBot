@@ -205,6 +205,25 @@ class TextSegmentsFinder:
                             },
                         },
                     },
+                    ElasticsearchQueryKeys.SHOULD: [
+                        {
+                            ElasticsearchQueryKeys.MATCH_PHRASE: {
+                                SegmentKeys.TEXT: {
+                                    ElasticsearchQueryKeys.QUERY: quote,
+                                    ElasticsearchQueryKeys.BOOST: 3.0,
+                                },
+                            },
+                        },
+                        {
+                            ElasticsearchQueryKeys.MATCH: {
+                                SegmentKeys.TEXT: {
+                                    ElasticsearchQueryKeys.QUERY: quote,
+                                    ElasticsearchQueryKeys.FUZZINESS: 0,
+                                    ElasticsearchQueryKeys.BOOST: 1.5,
+                                },
+                            },
+                        },
+                    ],
                     ElasticsearchQueryKeys.FILTER: [
                         {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
                     ],
