@@ -60,6 +60,51 @@ def build_bool_must_query(
     }
 
 
+def build_fuzzy_with_boost_query(
+    field: str,
+    query: str,
+    filter_clauses: Optional[List[Dict[str, Any]]] = None,
+    exact_phrase_boost: float = 3.0,
+    exact_match_boost: float = 1.5,
+) -> Dict[str, Any]:
+    bool_clause: Dict[str, Any] = {
+        ElasticsearchQueryKeys.MUST: {
+            ElasticsearchQueryKeys.MATCH: {
+                field: {
+                    ElasticsearchQueryKeys.QUERY: query,
+                    ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
+                },
+            },
+        },
+        ElasticsearchQueryKeys.SHOULD: [
+            {
+                ElasticsearchQueryKeys.MATCH_PHRASE: {
+                    field: {
+                        ElasticsearchQueryKeys.QUERY: query,
+                        ElasticsearchQueryKeys.BOOST: exact_phrase_boost,
+                    },
+                },
+            },
+            {
+                ElasticsearchQueryKeys.MATCH: {
+                    field: {
+                        ElasticsearchQueryKeys.QUERY: query,
+                        ElasticsearchQueryKeys.FUZZINESS: 0,
+                        ElasticsearchQueryKeys.BOOST: exact_match_boost,
+                    },
+                },
+            },
+        ],
+    }
+    if filter_clauses:
+        bool_clause[ElasticsearchQueryKeys.FILTER] = filter_clauses
+    return {
+        ElasticsearchQueryKeys.QUERY: {
+            ElasticsearchQueryKeys.BOOL: bool_clause,
+        },
+    }
+
+
 def build_episode_restriction_filter(
     episode_keys: Iterable[Tuple[int, int]],
 ) -> Optional[Dict[str, Any]]:

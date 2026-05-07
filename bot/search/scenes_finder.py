@@ -8,6 +8,7 @@ from typing import (
 
 from bot.responses.not_sending_videos.emotions_handler_responses import map_emotion_to_en
 from bot.search.filter_applicator import _build_season_episode_clauses
+from bot.search.infra.elastic_search_manager import build_fuzzy_with_boost_query
 from bot.settings import settings
 from bot.types import (
     SearchFilter,
@@ -165,28 +166,16 @@ class ScenesFinder:
     ) -> List[SegmentWithScore]:
         filter_clauses = ScenesFinder._build_filter_clauses(search_filter) if search_filter else []
 
-        query: Dict[str, Any] = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: [
-                        {
-                            ElasticsearchQueryKeys.MATCH: {
-                                "text": {
-                                    ElasticsearchQueryKeys.QUERY: quote,
-                                    ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
-                                },
-                            },
-                        },
-                    ],
-                    ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
-                        *filter_clauses,
-                    ],
-                },
-            },
-            ElasticsearchQueryKeys.SORT: ScenesFinder._build_text_sort(),
-            ElasticsearchQueryKeys.SOURCE: ScenesFinder.__SOURCE_FIELDS,
-        }
+        query: Dict[str, Any] = build_fuzzy_with_boost_query(
+            field=SegmentKeys.TEXT,
+            query=quote,
+            filter_clauses=[
+                {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
+                *filter_clauses,
+            ],
+        )
+        query[ElasticsearchQueryKeys.SORT] = ScenesFinder._build_text_sort()
+        query[ElasticsearchQueryKeys.SOURCE] = ScenesFinder.__SOURCE_FIELDS
 
         response = await es.search(index=ScenesFinder._index(series_name), body=query, size=size)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]

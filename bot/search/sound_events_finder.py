@@ -6,7 +6,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_fuzzy_with_boost_query,
+)
 from bot.settings import settings
 from bot.utils.constants import (
     ElasticsearchAggregationKeys,
@@ -118,24 +121,15 @@ class SoundEventsFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.MATCH: {
-                    SoundEventKeys.TEXT: {
-                        ElasticsearchQueryKeys.QUERY: text_query,
-                        ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
-                    },
-                },
-            },
-            ElasticsearchQueryKeys.SORT: [
-                {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
-                {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
-            ],
-            ElasticsearchQueryKeys.SIZE: size,
-            ElasticsearchQueryKeys.SOURCE: SoundEventsFinder.__SOUND_SEGMENT_SOURCE_FIELDS,
-        }
+        query = build_fuzzy_with_boost_query(field=SoundEventKeys.TEXT, query=text_query)
+        query[ElasticsearchQueryKeys.SORT] = [
+            {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
+            {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
+            {SegmentKeys.START_TIME: ElasticsearchQueryKeys.ASC},
+        ]
+        query[ElasticsearchQueryKeys.SIZE] = size
+        query[ElasticsearchQueryKeys.SOURCE] = SoundEventsFinder.__SOUND_SEGMENT_SOURCE_FIELDS
 
         response = await es.search(index=_build_index(series_name), body=query)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]

@@ -6,7 +6,10 @@ from typing import (
     Optional,
 )
 
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_fuzzy_with_boost_query,
+)
 from bot.utils.constants import (
     ElasticsearchIndexSuffixes,
     ElasticsearchKeys,
@@ -34,22 +37,13 @@ class EpisodeNamesFinder:
         )
         es = await ElasticSearchManager.connect_to_elasticsearch(logger)
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.MATCH: {
-                    EpisodeMetadataKeys.TITLE: {
-                        ElasticsearchQueryKeys.QUERY: title_query,
-                        ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
-                    },
-                },
-            },
-            ElasticsearchQueryKeys.SORT: [
-                {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
-                {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
-                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
-            ],
-            ElasticsearchQueryKeys.SIZE: size,
-        }
+        query = build_fuzzy_with_boost_query(field=EpisodeMetadataKeys.TITLE, query=title_query)
+        query[ElasticsearchQueryKeys.SORT] = [
+            {ElasticsearchKeys.SCORE: ElasticsearchQueryKeys.DESC},
+            {EpisodeMetadataKeys.SEASON_FIELD: ElasticsearchQueryKeys.ASC},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: ElasticsearchQueryKeys.ASC},
+        ]
+        query[ElasticsearchQueryKeys.SIZE] = size
 
         response = await es.search(index=_build_index(series_name), body=query)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]

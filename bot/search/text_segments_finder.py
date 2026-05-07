@@ -13,6 +13,7 @@ from bot.search.filter_applicator import FilterApplicator
 from bot.search.infra.elastic_search_manager import (
     ElasticSearchManager,
     build_episode_restriction_filter,
+    build_fuzzy_with_boost_query,
 )
 from bot.settings import settings
 from bot.types import (
@@ -194,49 +195,20 @@ class TextSegmentsFinder:
 
         index = f"{series_name}{ElasticsearchIndexSuffixes.TEXT_SEGMENTS}"
 
-        query = {
-            ElasticsearchQueryKeys.QUERY: {
-                ElasticsearchQueryKeys.BOOL: {
-                    ElasticsearchQueryKeys.MUST: {
-                        ElasticsearchQueryKeys.MATCH: {
-                            SegmentKeys.TEXT: {
-                                ElasticsearchQueryKeys.QUERY: quote,
-                                ElasticsearchQueryKeys.FUZZINESS: ElasticsearchQueryKeys.AUTO,
-                            },
-                        },
-                    },
-                    ElasticsearchQueryKeys.SHOULD: [
-                        {
-                            ElasticsearchQueryKeys.MATCH_PHRASE: {
-                                SegmentKeys.TEXT: {
-                                    ElasticsearchQueryKeys.QUERY: quote,
-                                    ElasticsearchQueryKeys.BOOST: 3.0,
-                                },
-                            },
-                        },
-                        {
-                            ElasticsearchQueryKeys.MATCH: {
-                                SegmentKeys.TEXT: {
-                                    ElasticsearchQueryKeys.QUERY: quote,
-                                    ElasticsearchQueryKeys.FUZZINESS: 0,
-                                    ElasticsearchQueryKeys.BOOST: 1.5,
-                                },
-                            },
-                        },
-                    ],
-                    ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
-                    ],
-                },
-            },
-            ElasticsearchQueryKeys.SORT: [
-                {ElasticsearchKeys.SCORE: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC}},
-                {EpisodeMetadataKeys.SEASON_FIELD: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
-                {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
-                {SegmentKeys.START_TIME: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
+        query = build_fuzzy_with_boost_query(
+            field=SegmentKeys.TEXT,
+            query=quote,
+            filter_clauses=[
+                {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
             ],
-            ElasticsearchQueryKeys.SOURCE: TextSegmentsFinder.__TEXT_SEGMENT_SOURCE_FIELDS,
-        }
+        )
+        query[ElasticsearchQueryKeys.SORT] = [
+            {ElasticsearchKeys.SCORE: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.DESC}},
+            {EpisodeMetadataKeys.SEASON_FIELD: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
+            {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
+            {SegmentKeys.START_TIME: {ElasticsearchQueryKeys.ORDER: ElasticsearchQueryKeys.ASC}},
+        ]
+        query[ElasticsearchQueryKeys.SOURCE] = TextSegmentsFinder.__TEXT_SEGMENT_SOURCE_FIELDS
 
         if season_filter:
             query[ElasticsearchQueryKeys.QUERY][ElasticsearchQueryKeys.BOOL][ElasticsearchQueryKeys.FILTER].append(
