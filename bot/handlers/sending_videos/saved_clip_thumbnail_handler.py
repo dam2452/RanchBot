@@ -41,8 +41,8 @@ class SavedClipThumbnailHandler(BotMessageHandler):
 
     async def __check_clip_existence(self) -> bool:
         clip_identifier = self.__get_clip_identifier()
-        clip = await self.__resolve_clip(clip_identifier)
-        if not clip:
+        self.__resolved_clip = await self.__resolve_clip(clip_identifier)
+        if not self.__resolved_clip:
             await self._reply_error(get_clip_not_found_message(clip_identifier))
             await self._log_system_message(
                 logging.INFO,
@@ -60,7 +60,7 @@ class SavedClipThumbnailHandler(BotMessageHandler):
         if frame_selector is None:
             return await self._reply_error(get_invalid_frame_selector_message())
 
-        clip = await self.__resolve_clip(clip_identifier)
+        clip = self.__resolved_clip
 
         fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
         os.close(fd)

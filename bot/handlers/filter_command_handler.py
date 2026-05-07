@@ -31,7 +31,7 @@ from bot.settings import settings
 from bot.types import SearchFilter
 
 
-class ActiveFilterTextCommandHandler(BotMessageHandler):
+class FilterCommandHandler(BotMessageHandler):
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [
             self.__validate_arg_count,
@@ -56,10 +56,6 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
 
     def _get_usage_message(self) -> str:
         return get_no_filter_set_message()
-
-    @abstractmethod
-    def _active_filter_es_query_size(self) -> int:
-        pass
 
     @abstractmethod
     def _log_no_filter_results_message(self, chat_id: int) -> str:
@@ -91,7 +87,7 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
             or search_filter.get("emotions")
             or search_filter.get("object_groups")
         ):
-            es_size = 1000
+            es_size = settings.MAX_ES_RESULTS_LONG
 
         return await self._find_and_filter_segments(
             quote=quote,
@@ -127,7 +123,7 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
             chat_id=chat_id,
             series_name=series_name,
             logger=self._logger,
-            es_query_size=self._active_filter_es_query_size(),
+            es_query_size=settings.MAX_ES_RESULTS_LONG,
         )
 
         if outcome.status == ActiveFilterTextSegmentsStatus.NO_FILTER:
@@ -158,14 +154,14 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
         series_name = await self._get_user_active_series(msg.get_user_id())
 
         if len(msg.get_text().split()) > 1:
-            await ActiveFilterTextCommandHandler._do_handle(self)
+            await FilterCommandHandler._do_handle(self)
             return
 
         scene_outcome = await load_active_filter_scene_segments(
             chat_id=chat_id,
             series_name=series_name,
             logger=self._logger,
-            size=self._active_filter_es_query_size(),
+            size=settings.MAX_ES_RESULTS_LONG,
         )
 
         if scene_outcome.status == ActiveFilterSceneSegmentsStatus.NO_FILTER:
@@ -185,4 +181,4 @@ class ActiveFilterTextCommandHandler(BotMessageHandler):
             )
             return
 
-        await ActiveFilterTextCommandHandler._do_handle(self)
+        await FilterCommandHandler._do_handle(self)

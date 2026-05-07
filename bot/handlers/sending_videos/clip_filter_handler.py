@@ -8,7 +8,7 @@ from typing import (
 )
 
 from bot.database.database_manager import DatabaseManager
-from bot.handlers.active_filter_text_command_handler import ActiveFilterTextCommandHandler
+from bot.handlers.filter_command_handler import FilterCommandHandler
 from bot.responses.sending_videos.clip_filter_handler_responses import (
     get_clip_filter_usage_message,
     get_log_clip_filter_no_results_message,
@@ -26,18 +26,9 @@ from bot.utils.constants import SegmentKeys
 from bot.video.clips_extractor import ClipsExtractor
 
 
-class ClipFilterHandler(ActiveFilterTextCommandHandler):
+class ClipFilterHandler(FilterCommandHandler):
     def get_commands(self) -> List[str]:
         return ["klipfiltr", "clipfilter", "kf"]
-
-    def _active_filter_es_query_size(self) -> int:
-        return 1000
-
-    def _log_no_filter_results_message(self, chat_id: int) -> str:
-        return get_log_clip_filter_no_results_message(chat_id)
-
-    def _get_usage_message(self) -> str:
-        return get_clip_filter_usage_message()
 
     async def _do_handle(self) -> None:
         await self._do_handle_scene_segments()
@@ -64,7 +55,6 @@ class ClipFilterHandler(ActiveFilterTextCommandHandler):
             quote=quote,
             segments=json.dumps(segments),
         )
-
 
         segment = cast(Dict[str, Any], segments[0])
         start_time = max(0, segment[SegmentKeys.START_TIME] - settings.EXTEND_BEFORE)
@@ -126,3 +116,9 @@ class ClipFilterHandler(ActiveFilterTextCommandHandler):
             logging.INFO,
             get_log_clip_filter_success_message(chat_id, msg.get_username()),
         )
+
+    def _log_no_filter_results_message(self, chat_id: int) -> str:
+        return get_log_clip_filter_no_results_message(chat_id)
+
+    def _get_usage_message(self) -> str:
+        return get_clip_filter_usage_message()
