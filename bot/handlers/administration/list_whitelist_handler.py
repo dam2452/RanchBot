@@ -13,7 +13,8 @@ from bot.responses.administration.list_whitelist_handler_responses import (
 
 
 class ListWhitelistHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["listwhitelist", "lw"]
 
     async def _do_handle(self) -> None:

@@ -3,14 +3,13 @@ from typing import (
     Awaitable,
     Callable,
     List,
-    Optional,
     Type,
 )
 
+from aiogram import Bot
 from aiogram.types import InlineQuery
 
 from bot.adapters.telegram.telegram_inline_query import TelegramInlineQuery
-from bot.database.database_manager import DatabaseManager
 from bot.factory.permission_level_factory import PermissionLevelFactory
 from bot.handlers import (
     AdjustBySceneHandler,
@@ -98,26 +97,13 @@ class SubscribedPermissionLevelFactory(PermissionLevelFactory):
             SubscriberMiddleware(self._logger, commands),
         ]
 
-    def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
-        async def inline_handler(inline_query: InlineQuery):
+    def get_inline_handler(self, bot: Bot) -> Callable[[InlineQuery], Awaitable[None]]:
+        async def inline_handler(inline_query: InlineQuery) -> None:
+            if not inline_query.query:
+                return
             try:
-                user_id = inline_query.from_user.id
-
-                if not inline_query.query:
-                    return
-
-                if not await DatabaseManager.is_user_subscribed(user_id):
-                    await log_system_message(logging.WARNING, f"Unauthorized inline query from user {user_id}", self._logger)
-                    await answer_error(
-                        title="❌ Brak uprawnień",
-                        text="❌ Brak uprawnień do używania inline mode",
-                        inline_query=inline_query,
-                    )
-                    return
-
                 handler = InlineClipHandler(message=TelegramInlineQuery(inline_query), responder=None, logger=self._logger)
-                results = await handler.handle_inline(self._bot)
-
+                results = await handler.handle_inline(bot)
                 await inline_query.answer(
                     results=results,
                     cache_time=300,

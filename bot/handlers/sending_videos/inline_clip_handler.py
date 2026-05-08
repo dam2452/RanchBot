@@ -50,7 +50,8 @@ InlineQueryResult = Union[InlineQueryResultArticle, InlineQueryResultCachedVideo
 
 
 class InlineClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["inline"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

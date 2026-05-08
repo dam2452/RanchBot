@@ -23,7 +23,8 @@ class CompileSelectedClipsHandler(BotMessageHandler):
             self.message = message
             super().__init__(self.message)
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["połączklipy", "polaczklipy", "concatclips", "pk"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

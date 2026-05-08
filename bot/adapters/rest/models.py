@@ -50,6 +50,16 @@ class AttachCredentialsRequest(BaseModel):
     password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
 
 
+class BatchCommandItem(BaseModel):
+    command: Annotated[str, StringConstraints(min_length=1, max_length=30, pattern=r"^[a-zA-Z0-9_-]+$")]
+    args: List[str] = Field(default_factory=list)
+    reply_json: bool = Field(default=True)
+
+
+class BatchRequest(BaseModel):
+    commands: List[BatchCommandItem] = Field(..., min_length=1, max_length=20)
+
+
 class ResponseStatus(str, Enum):
     SUCCESS = "success"
     ERROR = "error"

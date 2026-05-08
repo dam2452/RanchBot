@@ -21,7 +21,8 @@ from bot.settings import settings
 
 
 class SearchFilterHandler(FilterCommandHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["szukajfiltr", "searchfilter", "szf"]
 
     async def _do_handle(self) -> None:

@@ -17,7 +17,8 @@ from bot.settings import settings
 
 
 class CharacterClipHandler(CharacterBotHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klippostac", "kp"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

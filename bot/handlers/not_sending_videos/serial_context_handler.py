@@ -16,7 +16,8 @@ from bot.utils.functions import find_matching_series
 
 
 class SerialContextHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["serial", "series", "ser"]
 
     def _get_usage_message(self) -> str:

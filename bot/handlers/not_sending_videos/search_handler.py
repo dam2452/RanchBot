@@ -21,7 +21,8 @@ from bot.settings import settings
 
 
 class SearchHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["szukaj", "search", "sz"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

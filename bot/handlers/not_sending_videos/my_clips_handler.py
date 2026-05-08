@@ -13,7 +13,8 @@ from bot.search.text_segments_finder import TextSegmentsFinder
 
 
 class MyClipsHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["mojeklipy", "myclips", "mk"]
 
     async def _do_handle(self) -> None:

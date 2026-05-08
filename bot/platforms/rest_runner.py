@@ -51,8 +51,10 @@ from bot.adapters.rest.auth.auth_service import (
     revoke_refresh_token,
     verify_refresh_token,
 )
+from bot.adapters.rest.batch_executor import execute_batch
 from bot.adapters.rest.models import (
     AttachCredentialsRequest,
+    BatchRequest,
     ForgotPasswordRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -62,6 +64,7 @@ from bot.adapters.rest.rest_message import RestMessage
 from bot.adapters.rest.rest_responder import RestResponder
 from bot.database.database_manager import DatabaseManager
 from bot.factory import create_all_factories
+from bot.platforms.rest_registrar import RestRegistrar
 from bot.responses.bot_response import BotResponse
 from bot.settings import settings as s
 from bot.utils.constants import (
@@ -74,7 +77,7 @@ from bot.utils.log import get_log_level
 logging.basicConfig(level=get_log_level())
 logger = logging.getLogger(__name__)
 
-command_handlers = {}
+command_handlers: dict = {}
 COMMAND_PATTERN = re.compile(r"^/?([a-zA-Z0-9_-]{1,30})\b")
 
 limiter = Limiter(
@@ -305,7 +308,7 @@ async def reset_password(data: ResetPasswordRequest, request: Request):  # pylin
 
 @api_router.post("/auth/attach-credentials", tags=["Authentication"])
 @limiter.limit("5/minute")
-async def attach_credentials(data: AttachCredentialsRequest, request: Request, response: Response):  # pylint: disable=unused-argument
+async def attach_credentials(data: AttachCredentialsRequest, request: Request, response: Response):
     user_id = await DatabaseManager.consume_verification_token(
         token=data.token,
         purpose="attach_credentials",
@@ -379,6 +382,73 @@ async def link_telegram(
         "message": f"Send /link {token} to the bot on Telegram within 30 minutes.",
     }
 
+
+class ChangePasswordRequest(BaseModel):
+    old_password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
+    new_password: Annotated[str, StringConstraints(min_length=8, max_length=128)]
+
+
+@api_router.post("/auth/change-password", tags=["Authentication"])
+@limiter.limit("5/minute")
+async def change_password(
+    data: ChangePasswordRequest,
+    request: Request,  # pylint: disable=unused-argument
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            s.JWT_SECRET_KEY.get_secret_value(),
+            algorithms=[s.JWT_ALGORITHM],
+            issuer=s.JWT_ISSUER,
+            audience=s.JWT_AUDIENCE,
+        )
+        user_id = payload.get(JwtPayloadKeys.USER_ID)
+        username = payload.get(JwtPayloadKeys.USERNAME)
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+    user = await authenticate_user(username, data.old_password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+
+    await DatabaseManager.update_user_password(user_id, data.new_password)
+    return {"message": "Password changed successfully."}
+
+
+@api_router.post("/batch", tags=["Commands"])
+@limiter.limit("10/minute")
+async def batch_handler(
+    request: Request,
+    data: BatchRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            s.JWT_SECRET_KEY.get_secret_value(),
+            algorithms=[s.JWT_ALGORITHM],
+            issuer=s.JWT_ISSUER,
+            audience=s.JWT_AUDIENCE,
+        )
+        required_fields = {JwtPayloadKeys.USER_ID: int, JwtPayloadKeys.USERNAME: str, JwtPayloadKeys.FULL_NAME: str}
+        for field, expected_type in required_fields.items():
+            if field not in payload or not isinstance(payload[field], expected_type):
+                raise HTTPException(status_code=401, detail=f"Invalid payload field: {field}")
+    except JWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+    middleware_adapter = getattr(request.app.state, 'middleware_adapter', None)
+
+    return await execute_batch(
+        commands=data.commands,
+        jwt_payload=payload,
+        command_handlers=command_handlers,
+        middleware_adapter=middleware_adapter,
+        logger=logger,
+    )
+
+
 @api_router.post("/{command_name}", tags=["Commands"])
 async def universal_handler(
     command_name: str = Path(..., regex=COMMAND_PATTERN.pattern),
@@ -434,8 +504,15 @@ async def universal_handler(
     message = RestMessage(payload=command_request_obj, user_data=payload)
     responder = RestResponder(prefer_json=reply_json)
 
-    handler = handler_cls(message, responder, logger)
-    await handler.handle()
+    async def _run_handler() -> None:
+        handler = handler_cls(message, responder, logger)
+        await handler.handle()
+
+    middleware_adapter = getattr(request.app.state, 'middleware_adapter', None)
+    if middleware_adapter:
+        await middleware_adapter.execute(message, responder, _run_handler)
+    else:
+        await _run_handler()
 
     return responder.get_response()
 
@@ -450,11 +527,12 @@ async def lifespan(app_instance: FastAPI):
     await DatabaseManager.ensure_db_initialized()
     logger.info("DB initialization process ensured by REST runner lifespan.")
 
-    factories = create_all_factories(logger, bot=None)
-    for factory_item in factories:
-        for command, handler_cls in factory_item.get_rest_handlers():
-            command_handlers[command] = handler_cls
-    logger.info(f"✅ REST handlers loaded by REST runner lifespan for commands: {list(command_handlers.keys())}")
+    registrar = RestRegistrar(create_all_factories(logger))
+    command_handlers.update(registrar.get_command_handlers())
+    logger.info(f"REST handlers loaded for commands: {list(command_handlers.keys())}")
+
+    app_instance.state.middleware_adapter = registrar.get_middleware_adapter()
+    logger.info("REST middlewares loaded.")
 
     yield
 

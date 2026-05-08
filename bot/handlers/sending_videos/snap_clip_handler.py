@@ -23,7 +23,8 @@ from bot.video.clips_extractor import ClipsExtractor
 
 
 class SnapClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["snap", "dopasuj", "sp"]
 
     async def _do_handle(self) -> None:

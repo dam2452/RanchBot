@@ -132,8 +132,9 @@ class BotMessageHandler(ABC):
     def __get_action_name(self) -> str:
         return self.__class__.__name__
 
+    @classmethod
     @abstractmethod
-    def get_commands(self) -> List[str]:
+    def get_commands(cls) -> List[str]:
         pass
 
     @abstractmethod

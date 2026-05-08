@@ -16,7 +16,8 @@ from bot.search.video_frames import CharacterFinder
 
 
 class EmotionsHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["emocje", "emotion", "e"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

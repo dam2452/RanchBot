@@ -13,7 +13,8 @@ from bot.responses.administration.list_moderators_handler_responses import (
 
 
 class ListModeratorsHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["listmoderators", "lm"]
 
     async def _do_handle(self) -> None:

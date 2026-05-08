@@ -30,7 +30,8 @@ class SemanticSearchHandler(SemanticBotHandler):
     __FRAMES_COMMANDS: List[str] = ["sensklatki", "sensk"]
     __EPISODE_COMMANDS: List[str] = ["sensodcinek", "senso"]
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return (
             SemanticSearchHandler.__TEXT_COMMANDS
             + SemanticSearchHandler.__FRAMES_COMMANDS

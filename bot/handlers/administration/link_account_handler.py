@@ -15,7 +15,8 @@ from bot.responses.administration.link_account_handler_responses import (
 
 
 class LinkAccountHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["link"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

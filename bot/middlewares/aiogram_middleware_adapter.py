@@ -7,10 +7,13 @@ from typing import (
 
 from aiogram import BaseMiddleware
 from aiogram.types import (
+    InlineQuery,
     Message,
     TelegramObject,
 )
 
+from bot.adapters.telegram.telegram_inline_query import TelegramInlineQuery
+from bot.adapters.telegram.telegram_inline_responder import TelegramInlineResponder
 from bot.adapters.telegram.telegram_message import TelegramMessage
 from bot.adapters.telegram.telegram_responder import TelegramResponder
 
@@ -25,11 +28,14 @@ class AiogramMiddlewareAdapter(BaseMiddleware):
         event: TelegramObject,
         data: Dict[str, Any],
     ) -> Any:
-        if not isinstance(event, Message):
+        if isinstance(event, Message):
+            abstract_message = TelegramMessage(event)
+            abstract_responder = TelegramResponder(event)
+        elif isinstance(event, InlineQuery):
+            abstract_message = TelegramInlineQuery(event)
+            abstract_responder = TelegramInlineResponder(event)
+        else:
             return await handler(event, data)
-
-        abstract_message = TelegramMessage(event)
-        abstract_responder = TelegramResponder(event)
 
         async def invoke():
             return await handler(event, data)

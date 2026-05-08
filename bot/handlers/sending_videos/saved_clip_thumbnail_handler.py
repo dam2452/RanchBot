@@ -24,7 +24,8 @@ from bot.video.keyframe_extractor import KeyframeExtractor
 
 
 class SavedClipThumbnailHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klatkaklipu", "kk"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

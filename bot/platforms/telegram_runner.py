@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from aiogram import (
@@ -9,11 +8,10 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.factory import create_all_factories
+from bot.platforms.telegram_registrar import TelegramRegistrar
 from bot.settings import settings
 
 logger = logging.getLogger(__name__)
-
-_active_inline_tasks = {}
 
 
 class OptimizedAiohttpSession(AiohttpSession):
@@ -25,7 +23,7 @@ class OptimizedAiohttpSession(AiohttpSession):
         })
 
 
-async def run_telegram_bot():
+async def run_telegram_bot() -> None:
     session = OptimizedAiohttpSession()
     bot = Bot(
         token=settings.TELEGRAM_BOT_TOKEN.get_secret_value(),
@@ -33,46 +31,10 @@ async def run_telegram_bot():
     )
     dp = Dispatcher(storage=MemoryStorage())
 
-    factories = create_all_factories(logger, bot)
-    for factory in factories:
-        factory.create_and_register(dp)
-
-    inline_handlers = [f.get_inline_handler() for f in factories]
-    inline_handlers = [h for h in inline_handlers if h is not None]
-
-    if inline_handlers:
-        async def combined_inline_handler(inline_query):
-            user_id = inline_query.from_user.id
-
-            if user_id in _active_inline_tasks:
-                task = _active_inline_tasks[user_id]
-                if not task.done():
-                    task.cancel()
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        pass
-
-            async def process():
-                try:
-                    for handler in inline_handlers:
-                        await handler(inline_query)
-                        break
-                except asyncio.CancelledError:
-                    logger.info(f"Cancelling previous session for user {user_id}")
-                except Exception as e:
-                    logger.error(f"Error in combined inline handler: {type(e).__name__}: {e}", exc_info=True)
-                finally:
-                    _active_inline_tasks.pop(user_id, None)
-
-            task = asyncio.create_task(process())
-            _active_inline_tasks[user_id] = task
-            await task
-
-        dp.inline_query.register(combined_inline_handler)
-        logger.info("Combined inline handler registered")
+    factories = create_all_factories(logger)
+    TelegramRegistrar(factories, dp, bot).register()
 
     logger.info("Handlers and middlewares registered successfully.")
-    logger.info("🚀 Telegram bot started successfully.")
+    logger.info("Telegram bot started successfully.")
 
     await dp.start_polling(bot)

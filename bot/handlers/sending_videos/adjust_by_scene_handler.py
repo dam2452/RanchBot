@@ -42,7 +42,8 @@ from bot.video.utils import get_video_duration
 class AdjustBySceneHandler(BotMessageHandler):
     __COMMANDS: List[str] = ["sdostosuj", "sadjust", "sd"]
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return AdjustBySceneHandler.__COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

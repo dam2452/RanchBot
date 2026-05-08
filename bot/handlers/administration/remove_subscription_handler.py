@@ -14,7 +14,8 @@ from bot.responses.administration.remove_subscription_handler_responses import (
 
 
 class RemoveSubscriptionHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["removesubscription", "rmsub"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

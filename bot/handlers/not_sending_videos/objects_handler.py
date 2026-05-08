@@ -39,7 +39,8 @@ class ObjectsHandler(BotMessageHandler):
     __FULL_COMMANDS: List[str] = ["objl", "objlista"]
     __SEARCH_COMMANDS: List[str] = ["szukajobiekt", "szo"]
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ObjectsHandler.__SHORT_COMMANDS + ObjectsHandler.__FULL_COMMANDS + ObjectsHandler.__SEARCH_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

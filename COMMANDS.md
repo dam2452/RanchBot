@@ -2,6 +2,19 @@
 ---
 # 📝 Pełna Lista Komend
 
+## 🌐 REST API — Batch
+
+- **`POST /api/v1/batch`**: 📦 Wysłanie wielu komend w jednym requeście. Przykład:
+  ```json
+  {
+    "commands": [
+      {"command": "szukaj", "args": ["geniusz"]},
+      {"command": "wybierz", "args": ["4"]}
+    ]
+  }
+  ```
+  Odpowiedź zawiera `results` (lista wyników per komenda) oraz `summary` (total/succeeded/failed). Maksymalnie 20 komend na request. `reply_json` domyślnie `true`.
+
 ## 🚀 Skróty Komend
 
 - **`/start`**: 👋 Uruchamia główne menu.

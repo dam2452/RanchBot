@@ -20,7 +20,8 @@ from bot.settings import settings as s
 class SearchListHandler(BotMessageHandler):
     FILE_NAME_TEMPLATE = s.BOT_USERNAME + "_Lista_{sanitized_search_term}.txt"
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["lista", "list", "l"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

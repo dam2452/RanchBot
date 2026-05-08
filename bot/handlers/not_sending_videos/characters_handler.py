@@ -28,7 +28,8 @@ from bot.types import CharacterScene
 class CharactersHandler(CharacterBotHandler):
     __SEARCH_COMMANDS: List[str] = ["szukajpostac", "szp"]
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["postacie", "characters", "p", "pl", "postacie_lista"] + CharactersHandler.__SEARCH_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
