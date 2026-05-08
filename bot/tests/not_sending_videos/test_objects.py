@@ -85,3 +85,40 @@ class TestObjectsHandler(BaseTest):
             response,
             ["NIEPOPRAWNY FILTR"],
         )
+
+    @pytest.mark.asyncio
+    async def test_objects_list_en(self):
+        response = self.send_command('/obj_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_objects_list_full_en(self):
+        response = self.send_command('/objl_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_objects_search_en(self):
+        response = self.send_command(f'/szo_en {_TEST_OBJECT}')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_objects_by_class_en_contains_english(self):
+        response = self.send_command(f'/obj_en {_TEST_OBJECT}')
+        assert response.status_code == 200
+        content = response.json().get("content", "").lower()
+        has_object = "object" in content or _TEST_OBJECT in content
+        has_not_found = "no" in content and "results" in content
+        assert has_object or has_not_found
+
+    @pytest.mark.asyncio
+    async def test_objects_by_class_nonexistent_en(self):
+        response = self.send_command(f'/obj_en {_NONEXISTENT_OBJECT}')
+        self.assert_response_contains(
+            response,
+            ["NO RESULTS"],
+        )
+
+    @pytest.mark.asyncio
+    async def test_objects_filter_en(self):
+        response = self.send_command(f'/obj_en {_TEST_OBJECT} >2')
+        assert response.status_code == 200

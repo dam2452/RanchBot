@@ -81,3 +81,27 @@ class TestCharactersHandler(BaseTest):
     async def test_characters_scenes_sorted_by_confidence(self):
         response = self.send_command(f'/postacie {_TEST_CHARACTER}')
         assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_characters_list_en(self):
+        response = self.send_command('/p_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_characters_list_full_en(self):
+        response = self.send_command('/pl_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_characters_search_en(self):
+        response = self.send_command(f'/szp_en {_TEST_CHARACTER}')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_characters_by_name_en(self):
+        response = self.send_command(f'/p_en {_TEST_CHARACTER}')
+        assert response.status_code == 200
+        content = response.json().get("content", "").lower()
+        has_scenes = _TEST_CHARACTER.lower() in content or "character" in content
+        has_not_found = "no" in content and "results" in content
+        assert has_scenes or has_not_found

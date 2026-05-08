@@ -2,11 +2,14 @@ from typing import (
     Any,
     Dict,
     List,
+    Literal,
     NotRequired,
     Optional,
     TypedDict,
     Union,
 )
+
+Language = Literal["pl", "en"]
 
 
 class EpisodeInfo(TypedDict):

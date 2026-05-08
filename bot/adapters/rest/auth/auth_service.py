@@ -63,7 +63,7 @@ def create_access_token(user: UserProfile, expires_minutes: int = s.JWT_EXPIRE_M
     payload = {
         JwtPayloadKeys.USER_ID: user.user_id,
         JwtPayloadKeys.USERNAME: user.username,
-        JwtPayloadKeys.FULL_NAME: user.full_name,
+        JwtPayloadKeys.FULL_NAME: user.full_name or "",
         JwtPayloadKeys.EXP: expire.timestamp(),
         JwtPayloadKeys.IAT: now.timestamp(),
         JwtPayloadKeys.ISS: s.JWT_ISSUER,
