@@ -39,7 +39,7 @@ class ObjectsHandler(BotMessageHandler):
     __SHORT_COMMANDS: List[str] = ["obiekt", "object", "obj"]
     __FULL_COMMANDS: List[str] = ["objl", "objlista"]
     __SEARCH_COMMANDS: List[str] = ["szukajobiekt", "szo"]
-    __EN_COMMANDS: List[str] = ["obj_en", "objl_en", "szo_en"]
+    __EN_COMMANDS: List[str] = ["obj_en", "objl_en"]
 
     @classmethod
     def get_commands(cls) -> List[str]:
@@ -58,7 +58,7 @@ class ObjectsHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        search_commands = ObjectsHandler.__SEARCH_COMMANDS + ["szo_en"]
+        search_commands = ObjectsHandler.__SEARCH_COMMANDS
         min_args = command in search_commands
         return await self._validate_argument_count(self._message, min_args, math.inf)
 
@@ -67,7 +67,8 @@ class ObjectsHandler(BotMessageHandler):
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
         is_full = command in ObjectsHandler.__FULL_COMMANDS or command == "objl_en"
-        lang: Language = "en" if command in ObjectsHandler.__EN_COMMANDS else "pl"
+        is_en_listing = command in ObjectsHandler.__EN_COMMANDS and not args
+        lang: Language = "en" if is_en_listing else "pl"
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 

@@ -30,7 +30,7 @@ from bot.types import (
 
 class CharactersHandler(CharacterBotHandler):
     __SEARCH_COMMANDS: List[str] = ["szukajpostac", "szp"]
-    __EN_COMMANDS: List[str] = ["p_en", "pl_en", "szp_en"]
+    __EN_COMMANDS: List[str] = ["p_en", "pl_en"]
 
     @classmethod
     def get_commands(cls) -> List[str]:
@@ -48,7 +48,7 @@ class CharactersHandler(CharacterBotHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        search_commands = CharactersHandler.__SEARCH_COMMANDS + ["szp_en"]
+        search_commands = CharactersHandler.__SEARCH_COMMANDS
         if command in search_commands:
             return await self._validate_argument_count(self._message, 1, math.inf)
         return await self._validate_argument_count(self._message, 0, math.inf)
@@ -58,7 +58,8 @@ class CharactersHandler(CharacterBotHandler):
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
         is_full = command in {"pl", "postacie_lista", "pl_en"}
-        lang: Language = "en" if command in CharactersHandler.__EN_COMMANDS else "pl"
+        is_en_listing = command in CharactersHandler.__EN_COMMANDS and not args
+        lang: Language = "en" if is_en_listing else "pl"
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 

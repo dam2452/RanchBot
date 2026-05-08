@@ -51,13 +51,13 @@
 - **`/klipfiltr`** / **`/kf`**: 🎬 Klip na podstawie aktywnego filtra (bez cytatu).
 - **`/szukajfiltr`** / **`/szf`**: 🔎 Lista scen pasujących do aktywnego filtra (bez cytatu).
 - **`/postacie`** / **`/characters`** / **`/p`**: 👤 Przeglądanie postaci i scen.
-- **`/p_en`** / **`/pl_en`** / **`/szp_en`**: 👤 Jak wyżej, ale wyniki po angielsku.
+- **`/p_en`** / **`/pl_en`**: 👤 Lista postaci po angielsku (listowanie). Szukanie działa uniwersalnie.
 - **`/klippostac <postac> [emocja]`** / **`/kp`**: 🎭 Klip z postacią (i opcjonalnie emocją).
 - **`/klipobiekt <obiekt>`** / **`/ko`**: 🎯 Klip z danym obiektem.
 - **`/emocje`** / **`/emotion`** / **`/e`**: 😊 Lista dostępnych emocji.
 - **`/e_en`**: 😊 Jak wyżej, ale wyniki po angielsku.
 - **`/obiekt`** / **`/object`** / **`/obj`**: 🎯 Przeglądanie scen z obiektami.
-- **`/obj_en`** / **`/objl_en`** / **`/szo_en`**: 🎯 Jak wyżej, ale wyniki po angielsku.
+- **`/obj_en`** / **`/objl_en`**: 🎯 Lista obiektów po angielsku (listowanie). Szukanie działa uniwersalnie.
 - **`/objl`** / **`/objlista`**: 🎯 Pełna lista obiektów lub scen (jako dokument).
 - **`/link <kod>`**: 🔗 Powiązanie konta Telegram z kontem REST.
 - **`/kodkonta`** / **`/accountcode`**: 🔑 Generowanie kodu do założenia konta w REST API dla istniejącego konta Telegram.
@@ -124,9 +124,8 @@
 - **`/postacie <nazwa_postaci>`** / **`/p <nazwa_postaci>`**: 👤 Wyświetla sceny z daną postacią. Przykład: `/postacie Wilkowyska`.
 - **`/postacie <nazwa_postaci> <emocja>`** / **`/p <nazwa_postaci> <emocja>`**: 👤 Sceny z postacią i emocją. Przykład: `/p Wilkowyska radosny`.
 - **`/pl`** / **`/postacie_lista`**: 👤 Pełna lista postaci lub scen (jako dokument).
-- **`/p_en`**: 👤 Jak `/p`, ale wyniki po angielsku.
-- **`/pl_en`**: 👤 Jak `/pl`, ale wyniki po angielsku.
-- **`/szp_en`**: 👤 Jak `/szp`, ale wyniki po angielsku.
+- **`/p_en`**: 👤 Lista postaci po angielsku.
+- **`/pl_en`**: 👤 Pełna lista postaci po angielsku (jako dokument).
 - **`/klippostac <postac> [emocja]`** / **`/kp`**: 🎭 Wysyła klip z daną postacią (i opcjonalnie emocją). Przykład: `/kp Wilkowyska radosny`.
 - **`/szukajpostac <postac> [emocja]`** / **`/szp`**: 👤 Wyświetla listę scen z daną postacią bez wysyłania klipu — wyniki dostępne przez `/wybierz` i `/lista`. Przykład: `/szp Wilkowyska radosny`.
 - **`/klipobiekt <obiekt>`** / **`/ko`**: 🎯 Wysyła klip z danym obiektem. Przykład: `/klipobiekt dog`.
@@ -136,12 +135,11 @@
 - **`/obiekt`** / **`/obj`**: 🎯 Wyświetla listę wszystkich wykrytych obiektów (od najpopularniejszych).
 - **`/obiekt <nazwa>`** / **`/obj <nazwa>`**: 🎯 Lista scen z danym obiektem. Przykład: `/obiekt dog`.
 - **`/obiekt <nazwa> <filtr>`** / **`/obj <nazwa> <filtr>`**: 🎯 Lista scen z filtrem ilości. Przykład: `/obj dog >3`.
-- **`/obj_en`**: 🎯 Jak `/obj`, ale wyniki po angielsku.
+- **`/obj_en`**: 🎯 Lista obiektów po angielsku.
 - **`/objl`**: 🎯 Pełna lista wszystkich obiektów (jako dokument).
 - **`/objl <nazwa>`**: 🎯 Pełna lista scen z danym obiektem (jako dokument).
 - **`/objl <nazwa> <filtr>`**: 🎯 Pełna lista scen z filtrem (jako dokument).
-- **`/objl_en`**: 🎯 Jak `/objl`, ale wyniki po angielsku.
-- **`/szo_en`**: 🎯 Jak `/szo`, ale wyniki po angielsku.
+- **`/objl_en`**: 🎯 Pełna lista obiektów po angielsku (jako dokument).
 - **`/link <kod>`**: 🔗 Powiązuje konto Telegram z kontem REST przy użyciu kodu weryfikacyjnego. Kod generuje REST API (strona www). Używane gdy masz juz konto REST i chcesz przypiąć do niego Telegram. Przykład: `/link abc123`.
 - **`/kodkonta`** / **`/accountcode`**: 🔑 Generuje jednorazowy kod (ważny 30 minut) do założenia konta REST API dla istniejącego konta Telegram. Używane gdy masz konto w bocie (przez Telegram) i chcesz dorobić login/hasło do strony www. Kod wpisz na stronie podczas rejestracji zamiast standardowego formularza.
 - **`/zapisznumer <numer> <nazwa>`** / **`/zn <numer> <nazwa>`**: 💾 Zapisuje klip o podanym numerze z ostatnich wyników wyszukiwania. Opcjonalnie z dostosowaniem granic: `/zn <numer> <odstep_l> <odstep_p> <nazwa>`. Przykład: `/zn 2 moj_klip`.
