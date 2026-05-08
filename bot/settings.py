@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     EXTEND_BEFORE_COMPILE: float = Field(0)
     EXTEND_AFTER_COMPILE: float = Field(0)
 
-    MESSAGE_LIMIT: int = Field(5)
+    MESSAGE_LIMIT: int = Field(30)
     LIMIT_DURATION: int = Field(30)
     MAX_CLIPS_PER_COMPILATION: int = Field(30)
     MAX_ADJUSTMENT_DURATION: int = Field(20)

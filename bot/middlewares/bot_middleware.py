@@ -44,6 +44,9 @@ class BotMiddleware(ABC):
 
     @staticmethod
     async def check_command_limits_and_privileges(message: AbstractMessage, responder: AbstractResponder) -> bool:
+        if settings.DISABLE_RATE_LIMITING:
+            return True
+
         user_id = message.get_user_id()
         is_admin_or_moderator = await DatabaseManager.is_admin_or_moderator(user_id)
 
