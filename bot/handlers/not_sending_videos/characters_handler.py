@@ -48,7 +48,8 @@ class CharactersHandler(CharacterBotHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        if command in CharactersHandler.__SEARCH_COMMANDS:
+        search_commands = CharactersHandler.__SEARCH_COMMANDS + ["szp_en"]
+        if command in search_commands:
             return await self._validate_argument_count(self._message, 1, math.inf)
         return await self._validate_argument_count(self._message, 0, math.inf)
 

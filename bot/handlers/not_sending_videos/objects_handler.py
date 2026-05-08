@@ -58,7 +58,8 @@ class ObjectsHandler(BotMessageHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        min_args = command in ObjectsHandler.__SEARCH_COMMANDS
+        search_commands = ObjectsHandler.__SEARCH_COMMANDS + ["szo_en"]
+        min_args = command in search_commands
         return await self._validate_argument_count(self._message, min_args, math.inf)
 
     async def _do_handle(self) -> None:
@@ -102,7 +103,7 @@ class ObjectsHandler(BotMessageHandler):
         is_full: bool,
         lang: Language,
     ) -> None:
-        class_name = await self.__resolve_object_class(query, series_name)
+        class_name = await self.__resolve_object_class(query, series_name, lang)
         if class_name is None:
             return
         scenes = await ObjectFinder.get_scenes_by_object(
@@ -136,7 +137,7 @@ class ObjectsHandler(BotMessageHandler):
         if qty_filter is None:
             await self._reply_error(get_invalid_quantity_filter_message(qty_raw))
             return
-        class_name = await self.__resolve_object_class(query, series_name)
+        class_name = await self.__resolve_object_class(query, series_name, lang)
         if class_name is None:
             return
         scenes = await ObjectFinder.get_scenes_by_object(
@@ -159,14 +160,14 @@ class ObjectsHandler(BotMessageHandler):
             get_log_object_scenes_message(class_name, len(filtered), self._message.get_username()),
         )
 
-    async def __resolve_object_class(self, query: str, series_name: str) -> Optional[str]:
+    async def __resolve_object_class(self, query: str, series_name: str, lang: Language = "pl") -> Optional[str]:
         class_name = await ObjectFinder.find_best_matching_object(
             query=query,
             series_name=series_name,
             logger=self._logger,
         )
         if class_name is None:
-            await self._reply_error(get_object_not_found_message(query))
+            await self._reply_error(get_object_not_found_message(query, lang))
         return class_name
 
     async def __save_scenes_to_last_search(
