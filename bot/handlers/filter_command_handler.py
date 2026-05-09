@@ -66,7 +66,7 @@ class FilterCommandHandler(BotMessageHandler):
             self,
             *,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             outcome: ActiveFilterTextSegmentsOutcome,
     ) -> None:
         pass
@@ -76,7 +76,7 @@ class FilterCommandHandler(BotMessageHandler):
             *,
             quote: str,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             default_es_size: int,
             error_message: str,
     ):
@@ -91,7 +91,7 @@ class FilterCommandHandler(BotMessageHandler):
 
         return await self._find_and_filter_segments(
             quote=quote,
-            series_name=series_name,
+            series_names=series_names,
             search_filter=search_filter,
             es_size=es_size,
             error_message=error_message,
@@ -102,7 +102,7 @@ class FilterCommandHandler(BotMessageHandler):
             self,
             quote: str,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             msg: Any,
     ) -> None:
         pass
@@ -111,17 +111,17 @@ class FilterCommandHandler(BotMessageHandler):
         msg = self._message
         assert msg is not None
         chat_id = msg.get_chat_id()
-        series_name = await self._get_user_active_series(msg.get_user_id())
+        series_names = await self._get_user_active_series_list(msg.get_user_id())
 
         content = self._get_message_content()
         if len(content) > 1:
             quote = self._get_quote()
-            await self._handle_with_quote(quote, chat_id, series_name, msg)
+            await self._handle_with_quote(quote, chat_id, series_names, msg)
             return
 
         outcome = await load_active_filter_text_segments(
             chat_id=chat_id,
-            series_name=series_name,
+            series_names=series_names,
             logger=self._logger,
             es_query_size=settings.MAX_ES_RESULTS_LONG,
         )
@@ -140,7 +140,7 @@ class FilterCommandHandler(BotMessageHandler):
 
         await self._handle_active_filter_segments_ok(
             chat_id=chat_id,
-            series_name=series_name,
+            series_names=series_names,
             outcome=outcome,
         )
 
@@ -151,7 +151,7 @@ class FilterCommandHandler(BotMessageHandler):
         msg = self._message
         assert msg is not None
         chat_id = msg.get_chat_id()
-        series_name = await self._get_user_active_series(msg.get_user_id())
+        series_names = await self._get_user_active_series_list(msg.get_user_id())
 
         if len(msg.get_text().split()) > 1:
             await FilterCommandHandler._do_handle(self)
@@ -159,7 +159,7 @@ class FilterCommandHandler(BotMessageHandler):
 
         scene_outcome = await load_active_filter_scene_segments(
             chat_id=chat_id,
-            series_name=series_name,
+            series_names=series_names,
             logger=self._logger,
             size=settings.MAX_ES_RESULTS_LONG,
         )
@@ -176,7 +176,7 @@ class FilterCommandHandler(BotMessageHandler):
             )
             await self._handle_active_filter_segments_ok(
                 chat_id=chat_id,
-                series_name=series_name,
+                series_names=series_names,
                 outcome=outcome,
             )
             return

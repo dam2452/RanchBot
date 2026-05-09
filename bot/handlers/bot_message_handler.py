@@ -114,6 +114,9 @@ class BotMessageHandler(ABC):
     async def _get_user_active_series(self, user_id: int) -> str:
         return await self._serial_manager.get_user_active_series(user_id)
 
+    async def _get_user_active_series_list(self, user_id: int) -> List[str]:
+        return await self._serial_manager.get_user_active_series_list(user_id)
+
     async def _get_user_active_series_id(self, user_id: int) -> int:
         active_series = await self._get_user_active_series(user_id)
         return await DatabaseManager.get_or_create_series(active_series)
@@ -170,7 +173,7 @@ class BotMessageHandler(ABC):
         self,
         *,
         quote: str,
-        series_name: str,
+        series_names: List[str],
         search_filter: Optional[SearchFilter],
         es_size: int,
         error_message: str,
@@ -178,7 +181,7 @@ class BotMessageHandler(ABC):
         es = await ElasticSearchManager.connect_to_elasticsearch(self._logger)
         segments = await ScenesFinder.find_by_text_and_filter(
             es=es,
-            series_name=series_name,
+            series_names=series_names,
             quote=quote,
             search_filter=search_filter,
             size=es_size,
@@ -192,11 +195,11 @@ class BotMessageHandler(ABC):
 
         return segments
 
-    async def _search_segments(self, quote: str, series_name: str, size: int) -> List[SegmentWithScore]:
+    async def _search_segments(self, quote: str, series_names: List[str], size: int) -> List[SegmentWithScore]:
         es = await ElasticSearchManager.connect_to_elasticsearch(self._logger)
         return await ScenesFinder.find_by_text_and_filter(
             es=es,
-            series_name=series_name,
+            series_names=series_names,
             quote=quote,
             search_filter=None,
             size=size,

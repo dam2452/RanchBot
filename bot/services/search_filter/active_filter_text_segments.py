@@ -35,7 +35,7 @@ class ActiveFilterTextSegmentsOutcome:
 async def load_active_filter_text_segments(
         *,
         chat_id: int,
-        series_name: str,
+        series_names: List[str],
         logger: logging.Logger,
         es_query_size: int,
 ) -> ActiveFilterTextSegmentsOutcome:
@@ -48,7 +48,7 @@ async def load_active_filter_text_segments(
     es = await ElasticSearchManager.connect_to_elasticsearch(logger)
     segments = await ScenesFinder.find_by_filter(
         es=es,
-        series_name=series_name,
+        series_names=series_names,
         search_filter=search_filter,
         size=es_query_size,
         logger=logger,

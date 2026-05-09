@@ -38,26 +38,49 @@ class SerialContextHandler(BotMessageHandler):
         available_series = await self._serial_manager.list_available_series()
 
         if len(args) == 1:
-            current_series = await self._serial_manager.get_user_active_series(user_id)
+            current = await self._serial_manager.get_user_active_series_list(user_id)
             await self._reply(
-                get_serial_current_message(current_series, available_series),
+                get_serial_current_message(current, available_series),
                 data={
-                    "current_series": current_series,
+                    "current_series": current,
                     "available_series": available_series,
                 },
             )
             return
 
-        query = " ".join(args[1:])
-        matched = find_matching_series(query, available_series)
+        query = " ".join(args[1:]).strip().lower()
 
-        if matched is None:
-            await self._reply_error(
-                get_serial_invalid_message(query, available_series),
+        if query in {"all", "wszystkie"}:
+            await self._serial_manager.set_user_active_series_list(user_id, [])
+            await self._reply(
+                get_serial_changed_message([]),
+                data={
+                    "current_series": [],
+                    "available_series": available_series,
+                },
+            )
+            await self._log_system_message(
+                logging.INFO,
+                f"User {user_id} changed series to: all",
             )
             return
 
-        await self._serial_manager.set_user_active_series(user_id, matched)
+        requested = [s.strip() for s in query.replace(",", " ").split() if s.strip()]
+        if not requested:
+            await self._reply_error(get_no_series_name_provided_message())
+            return
+
+        matched: List[str] = []
+        for req in requested:
+            m = find_matching_series(req, available_series)
+            if m is None:
+                await self._reply_error(
+                    get_serial_invalid_message(req, available_series),
+                )
+                return
+            matched.append(m)
+
+        await self._serial_manager.set_user_active_series_list(user_id, matched)
 
         await self._reply(
             get_serial_changed_message(matched),

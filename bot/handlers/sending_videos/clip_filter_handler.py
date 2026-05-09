@@ -38,13 +38,13 @@ class ClipFilterHandler(FilterCommandHandler):
             self,
             quote: str,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             msg: Any,
     ) -> None:
         segments = await self._search_with_active_filter(
             quote=quote,
             chat_id=chat_id,
-            series_name=series_name,
+            series_names=series_names,
             default_es_size=settings.MAX_ES_RESULTS_QUICK,
             error_message=get_no_segments_found_message(),
         )
@@ -62,7 +62,7 @@ class ClipFilterHandler(FilterCommandHandler):
         end_time = segment[SegmentKeys.END_TIME] + settings.EXTEND_AFTER
 
         start_time, end_time = await SceneSnapService.snap_clip_times(
-            series_name, segment, start_time, end_time, self._logger,
+            series_names[0] if series_names else "", segment, start_time, end_time, self._logger,
         )
 
         segment_id = segment.get(SegmentKeys.SEGMENT_ID, segment.get(SegmentKeys.ID))
@@ -96,7 +96,7 @@ class ClipFilterHandler(FilterCommandHandler):
             self,
             *,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             outcome: ActiveFilterTextSegmentsOutcome,
     ) -> None:
         filtered = outcome.segments
@@ -108,6 +108,7 @@ class ClipFilterHandler(FilterCommandHandler):
         )
 
         top_segment = cast(Dict[str, Any], filtered[0])
+        series_name = series_names[0] if series_names else ""
         if await self._send_top_segment_as_clip(top_segment, series_name):
             return
 

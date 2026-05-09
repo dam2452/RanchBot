@@ -115,14 +115,24 @@ class ScenesFinder:
         return False
 
     @staticmethod
-    def _index(series_name: str) -> str:
-        return f"{series_name}{ElasticsearchIndexSuffixes.SCENES}"
+    def _build_index(series_names: List[str]) -> str:
+        if not series_names:
+            return f"*{ElasticsearchIndexSuffixes.SCENES}"
+        return ",".join(f"{name}{ElasticsearchIndexSuffixes.SCENES}" for name in series_names)
+
+    @staticmethod
+    def _series_filter_clause(series_names: List[str]) -> List[Dict[str, Any]]:
+        if not series_names:
+            return []
+        if len(series_names) == 1:
+            return [{ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_names[0]}}]
+        return [{ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_names}}]
 
     @staticmethod
     async def find_by_filter(
         *,
         es: Any,
-        series_name: str,
+        series_names: List[str],
         search_filter: SearchFilter,
         size: int,
         logger: logging.Logger,
@@ -134,7 +144,7 @@ class ScenesFinder:
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
+                        *ScenesFinder._series_filter_clause(series_names),
                         *filter_clauses,
                     ],
                 },
@@ -143,12 +153,13 @@ class ScenesFinder:
             ElasticsearchQueryKeys.SOURCE: ScenesFinder.__SOURCE_FIELDS,
         }
 
-        response = await es.search(index=ScenesFinder._index(series_name), body=query, size=size)
+        response = await es.search(index=ScenesFinder._build_index(series_names), body=query, size=size)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
+        series_desc = ",".join(series_names) if series_names else "all"
         await log_system_message(
             logging.INFO,
-            f"ScenesFinder: {len(hits)} scenes found for series '{series_name}'.",
+            f"ScenesFinder: {len(hits)} scenes found for series '{series_desc}'.",
             logger,
         )
         segments = ScenesFinder._attach_scores(hits)
@@ -158,7 +169,7 @@ class ScenesFinder:
     async def find_by_text_and_filter(
         *,
         es: Any,
-        series_name: str,
+        series_names: List[str],
         quote: str,
         search_filter: Optional[SearchFilter],
         size: int,
@@ -170,19 +181,20 @@ class ScenesFinder:
             field=SegmentKeys.TEXT,
             query=quote,
             filter_clauses=[
-                {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
+                *ScenesFinder._series_filter_clause(series_names),
                 *filter_clauses,
             ],
         )
         query[ElasticsearchQueryKeys.SORT] = ScenesFinder._build_text_sort()
         query[ElasticsearchQueryKeys.SOURCE] = ScenesFinder.__SOURCE_FIELDS
 
-        response = await es.search(index=ScenesFinder._index(series_name), body=query, size=size)
+        response = await es.search(index=ScenesFinder._build_index(series_names), body=query, size=size)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
+        series_desc = ",".join(series_names) if series_names else "all"
         await log_system_message(
             logging.INFO,
-            f"ScenesFinder: {len(hits)} scenes found for quote '{quote}' in series '{series_name}'.",
+            f"ScenesFinder: {len(hits)} scenes found for quote '{quote}' in series '{series_desc}'.",
             logger,
         )
         segments = ScenesFinder._attach_scores(hits)

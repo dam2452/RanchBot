@@ -266,6 +266,7 @@ CREATE INDEX IF NOT EXISTS idx_series_series_name ON series(series_name);
 CREATE TABLE IF NOT EXISTS user_series_context (
     user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
     active_series_id INT REFERENCES series(id) ON DELETE SET NULL,
+    active_series JSONB DEFAULT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -273,6 +274,8 @@ CREATE INDEX IF NOT EXISTS idx_user_series_context_user_id
     ON user_series_context(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series_id
     ON user_series_context(active_series_id);
+CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series
+    ON user_series_context USING gin (active_series);
 
 CREATE OR REPLACE FUNCTION update_series_context_timestamp()
 RETURNS TRIGGER AS $$

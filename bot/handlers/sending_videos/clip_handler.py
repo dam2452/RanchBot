@@ -53,7 +53,7 @@ class ClipHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        segments = await self._search_segments(quote, active_series, settings.MAX_ES_RESULTS_QUICK)
+        segments = await self._search_segments(quote, [active_series], settings.MAX_ES_RESULTS_QUICK)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 

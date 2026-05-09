@@ -132,7 +132,7 @@ async def _resolve_object_segments(
 async def load_active_filter_scene_segments(
     *,
     chat_id: int,
-    series_name: str,
+    series_names: List[str],
     logger: logging.Logger,
     size: int,
 ) -> ActiveFilterSceneSegmentsOutcome:
@@ -147,6 +147,7 @@ async def load_active_filter_scene_segments(
             search_filter=search_filter,
         )
 
+    series_name = series_names[0] if series_names else ""
     if search_filter.get("character_groups"):
         segments = await _resolve_character_segments(search_filter, series_name, logger, size)
     else:
