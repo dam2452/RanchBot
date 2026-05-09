@@ -266,7 +266,6 @@ CREATE INDEX IF NOT EXISTS idx_series_series_name ON series(series_name);
 CREATE TABLE IF NOT EXISTS user_series_context (
     user_id BIGINT PRIMARY KEY REFERENCES user_profiles(user_id) ON DELETE CASCADE,
     active_series_id INT REFERENCES series(id) ON DELETE SET NULL,
-    active_series JSONB DEFAULT NULL,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -274,6 +273,17 @@ CREATE INDEX IF NOT EXISTS idx_user_series_context_user_id
     ON user_series_context(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series_id
     ON user_series_context(active_series_id);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'user_series_context' AND column_name = 'active_series'
+    ) THEN
+        ALTER TABLE user_series_context ADD COLUMN active_series JSONB DEFAULT NULL;
+    END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series
     ON user_series_context USING gin (active_series);
 
