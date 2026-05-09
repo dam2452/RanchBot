@@ -280,9 +280,18 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'user_series_context' AND column_name = 'active_series'
     ) THEN
-        ALTER TABLE user_series_context ADD COLUMN active_series JSONB DEFAULT NULL;
+        ALTER TABLE user_series_context ADD COLUMN active_series JSONB DEFAULT '[]';
     END IF;
 END $$;
+
+UPDATE user_series_context u
+SET active_series = jsonb_build_array(s.series_name)
+FROM series s
+WHERE u.active_series IS NULL AND u.active_series_id = s.id;
+
+UPDATE user_series_context
+SET active_series = '[]'::jsonb
+WHERE active_series IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_user_series_context_active_series
     ON user_series_context USING gin (active_series);

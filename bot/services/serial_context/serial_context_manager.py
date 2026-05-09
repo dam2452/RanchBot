@@ -18,15 +18,14 @@ class SerialContextManager:
 
     @staticmethod
     async def get_user_active_series_list(user_id: int) -> List[str]:
-        names = await DatabaseManager.get_user_active_series_names(user_id)
-        return names if names is not None else []
+        return await DatabaseManager.get_user_active_series_names(user_id)
 
     async def set_user_active_series(self, user_id: int, series_name: str) -> None:
         await self.set_user_active_series_list(user_id, [series_name])
 
     async def set_user_active_series_list(self, user_id: int, series_names: List[str]) -> None:
         if not series_names:
-            await DatabaseManager.set_user_active_series_names(user_id, None)
+            await DatabaseManager.set_user_active_series_names(user_id, [])
             self.__logger.info(f"Set active series for user {user_id}: all")
             return
         for name in series_names:

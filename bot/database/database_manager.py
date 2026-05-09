@@ -1080,27 +1080,18 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
     @staticmethod
-    async def get_user_active_series_names(user_id: int) -> Optional[List[str]]:
+    async def get_user_active_series_names(user_id: int) -> List[str]:
         async with DatabaseManager.__get_db_connection() as conn:
-            row = await conn.fetchrow(
-                "SELECT active_series, active_series_id FROM user_series_context WHERE user_id = $1",
+            result = await conn.fetchval(
+                "SELECT active_series FROM user_series_context WHERE user_id = $1",
                 user_id,
             )
-        if row is None:
-            return None
-        active_series = row.get("active_series")
-        if active_series is not None:
-            return json.loads(active_series) if active_series else None
-        active_series_id = row.get("active_series_id")
-        if active_series_id is not None:
-            name = await DatabaseManager.get_series_by_id(active_series_id)
-            if name:
-                return [name]
-        return None
+        if result is None:
+            return []
+        return json.loads(result)
 
     @staticmethod
-    async def set_user_active_series_names(user_id: int, names: Optional[List[str]]) -> None:
-        active_series_json = json.dumps(names) if names else None
+    async def set_user_active_series_names(user_id: int, names: List[str]) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
                 """
@@ -1108,7 +1099,7 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 VALUES ($1, $2::jsonb)
                 ON CONFLICT (user_id) DO UPDATE SET active_series = $2::jsonb
                 """,
-                user_id, active_series_json,
+                user_id, json.dumps(names),
             )
 
     @staticmethod
