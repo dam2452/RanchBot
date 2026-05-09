@@ -153,7 +153,8 @@ class ScenesFinder:
             ElasticsearchQueryKeys.SOURCE: ScenesFinder.__SOURCE_FIELDS,
         }
 
-        response = await es.search(index=ScenesFinder._build_index(series_names), body=query, size=size)
+        index_name = ScenesFinder._build_index(series_names)
+        response = await es.search(index=index_name, body=query, size=size, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         series_desc = ",".join(series_names) if series_names else "all"
@@ -188,7 +189,8 @@ class ScenesFinder:
         query[ElasticsearchQueryKeys.SORT] = ScenesFinder._build_text_sort()
         query[ElasticsearchQueryKeys.SOURCE] = ScenesFinder.__SOURCE_FIELDS
 
-        response = await es.search(index=ScenesFinder._build_index(series_names), body=query, size=size)
+        index_name = ScenesFinder._build_index(series_names)
+        response = await es.search(index=index_name, body=query, size=size, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         series_desc = ",".join(series_names) if series_names else "all"
