@@ -359,6 +359,20 @@ class ElasticSearchManager:
     }
 
     @staticmethod
+    async def get_series_with_scenes_index(logger: logging.Logger) -> List[str]:
+        es = await ElasticSearchManager.connect_to_elasticsearch(logger)
+        suffix = "_scenes"
+        try:
+            indices = await es.indices.get(index=f"*{suffix}")
+            return [
+                name[: -len(suffix)]
+                for name in indices
+                if name.endswith(suffix)
+            ]
+        except es_exceptions.NotFoundError:
+            return []
+
+    @staticmethod
     async def connect_to_elasticsearch(logger: logging.Logger) -> AsyncElasticsearch:
         if ElasticSearchManager._shared_es_client is not None:
             return ElasticSearchManager._shared_es_client

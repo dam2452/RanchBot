@@ -65,7 +65,7 @@ class VideoFramesFinder:
             ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
         frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
@@ -111,7 +111,7 @@ class VideoFramesFinder:
             ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
         frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
@@ -159,7 +159,7 @@ class VideoFramesFinder:
             ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
         return [h[ElasticsearchKeys.SOURCE] for h in hits]
 
@@ -214,7 +214,7 @@ class VideoFramesFinder:
             ElasticsearchQueryKeys.SOURCE: VideoFramesFinder.__FRAME_SOURCE_FIELDS,
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
         frames = [h[ElasticsearchKeys.SOURCE] for h in hits]
         await log_system_message(
@@ -250,7 +250,7 @@ class VideoFramesFinder:
             },
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         buckets = (
             response[ElasticsearchKeys.AGGREGATIONS]
             [ElasticsearchAggregationKeys.OBJECTS]

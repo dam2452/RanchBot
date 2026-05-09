@@ -2,6 +2,7 @@ import logging
 from typing import List
 
 from bot.database.database_manager import DatabaseManager
+from bot.search.infra.elastic_search_manager import ElasticSearchManager
 from bot.services.reindex.series_scanner import SeriesScanner
 from bot.settings import settings
 
@@ -34,4 +35,8 @@ class SerialContextManager:
         self.__logger.info(f"Set active series for user {user_id}: {series_names}")
 
     async def list_available_series(self) -> List[str]:
-        return self.__scanner.scan_all_series()
+        filesystem_series = self.__scanner.scan_all_series()
+        indexed_series = await ElasticSearchManager.get_series_with_scenes_index(self.__logger)
+        if not indexed_series:
+            return filesystem_series
+        return [s for s in filesystem_series if s in indexed_series]

@@ -239,7 +239,7 @@ class ObjectFinder:
             },
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         buckets = (
             response[ElasticsearchKeys.AGGREGATIONS]
             [ElasticsearchAggregationKeys.OBJECTS]

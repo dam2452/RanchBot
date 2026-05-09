@@ -179,7 +179,7 @@ class CharacterFinder:
             },
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         buckets = (
             response[ElasticsearchKeys.AGGREGATIONS]
             [ElasticsearchAggregationKeys.ACTORS]
@@ -229,7 +229,7 @@ class CharacterFinder:
             ElasticsearchQueryKeys.SOURCE: CharacterFinder.__CHARACTER_SCENE_SOURCE_FIELDS,
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
         scenes = [CharacterFinder.__parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(logging.INFO, f"Found {len(scenes)} scenes for '{character_name}'.", logger)
@@ -288,7 +288,7 @@ class CharacterFinder:
             ElasticsearchQueryKeys.SOURCE: CharacterFinder.__CHARACTER_SCENE_SOURCE_FIELDS,
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
         scenes = [CharacterFinder.__parse_scene(h[ElasticsearchKeys.SOURCE], character_name) for h in hits]
         await log_system_message(
@@ -323,7 +323,7 @@ class CharacterFinder:
             },
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         buckets = (
             response[ElasticsearchKeys.AGGREGATIONS]
             [ElasticsearchAggregationKeys.ACTORS]
