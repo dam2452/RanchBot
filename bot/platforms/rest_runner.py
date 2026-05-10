@@ -578,7 +578,7 @@ async def run_rest_api():
         s.REST_API_APP_PATH,
         host=s.REST_API_HOST,
         port=s.REST_API_PORT,
-        workers=4,
+        workers=s.REST_API_WORKERS,
         log_level=s.LOG_LEVEL.lower(),
     )
     server = uvicorn.Server(config)
