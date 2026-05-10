@@ -698,6 +698,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
     @staticmethod
+    async def delete_last_clips_by_chat_id(chat_id: int) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                "DELETE FROM last_clips WHERE chat_id = $1",
+                chat_id,
+            )
+
+    @staticmethod
     async def update_user_note(user_id: int, note: str) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(

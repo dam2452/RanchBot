@@ -27,6 +27,7 @@ class SerialContextManager:
     async def set_user_active_series_list(self, user_id: int, series_names: List[str]) -> None:
         if not series_names:
             await DatabaseManager.set_user_active_series_names(user_id, [])
+            await DatabaseManager.delete_last_clips_by_chat_id(user_id)
             self.__logger.info(f"Set active series for user {user_id}: all")
             return
         series_ids: List[int] = []
@@ -36,6 +37,7 @@ class SerialContextManager:
         await DatabaseManager.set_user_active_series_names(user_id, series_names)
         if len(series_ids) == 1:
             await DatabaseManager.set_user_active_series(user_id, series_ids[0])
+        await DatabaseManager.delete_last_clips_by_chat_id(user_id)
         self.__logger.info(f"Set active series for user {user_id}: {series_names}")
 
     async def list_available_series(self) -> List[str]:
