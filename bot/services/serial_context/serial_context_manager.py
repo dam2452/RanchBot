@@ -29,9 +29,13 @@ class SerialContextManager:
             await DatabaseManager.set_user_active_series_names(user_id, [])
             self.__logger.info(f"Set active series for user {user_id}: all")
             return
+        series_ids: List[int] = []
         for name in series_names:
-            await DatabaseManager.get_or_create_series(name)
+            series_id = await DatabaseManager.get_or_create_series(name)
+            series_ids.append(series_id)
         await DatabaseManager.set_user_active_series_names(user_id, series_names)
+        if len(series_ids) == 1:
+            await DatabaseManager.set_user_active_series(user_id, series_ids[0])
         self.__logger.info(f"Set active series for user {user_id}: {series_names}")
 
     async def list_available_series(self) -> List[str]:
