@@ -176,41 +176,11 @@ BEGIN
     END IF;
 END $$;
 
-CREATE OR REPLACE FUNCTION clean_old_system_logs() RETURNS trigger AS $$
-BEGIN
-    DELETE FROM system_logs WHERE timestamp < NOW() - INTERVAL '365 days';
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trigger_clean_system_logs ON system_logs;
+DROP FUNCTION IF EXISTS clean_old_system_logs() CASCADE;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_clean_system_logs'
-    ) THEN
-        CREATE TRIGGER trigger_clean_system_logs
-        AFTER INSERT ON system_logs
-        FOR EACH ROW EXECUTE FUNCTION clean_old_system_logs();
-    END IF;
-END $$;
-
-CREATE OR REPLACE FUNCTION clean_old_user_logs() RETURNS trigger AS $$
-BEGIN
-    DELETE FROM user_logs WHERE timestamp < NOW() - INTERVAL '365 days';
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_clean_user_logs'
-    ) THEN
-        CREATE TRIGGER trigger_clean_user_logs
-        AFTER INSERT ON user_logs
-        FOR EACH ROW EXECUTE FUNCTION clean_old_user_logs();
-    END IF;
-END $$;
+DROP TRIGGER IF EXISTS trigger_clean_user_logs ON user_logs;
+DROP FUNCTION IF EXISTS clean_old_user_logs() CASCADE;
 
 CREATE OR REPLACE FUNCTION clean_old_user_command_limits() RETURNS trigger AS $$
 BEGIN
