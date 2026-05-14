@@ -3,9 +3,13 @@ from typing import (
     Any,
     List,
     Optional,
+    Tuple,
 )
 
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_episode_restriction_filter,
+)
 from bot.settings import settings
 from bot.types import VideoFrameSource
 from bot.utils.constants import (
@@ -169,7 +173,7 @@ class VideoFramesFinder:
         series_name: str,
         logger: logging.Logger,
         seasons: Optional[List[int]] = None,
-        episode_filter: Optional[int] = None,
+        episodes: Optional[List[Tuple[int, int]]] = None,
     ) -> List[VideoFrameSource]:
         await log_system_message(
             logging.INFO, f"Fetching frames with object '{object_class}' in '{series_name}'.", logger,
@@ -188,8 +192,9 @@ class VideoFramesFinder:
         ]
         if seasons:
             must_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
-        if episode_filter is not None:
-            must_clauses.append({ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.EPISODE_NUMBER_FIELD: episode_filter}})
+        episode_filter = build_episode_restriction_filter(episodes) if episodes else None
+        if episode_filter:
+            must_clauses.append(episode_filter)
 
         object_count_field = f"{VideoFrameKeys.DETECTED_OBJECTS}.count"
         query = {

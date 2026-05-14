@@ -5,9 +5,13 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
 )
 
-from bot.search.infra.elastic_search_manager import ElasticSearchManager
+from bot.search.infra.elastic_search_manager import (
+    ElasticSearchManager,
+    build_episode_restriction_filter,
+)
 from bot.search.video_frames.frames_finder import _build_index
 from bot.settings import settings
 from bot.types import (
@@ -203,6 +207,7 @@ class CharacterFinder:
         logger: logging.Logger,
         size: int = settings.MAX_ES_RESULTS_LONG,
         seasons: Optional[List[int]] = None,
+        episodes: Optional[List[Tuple[int, int]]] = None,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -214,6 +219,9 @@ class CharacterFinder:
         filter_clauses = [CharacterFinder.__nested_char_filter(character_name)]
         if seasons:
             filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
+        episode_filter = build_episode_restriction_filter(episodes) if episodes else None
+        if episode_filter:
+            filter_clauses.append(episode_filter)
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
@@ -243,6 +251,7 @@ class CharacterFinder:
         logger: logging.Logger,
         size: int = settings.MAX_ES_RESULTS_LONG,
         seasons: Optional[List[int]] = None,
+        episodes: Optional[List[Tuple[int, int]]] = None,
     ) -> List[CharacterScene]:
         await log_system_message(
             logging.INFO,
@@ -272,6 +281,9 @@ class CharacterFinder:
         filter_clauses = [char_and_emotion_nested]
         if seasons:
             filter_clauses.append({ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SEASON_FIELD: seasons}})
+        episode_filter = build_episode_restriction_filter(episodes) if episodes else None
+        if episode_filter:
+            filter_clauses.append(episode_filter)
         query = {
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {

@@ -9,6 +9,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     cast,
 )
 
@@ -74,6 +75,19 @@ def _seasons_from_filter(search_filter: SearchFilter) -> Optional[List[int]]:
     return sorted(season_set) if season_set else None
 
 
+def _episodes_from_filter(search_filter: SearchFilter) -> Optional[List[Tuple[int, int]]]:
+    episodes = search_filter.get("episodes")
+    if not episodes:
+        return None
+    pairs: List[Tuple[int, int]] = []
+    for ep in episodes:
+        season = ep.get("season")
+        episode_num = ep.get("episode")
+        if season is not None and episode_num is not None:
+            pairs.append((cast(int, season), cast(int, episode_num)))
+    return pairs if pairs else None
+
+
 async def _resolve_character_segments(
     search_filter: SearchFilter,
     series_name: str,
@@ -82,6 +96,7 @@ async def _resolve_character_segments(
 ) -> List[Dict[str, Any]]:
     character = search_filter["character_groups"][0][0]
     seasons = _seasons_from_filter(search_filter)
+    episodes = _episodes_from_filter(search_filter)
     emotions = search_filter.get("emotions") or []
     emotion_en = map_emotion_to_en(emotions[0]) if emotions else None
 
@@ -93,6 +108,7 @@ async def _resolve_character_segments(
             logger=logger,
             size=size,
             seasons=seasons,
+            episodes=episodes,
         )
     else:
         scenes = await CharacterFinder.get_scenes_by_character(
@@ -101,6 +117,7 @@ async def _resolve_character_segments(
             logger=logger,
             size=size,
             seasons=seasons,
+            episodes=episodes,
         )
     return [scene_to_search_segment(scene) for scene in scenes]
 
@@ -113,12 +130,14 @@ async def _resolve_object_segments(
 ) -> List[Dict[str, Any]]:
     obj_spec = cast(ObjectFilterSpec, search_filter["object_groups"][0][0])
     seasons = _seasons_from_filter(search_filter)
+    episodes = _episodes_from_filter(search_filter)
 
     scenes = await ObjectFinder.get_scenes_by_object(
         class_name=obj_spec["name"],
         series_name=series_name,
         logger=logger,
         seasons=seasons,
+        episodes=episodes,
     )
     if obj_spec.get("operator") is not None and obj_spec.get("value") is not None:
         qty_filter: QuantityFilter = {
