@@ -79,11 +79,18 @@ def _episodes_from_filter(search_filter: SearchFilter) -> Optional[List[Tuple[in
     episodes = search_filter.get("episodes")
     if not episodes:
         return None
+    seasons = search_filter.get("seasons")
     pairs: List[Tuple[int, int]] = []
     for ep in episodes:
         season = ep.get("season")
         episode_num = ep.get("episode")
-        if season is not None and episode_num is not None:
+        if episode_num is None:
+            continue
+        if season is None:
+            if seasons:
+                for s in seasons:
+                    pairs.append((s, cast(int, episode_num)))
+        else:
             pairs.append((cast(int, season), cast(int, episode_num)))
     return pairs if pairs else None
 
