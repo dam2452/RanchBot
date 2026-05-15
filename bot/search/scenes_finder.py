@@ -213,11 +213,17 @@ class ScenesFinder:
             EpisodeMetadataKeys.EPISODE_NUMBER_FIELD,
         )
 
-        for char_group in search_filter.get("character_groups", []):
-            clauses.append(ScenesFinder._nested_character_clause(char_group))
-
+        character_groups = search_filter.get("character_groups", [])
         emotions = search_filter.get("emotions", [])
-        if emotions:
+
+        if character_groups and emotions:
+            labels_en = [en for e in emotions for en in (map_emotion_to_en(e),) if en]
+            for char_group in character_groups:
+                clauses.append(ScenesFinder._nested_character_emotion_clause(char_group, labels_en))
+        elif character_groups:
+            for char_group in character_groups:
+                clauses.append(ScenesFinder._nested_character_clause(char_group))
+        elif emotions:
             clauses.append(ScenesFinder._nested_emotion_clause(emotions))
 
         for obj_group in search_filter.get("object_groups", []):
@@ -274,6 +280,56 @@ class ScenesFinder:
                                     for label in labels_en
                                 ],
                                 ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                            },
+                        },
+                    },
+                },
+            },
+        }
+
+    @staticmethod
+    def _nested_character_emotion_clause(char_names: List[str], emotion_labels_en: List[str]) -> Dict[str, Any]:
+        char_should = [
+            {
+                ElasticsearchQueryKeys.TERM: {
+                    f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.NAME}": {
+                        ElasticsearchQueryKeys.VALUE: name,
+                        ElasticsearchQueryKeys.CASE_INSENSITIVE: True,
+                    },
+                },
+            }
+            for name in char_names
+        ]
+        emotion_should = [
+            {
+                ElasticsearchQueryKeys.TERM: {
+                    f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.EMOTION}.{EmotionKeys.LABEL}": label,
+                },
+            }
+            for label in emotion_labels_en
+        ]
+        return {
+            ElasticsearchQueryKeys.NESTED: {
+                ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES,
+                ElasticsearchQueryKeys.QUERY: {
+                    ElasticsearchQueryKeys.NESTED: {
+                        ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES_CHARACTERS,
+                        ElasticsearchQueryKeys.QUERY: {
+                            ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.BOOL: {
+                                            ElasticsearchQueryKeys.SHOULD: char_should,
+                                            ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                                        },
+                                    },
+                                    {
+                                        ElasticsearchQueryKeys.BOOL: {
+                                            ElasticsearchQueryKeys.SHOULD: emotion_should,
+                                            ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                                        },
+                                    },
+                                ],
                             },
                         },
                     },
