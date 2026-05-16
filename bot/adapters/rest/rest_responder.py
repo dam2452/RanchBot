@@ -25,10 +25,10 @@ class RestResponder(AbstractResponder):
         self.__prefer_json = prefer_json
         self.__notices: List[Dict[str, str]] = []
 
-    async def send_text(self, text: str) -> None:
+    async def _send_text_part(self, text: str) -> None:
         self.__notices.append({"type": ResponseType.TEXT, "content": text})
 
-    async def send_markdown(self, text: str) -> None:
+    async def _send_markdown_part(self, text: str) -> None:
         self.__notices.append({"type": ResponseType.MARKDOWN, "content": text})
 
     async def send_photo(

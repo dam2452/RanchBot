@@ -20,14 +20,16 @@ from bot.utils.functions import RESOLUTIONS
 
 
 class TelegramResponder(AbstractResponder):
+    _MAX_MESSAGE_LENGTH = 4096
+
     def __init__(self, message: Message) -> None:
         self._message = message
 
-    async def send_text(self, text: str) -> Optional[Message]:
-        return await self._message.answer(text, reply_to_message_id=self._message.message_id, disable_notification=True)
+    async def _send_text_part(self, text: str) -> None:
+        await self._message.answer(text, reply_to_message_id=self._message.message_id, disable_notification=True)
 
-    async def send_markdown(self, text: str) -> Optional[Message]:
-        return await self._message.answer(text, parse_mode="MarkdownV2", reply_to_message_id=self._message.message_id, disable_notification=True)
+    async def _send_markdown_part(self, text: str) -> None:
+        await self._message.answer(text, parse_mode="MarkdownV2", reply_to_message_id=self._message.message_id, disable_notification=True)
 
     @staticmethod
     async def edit_text(message: Message, text: str) -> None:
@@ -89,5 +91,6 @@ class TelegramResponder(AbstractResponder):
             shutil.rmtree(cleanup_dir, ignore_errors=True)
         elif delete_after_send:
             file_path.unlink()
+
     async def send_json(self, data: json) -> None:
         raise NotImplementedError("JSON mode not supported for TelegramResponder")
