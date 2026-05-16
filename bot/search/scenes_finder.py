@@ -39,6 +39,9 @@ class ScenesFinder:
     )
     __OBJECT_COUNT_FIELD = f"{__FRAMES}.{VideoFrameKeys.DETECTED_OBJECTS}.{DetectedObjectKeys.COUNT}"
 
+    _MIN_FACE_CONFIDENCE: float = 0.5
+    _MIN_EMOTION_CONFIDENCE: float = 0.3
+
     __SOURCE_FIELDS = [
         EpisodeMetadataKeys.EPISODE_METADATA,
         EmbeddingKeys.EPISODE_ID,
@@ -241,6 +244,15 @@ class ScenesFinder:
                         ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES_CHARACTERS,
                         ElasticsearchQueryKeys.QUERY: {
                             ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_FACE_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                ],
                                 ElasticsearchQueryKeys.SHOULD: [
                                     {
                                         ElasticsearchQueryKeys.TERM: {
@@ -271,6 +283,15 @@ class ScenesFinder:
                         ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES_CHARACTERS,
                         ElasticsearchQueryKeys.QUERY: {
                             ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.EMOTION}.{EmotionKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_EMOTION_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                ],
                                 ElasticsearchQueryKeys.SHOULD: [
                                     {
                                         ElasticsearchQueryKeys.TERM: {
@@ -317,6 +338,20 @@ class ScenesFinder:
                         ElasticsearchQueryKeys.QUERY: {
                             ElasticsearchQueryKeys.BOOL: {
                                 ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_FACE_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.EMOTION}.{EmotionKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_EMOTION_CONFIDENCE,
+                                            },
+                                        },
+                                    },
                                     {
                                         ElasticsearchQueryKeys.BOOL: {
                                             ElasticsearchQueryKeys.SHOULD: char_should,
