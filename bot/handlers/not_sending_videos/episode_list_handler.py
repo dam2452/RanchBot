@@ -88,8 +88,7 @@ class EpisodeListHandler(BotMessageHandler):
             })
         else:
             response = format_episode_list_response(season, episodes, season_info)
-            for part in self.__split_message(response):
-                await self._responder.send_markdown(part)
+            await self._responder.send_markdown(response)
 
         return await self._log_system_message(
             logging.INFO,
@@ -99,15 +98,3 @@ class EpisodeListHandler(BotMessageHandler):
     async def __reply_no_episodes_found(self, season: int) -> None:
         await self._reply_error(get_no_episodes_found_message(season))
         await self._log_system_message(logging.INFO, get_log_no_episodes_found_message(season))
-
-    @staticmethod
-    def __split_message(full_message: str, max_length: int = 4096) -> List[str]:
-        parts = []
-        while len(full_message) > max_length:
-            split_at = full_message.rfind("\n", 0, max_length)
-            if split_at == -1:
-                split_at = max_length
-            parts.append(full_message[:split_at])
-            full_message = full_message[split_at:].lstrip()
-        parts.append(full_message)
-        return parts
