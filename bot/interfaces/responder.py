@@ -15,17 +15,19 @@ class AbstractResponder(ABC):
     _MAX_MESSAGE_LENGTH: int = 0
 
     async def send_text(self, text: str) -> None:
+        last_id: Optional[int] = None
         for part in self._split_message(text):
-            await self._send_text_part(part)
+            last_id = await self._send_text_part(part, reply_to_id=last_id)
 
     async def send_markdown(self, text: str) -> None:
+        last_id: Optional[int] = None
         for part in self._split_message(text):
-            await self._send_markdown_part(part)
+            last_id = await self._send_markdown_part(part, reply_to_id=last_id)
 
     @abstractmethod
-    async def _send_text_part(self, text: str) -> None: ...
+    async def _send_text_part(self, text: str, reply_to_id: Optional[int] = None) -> Optional[int]: ...
     @abstractmethod
-    async def _send_markdown_part(self, text: str) -> None: ...
+    async def _send_markdown_part(self, text: str, reply_to_id: Optional[int] = None) -> Optional[int]: ...
     @abstractmethod
     async def send_photo(self, image_bytes: bytes, image_path: Path, caption: Optional[str] = None) -> None: ...
     @abstractmethod
@@ -65,7 +67,7 @@ class AbstractResponder(ABC):
             if inner.rstrip().endswith("```"):
                 inner = inner.rstrip()[:-3]
 
-        parts: List[str] = []
+        parts = []
         while len(inner) > max_length:
             split_at = inner.rfind("\n", 0, max_length)
             if split_at == -1:

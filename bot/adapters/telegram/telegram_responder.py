@@ -25,11 +25,15 @@ class TelegramResponder(AbstractResponder):
     def __init__(self, message: Message) -> None:
         self._message = message
 
-    async def _send_text_part(self, text: str) -> None:
-        await self._message.answer(text, reply_to_message_id=self._message.message_id, disable_notification=True)
+    async def _send_text_part(self, text: str, reply_to_id: Optional[int] = None) -> Optional[int]:
+        target_id = reply_to_id if reply_to_id is not None else self._message.message_id
+        msg = await self._message.answer(text, reply_to_message_id=target_id, disable_notification=True)
+        return msg.message_id
 
-    async def _send_markdown_part(self, text: str) -> None:
-        await self._message.answer(text, parse_mode="MarkdownV2", reply_to_message_id=self._message.message_id, disable_notification=True)
+    async def _send_markdown_part(self, text: str, reply_to_id: Optional[int] = None) -> Optional[int]:
+        target_id = reply_to_id if reply_to_id is not None else self._message.message_id
+        msg = await self._message.answer(text, parse_mode="MarkdownV2", reply_to_message_id=target_id, disable_notification=True)
+        return msg.message_id
 
     @staticmethod
     async def edit_text(message: Message, text: str) -> None:
