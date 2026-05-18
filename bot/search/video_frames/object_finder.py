@@ -250,6 +250,7 @@ class ObjectFinder:
         objects = [
             ObjectWithCount(
                 class_name=b[ElasticsearchKeys.KEY],
+                label_pl=get_polish_name(b[ElasticsearchKeys.KEY]),
                 scene_count=b[ElasticsearchAggregationKeys.BACK_TO_ROOT][ElasticsearchKeys.DOC_COUNT],
             )
             for b in buckets
