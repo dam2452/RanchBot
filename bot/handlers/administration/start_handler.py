@@ -86,7 +86,7 @@ class StartHandler(BotMessageHandler):
             await self.__send_message(get_basic_message())
         else:
             command = remove_diacritics_and_lowercase(content[1])
-            response = self.__RESPONSES.get(command, get_invalid_command_message())()
+            response = self.__RESPONSES.get(command, get_invalid_command_message)()
             await self.__send_message(response)
 
     async def __send_message(self, text: str) -> None:
