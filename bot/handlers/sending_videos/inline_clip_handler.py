@@ -70,7 +70,7 @@ class InlineClipHandler(BotMessageHandler):
         saved_clip, segments, season_info, _, active_series = await self.__fetch_data(user_id, query)
 
         if not saved_clip and not segments:
-            await self._responder.send_text(f'Nie znaleziono klipów dla zapytania: "{query}"')
+            await self._reply_warning(f'Nie znaleziono klipów dla zapytania: "{query}"')
             return
 
         temp_dir = Path(tempfile.mkdtemp())
@@ -78,7 +78,7 @@ class InlineClipHandler(BotMessageHandler):
             video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True, active_series=active_series)
 
             if not video_files:
-                await self._responder.send_text(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
+                await self._reply_error(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
                 return
 
             zip_path = await self.__create_zip(video_files, temp_dir, query)

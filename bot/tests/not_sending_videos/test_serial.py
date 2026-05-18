@@ -15,7 +15,7 @@ class TestSerialContextHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_serial_change_to_ranczo(self):
         response = self.send_command('/serial ranczo')
-        self.assert_response_contains(response, [msg.get_serial_changed_message("ranczo")])
+        self.assert_response_contains(response, [msg.get_serial_changed_message(["ranczo"])])
 
     @pytest.mark.asyncio
     async def test_serial_invalid_name(self):
@@ -25,4 +25,4 @@ class TestSerialContextHandler(BaseTest):
     @pytest.mark.asyncio
     async def test_serial_short_alias(self):
         response = self.send_command('/ser ranczo')
-        self.assert_response_contains(response, [msg.get_serial_changed_message("ranczo")])
+        self.assert_response_contains(response, [msg.get_serial_changed_message(["ranczo"])])
