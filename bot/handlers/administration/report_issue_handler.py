@@ -17,7 +17,8 @@ from bot.settings import settings
 
 
 class ReportIssueHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["report", "zgłoś", "zglos", "r"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

@@ -23,7 +23,8 @@ from bot.video.clips_extractor import ClipsExtractor
 
 
 class ClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klip", "clip", "k"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
@@ -52,7 +53,7 @@ class ClipHandler(BotMessageHandler):
 
         active_series = await self._get_user_active_series(msg.get_user_id())
 
-        segments = await self._search_segments(quote, active_series, settings.MAX_ES_RESULTS_QUICK)
+        segments = await self._search_segments(quote, [active_series], settings.MAX_ES_RESULTS_QUICK)
         if not segments:
             return await self.__reply_no_segments_found(quote)
 

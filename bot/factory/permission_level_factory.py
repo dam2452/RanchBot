@@ -2,103 +2,51 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from functools import cached_property
 import logging
 from typing import (
-    Awaitable,
-    Callable,
     Dict,
     List,
-    Optional,
     Tuple,
     Type,
 )
 
-from aiogram import (
-    Bot,
-    Dispatcher,
-)
-from aiogram.filters import Command
-from aiogram.types import (
-    InlineQuery,
-    Message as AiogramMessage,
-)
-
-from bot.adapters.telegram.telegram_message import TelegramMessage
-from bot.adapters.telegram.telegram_responder import TelegramResponder
 from bot.handlers import BotMessageHandler
-from bot.interfaces.message import AbstractMessage
-from bot.interfaces.responder import AbstractResponder
 from bot.middlewares import BotMiddleware
-from bot.middlewares.aiogram_middleware_adapter import AiogramMiddlewareAdapter
 
 
 class PermissionLevelFactory(ABC):
-    def __init__(self, logger: logging.Logger, bot: Optional[Bot]):
+    def __init__(self, logger: logging.Logger) -> None:
         self._logger = logger
-        self._bot = bot
 
-    def create_and_register(self, dp: Dispatcher) -> None:
-        self.__assert_no_command_collisions()
-        handler_funcs, middlewares = self.__get_telegram_routes_and_middlewares()
+    @cached_property
+    def _handler_classes(self) -> List[Type[BotMessageHandler]]:
+        classes = self._create_handler_classes()
+        self._assert_no_command_collisions(classes)
+        return classes
 
-        for command, handler_fn in handler_funcs:
-            dp.message.register(handler_fn, Command(commands=[command]))
+    def get_command_handler_pairs(self) -> List[Tuple[str, Type[BotMessageHandler]]]:
+        return [
+            (command, handler_cls)
+            for handler_cls in self._handler_classes
+            for command in handler_cls.get_commands()
+        ]
 
-        self._logger.info(f"{self.__class__.__name__} handlers registered")
+    def get_middlewares(self) -> List[BotMiddleware]:
+        commands = [cmd for cmd, _ in self.get_command_handler_pairs()]
+        return self._create_middlewares(commands)
 
-        for middleware in middlewares:
-            dp.message.middleware.register(AiogramMiddlewareAdapter(middleware))
-
-        self._logger.info(f"{self.__class__.__name__} middlewares registered")
-
-    def __assert_no_command_collisions(self) -> None:
+    @staticmethod
+    def _assert_no_command_collisions(classes: List[Type[BotMessageHandler]]) -> None:
         seen: Dict[str, Type[BotMessageHandler]] = {}
-        for handler_cls in self._create_handler_classes():
-            dummy = handler_cls(message=None, responder=None, logger=self._logger)
-            for command in dummy.get_commands():
+        for handler_cls in classes:
+            for command in handler_cls.get_commands():
                 if command in seen:
                     raise ValueError(
                         f"Command collision: '/{command}' registered by both "
                         f"{seen[command].__name__} and {handler_cls.__name__}",
                     )
                 seen[command] = handler_cls
-
-    def __get_telegram_routes_and_middlewares(self) -> Tuple[
-        List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]],
-        List[BotMiddleware],
-    ]:
-        handler_funcs = self.__get_telegram_handlers()
-        commands = [cmd for cmd, _ in handler_funcs]
-        middlewares = self._create_middlewares(commands)
-        return handler_funcs, middlewares
-
-    def __get_telegram_handlers(self) -> List[Tuple[str, Callable[[AiogramMessage], Awaitable[None]]]]:
-        result = []
-        for handler_cls in self._create_handler_classes():
-            dummy = handler_cls(message=None, responder=None, logger=self._logger)
-            for command in dummy.get_commands():
-                result.append((command, self.__wrap_telegram_handler(handler_cls, self._logger)))
-        return result
-
-    def get_rest_handlers(self) -> List[Tuple[str, Type[BotMessageHandler]]]:
-        result = []
-        for handler_cls in self._create_handler_classes():
-            dummy = handler_cls(message=None, responder=None, logger=self._logger)
-            for command in dummy.get_commands():
-                result.append((command, handler_cls))
-        return result
-
-    @staticmethod
-    def __wrap_telegram_handler(
-        handler_cls: Type[BotMessageHandler],
-        logger: logging.Logger,
-    ) -> Callable[[AiogramMessage], Awaitable[None]]:
-        async def wrapper(msg: AiogramMessage):
-            abstract_msg: AbstractMessage = TelegramMessage(msg)
-            responder: AbstractResponder = TelegramResponder(msg)
-            handler = handler_cls(abstract_msg, responder, logger)
-            await handler.handle()
-        return wrapper
 
     @abstractmethod
     def _create_handler_classes(self) -> List[Type[BotMessageHandler]]:
@@ -107,6 +55,3 @@ class PermissionLevelFactory(ABC):
     @abstractmethod
     def _create_middlewares(self, commands: List[str]) -> List[BotMiddleware]:
         pass
-
-    def get_inline_handler(self) -> Optional[Callable[[InlineQuery], Awaitable[None]]]:
-        return None

@@ -223,7 +223,7 @@ class TextSegmentsFinder:
         if search_filter:
             TextSegmentsFinder.__apply_search_filter_to_query(query, search_filter)
 
-        hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = (await es.search(index=index, body=query, size=size, ignore_unavailable=True))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching the query.", logger)
@@ -293,7 +293,7 @@ class TextSegmentsFinder:
             ElasticsearchQueryKeys.FILTER
         ].append(restriction)
 
-        hits = (await es.search(index=index, body=query, size=size))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
+        hits = (await es.search(index=index, body=query, size=size, ignore_unavailable=True))[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         if not hits:
             await log_system_message(logging.INFO, "No segments found matching filter-only query.", logger)
@@ -412,7 +412,7 @@ class TextSegmentsFinder:
             ],
         }
 
-        context_response = await es.search(index=index, body=context_query)
+        context_response = await es.search(index=index, body=context_query, ignore_unavailable=True)
         return [{
             SegmentKeys.ID: hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.SEGMENT_ID, hit[ElasticsearchKeys.SOURCE].get(SegmentKeys.ID)),
             SegmentKeys.TEXT: hit[ElasticsearchKeys.SOURCE][SegmentKeys.TEXT],
@@ -475,7 +475,7 @@ class TextSegmentsFinder:
             ElasticsearchQueryKeys.SOURCE: [SegmentKeys.VIDEO_PATH],
         }
 
-        response = await es.search(index=index, body=query, size=1)
+        response = await es.search(index=index, body=query, size=1, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
         if not hits:
@@ -530,7 +530,7 @@ class TextSegmentsFinder:
             },
         }
 
-        response = await es.search(index=index, body=query)
+        response = await es.search(index=index, body=query, ignore_unavailable=True)
         buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.UNIQUE_EPISODES][ElasticsearchKeys.BUCKETS]
 
         if not buckets:
@@ -585,7 +585,7 @@ class TextSegmentsFinder:
         }
 
         await log_system_message(logging.INFO, "Fetching season details via Elasticsearch aggregation.", logger)
-        response = await es.search(index=index, body=agg_query)
+        response = await es.search(index=index, body=agg_query, ignore_unavailable=True)
         buckets = response[ElasticsearchKeys.AGGREGATIONS][ElasticsearchAggregationKeys.SEASONS][ElasticsearchKeys.BUCKETS]
 
         season_dict = {}

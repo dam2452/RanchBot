@@ -7,7 +7,10 @@ from typing import (
 from bidict import bidict
 
 from bot.responses.bot_response import BotResponse
-from bot.types import EmotionInfo
+from bot.types import (
+    EmotionInfo,
+    Language,
+)
 from bot.utils.functions import convert_number_to_emoji
 
 _EMOTIONS = bidict({
@@ -52,9 +55,16 @@ def map_emotion_to_en(label: str) -> Optional[str]:
     return matched if matched in _EMOTIONS else _EMOTIONS.inverse[matched]
 
 
-def format_emotions_list(emotions: List[EmotionInfo]) -> str:
+def format_emotions_list(emotions: List[EmotionInfo], lang: Language = "pl") -> str:
     if not emotions:
-        return get_no_emotions_message()
+        return get_no_emotions_message(lang)
+    if lang == "en":
+        lines = [
+            f"{convert_number_to_emoji(i + 1)}  {e['label_en']} ({e['label_pl']})"
+            for i, e in enumerate(emotions)
+        ]
+        body = f"Total: {convert_number_to_emoji(len(emotions))} emotions\n\n" + "\n".join(lines)
+        return BotResponse.info("AVAILABLE EMOTIONS", body)
     lines = [
         f"{convert_number_to_emoji(i + 1)}  {e['label_pl']} ({e['label_en']})"
         for i, e in enumerate(emotions)
@@ -63,7 +73,9 @@ def format_emotions_list(emotions: List[EmotionInfo]) -> str:
     return BotResponse.info("DOSTĘPNE EMOCJE", body)
 
 
-def get_no_emotions_message() -> str:
+def get_no_emotions_message(lang: Language = "pl") -> str:
+    if lang == "en":
+        return BotResponse.warning("NO DATA", "No emotion data in the index.")
     return BotResponse.warning("BRAK DANYCH", "Brak danych o emocjach w indeksie.")
 
 

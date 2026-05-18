@@ -3,6 +3,7 @@ import logging
 from typing import (
     List,
     Optional,
+    Tuple,
 )
 
 from bidict import bidict
@@ -239,7 +240,7 @@ class ObjectFinder:
             },
         }
 
-        response = await es.search(index=_build_index(series_name), body=query)
+        response = await es.search(index=_build_index(series_name), body=query, ignore_unavailable=True)
         buckets = (
             response[ElasticsearchKeys.AGGREGATIONS]
             [ElasticsearchAggregationKeys.OBJECTS]
@@ -249,6 +250,7 @@ class ObjectFinder:
         objects = [
             ObjectWithCount(
                 class_name=b[ElasticsearchKeys.KEY],
+                label_pl=get_polish_name(b[ElasticsearchKeys.KEY]),
                 scene_count=b[ElasticsearchAggregationKeys.BACK_TO_ROOT][ElasticsearchKeys.DOC_COUNT],
             )
             for b in buckets
@@ -262,6 +264,7 @@ class ObjectFinder:
         series_name: str,
         logger: logging.Logger,
         seasons: Optional[List[int]] = None,
+        episodes: Optional[List[Tuple[int, int]]] = None,
     ) -> List[ObjectScene]:
         await log_system_message(
             logging.INFO, f"Fetching scenes for object '{class_name}' in series '{series_name}'.", logger,
@@ -271,6 +274,7 @@ class ObjectFinder:
             series_name=series_name,
             logger=logger,
             seasons=seasons,
+            episodes=episodes,
         )
         scenes = ObjectFinder.__group_frames_into_scenes(frames, class_name)
         scenes = ObjectFinder.__deduplicate_by_fragment(scenes)

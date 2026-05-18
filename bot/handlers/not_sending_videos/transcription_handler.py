@@ -30,7 +30,8 @@ from bot.utils.constants import (
 
 
 class TranscriptionHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["transkrypcja", "transcription", "t"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

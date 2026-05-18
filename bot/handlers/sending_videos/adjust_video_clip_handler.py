@@ -39,7 +39,8 @@ class AdjustVideoClipHandler(BotMessageHandler):
     __RELATIVE_COMMANDS: List[str] = ["dostosuj", "adjust", "d"]
     __ABSOLUTE_COMMANDS: List[str] = ["adostosuj", "aadjust", "ad"]
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return (
             AdjustVideoClipHandler.__RELATIVE_COMMANDS
             + AdjustVideoClipHandler.__ABSOLUTE_COMMANDS

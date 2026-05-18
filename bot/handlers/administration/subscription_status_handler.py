@@ -17,7 +17,8 @@ from bot.responses.administration.subscription_status_handler_responses import (
 
 
 class SubscriptionStatusHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["subskrypcja", "subscription", "sub"]
 
     async def _do_handle(self) -> None:

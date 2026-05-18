@@ -85,3 +85,13 @@ class TestObjectsHandler(BaseTest):
             response,
             ["NIEPOPRAWNY FILTR"],
         )
+
+    @pytest.mark.asyncio
+    async def test_objects_list_en(self):
+        response = self.send_command('/obj_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_objects_list_full_en(self):
+        response = self.send_command('/objl_en')
+        assert response.status_code == 200

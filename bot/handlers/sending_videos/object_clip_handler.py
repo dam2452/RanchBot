@@ -19,7 +19,8 @@ from bot.settings import settings
 
 
 class ObjectClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klipobiekt", "ko"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

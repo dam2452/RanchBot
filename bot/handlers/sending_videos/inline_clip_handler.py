@@ -50,7 +50,8 @@ InlineQueryResult = Union[InlineQueryResultArticle, InlineQueryResultCachedVideo
 
 
 class InlineClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["inline"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
@@ -69,7 +70,7 @@ class InlineClipHandler(BotMessageHandler):
         saved_clip, segments, season_info, _, active_series = await self.__fetch_data(user_id, query)
 
         if not saved_clip and not segments:
-            await self._responder.send_text(f'Nie znaleziono klipów dla zapytania: "{query}"')
+            await self._reply_warning(f'Nie znaleziono klipów dla zapytania: "{query}"')
             return
 
         temp_dir = Path(tempfile.mkdtemp())
@@ -77,7 +78,7 @@ class InlineClipHandler(BotMessageHandler):
             video_files = await self.__extract_clips_to_files(saved_clip, segments, season_info, temp_dir, is_admin=True, active_series=active_series)
 
             if not video_files:
-                await self._responder.send_text(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
+                await self._reply_error(f'Nie udało się wygenerować klipów dla zapytania: "{query}"')
                 return
 
             zip_path = await self.__create_zip(video_files, temp_dir, query)
@@ -114,7 +115,7 @@ class InlineClipHandler(BotMessageHandler):
         active_series = await self._get_user_active_series(user_id)
         saved_clip_result, segments_result, season_info_result, is_admin_result = await asyncio.gather(
             DatabaseManager.get_clip_by_name(user_id, query),
-            self._search_segments(query, active_series, 5),
+            self._search_segments(query, [active_series], 5),
             TextSegmentsFinder.get_season_details_from_elastic(logger=self._logger, series_name=active_series),
             DatabaseManager.is_admin_or_moderator(user_id),
             return_exceptions=True,

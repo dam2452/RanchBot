@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     EXTEND_BEFORE_COMPILE: float = Field(0)
     EXTEND_AFTER_COMPILE: float = Field(0)
 
-    MESSAGE_LIMIT: int = Field(5)
+    MESSAGE_LIMIT: int = Field(30)
     LIMIT_DURATION: int = Field(30)
     MAX_CLIPS_PER_COMPILATION: int = Field(30)
     MAX_ADJUSTMENT_DURATION: int = Field(20)
@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     REST_API_HOST: str = Field("0.0.0.0")
     REST_API_PORT: int = Field(8000)
     REST_API_APP_PATH: str = Field("bot.platforms.rest_runner:app")
+    REST_API_WORKERS: int = Field(4)
     DISABLE_RATE_LIMITING: bool = Field(False)
 
     VLLM_HOST: str = Field("http://localhost:11435")

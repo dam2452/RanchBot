@@ -81,3 +81,13 @@ class TestCharactersHandler(BaseTest):
     async def test_characters_scenes_sorted_by_confidence(self):
         response = self.send_command(f'/postacie {_TEST_CHARACTER}')
         assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_characters_list_en(self):
+        response = self.send_command('/p_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_characters_list_full_en(self):
+        response = self.send_command('/pl_en')
+        assert response.status_code == 200

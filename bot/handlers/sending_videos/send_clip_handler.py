@@ -25,7 +25,8 @@ from bot.responses.sending_videos.send_clip_handler_responses import (
 
 
 class SendClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["wyślij", "wyslij", "send", "wys"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

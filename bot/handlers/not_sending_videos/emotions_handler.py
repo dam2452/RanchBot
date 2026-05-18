@@ -13,11 +13,15 @@ from bot.responses.not_sending_videos.emotions_handler_responses import (
     map_emotion_to_pl,
 )
 from bot.search.video_frames import CharacterFinder
+from bot.types import Language
 
 
 class EmotionsHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
-        return ["emocje", "emotion", "e"]
+    __EN_COMMANDS: List[str] = ["e_en"]
+
+    @classmethod
+    def get_commands(cls) -> List[str]:
+        return ["emocje", "emotion", "e"] + EmotionsHandler.__EN_COMMANDS
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -29,6 +33,8 @@ class EmotionsHandler(BotMessageHandler):
         return await self._validate_argument_count(self._message, 0)
 
     async def _do_handle(self) -> None:
+        command = self._message.get_text().split()[0].lstrip("/").lower()
+        lang: Language = "en" if command in EmotionsHandler.__EN_COMMANDS else "pl"
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
@@ -43,7 +49,7 @@ class EmotionsHandler(BotMessageHandler):
         ]
         emotions.sort(key=lambda e: e["label_pl"])
 
-        response = format_emotions_list(emotions)
+        response = format_emotions_list(emotions, lang)
         await self._reply(response, data={"emotions": emotions})
         await self._log_system_message(
             logging.INFO,

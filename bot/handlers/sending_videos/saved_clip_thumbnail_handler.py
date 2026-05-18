@@ -24,7 +24,8 @@ from bot.video.keyframe_extractor import KeyframeExtractor
 
 
 class SavedClipThumbnailHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klatkaklipu", "kk"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
@@ -69,15 +70,15 @@ class SavedClipThumbnailHandler(BotMessageHandler):
             video_path.write_bytes(clip.video_data)
 
             duration = clip.duration or 0.0
-            if clip.end_time > clip.start_time:
+            if duration > 0:
                 keyframes = await KeyframeExtractor.get_keyframe_timestamps(
-                    video_path, clip.start_time, clip.end_time,
+                    video_path, 0.0, duration,
                 )
             else:
                 keyframes = []
 
             if not keyframes:
-                seek_time = clip.start_time if clip.end_time > clip.start_time else duration * 0.1
+                seek_time = duration * 0.1
             else:
                 idx = frame_selector if frame_selector >= 0 else len(keyframes) + frame_selector
                 idx = max(0, min(idx, len(keyframes) - 1))

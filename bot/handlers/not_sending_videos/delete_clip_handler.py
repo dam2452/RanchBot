@@ -20,7 +20,8 @@ from bot.responses.not_sending_videos.delete_clip_handler_responses import (
 
 class DeleteClipHandler(BotMessageHandler):
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["usunklip", "deleteclip", "uk"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

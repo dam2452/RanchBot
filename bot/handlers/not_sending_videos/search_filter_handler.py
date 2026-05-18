@@ -21,7 +21,8 @@ from bot.settings import settings
 
 
 class SearchFilterHandler(FilterCommandHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["szukajfiltr", "searchfilter", "szf"]
 
     async def _do_handle(self) -> None:
@@ -31,13 +32,13 @@ class SearchFilterHandler(FilterCommandHandler):
             self,
             quote: str,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             msg: Any,
     ) -> None:
         segments = await self._search_with_active_filter(
             quote=quote,
             chat_id=chat_id,
-            series_name=series_name,
+            series_names=series_names,
             default_es_size=settings.MAX_ES_RESULTS_LONG,
             error_message=get_no_segments_found_message(quote),
         )
@@ -58,10 +59,10 @@ class SearchFilterHandler(FilterCommandHandler):
             self,
             *,
             chat_id: int,
-            series_name: str,
+            series_names: List[str],
             outcome: ActiveFilterTextSegmentsOutcome,
     ) -> None:
-        _ = series_name
+        _ = series_names
         msg = self._message
         segments = outcome.segments
 

@@ -27,7 +27,8 @@ from bot.video.clips_extractor import ClipsExtractor
 
 
 class SelectClipHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["wybierz", "select", "w"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

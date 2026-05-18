@@ -114,7 +114,7 @@ def __format_filter(search_filter: SearchFilter) -> str:
     if search_filter.get("episodes"):
         ep_strs = []
         for ep in search_filter["episodes"]:
-            if "season" in ep:
+            if ep.get("season") is not None:
                 ep_strs.append(f"S{ep['season']:02d}E{ep['episode']:02d}")
             else:
                 ep_strs.append(f"E{ep['episode']:02d}")

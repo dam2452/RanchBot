@@ -9,6 +9,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Tuple,
     cast,
 )
 
@@ -74,6 +75,26 @@ def _seasons_from_filter(search_filter: SearchFilter) -> Optional[List[int]]:
     return sorted(season_set) if season_set else None
 
 
+def _episodes_from_filter(search_filter: SearchFilter) -> Optional[List[Tuple[int, int]]]:
+    episodes = search_filter.get("episodes")
+    if not episodes:
+        return None
+    seasons = search_filter.get("seasons")
+    pairs: List[Tuple[int, int]] = []
+    for ep in episodes:
+        season = ep.get("season")
+        episode_num = ep.get("episode")
+        if episode_num is None:
+            continue
+        if season is None:
+            if seasons:
+                for s in seasons:
+                    pairs.append((s, cast(int, episode_num)))
+        else:
+            pairs.append((cast(int, season), cast(int, episode_num)))
+    return pairs if pairs else None
+
+
 async def _resolve_character_segments(
     search_filter: SearchFilter,
     series_name: str,
@@ -82,6 +103,7 @@ async def _resolve_character_segments(
 ) -> List[Dict[str, Any]]:
     character = search_filter["character_groups"][0][0]
     seasons = _seasons_from_filter(search_filter)
+    episodes = _episodes_from_filter(search_filter)
     emotions = search_filter.get("emotions") or []
     emotion_en = map_emotion_to_en(emotions[0]) if emotions else None
 
@@ -93,6 +115,7 @@ async def _resolve_character_segments(
             logger=logger,
             size=size,
             seasons=seasons,
+            episodes=episodes,
         )
     else:
         scenes = await CharacterFinder.get_scenes_by_character(
@@ -101,6 +124,7 @@ async def _resolve_character_segments(
             logger=logger,
             size=size,
             seasons=seasons,
+            episodes=episodes,
         )
     return [scene_to_search_segment(scene) for scene in scenes]
 
@@ -113,12 +137,14 @@ async def _resolve_object_segments(
 ) -> List[Dict[str, Any]]:
     obj_spec = cast(ObjectFilterSpec, search_filter["object_groups"][0][0])
     seasons = _seasons_from_filter(search_filter)
+    episodes = _episodes_from_filter(search_filter)
 
     scenes = await ObjectFinder.get_scenes_by_object(
         class_name=obj_spec["name"],
         series_name=series_name,
         logger=logger,
         seasons=seasons,
+        episodes=episodes,
     )
     if obj_spec.get("operator") is not None and obj_spec.get("value") is not None:
         qty_filter: QuantityFilter = {
@@ -132,7 +158,7 @@ async def _resolve_object_segments(
 async def load_active_filter_scene_segments(
     *,
     chat_id: int,
-    series_name: str,
+    series_names: List[str],
     logger: logging.Logger,
     size: int,
 ) -> ActiveFilterSceneSegmentsOutcome:
@@ -147,6 +173,7 @@ async def load_active_filter_scene_segments(
             search_filter=search_filter,
         )
 
+    series_name = series_names[0] if series_names else ""
     if search_filter.get("character_groups"):
         segments = await _resolve_character_segments(search_filter, series_name, logger, size)
     else:

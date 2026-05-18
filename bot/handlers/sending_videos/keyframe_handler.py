@@ -31,7 +31,8 @@ from bot.video.keyframe_extractor import KeyframeExtractor
 
 class KeyframeHandler(BotMessageHandler):
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klatka", "frame", "kl"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

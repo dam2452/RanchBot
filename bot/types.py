@@ -2,11 +2,14 @@ from typing import (
     Any,
     Dict,
     List,
+    Literal,
     NotRequired,
     Optional,
     TypedDict,
     Union,
 )
+
+Language = Literal["pl", "en"]
 
 
 class EpisodeInfo(TypedDict):
@@ -219,6 +222,7 @@ class EmotionInfo(TypedDict):
 
 class ObjectWithCount(TypedDict):
     class_name: str
+    label_pl: str
     scene_count: int
 
 

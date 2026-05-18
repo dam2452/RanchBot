@@ -11,7 +11,8 @@ from bot.responses.administration.admin_help_handler_responses import (
 
 
 class AdminHelpHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["admin"]
 
     async def _do_handle(self) -> None:

@@ -14,7 +14,8 @@ from bot.responses.administration.create_key_handler_responses import (
 
 
 class CreateKeyHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["addkey", "addk"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

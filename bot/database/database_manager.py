@@ -698,6 +698,14 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
             )
 
     @staticmethod
+    async def delete_last_clips_by_chat_id(chat_id: int) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                "DELETE FROM last_clips WHERE chat_id = $1",
+                chat_id,
+            )
+
+    @staticmethod
     async def update_user_note(user_id: int, note: str) -> None:
         async with DatabaseManager.__get_db_connection() as conn:
             await conn.execute(
@@ -1077,6 +1085,29 @@ class DatabaseManager: # pylint: disable=too-many-public-methods
                 ON CONFLICT (user_id) DO UPDATE SET active_series_id = $2
                 """,
                 user_id, series_id,
+            )
+
+    @staticmethod
+    async def get_user_active_series_names(user_id: int) -> List[str]:
+        async with DatabaseManager.__get_db_connection() as conn:
+            result = await conn.fetchval(
+                "SELECT active_series FROM user_series_context WHERE user_id = $1",
+                user_id,
+            )
+        if result is None:
+            return []
+        return json.loads(result)
+
+    @staticmethod
+    async def set_user_active_series_names(user_id: int, names: List[str]) -> None:
+        async with DatabaseManager.__get_db_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO user_series_context (user_id, active_series)
+                VALUES ($1, $2::jsonb)
+                ON CONFLICT (user_id) DO UPDATE SET active_series = $2::jsonb
+                """,
+                user_id, json.dumps(names),
             )
 
     @staticmethod

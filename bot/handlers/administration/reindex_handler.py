@@ -28,7 +28,8 @@ class ReindexHandler(BotMessageHandler):
         self._last_progress_time = 0
         self._progress_message = None
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["reindeksuj", "reindex", "ridx"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

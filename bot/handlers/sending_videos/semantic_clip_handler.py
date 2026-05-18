@@ -21,7 +21,8 @@ from bot.settings import settings
 
 
 class SemanticClipHandler(SemanticBotHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["klipsens", "ksen", "ks"]
 
     def _get_usage_message(self) -> str:

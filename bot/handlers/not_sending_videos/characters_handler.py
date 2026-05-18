@@ -22,14 +22,23 @@ from bot.responses.not_sending_videos.characters_handler_responses import (
 )
 from bot.search.video_frames import CharacterFinder
 from bot.settings import settings as s
-from bot.types import CharacterScene
+from bot.types import (
+    CharacterScene,
+    Language,
+)
 
 
 class CharactersHandler(CharacterBotHandler):
     __SEARCH_COMMANDS: List[str] = ["szukajpostac", "szp"]
+    __EN_COMMANDS: List[str] = ["p_en", "pl_en"]
 
-    def get_commands(self) -> List[str]:
-        return ["postacie", "characters", "p", "pl", "postacie_lista"] + CharactersHandler.__SEARCH_COMMANDS
+    @classmethod
+    def get_commands(cls) -> List[str]:
+        return (
+            ["postacie", "characters", "p", "pl", "postacie_lista"]
+            + CharactersHandler.__SEARCH_COMMANDS
+            + CharactersHandler.__EN_COMMANDS
+        )
 
     async def _get_validator_functions(self) -> ValidatorFunctions:
         return [self.__check_argument_count]
@@ -39,7 +48,8 @@ class CharactersHandler(CharacterBotHandler):
 
     async def __check_argument_count(self) -> bool:
         command = self._message.get_text().split()[0].lstrip("/").lower()
-        if command in CharactersHandler.__SEARCH_COMMANDS:
+        search_commands = CharactersHandler.__SEARCH_COMMANDS
+        if command in search_commands:
             return await self._validate_argument_count(self._message, 1, math.inf)
         return await self._validate_argument_count(self._message, 0, math.inf)
 
@@ -47,12 +57,14 @@ class CharactersHandler(CharacterBotHandler):
         text_parts = self._message.get_text().split()
         command = text_parts[0].lstrip("/").lower()
         args = text_parts[1:]
-        is_full = command in {"pl", "postacie_lista"}
+        is_full = command in {"pl", "postacie_lista", "pl_en"}
+        is_en_listing = command in CharactersHandler.__EN_COMMANDS and not args
+        lang: Language = "en" if is_en_listing else "pl"
         user_id = self._message.get_user_id()
         series_name = await self._get_user_active_series(user_id)
 
         if not args:
-            await self.__handle_list_mode(series_name, is_full)
+            await self.__handle_list_mode(series_name, is_full, lang)
             return
 
         character, emotion_input, emotion_en = await self._find_character(args, series_name)
@@ -60,30 +72,30 @@ class CharactersHandler(CharacterBotHandler):
             return
 
         if emotion_en:
-            await self.__handle_character_emotion_mode(character, emotion_input, emotion_en, series_name, is_full)
+            await self.__handle_character_emotion_mode(character, emotion_input, emotion_en, series_name, is_full, lang)
         else:
-            await self.__handle_character_mode(character, series_name, is_full)
+            await self.__handle_character_mode(character, series_name, is_full, lang)
 
-    async def __handle_list_mode(self, series_name: str, is_full: bool) -> None:
+    async def __handle_list_mode(self, series_name: str, is_full: bool, lang: Language) -> None:
         characters = await CharacterFinder.get_all_characters(series_name=series_name, logger=self._logger)
         if not characters:
-            await self._reply_error(get_no_characters_message())
+            await self._reply_error(get_no_characters_message(lang))
             return
         if is_full:
             await self._send_document(
-                format_characters_list_full(characters),
+                format_characters_list_full(characters, lang),
                 f"{s.BOT_USERNAME}_Postacie.txt",
-                "Pełna lista postaci",
+                "Pełna lista postaci" if lang == "pl" else "Full character list",
             )
         else:
-            await self._reply(format_characters_list(characters), data={"characters": characters})
+            await self._reply(format_characters_list(characters, lang), data={"characters": characters})
         await self._log_system_message(
             logging.INFO,
             get_log_characters_list_message(len(characters), self._message.get_username()),
         )
 
     async def __handle_character_mode(
-        self, character_name: str, series_name: str, is_full: bool,
+        self, character_name: str, series_name: str, is_full: bool, lang: Language,
     ) -> None:
         scenes = await CharacterFinder.get_scenes_by_character(
             character_name=character_name,
@@ -93,12 +105,12 @@ class CharactersHandler(CharacterBotHandler):
         await self.__save_scenes_to_last_search(scenes, character_name)
         if is_full:
             await self._send_document(
-                format_character_scenes_full(character_name, scenes),
+                format_character_scenes_full(character_name, scenes, lang=lang),
                 f"{s.BOT_USERNAME}_Sceny_{self._sanitize_filename(character_name)}.txt",
-                f"Pełna lista scen: {character_name}",
+                f"Pełna lista scen: {character_name}" if lang == "pl" else f"Full scene list: {character_name}",
             )
         else:
-            await self._reply(format_character_scenes(character_name, scenes))
+            await self._reply(format_character_scenes(character_name, scenes, lang=lang))
         await self._log_system_message(
             logging.INFO,
             get_log_character_scenes_message(character_name, len(scenes), self._message.get_username()),
@@ -111,6 +123,7 @@ class CharactersHandler(CharacterBotHandler):
         emotion_en: str,
         series_name: str,
         is_full: bool,
+        lang: Language,
     ) -> None:
         scenes = await CharacterFinder.get_scenes_by_character_and_emotion(
             character_name=character_name,
@@ -121,12 +134,12 @@ class CharactersHandler(CharacterBotHandler):
         await self.__save_scenes_to_last_search(scenes, character_name, emotion_input)
         if is_full:
             await self._send_document(
-                format_character_scenes_full(character_name, scenes, emotion_filter=emotion_input),
+                format_character_scenes_full(character_name, scenes, emotion_filter=emotion_input, lang=lang),
                 f"{s.BOT_USERNAME}_Sceny_{self._sanitize_filename(character_name)}_{emotion_en}.txt",
-                f"Pełna lista scen: {character_name} ({emotion_input})",
+                f"Pełna lista scen: {character_name} ({emotion_input})" if lang == "pl" else f"Full scene list: {character_name} ({emotion_input})",
             )
         else:
-            await self._reply(format_character_scenes(character_name, scenes, emotion_filter=emotion_input))
+            await self._reply(format_character_scenes(character_name, scenes, emotion_filter=emotion_input, lang=lang))
         await self._log_system_message(
             logging.INFO,
             get_log_character_scenes_message(character_name, len(scenes), self._message.get_username()),

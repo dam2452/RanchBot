@@ -46,7 +46,8 @@ class CompileClipsHandler(BotMessageHandler):
     class MaxClipsExceededException(Exception):
         pass
 
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["kompiluj", "compile", "kom"]
 
     async def _get_validator_functions(self) -> ValidatorFunctions:

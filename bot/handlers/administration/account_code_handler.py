@@ -13,7 +13,8 @@ from bot.responses.administration.account_code_handler_responses import get_code
 
 
 class AccountCodeHandler(BotMessageHandler):
-    def get_commands(self) -> List[str]:
+    @classmethod
+    def get_commands(cls) -> List[str]:
         return ["kodkonta", "accountcode"]
 
     async def _do_handle(self) -> None:

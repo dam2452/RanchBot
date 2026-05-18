@@ -39,6 +39,9 @@ class ScenesFinder:
     )
     __OBJECT_COUNT_FIELD = f"{__FRAMES}.{VideoFrameKeys.DETECTED_OBJECTS}.{DetectedObjectKeys.COUNT}"
 
+    _MIN_FACE_CONFIDENCE: float = 0.5
+    _MIN_EMOTION_CONFIDENCE: float = 0.3
+
     __SOURCE_FIELDS = [
         EpisodeMetadataKeys.EPISODE_METADATA,
         EmbeddingKeys.EPISODE_ID,
@@ -115,14 +118,24 @@ class ScenesFinder:
         return False
 
     @staticmethod
-    def _index(series_name: str) -> str:
-        return f"{series_name}{ElasticsearchIndexSuffixes.SCENES}"
+    def _build_index(series_names: List[str]) -> str:
+        if not series_names:
+            return f"*{ElasticsearchIndexSuffixes.SCENES}"
+        return ",".join(f"{name}{ElasticsearchIndexSuffixes.SCENES}" for name in series_names)
+
+    @staticmethod
+    def _series_filter_clause(series_names: List[str]) -> List[Dict[str, Any]]:
+        if not series_names:
+            return []
+        if len(series_names) == 1:
+            return [{ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_names[0]}}]
+        return [{ElasticsearchQueryKeys.TERMS: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_names}}]
 
     @staticmethod
     async def find_by_filter(
         *,
         es: Any,
-        series_name: str,
+        series_names: List[str],
         search_filter: SearchFilter,
         size: int,
         logger: logging.Logger,
@@ -134,7 +147,7 @@ class ScenesFinder:
             ElasticsearchQueryKeys.QUERY: {
                 ElasticsearchQueryKeys.BOOL: {
                     ElasticsearchQueryKeys.FILTER: [
-                        {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
+                        *ScenesFinder._series_filter_clause(series_names),
                         *filter_clauses,
                     ],
                 },
@@ -143,12 +156,14 @@ class ScenesFinder:
             ElasticsearchQueryKeys.SOURCE: ScenesFinder.__SOURCE_FIELDS,
         }
 
-        response = await es.search(index=ScenesFinder._index(series_name), body=query, size=size)
+        index_name = ScenesFinder._build_index(series_names)
+        response = await es.search(index=index_name, body=query, size=size, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
+        series_desc = ",".join(series_names) if series_names else "all"
         await log_system_message(
             logging.INFO,
-            f"ScenesFinder: {len(hits)} scenes found for series '{series_name}'.",
+            f"ScenesFinder: {len(hits)} scenes found for series '{series_desc}'.",
             logger,
         )
         segments = ScenesFinder._attach_scores(hits)
@@ -158,7 +173,7 @@ class ScenesFinder:
     async def find_by_text_and_filter(
         *,
         es: Any,
-        series_name: str,
+        series_names: List[str],
         quote: str,
         search_filter: Optional[SearchFilter],
         size: int,
@@ -170,19 +185,21 @@ class ScenesFinder:
             field=SegmentKeys.TEXT,
             query=quote,
             filter_clauses=[
-                {ElasticsearchQueryKeys.TERM: {EpisodeMetadataKeys.SERIES_NAME_FIELD: series_name}},
+                *ScenesFinder._series_filter_clause(series_names),
                 *filter_clauses,
             ],
         )
         query[ElasticsearchQueryKeys.SORT] = ScenesFinder._build_text_sort()
         query[ElasticsearchQueryKeys.SOURCE] = ScenesFinder.__SOURCE_FIELDS
 
-        response = await es.search(index=ScenesFinder._index(series_name), body=query, size=size)
+        index_name = ScenesFinder._build_index(series_names)
+        response = await es.search(index=index_name, body=query, size=size, ignore_unavailable=True)
         hits = response[ElasticsearchKeys.HITS][ElasticsearchKeys.HITS]
 
+        series_desc = ",".join(series_names) if series_names else "all"
         await log_system_message(
             logging.INFO,
-            f"ScenesFinder: {len(hits)} scenes found for quote '{quote}' in series '{series_name}'.",
+            f"ScenesFinder: {len(hits)} scenes found for quote '{quote}' in series '{series_desc}'.",
             logger,
         )
         segments = ScenesFinder._attach_scores(hits)
@@ -199,11 +216,17 @@ class ScenesFinder:
             EpisodeMetadataKeys.EPISODE_NUMBER_FIELD,
         )
 
-        for char_group in search_filter.get("character_groups", []):
-            clauses.append(ScenesFinder._nested_character_clause(char_group))
-
+        character_groups = search_filter.get("character_groups", [])
         emotions = search_filter.get("emotions", [])
-        if emotions:
+
+        if character_groups and emotions:
+            labels_en = [en for e in emotions for en in (map_emotion_to_en(e),) if en]
+            for char_group in character_groups:
+                clauses.append(ScenesFinder._nested_character_emotion_clause(char_group, labels_en))
+        elif character_groups:
+            for char_group in character_groups:
+                clauses.append(ScenesFinder._nested_character_clause(char_group))
+        elif emotions:
             clauses.append(ScenesFinder._nested_emotion_clause(emotions))
 
         for obj_group in search_filter.get("object_groups", []):
@@ -221,6 +244,15 @@ class ScenesFinder:
                         ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES_CHARACTERS,
                         ElasticsearchQueryKeys.QUERY: {
                             ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_FACE_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                ],
                                 ElasticsearchQueryKeys.SHOULD: [
                                     {
                                         ElasticsearchQueryKeys.TERM: {
@@ -251,6 +283,15 @@ class ScenesFinder:
                         ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES_CHARACTERS,
                         ElasticsearchQueryKeys.QUERY: {
                             ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.EMOTION}.{EmotionKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_EMOTION_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                ],
                                 ElasticsearchQueryKeys.SHOULD: [
                                     {
                                         ElasticsearchQueryKeys.TERM: {
@@ -260,6 +301,70 @@ class ScenesFinder:
                                     for label in labels_en
                                 ],
                                 ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                            },
+                        },
+                    },
+                },
+            },
+        }
+
+    @staticmethod
+    def _nested_character_emotion_clause(char_names: List[str], emotion_labels_en: List[str]) -> Dict[str, Any]:
+        char_should = [
+            {
+                ElasticsearchQueryKeys.TERM: {
+                    f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.NAME}": {
+                        ElasticsearchQueryKeys.VALUE: name,
+                        ElasticsearchQueryKeys.CASE_INSENSITIVE: True,
+                    },
+                },
+            }
+            for name in char_names
+        ]
+        emotion_should = [
+            {
+                ElasticsearchQueryKeys.TERM: {
+                    f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.EMOTION}.{EmotionKeys.LABEL}": label,
+                },
+            }
+            for label in emotion_labels_en
+        ]
+        return {
+            ElasticsearchQueryKeys.NESTED: {
+                ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES,
+                ElasticsearchQueryKeys.QUERY: {
+                    ElasticsearchQueryKeys.NESTED: {
+                        ElasticsearchQueryKeys.PATH: ScenesFinder.__FRAMES_CHARACTERS,
+                        ElasticsearchQueryKeys.QUERY: {
+                            ElasticsearchQueryKeys.BOOL: {
+                                ElasticsearchQueryKeys.FILTER: [
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_FACE_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                    {
+                                        ElasticsearchQueryKeys.RANGE: {
+                                            f"{ScenesFinder.__FRAMES_CHARACTERS}.{ActorKeys.EMOTION}.{EmotionKeys.CONFIDENCE}": {
+                                                ElasticsearchQueryKeys.GTE: ScenesFinder._MIN_EMOTION_CONFIDENCE,
+                                            },
+                                        },
+                                    },
+                                    {
+                                        ElasticsearchQueryKeys.BOOL: {
+                                            ElasticsearchQueryKeys.SHOULD: char_should,
+                                            ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                                        },
+                                    },
+                                    {
+                                        ElasticsearchQueryKeys.BOOL: {
+                                            ElasticsearchQueryKeys.SHOULD: emotion_should,
+                                            ElasticsearchQueryKeys.MINIMUM_SHOULD_MATCH: 1,
+                                        },
+                                    },
+                                ],
                             },
                         },
                     },

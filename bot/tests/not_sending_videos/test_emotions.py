@@ -39,3 +39,17 @@ class TestEmotionsHandler(BaseTest):
         assert response.status_code == 200
         content = response.json().get("content", "")
         assert content, "Response should not be empty"
+
+    @pytest.mark.asyncio
+    async def test_emotions_list_en(self):
+        response = self.send_command('/e_en')
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_emotions_list_en_contains_english_names(self):
+        response = self.send_command('/e_en')
+        english_labels = list(msg._EMOTIONS.keys())
+        response_text = response.json().get("content", "")
+        has_any = any(label in response_text for label in english_labels)
+        if not has_any:
+            self.assert_response_contains(response, [msg.get_no_emotions_message("en")])
